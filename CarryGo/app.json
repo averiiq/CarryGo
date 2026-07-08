@@ -2,14 +2,14 @@
   "expo": {
     "name": "CarryGo",
     "slug": "carrygo",
-    "version": "1.1.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "carrygo",
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "automatic",  
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "in.averiq.carrygo",
