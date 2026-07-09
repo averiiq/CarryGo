@@ -1,4 +1,4 @@
-import * as ImageManipulator from 'expo-image-manipulator';
+import { optimizeImage } from './imageOptimizer';
 
 interface CompressedImage {
   uri: string;
@@ -6,16 +6,11 @@ interface CompressedImage {
   height: number;
 }
 
-const MAX_DIMENSION = 2048;
-const JPEG_QUALITY = 0.8;
-
+/**
+ * @deprecated Use optimizeImage() from '@/lib/imageOptimizer' with a preset instead.
+ */
 export async function compressImage(uri: string): Promise<CompressedImage> {
-  const result = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ resize: { width: MAX_DIMENSION } }],
-    { compress: JPEG_QUALITY, format: ImageManipulator.SaveFormat.JPEG }
-  );
-
+  const result = await optimizeImage(uri, 'kyc');
   return {
     uri: result.uri,
     width: result.width,

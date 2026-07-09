@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-nati
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { optimizeImage } from '@/lib/imageOptimizer';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
@@ -20,12 +20,8 @@ export function DeliveryPhotoProof({ type, onPhotoCapture, existingPhotoUri, dis
   const [photoUri, setPhotoUri] = useState<string | null>(existingPhotoUri ?? null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const compressImage = async (uri: string): Promise<string> => {
-    const result = await ImageManipulator.manipulateAsync(
-      uri,
-      [{ resize: { width: 1200 } }],
-      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-    );
+  const compressPhoto = async (uri: string): Promise<string> => {
+    const result = await optimizeImage(uri, 'delivery_proof');
     return result.uri;
   };
 
@@ -44,7 +40,7 @@ export function DeliveryPhotoProof({ type, onPhotoCapture, existingPhotoUri, dis
 
     if (!result.canceled && result.assets[0]) {
       setIsProcessing(true);
-      const compressed = await compressImage(result.assets[0].uri);
+      const compressed = await compressPhoto(result.assets[0].uri);
       setPhotoUri(compressed);
       onPhotoCapture(compressed);
       setIsProcessing(false);
@@ -68,7 +64,7 @@ export function DeliveryPhotoProof({ type, onPhotoCapture, existingPhotoUri, dis
 
     if (!result.canceled && result.assets[0]) {
       setIsProcessing(true);
-      const compressed = await compressImage(result.assets[0].uri);
+      const compressed = await compressPhoto(result.assets[0].uri);
       setPhotoUri(compressed);
       onPhotoCapture(compressed);
       setIsProcessing(false);

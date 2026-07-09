@@ -1,7 +1,6 @@
 import { getSupabaseClient } from '@/template';
 import { KycDocumentType, KycIdType, KycSession, KycDocument } from '@/types';
-import { compressImage } from '@/lib/imageCompression';
-import * as FileSystem from 'expo-file-system';
+import { uploadKycDocument as uploadKycToS3 } from '@/services/storage.service';
 
 interface KycDocumentRow {
   id: string;
@@ -88,37 +87,28 @@ export async function uploadKycDocument(
 ) {
   const sb = getSupabaseClient();
 
-  const compressed = await compressImage(fileUri);
-  const fileInfo = await FileSystem.getInfoAsync(compressed.uri);
-  const fileSize = fileInfo.exists ? (fileInfo as { size?: number }).size ?? 0 : 0;
+  const { data: uploadData, error: uploadError } = await uploadKycToS3(
+    fileUri,
+    userId,
+    sessionId,
+    documentType
+  );
 
-  const storagePath = `${userId}/${sessionId}/${documentType}.jpg`;
-
-  const response = await fetch(compressed.uri);
-  const blob = await response.blob();
-
-  const { error: uploadError } = await sb.storage
-    .from('kyc_documents')
-    .upload(storagePath, blob, {
-      contentType: 'image/jpeg',
-      upsert: true,
-    });
-
-  if (uploadError) return { data: null, error: uploadError.message };
+  if (uploadError || !uploadData) return { data: null, error: uploadError ?? 'Upload failed' };
 
   const { error: dbError } = await sb.from('kyc_documents').upsert(
     {
       session_id: sessionId,
       document_type: documentType,
-      storage_path: storagePath,
-      file_size_bytes: fileSize,
-      mime_type: 'image/jpeg',
+      storage_path: uploadData.key,
+      file_size_bytes: uploadData.sizeBytes,
+      mime_type: uploadData.mimeType,
     },
     { onConflict: 'session_id,document_type' }
   );
 
   if (dbError) return { data: null, error: dbError.message };
-  return { data: { storagePath }, error: null };
+  return { data: { storagePath: uploadData.key, cdnUrl: uploadData.cdnUrl }, error: null };
 }
 
 export async function submitKycSession(sessionId: string, userId: string) {

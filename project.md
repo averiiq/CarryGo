@@ -213,3 +213,124 @@
   immediate attention. The codebase patterns are well-designed for growth,
    but the security fundamentals (credential rotation, input validation,  
   rate limiting) must be addressed before any production deployment.   
+
+
+
+    Executive Summary
+
+  The codebase shows strong engineering fundamentals — clean layer separation, atomic server-side domain commands, comprehensive RLS, and defense-in-depth security.       
+  However, there are blockers for production that need addressing.
+
+  ---
+  CRITICAL (Fix Before Launch)
+
+  #: S1
+  Issue: Exposed Supabase credentials in .env — if ever committed to git, rotate immediately
+  Location: .env lines 2-3
+  ────────────────────────────────────────
+  #: S2
+  Issue: Dependency vulnerabilities — shell-quote (RCE), tar (arbitrary file write), minimatch (ReDoS)
+  Location: package.json transitive deps
+  ────────────────────────────────────────
+  #: A1
+  Issue: Monitoring is a dead buffer — captureException pushes to an in-memory array that's never drained. Production crashes will go undetected.
+  Location: lib/monitoring.ts
+
+  ---
+  HIGH (Required for Production Quality)
+
+  ┌─────┬──────────────┬───────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────┐
+  │  #  │   Category   │                               Issue                               │                               Fix                               │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ S3  │ Security     │ No DELETE policies on any table (GDPR Right to Erasure violation) │ Add scoped DELETE policies for trips, parcels, notifications    │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ S4  │ Security     │ Rate limiters exist but aren't called from service layer          │ Integrate requestLimiter/check_api_rate_limit in write services │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ A2  │ Architecture │ No optimistic updates for chat send — UX delay on messages        │ Add optimistic cache insert in useSendMessageMutation           │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ A3  │ Architecture │ Feature flags are compile-time only — no kill-switch              │ Adopt remote config (Supabase app_config table or Statsig)      │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ A4  │ Architecture │ No query persistence — "offline-first" incomplete                 │ Add persistQueryClient with AsyncStorage                        │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ A5  │ Architecture │ Realtime subscriptions unscoped — firehose at scale               │ Filter by route pair, or subscribe only when screen active      │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ A6  │ Architecture │ user_profiles SELECT policy blocks marketplace discovery          │ Add public-read policy for username/rating/verified             │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Q1  │ Quality      │ 8 files exceed 700 lines (max: my-activity.tsx at 731)            │ Extract sub-components                                          │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Q2  │ Quality      │ 32+ any type usages defeat TypeScript                             │ Type realtime payloads, refs, scroll handlers                   │
+  ├─────┼──────────────┼───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Q3  │ Quality      │ Index-based keys in .map() lists                                  │ Use item.id or item.label                                       │
+  └─────┴──────────────┴───────────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────┘
+
+  ---
+  MEDIUM (Should Fix, Not Blocking)
+
+  ┌─────┬──────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────┐
+  │  #  │                                  Issue                                   │                          Impact                          │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ S5  │ Weak OTP generation (random() not cryptographic)                         │ Low practical risk due to bcrypt, but fix for compliance │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ S6  │ No audit logging for payment release/refund                              │ PCI DSS / dispute resolution gap                         │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ A7  │ Denormalized user_name in trips/requests drifts from profile             │ Ghost identities after profile update                    │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ A8  │ Outbox lacks retry backoff — stuck events stay processing forever        │ Silent notification failures                             │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ A9  │ secureClearAll reads AsyncStorage for SecureStore keys — never finds any │ Dead code, silently does nothing                         │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ Q4  │ Missing useMemo on search filter computations                            │ Unnecessary re-renders                                   │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ Q5  │ Animation hooks don't guard against unmounted components                 │ React warnings when delayed animations fire post-unmount │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ Q6  │ No test coverage for business logic (matching, pricing, services)        │ Regression risk                                          │
+  ├─────┼──────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────┤
+  │ Q7  │ Hardcoded theme colors bypass the theme system                           │ Dark mode inconsistencies                                │
+  └─────┴──────────────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────────┘
+
+  ---
+  LOW
+
+  - Client-side feature flags bypassable (but server RPCs still enforce)
+  - Magic numbers in animation durations (should use constants)
+  - Conversations realtime subscription overly broad
+  - Missing parcel_status = 'cancelled' in SQL enum (exists in TS type)
+
+  ---
+  Scalability Assessment
+
+  ┌────────────┬──────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────┐
+  │   Scale    │                                Bottleneck                                │                       Mitigation                        │
+  ├────────────┼──────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ 10K users  │ Architecture adequate                                                    │ Monitor realtime connections                            │
+  ├────────────┼──────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ 100K users │ Unfiltered realtime subs cause WAL decode load; outbox table bloats      │ Scope channels per-route; verify pg_cron active         │
+  ├────────────┼──────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ 1M users   │ Single Postgres write throughput; client-side matching fetches ALL trips │ Read replicas; server-side matching; connection pooling │
+  └────────────┴──────────────────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────┘
+
+  ---
+  Recommended Action Plan
+
+  Week 1 (Launch Blockers)
+
+  1. Rotate Supabase credentials (supabase secrets set + dashboard)
+  2. pnpm update to patch vulnerabilities, verify with pnpm audit
+  3. Integrate Sentry (@sentry/react-native) — replace monitoring buffer
+  4. Update eas.json production profile: APP_MODE=production
+  5. Set EAS secrets for Supabase URL/key
+
+  Week 2 (High Priority)
+
+  6. Add optimistic updates to chat send mutation
+  7. Add persistQueryClient for offline hydration
+  8. Add public-read profile policy in Supabase
+  9. Scope realtime subscriptions to active route pair
+  10. Split oversized screen files, fix any types and list keys
+
+  Week 3 (Compliance & Quality)
+
+  11. Add DELETE policies for user-facing tables
+  12. Integrate server rate limiting in all write services
+  13. Add audit logging for payment operations
+  14. Add unit tests for matching/pricing algorithms

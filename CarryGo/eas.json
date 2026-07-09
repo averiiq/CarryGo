@@ -21,25 +21,33 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_APP_MODE": "demo",
-        "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "false",
+        "EXPO_PUBLIC_APP_MODE": "production",
+        "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "true",
         "EXPO_PUBLIC_ENABLE_PAYMENTS": "false",
         "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "false",
-        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "false"
+        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "true"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_APP_MODE": "demo",
-        "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "false",
-        "EXPO_PUBLIC_ENABLE_PAYMENTS": "false",
-        "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "false",
-        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "false"
+        "EXPO_PUBLIC_APP_MODE": "production",
+        "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "true",
+        "EXPO_PUBLIC_ENABLE_PAYMENTS": "true",
+        "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "true",
+        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "true"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-services.json",
+        "track": "internal"
+      },
+      "ios": {
+        "ascAppId": ""
+      }
+    }
   }
 }
