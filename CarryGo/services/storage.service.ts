@@ -14,6 +14,28 @@ export type StorageBucket =
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
+const MAGIC_BYTES: Record<string, number[]> = {
+  'image/jpeg': [0xFF, 0xD8, 0xFF],
+  'image/png': [0x89, 0x50, 0x4E, 0x47],
+  'image/webp': [0x52, 0x49, 0x46, 0x46],
+};
+
+async function validateMagicBytes(fileUri: string, claimedMimeType: string): Promise<boolean> {
+  const expected = MAGIC_BYTES[claimedMimeType];
+  if (!expected) return false;
+
+  try {
+    const base64 = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: FileSystem.EncodingType.Base64,
+      length: 12,
+    });
+    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    return expected.every((byte, i) => bytes[i] === byte);
+  } catch {
+    return false;
+  }
+}
+
 interface UploadResult {
   key: string;
   cdnUrl: string;
@@ -38,9 +60,17 @@ interface SignatureResponse {
   publicId: string;
 }
 
+function sanitizeFileName(name: string): string {
+  return name
+    .replace(/\.\./g, '')
+    .replace(/[^a-zA-Z0-9_.-]/g, '_')
+    .slice(0, 200);
+}
+
 function buildPublicId(bucket: StorageBucket, userId: string, fileName: string): string {
+  const safeName = sanitizeFileName(fileName);
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
-  return `${bucket}/${userId}/${date}/${fileName}`;
+  return `${bucket}/${userId}/${date}/${safeName}`;
 }
 
 async function getSignature(bucket: StorageBucket, publicId: string): Promise<SignatureResponse> {
@@ -90,6 +120,11 @@ async function uploadToCloudinary(
 
   if (!ALLOWED_MIME_TYPES.includes(optimized.mimeType)) {
     throw new Error(`Invalid file type: ${optimized.mimeType}. Allowed: JPEG, PNG, WebP.`);
+  }
+
+  const validSignature = await validateMagicBytes(optimized.uri, optimized.mimeType);
+  if (!validSignature) {
+    throw new Error('File content does not match its declared type. Please upload a valid image.');
   }
 
   if (optimized.sizeBytes > MAX_FILE_SIZE_BYTES) {

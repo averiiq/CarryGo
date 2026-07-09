@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
@@ -11,10 +12,12 @@ interface MonitoringConfig {
   appVersion: string;
 }
 
+const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
+
 let config: MonitoringConfig = {
   enabled: __DEV__ ? false : true,
   environment: __DEV__ ? 'development' : 'production',
-  appVersion: '1.1.0',
+  appVersion: APP_VERSION,
 };
 
 const LOG_BUFFER: Array<{ level: LogLevel; message: string; context?: LogContext; timestamp: number }> = [];
@@ -93,6 +96,29 @@ export function flushLogBuffer() {
   const entries = [...LOG_BUFFER];
   LOG_BUFFER.length = 0;
   return entries;
+}
+
+export async function shipLogs(): Promise<void> {
+  if (!config.enabled || LOG_BUFFER.length === 0) return;
+
+  const endpoint = config.dsn;
+  if (!endpoint) return;
+
+  const entries = flushLogBuffer();
+
+  try {
+    await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entries,
+        environment: config.environment,
+        appVersion: config.appVersion,
+      }),
+    });
+  } catch {
+    LOG_BUFFER.unshift(...entries.slice(-MAX_BUFFER));
+  }
 }
 
 function pushToBuffer(entry: { level: LogLevel; message: string; context?: LogContext; timestamp: number }) {

@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '@/template';
+import { sanitizeLikeInput } from '@/lib/sanitize';
 
 export interface UserStats {
   completedDeliveries: number;
@@ -76,19 +77,22 @@ export async function fetchUserStats(userId: string): Promise<{ data: UserStats 
 export async function fetchRoutePopularity(fromCity: string, toCity: string): Promise<{ data: RoutePopularity | null; error: string | null }> {
   const sb = getSupabaseClient();
 
+  const sanitizedFrom = sanitizeLikeInput(fromCity);
+  const sanitizedTo = sanitizeLikeInput(toCity);
+
   const [tripsRes, parcelsRes, priceRes] = await Promise.all([
     sb.from('trips').select('id', { count: 'exact', head: true })
       .eq('status', 'active')
-      .ilike('from_city', `%${fromCity}%`)
-      .ilike('to_city', `%${toCity}%`),
+      .ilike('from_city', `%${sanitizedFrom}%`)
+      .ilike('to_city', `%${sanitizedTo}%`),
     sb.from('parcels').select('id', { count: 'exact', head: true })
       .eq('status', 'open')
-      .ilike('from_city', `%${fromCity}%`)
-      .ilike('to_city', `%${toCity}%`),
+      .ilike('from_city', `%${sanitizedFrom}%`)
+      .ilike('to_city', `%${sanitizedTo}%`),
     sb.from('trips').select('price_per_kg')
       .eq('status', 'active')
-      .ilike('from_city', `%${fromCity}%`)
-      .ilike('to_city', `%${toCity}%`)
+      .ilike('from_city', `%${sanitizedFrom}%`)
+      .ilike('to_city', `%${sanitizedTo}%`)
       .limit(20),
   ]);
 
