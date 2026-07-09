@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_MODE": "demo",
+        "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "false",
+        "EXPO_PUBLIC_ENABLE_PAYMENTS": "false",
+        "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "false",
+        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "false"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_MODE": "demo",
+        "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "false",
+        "EXPO_PUBLIC_ENABLE_PAYMENTS": "false",
+        "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "false",
+        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "false"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_MODE": "demo",
+        "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "false",
+        "EXPO_PUBLIC_ENABLE_PAYMENTS": "false",
+        "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "false",
+        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "false"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

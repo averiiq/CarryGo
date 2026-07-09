@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "CarryGo",
+    "slug": "carrygo",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo.png",
+    "scheme": "carrygo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "in.averiq.carrygo",
+      "newArchEnabled": true
+    },
+    "android": {
+      "package": "in.averiq.carrygo",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "newArchEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      "expo-asset",
+      "expo-font",
+      "expo-secure-store",
+      "react-native-edge-to-edge"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6e0d0e74-9d96-400e-9fd0-fdf68de76f4e"
+      }
+    }
+  }
+}

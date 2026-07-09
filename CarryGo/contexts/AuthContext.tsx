@@ -1,0 +1,255 @@
+import { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { getSupabaseClient } from '@/template';
+import { User } from '@/types';
+import { ensureProfile, fetchProfile, isProfileComplete } from '@/services/profile.service';
+import { registerForPushNotifications, savePushToken } from '@/services/notifications.service';
+import { Haptic } from '@/services/haptics.service';
+
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  requiresProfileSetup: boolean;
+  isLoading: boolean;
+  operationLoading: boolean;
+  sessionError: string | null;
+  sendOTP: (email: string) => Promise<{ error: string | null }>;
+  verifyOTP: (email: string, otp: string) => Promise<{ error: string | null; requiresProfileSetup?: boolean }>;
+  logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
+}
+
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function profileEmailFor(userId: string, email?: string | null) {
+  return email?.trim().toLowerCase() || `${userId}@carrygo.local`;
+}
+
+/** Human-readable messages for common Supabase auth error codes */
+function mapAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('email rate limit') || m.includes('rate limit')) {
+    return 'Too many attempts. Please wait a minute before trying again.';
+  }
+  if (m.includes('invalid otp') || m.includes('token has expired') || m.includes('otp expired')) {
+    return 'The code is incorrect or has expired. Try requesting a new one.';
+  }
+  if (m.includes('user already registered')) {
+    return 'This email is already registered. Sending you a sign-in code.';
+  }
+  if (m.includes('email not confirmed')) {
+    return 'Please verify your email first. Check your inbox for the code.';
+  }
+  if (m.includes('network') || m.includes('fetch')) {
+    return 'Network error. Please check your connection and try again.';
+  }
+  if (m.includes('signup is disabled')) {
+    return 'New registrations are temporarily disabled. Please try again later.';
+  }
+  return message;
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [operationLoading, setOperationLoading] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  const loadUser = useCallback(async (userId: string, email?: string | null) => {
+    let result = await fetchProfile(userId);
+    if (!result.data && !result.error) {
+      result = await ensureProfile(userId, profileEmailFor(userId, email));
+    }
+
+    if (result.data) {
+      setUser(result.data);
+    } else {
+      setUser(null);
+    }
+    return result;
+  }, []);
+
+  useEffect(() => {
+    let sb: ReturnType<typeof getSupabaseClient>;
+    try {
+      sb = getSupabaseClient();
+    } catch {
+      setIsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    sb.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        if (!isMounted) return;
+        try {
+          if (session?.user) {
+            await loadUser(session.user.id, session.user.email ?? '');
+          }
+        } catch (err: unknown) {
+          if (isMounted) {
+            const msg = err instanceof Error ? err.message : 'Failed to load session';
+            setSessionError(msg);
+          }
+        } finally {
+          if (isMounted) setIsLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (isMounted) {
+          const msg = err instanceof Error ? err.message : 'Failed to connect';
+          setSessionError(msg);
+          setIsLoading(false);
+        }
+      });
+
+    const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+      try {
+        setSessionError(null);
+        if (session?.user) {
+          await loadUser(session.user.id, session.user.email ?? '');
+          registerForPushNotifications().then(async token => {
+            if (token && isMounted) {
+              await savePushToken(session.user.id, token);
+            }
+          }).catch(() => {});
+        } else {
+          setUser(null);
+          queryClient.clear();
+        }
+      } catch (err: unknown) {
+        if (isMounted) {
+          const msg = err instanceof Error ? err.message : 'Session sync failed';
+          setSessionError(msg);
+        }
+      } finally {
+        if (isMounted && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
+          setIsLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, [loadUser, queryClient]);
+
+  const sendOTP = async (email: string): Promise<{ error: string | null }> => {
+    setOperationLoading(true);
+    try {
+      const sb = getSupabaseClient();
+
+      const { data: allowed } = await sb.rpc('check_auth_rate_limit', {
+        p_email: email,
+        p_type: 'send_otp',
+      });
+      if (allowed === false) {
+        return { error: 'Too many attempts. Please wait before trying again.' };
+      }
+
+      const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true },
+      });
+
+      await sb.rpc('record_auth_attempt', { p_email: email, p_type: 'send_otp', p_success: !error });
+
+      if (error) return { error: mapAuthError(error.message) };
+      return { error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error sending OTP';
+      return { error: mapAuthError(message) };
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const verifyOTP = async (
+    email: string,
+    otp: string
+  ): Promise<{ error: string | null; requiresProfileSetup?: boolean }> => {
+    setOperationLoading(true);
+    try {
+      const sb = getSupabaseClient();
+
+      const { data: allowed } = await sb.rpc('check_auth_rate_limit', {
+        p_email: email,
+        p_type: 'verify_otp',
+      });
+      if (allowed === false) {
+        return { error: 'Too many failed attempts. Please wait before trying again.' };
+      }
+
+      const { data, error } = await sb.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'email',
+      });
+
+      await sb.rpc('record_auth_attempt', { p_email: email, p_type: 'verify_otp', p_success: !error });
+
+      if (error) return { error: mapAuthError(error.message) };
+
+      if (data.user) {
+        const ensured = await ensureProfile(data.user.id, profileEmailFor(data.user.id, email));
+        if (ensured.error) return { error: ensured.error };
+        const profileResult = await loadUser(data.user.id, email);
+        if (profileResult.error) return { error: profileResult.error };
+        Haptic.success();
+        return {
+          error: null,
+          requiresProfileSetup: !isProfileComplete(profileResult.data),
+        };
+      }
+      return { error: 'Could not load the authenticated account.' };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error verifying OTP';
+      return { error: mapAuthError(message) };
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      const sb = getSupabaseClient();
+      await sb.auth.signOut();
+    } finally {
+      setUser(null);
+      queryClient.clear();
+    }
+  };
+
+  const updateUser = (updates: Partial<User>) => {
+    if (user) setUser({ ...user, ...updates });
+  };
+
+  const refreshUser = async () => {
+    if (user) await loadUser(user.id, user.email);
+  };
+
+  return (
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      requiresProfileSetup: !!user && !isProfileComplete(user),
+      isLoading,
+      operationLoading,
+      sessionError,
+      sendOTP,
+      verifyOTP,
+      logout,
+      updateUser,
+      refreshUser,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
