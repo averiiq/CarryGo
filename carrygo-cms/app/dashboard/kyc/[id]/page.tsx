@@ -65,7 +65,7 @@ export default async function KycReviewPage({ params }: PageProps) {
       if (doc?.storage_path) {
         const { data } = await supabase.storage
           .from('kyc_documents')
-          .createSignedUrl(doc.storage_path, 60 * 60 * 2)
+          .createSignedUrl(doc.storage_path, 60 * 15)
         url = data?.signedUrl || null
       } else {
         // Fallback to session-level URLs (legacy support)
@@ -82,7 +82,7 @@ export default async function KycReviewPage({ params }: PageProps) {
         if (storagePath) {
           const { data } = await supabase.storage
             .from('kyc_documents')
-            .createSignedUrl(storagePath, 60 * 60 * 2)
+            .createSignedUrl(storagePath, 60 * 15)
           url = data?.signedUrl || null
         }
       }

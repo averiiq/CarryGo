@@ -2,16 +2,23 @@ import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
 import KycQueue from './KycQueue'
 
-export default async function KYCPage() {
+const PAGE_SIZE = 100
+
+export default async function KYCPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const auth = await requireAdmin()
   if ('error' in auth) redirect('/login')
   const supabase = auth.supabase
 
-  // Fetch all KYC sessions with document counts
+  const params = await searchParams
+  const page = Math.max(1, parseInt(params.page || '1', 10))
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
   const { data: sessions } = await supabase
     .from('kyc_sessions')
     .select('id, user_id, full_name, id_type, status, submission_attempt, created_at')
     .order('created_at', { ascending: false })
+    .range(from, to)
 
   // Fetch document counts per session
   const sessionIds = (sessions || []).map((s) => s.id)

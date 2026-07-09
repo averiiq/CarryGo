@@ -1,6 +1,9 @@
 import { login } from './actions'
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const params = await searchParams
+  const error = params.error
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl">
@@ -8,6 +11,12 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-gray-900">CarryGo CMS</h1>
           <p className="text-gray-500 mt-2">Admin & Support Portal</p>
         </div>
+
+        {error && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{decodeURIComponent(error)}</p>
+          </div>
+        )}
 
         <form className="space-y-6">
           <div>

@@ -1,15 +1,18 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { requireAdmin } from '@/utils/admin-guard'
+import { isValidUuid } from '@/lib/validation'
 
 export async function bulkVerifyUsers(userIds: string[]) {
   if (userIds.length === 0) return { error: 'No users selected', count: 0 }
   if (userIds.length > 100) return { error: 'Maximum 100 users per batch', count: 0 }
+  if (!userIds.every(isValidUuid)) return { error: 'Invalid user ID in batch', count: 0 }
 
-  const supabase = await createClient()
+  const auth = await requireAdmin()
+  if ('error' in auth) return { error: auth.error, count: 0 }
 
-  const { error } = await supabase
+  const { error } = await auth.supabase
     .from('user_profiles')
     .update({ kyc_status: 'approved', verified: true })
     .in('id', userIds)
@@ -22,10 +25,12 @@ export async function bulkVerifyUsers(userIds: string[]) {
 }
 
 export async function bulkCancelExpiredTrips() {
-  const supabase = await createClient()
+  const auth = await requireAdmin()
+  if ('error' in auth) return { error: auth.error, count: 0 }
+
   const today = new Date().toISOString().split('T')[0]
 
-  const { data, error } = await supabase
+  const { data, error } = await auth.supabase
     .from('trips')
     .update({ status: 'cancelled' })
     .eq('status', 'active')
@@ -40,9 +45,10 @@ export async function bulkCancelExpiredTrips() {
 }
 
 export async function bulkExportUsers() {
-  const supabase = await createClient()
+  const auth = await requireAdmin()
+  if ('error' in auth) return { data: null, error: auth.error }
 
-  const { data, error } = await supabase
+  const { data, error } = await auth.supabase
     .from('user_profiles')
     .select('id, full_name, email, phone, rating, total_deliveries, total_trips, kyc_status, verified, created_at')
     .order('created_at', { ascending: false })
@@ -53,9 +59,10 @@ export async function bulkExportUsers() {
 }
 
 export async function bulkExportTrips(filters?: { status?: string; fromDate?: string; toDate?: string }) {
-  const supabase = await createClient()
+  const auth = await requireAdmin()
+  if ('error' in auth) return { data: null, error: auth.error }
 
-  let query = supabase
+  let query = auth.supabase
     .from('trips')
     .select('id, user_name, from_city, to_city, date, time, vehicle_type, available_capacity, price_per_kg, status, created_at')
     .order('created_at', { ascending: false })

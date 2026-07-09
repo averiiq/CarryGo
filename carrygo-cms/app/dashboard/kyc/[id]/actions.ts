@@ -31,6 +31,19 @@ export async function approveKycSession(sessionId: string): Promise<ActionResult
     return { success: false, error: 'Session is already approved' }
   }
 
+  const { data: documents } = await supabase
+    .from('kyc_documents')
+    .select('document_type')
+    .eq('session_id', sessionId)
+
+  const requiredTypes = ['id_front', 'selfie']
+  const uploadedTypes = documents?.map(d => d.document_type) || []
+  const missingTypes = requiredTypes.filter(t => !uploadedTypes.includes(t))
+
+  if (missingTypes.length > 0) {
+    return { success: false, error: `Missing required documents: ${missingTypes.join(', ')}` }
+  }
+
   // Update kyc_sessions status
   const { error: sessionError } = await supabase
     .from('kyc_sessions')

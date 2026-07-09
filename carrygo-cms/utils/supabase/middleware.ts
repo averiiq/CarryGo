@@ -58,7 +58,7 @@ export async function updateSession(request: NextRequest) {
       supabaseResponse.cookies.set(ROLE_COOKIE_NAME, systemRole, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         maxAge: ROLE_COOKIE_MAX_AGE,
         path: '/',
       })
