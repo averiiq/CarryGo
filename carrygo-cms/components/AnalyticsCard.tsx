@@ -12,6 +12,7 @@ interface AnalyticsCardProps {
   bgColor: string
 }
 
+
 export default function AnalyticsCard({
   title,
   value,
