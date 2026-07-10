@@ -36,7 +36,9 @@
       "Bash(node -e \"const p=require\\('@expo/config-plugins/package.json'\\);console.log\\('@expo/config-plugins:', p.version\\)\")",
       "Bash(node -e \"const p=require\\('@expo/metro-config/package.json'\\);console.log\\('@expo/metro-config:', p.version\\)\")",
       "Bash(node -e \"const p=require\\('./node_modules/expo/package.json'\\);console.log\\('expo:', p.version\\)\")",
-      "Bash(pnpm info *)"
+      "Bash(pnpm info *)",
+      "Bash(supabase --version)",
+      "Bash(npx supabase *)"
     ]
   }
 }

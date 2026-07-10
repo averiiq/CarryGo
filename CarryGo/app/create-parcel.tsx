@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Button, Input } from '@/components';
+import { formatScheduleDate, SevenDaySchedulePicker } from '@/components/feature/SevenDaySchedulePicker';
 import { ParcelCategory } from '@/types';
 import { CITIES } from '@/constants/mockData';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
@@ -37,10 +38,12 @@ export default function CreateParcelScreen() {
   const [toCity, setToCity] = useState('');
   const [category, setCategory] = useState<ParcelCategory>('documents');
   const [description, setDescription] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
   const [weight, setWeight] = useState('');
   const [priceOffer, setPriceOffer] = useState('');
   const [showFrom, setShowFrom] = useState(false);
   const [showTo, setShowTo] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [citySearch, setCitySearch] = useState('');
   const [showKyc, setShowKyc] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -76,6 +79,7 @@ export default function CreateParcelScreen() {
     if (!fromCity) errors.fromCity = 'Select origin city';
     if (!toCity) errors.toCity = 'Select destination city';
     if (fromCity && toCity && fromCity === toCity) errors.toCity = 'Must differ from origin';
+    if (!deliveryDate) errors.deliveryDate = 'Select send-by date';
     if (!description) errors.description = 'Describe your parcel';
     const parcelWeight = Number(weight);
     const offerAmount = Number(priceOffer);
@@ -96,6 +100,7 @@ export default function CreateParcelScreen() {
         userId: user.id,
         userName: user.name || 'User',
         fromCity, toCity, category, description,
+        deliveryDate,
         weight: parcelWeight,
         priceOffer: offerAmount,
         status: 'open',
@@ -106,7 +111,7 @@ export default function CreateParcelScreen() {
         fromCity,
         toCity,
         title: 'New Parcel on Your Route!',
-        body: `${user.name || 'Someone'} needs delivery from ${fromCity} to ${toCity}.`,
+        body: `${user.name || 'Someone'} needs delivery from ${fromCity} to ${toCity} by ${formatScheduleDate(deliveryDate)}.`,
       });
       Haptic.success();
       // Navigate directly to matching screen — no dialog, immediate UX
@@ -176,6 +181,17 @@ export default function CreateParcelScreen() {
         onClose={() => setShowKyc(false)}
         onComplete={() => { setShowKyc(false); }}
       />
+      <SevenDaySchedulePicker
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        onSelect={(d) => setDeliveryDate(d)}
+        C={C}
+        initialDate={deliveryDate}
+        includeTime={false}
+        title="Send within 7 days"
+        subtitle="Pick the day your parcel should be ready for handover."
+        confirmLabel="Use This Date"
+      />
       <CityPicker forField="from" />
       <CityPicker forField="to" />
 
@@ -208,6 +224,49 @@ export default function CreateParcelScreen() {
                 <MaterialIcons name="expand-more" size={18} color={C.textMuted} />
               </Pressable>
             </View>
+          </View>
+
+          {/* Schedule */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Send By</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.scheduleBtn,
+                { backgroundColor: C.surface, borderColor: deliveryDate ? C.primary : fieldErrors.deliveryDate ? C.error : C.surfaceBorder },
+                pressed && { opacity: 0.85 },
+              ]}
+              onPress={() => {
+                Haptic.tap();
+                setFieldErrors(e => {
+                  const { deliveryDate: _, ...rest } = e;
+                  return rest;
+                });
+                setShowDatePicker(true);
+              }}
+            >
+              <View style={[styles.scheduleIconBox, { backgroundColor: deliveryDate ? C.primarySubtle : C.surfaceElevated }]}>
+                <MaterialIcons name="event-available" size={20} color={deliveryDate ? C.primary : C.textMuted} />
+              </View>
+              <View style={{ flex: 1 }}>
+                {deliveryDate ? (
+                  <>
+                    <Text style={[styles.scheduleDateText, { color: C.textPrimary }]}>{formatScheduleDate(deliveryDate)}</Text>
+                    <Text style={[styles.scheduleHintText, { color: C.textSecondary }]}>Ready for pickup or handover</Text>
+                  </>
+                ) : (
+                  <Text style={[styles.schedulePlaceholder, { color: fieldErrors.deliveryDate ? C.error : C.textMuted }]}>
+                    {fieldErrors.deliveryDate || 'Choose a day in the next 7 days'}
+                  </Text>
+                )}
+              </View>
+              {deliveryDate ? (
+                <View style={[styles.scheduleEditBtn, { backgroundColor: C.primarySubtle }]}>
+                  <MaterialIcons name="edit" size={14} color={C.primary} />
+                </View>
+              ) : (
+                <MaterialIcons name="chevron-right" size={20} color={C.textMuted} />
+              )}
+            </Pressable>
           </View>
 
           {/* Category */}
@@ -265,7 +324,7 @@ export default function CreateParcelScreen() {
           </View>
 
           {/* Summary */}
-          {fromCity && toCity && weight && priceOffer ? (
+          {fromCity && toCity && deliveryDate && weight && priceOffer ? (
             <View style={[styles.summaryCard, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
               <View style={[styles.summaryIcon, { backgroundColor: selectedCategory ? selectedCategory.color + '20' : C.primarySubtle }]}>
                 <MaterialIcons name={selectedCategory?.icon || 'inventory-2'} size={20} color={selectedCategory?.color || C.primary} />
@@ -273,7 +332,7 @@ export default function CreateParcelScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.summaryRoute, { color: C.textPrimary }]}>{fromCity} → {toCity}</Text>
                 <Text style={[styles.summaryDetails, { color: C.textSecondary }]}>
-                  {selectedCategory?.label} · {weight}kg · ₹{priceOffer} offered
+                  {formatScheduleDate(deliveryDate)} - {selectedCategory?.label} - {weight}kg - Rs {priceOffer} offered
                 </Text>
               </View>
             </View>
@@ -317,6 +376,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: 4,
   },
   routeLine: { flex: 1, height: 1 },
+
+  scheduleBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    borderRadius: BorderRadius.lg, borderWidth: 1.5, padding: Spacing.md, minHeight: 68,
+  },
+  scheduleIconBox: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  scheduleDateText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
+  scheduleHintText: { fontSize: FontSize.sm, marginTop: 2 },
+  schedulePlaceholder: { fontSize: FontSize.md },
+  scheduleEditBtn: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   categoryChip: {

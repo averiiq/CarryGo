@@ -5,7 +5,10 @@ export type RateLimitAction =
   | 'create_parcel'
   | 'create_request'
   | 'send_message'
-  | 'search';
+  | 'search'
+  | 'create_payment'
+  | 'release_payment'
+  | 'refund_payment';
 
 export async function enforceRateLimit(userId: string, action: RateLimitAction): Promise<{ allowed: boolean; error?: string }> {
   const sb = getSupabaseClient();

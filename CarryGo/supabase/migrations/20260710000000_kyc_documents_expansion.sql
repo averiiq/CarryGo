@@ -43,6 +43,7 @@ CREATE INDEX IF NOT EXISTS kyc_review_history_session_idx ON public.kyc_review_h
 -- RLS for kyc_documents
 ALTER TABLE public.kyc_documents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "kyc_documents_select_own" ON public.kyc_documents;
 CREATE POLICY "kyc_documents_select_own" ON public.kyc_documents
   FOR SELECT TO authenticated
   USING (EXISTS (
@@ -50,6 +51,7 @@ CREATE POLICY "kyc_documents_select_own" ON public.kyc_documents
     WHERE s.id = kyc_documents.session_id AND s.user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "kyc_documents_insert_own" ON public.kyc_documents;
 CREATE POLICY "kyc_documents_insert_own" ON public.kyc_documents
   FOR INSERT TO authenticated
   WITH CHECK (EXISTS (

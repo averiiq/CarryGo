@@ -56,6 +56,7 @@ export interface Parcel {
   toCity: string;
   category: ParcelCategory;
   description: string;
+  deliveryDate?: string;
   weight: number;
   priceOffer: number;
   imageUri?: string;
@@ -159,7 +160,22 @@ export interface Payment {
   status: PaymentStatus;
   lockedAt: string;
   releasedAt?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
   createdAt: string;
+}
+
+export interface RazorpayOrder {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+}
+
+export interface RazorpayPaymentResult {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
 }
 
 // Route Subscriptions

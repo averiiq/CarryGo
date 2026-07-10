@@ -10,13 +10,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Button, Input } from '@/components';
+import { formatScheduleDate, SevenDaySchedulePicker } from '@/components/feature/SevenDaySchedulePicker';
 import { VehicleType } from '@/types';
 import { CITIES } from '@/constants/mockData';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Gradients } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import { Haptic } from '@/services/haptics.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
-import { LinearGradient } from 'expo-linear-gradient';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateTripMutation } from '@/features/listings/queries';
 
@@ -28,110 +28,6 @@ const VEHICLES: { type: VehicleType; label: string; icon: keyof typeof MaterialI
   { type: 'flight', label: 'Flight', icon: 'flight', color: '#06B6D4' },
 ];
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const TIMES = ['06:00 AM','07:00 AM','08:00 AM','09:00 AM','10:00 AM','11:00 AM','12:00 PM','01:00 PM','02:00 PM','03:00 PM','04:00 PM','05:00 PM','06:00 PM','07:00 PM','08:00 PM','09:00 PM','10:00 PM'];
-
-function DateTimePicker({ visible, onClose, onSelect, C }: {
-  visible: boolean; onClose: () => void;
-  onSelect: (date: string, time: string) => void; C: ThemeColors;
-}) {
-  const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
-  const [day, setDay] = useState(today.getDate());
-  const [time, setTime] = useState('10:00 AM');
-
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
-  const handleApply = () => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    onSelect(dateStr, time);
-    onClose();
-    Haptic.confirm();
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={[styles.pickerOverlay, { backgroundColor: C.overlay }]} onPress={onClose} />
-      <View style={[styles.pickerSheet, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
-        <View style={[styles.pickerHandle, { backgroundColor: C.surfaceBorderLight }]} />
-        <Text style={[styles.pickerTitle, { color: C.textPrimary }]}>Select Date & Time</Text>
-
-        <Text style={[styles.pickerLabel, { color: C.textMuted }]}>Date</Text>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.monthRow}>
-          {MONTHS.map((m, i) => (
-            <Pressable
-              key={m}
-              style={[styles.monthChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                i === month && { backgroundColor: C.primarySubtle, borderColor: C.primary }]}
-              onPress={() => { setMonth(i); setDay(Math.min(day, new Date(year, i + 1, 0).getDate())); Haptic.select(); }}
-            >
-              <Text style={[styles.monthText, { color: i === month ? C.primary : C.textSecondary }]}>{m}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.dayRow}>
-          {days.map(d => {
-            const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-            return (
-              <Pressable
-                key={d}
-                style={[styles.dayCell, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  d === day && { backgroundColor: C.primary, borderColor: C.primary },
-                  isToday && d !== day && { borderColor: C.primary }]}
-                onPress={() => { setDay(d); Haptic.select(); }}
-              >
-                <Text style={[styles.dayNum, { color: d === day ? '#fff' : C.textPrimary }]}>{d}</Text>
-                {isToday ? <View style={[styles.todayDot, { backgroundColor: d === day ? '#fff' : C.primary }]} /> : null}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        <View style={styles.yearRow}>
-          <Pressable onPress={() => setYear(y => Math.max(y - 1, today.getFullYear()))} style={[styles.yearBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="chevron-left" size={20} color={C.textSecondary} />
-          </Pressable>
-          <Text style={[styles.yearText, { color: C.textPrimary }]}>{year}</Text>
-          <Pressable onPress={() => setYear(y => y + 1)} style={[styles.yearBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="chevron-right" size={20} color={C.textSecondary} />
-          </Pressable>
-        </View>
-
-        <Text style={[styles.pickerLabel, { color: C.textMuted }]}>Departure Time</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.timeRow}>
-          {TIMES.map(t => (
-            <Pressable
-              key={t}
-              style={[styles.timeChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                t === time && { backgroundColor: C.primarySubtle, borderColor: C.primary }]}
-              onPress={() => { setTime(t); Haptic.select(); }}
-            >
-              <MaterialIcons name="schedule" size={11} color={t === time ? C.primary : C.textMuted} />
-              <Text style={[styles.timeText, { color: t === time ? C.primary : C.textSecondary }]}>{t}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <View style={[styles.previewRow, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-          <MaterialIcons name="event" size={16} color={C.primary} />
-          <Text style={[styles.previewText, { color: C.textPrimary }]}>
-            {MONTHS[month]} {day}, {year} · {time}
-          </Text>
-        </View>
-
-        <Pressable style={({ pressed }) => [styles.applyBtn, { backgroundColor: C.primary, opacity: pressed ? 0.9 : 1 }]} onPress={handleApply}>
-          <LinearGradient colors={Gradients.primaryVibrant} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-          <MaterialIcons name="check" size={18} color="#fff" />
-          <Text style={styles.applyText}>Confirm Date & Time</Text>
-        </Pressable>
-      </View>
-    </Modal>
-  );
-}
 
 export default function CreateTripScreen() {
   const { user, refreshUser } = useAuth();
@@ -220,7 +116,7 @@ export default function CreateTripScreen() {
         fromCity,
         toCity,
         title: 'New Trip on Your Route!',
-        body: `${user?.name || 'Someone'} is travelling ${fromCity} to ${toCity} on ${date}.`,
+        body: `${user?.name || 'Someone'} is travelling ${fromCity} to ${toCity} on ${formatScheduleDate(date)}.`,
       });
       /*
           subscribers
@@ -228,7 +124,7 @@ export default function CreateTripScreen() {
             .map((uid: string) => createNotification({
               userId: uid,
               title: 'New Trip on Your Route!',
-              body: `${user?.name || 'Someone'} is travelling ${fromCity} → ${toCity} on ${date}`,
+              body: `${user?.name || 'Someone'} is travelling ${fromCity} → ${toCity} on ${formatScheduleDate(date)}`,
               type: 'new_request',
               relatedId: result.id,
             }))
@@ -299,11 +195,17 @@ export default function CreateTripScreen() {
         onClose={() => setShowKyc(false)}
         onComplete={() => { setShowKyc(false); refreshUser(); }}
       />
-      <DateTimePicker
+      <SevenDaySchedulePicker
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
-        onSelect={(d, t) => { setDate(d); setTime(t); }}
+        onSelect={(d, t) => { setDate(d); setTime(t || ''); }}
         C={C}
+        initialDate={date}
+        initialTime={time}
+        title="Trip in the next 7 days"
+        subtitle="Pick your travel day and departure time."
+        timeLabel="Departure time"
+        confirmLabel="Confirm Trip Time"
       />
       <CityPicker forField="from" />
       <CityPicker forField="to" />
@@ -354,11 +256,11 @@ export default function CreateTripScreen() {
               <View style={{ flex: 1 }}>
                 {date ? (
                   <>
-                    <Text style={[styles.scheduleDateText, { color: C.textPrimary }]}>{date}</Text>
+                    <Text style={[styles.scheduleDateText, { color: C.textPrimary }]}>{formatScheduleDate(date)}</Text>
                     <Text style={[styles.scheduleTimeText, { color: C.textSecondary }]}>{time}</Text>
                   </>
                 ) : (
-                  <Text style={[styles.schedulePlaceholder, { color: fieldErrors.date ? C.error : C.textMuted }]}>{fieldErrors.date || 'Select date & departure time'}</Text>
+                  <Text style={[styles.schedulePlaceholder, { color: fieldErrors.date ? C.error : C.textMuted }]}>{fieldErrors.date || 'Select a day in the next 7 days'}</Text>
                 )}
               </View>
               {date ? (
@@ -413,7 +315,7 @@ export default function CreateTripScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.summaryRoute, { color: C.textPrimary }]}>{fromCity} → {toCity}</Text>
                 <Text style={[styles.summaryDetails, { color: C.textSecondary }]}>
-                  {date} · {time} · {capacity}kg · ₹{price}/kg
+                  {formatScheduleDate(date)} · {time} · {capacity}kg · ₹{price}/kg
                 </Text>
                 {capacity && price ? (
                   <Text style={[styles.summaryEarning, { color: C.success }]}>
@@ -507,45 +409,6 @@ const styles = StyleSheet.create({
   pickerHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 4 },
   pickerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
   pickerLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, textTransform: 'uppercase', letterSpacing: 0.8 },
-
-  monthRow: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: 4 },
-  monthChip: {
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: BorderRadius.full, borderWidth: 1,
-  },
-  monthText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-
-  dayRow: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: 4 },
-  dayCell: {
-    width: 44, height: 52, borderRadius: 12, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center', gap: 3,
-  },
-  dayNum: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-  todayDot: { width: 5, height: 5, borderRadius: 2.5 },
-
-  yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xl },
-  yearBtn: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  yearText: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, minWidth: 60, textAlign: 'center' },
-
-  timeRow: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: 4 },
-  timeChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: BorderRadius.full, borderWidth: 1,
-  },
-  timeText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-
-  previewRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1,
-  },
-  previewText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-
-  applyBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, overflow: 'hidden',
-  },
-  applyText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
 
   cityOption: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,

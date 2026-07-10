@@ -4,7 +4,7 @@ const enabled = (value: string | undefined) => value === 'true';
 // Set a readiness value to true only after the corresponding provider/server flow exists.
 const productionReady = {
   kycProvider: true,
-  payments: false,
+  payments: true,
   secureDeliveryConfirmation: false,
   preciseLocationSharing: false,
 } as const;

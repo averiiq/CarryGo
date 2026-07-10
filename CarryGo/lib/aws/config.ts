@@ -6,8 +6,6 @@ export interface BucketConfig {
 
 const AWS_CONFIG = {
   region: process.env.EXPO_PUBLIC_AWS_REGION ?? 'ap-south-1',
-  accessKeyId: process.env.EXPO_PUBLIC_AWS_ACCESS_KEY_ID ?? '',
-  secretAccessKey: process.env.EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY ?? '',
 
   buckets: {
     parcelProofs: {
@@ -25,20 +23,10 @@ const AWS_CONFIG = {
 
 export type BucketId = keyof typeof AWS_CONFIG.buckets;
 
-export function getAwsConfig() {
-  if (!AWS_CONFIG.accessKeyId || !AWS_CONFIG.secretAccessKey) {
-    throw new Error(
-      '[AWS] Missing credentials. Set EXPO_PUBLIC_AWS_ACCESS_KEY_ID and ' +
-      'EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY in .env'
-    );
-  }
-  return AWS_CONFIG;
-}
-
 export function getBucketConfig(bucketId: BucketId): BucketConfig {
   return AWS_CONFIG.buckets[bucketId];
 }
 
 export function isAwsConfigured(): boolean {
-  return !!(AWS_CONFIG.accessKeyId && AWS_CONFIG.secretAccessKey);
+  return !!(process.env.EXPO_PUBLIC_SUPABASE_URL);
 }

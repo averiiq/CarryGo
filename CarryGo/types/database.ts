@@ -50,6 +50,7 @@ export type Database = {
           to_city: string;
           category: Database['public']['Enums']['parcel_category'];
           description: string;
+          delivery_date: string | null;
           weight: number;
           price_offer: number;
           image_url: string | null;

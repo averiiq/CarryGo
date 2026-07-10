@@ -10,6 +10,7 @@ interface ParcelRow {
   to_city: string;
   category: string;
   description: string;
+  delivery_date?: string | null;
   weight: number | string;
   price_offer: number | string;
   status: string;
@@ -26,6 +27,7 @@ function mapRow(row: ParcelRow): Parcel {
     toCity: row.to_city,
     category: row.category as Parcel['category'],
     description: row.description,
+    deliveryDate: row.delivery_date ?? undefined,
     weight: parseFloat(String(row.weight)),
     priceOffer: parseFloat(String(row.price_offer)),
     status: row.status as Parcel['status'],
@@ -70,6 +72,7 @@ export async function createParcel(parcel: Omit<Parcel, 'id' | 'createdAt'>) {
     to_city: parcel.toCity,
     category: parcel.category,
     description: parcel.description,
+    delivery_date: parcel.deliveryDate,
     weight: parcel.weight,
     price_offer: parcel.priceOffer,
     status: parcel.status,

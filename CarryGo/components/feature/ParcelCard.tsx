@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Parcel } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatScheduleDate } from './SevenDaySchedulePicker';
 
 const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   documents: 'description',
@@ -104,9 +105,11 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, show
               <Text style={[styles.senderAvatarText, { color: C.primary }]}>{parcel.userName.charAt(0)}</Text>
             </View>
             <Text style={[styles.senderName, { color: C.textSecondary }]}>{parcel.userName}</Text>
-            <Ionicons name="time-outline" size={11} color={C.textMuted} />
+            <Ionicons name={parcel.deliveryDate ? 'calendar-outline' : 'time-outline'} size={11} color={C.textMuted} />
             <Text style={[styles.timeText, { color: C.textMuted }]}>
-              {new Date(parcel.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              {parcel.deliveryDate
+                ? `By ${formatScheduleDate(parcel.deliveryDate)}`
+                : new Date(parcel.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
             </Text>
           </View>
 

@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '@/template';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
-import { Payment } from '@/types';
+import { enforceRateLimit } from '@/lib/server-rate-limit';
+import { Payment, RazorpayOrder } from '@/types';
 
 interface PaymentRow {
   id: string;
@@ -11,6 +12,8 @@ interface PaymentRow {
   status: string;
   locked_at: string;
   released_at?: string;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
   created_at: string;
 }
 
@@ -24,44 +27,55 @@ function mapRow(row: PaymentRow): Payment {
     status: row.status as Payment['status'],
     lockedAt: row.locked_at,
     releasedAt: row.released_at,
+    razorpayOrderId: row.razorpay_order_id,
+    razorpayPaymentId: row.razorpay_payment_id,
     createdAt: row.created_at,
   };
 }
 
-function validateAmount(amount: number): string | null {
-  if (typeof amount !== 'number' || !Number.isFinite(amount)) return 'Amount must be a valid number';
-  if (amount <= 0) return 'Amount must be greater than zero';
-  if (amount > 999999999.99) return 'Amount exceeds maximum allowed value';
-  return null;
+export async function createRazorpayOrder(requestId: string, senderId: string): Promise<{ data: RazorpayOrder | null; error: string | null }> {
+  if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
+
+  const rateCheck = await enforceRateLimit(senderId, 'create_payment');
+  if (!rateCheck.allowed) return { data: null, error: rateCheck.error ?? 'Rate limit exceeded' };
+
+  const sb = getSupabaseClient();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return { data: null, error: 'Authentication required' };
+
+  const { data, error } = await sb.functions.invoke('create-razorpay-order', {
+    body: { requestId },
+  });
+
+  if (error) return { data: null, error: error.message ?? 'Failed to create order' };
+  if (data?.error) return { data: null, error: data.error };
+
+  return { data: data as RazorpayOrder, error: null };
 }
 
-export async function createPayment(payment: Omit<Payment, 'id' | 'lockedAt' | 'createdAt' | 'releasedAt' | 'amount'> & { requestId: string }) {
+export async function verifyRazorpayPayment(params: {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+  requestId: string;
+}): Promise<{ data: { paymentId: string; status: string; amount: number } | null; error: string | null }> {
   if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
 
   const sb = getSupabaseClient();
 
-  const { data: request, error: reqError } = await sb
-    .from('requests')
-    .select('price, sender_id, traveller_id')
-    .eq('id', payment.requestId)
-    .single();
+  const { data, error } = await sb.functions.invoke('verify-razorpay-payment', {
+    body: {
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId,
+      razorpaySignature: params.razorpaySignature,
+      requestId: params.requestId,
+    },
+  });
 
-  if (reqError || !request) return { data: null, error: 'Request not found' };
-  if (request.sender_id !== payment.senderId) return { data: null, error: 'Only the sender can create a payment' };
+  if (error) return { data: null, error: error.message ?? 'Verification failed' };
+  if (data?.error) return { data: null, error: data.error };
 
-  const serverAmount = Number(request.price);
-  const amountError = validateAmount(serverAmount);
-  if (amountError) return { data: null, error: amountError };
-
-  const { data, error } = await sb.from('payments').insert({
-    request_id: payment.requestId,
-    sender_id: payment.senderId,
-    traveller_id: payment.travellerId,
-    amount: serverAmount,
-    status: 'locked',
-  }).select().single();
-  if (error) return { data: null, error: error.message };
-  return { data: mapRow(data), error: null };
+  return { data, error: null };
 }
 
 export async function fetchPaymentByRequest(requestId: string) {
@@ -89,6 +103,9 @@ export async function releasePayment(paymentId: string, actorId: string) {
   if (!FeatureFlags.payments) return { error: disabledFeatureMessage.payments };
   if (!actorId) return { error: 'Authentication required' };
 
+  const rateCheck = await enforceRateLimit(actorId, 'release_payment');
+  if (!rateCheck.allowed) return { error: rateCheck.error ?? 'Rate limit exceeded' };
+
   const sb = getSupabaseClient();
 
   const { data, error } = await sb.rpc('release_payment_atomic', {
@@ -109,6 +126,9 @@ export async function releasePayment(paymentId: string, actorId: string) {
 export async function refundPayment(paymentId: string, actorId: string) {
   if (!FeatureFlags.payments) return { error: disabledFeatureMessage.payments };
   if (!actorId) return { error: 'Authentication required' };
+
+  const rateCheck = await enforceRateLimit(actorId, 'refund_payment');
+  if (!rateCheck.allowed) return { error: rateCheck.error ?? 'Rate limit exceeded' };
 
   const sb = getSupabaseClient();
 

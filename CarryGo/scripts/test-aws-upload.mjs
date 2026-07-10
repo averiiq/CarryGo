@@ -15,9 +15,9 @@ if (!globalThis.crypto) {
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const CONFIG = {
-  region: 'ap-south-1',
-  accessKeyId: process.env.EXPO_PUBLIC_AWS_ACCESS_KEY_ID || 'AKIAZONDITB6X5H2ED67',
-  secretAccessKey: process.env.EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY || '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',
+  region: process.env.AWS_REGION || 'ap-south-1',
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
   buckets: {
     parcelProofs: {
       name: 'carrygo-parcel-proofs',
@@ -31,6 +31,12 @@ const CONFIG = {
     },
   },
 };
+
+if (!CONFIG.accessKeyId || !CONFIG.secretAccessKey) {
+  console.error('ERROR: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars are required.');
+  console.error('Run: AWS_ACCESS_KEY_ID=xxx AWS_SECRET_ACCESS_KEY=yyy node scripts/test-aws-upload.mjs');
+  process.exit(1);
+}
 
 // ─── Signing (copy of lib/aws/signing.ts logic) ──────────────────────────────
 

@@ -17,6 +17,9 @@ const BUCKET_MAPPING: Record<StorageBucket, BucketId> = {
   'delivery-proofs': 'parcelProofs',
 };
 
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
+
 interface UploadResult {
   key: string;
   cdnUrl: string;
@@ -49,12 +52,24 @@ function buildCdnUrl(bucketId: BucketId, fullKey: string): string {
 
 const MAX_RETRIES = 2;
 
-async function uploadToS3(optimized: OptimizedImage, key: string, bucketId: BucketId): Promise<void> {
+interface S3UploadResult {
+  cdnUrl: string;
+}
+
+async function uploadToS3(optimized: OptimizedImage, key: string, bucketId: BucketId): Promise<S3UploadResult> {
   if (optimized.sizeBytes <= 0) {
     throw new Error('Image optimization produced empty file. Please try again.');
   }
 
-  const { url, headers } = await signS3PutRequest({
+  if (!ALLOWED_MIME_TYPES.includes(optimized.mimeType)) {
+    throw new Error(`Invalid file type: ${optimized.mimeType}. Allowed: JPEG, PNG, WebP, PDF.`);
+  }
+
+  if (optimized.sizeBytes > MAX_FILE_SIZE_BYTES) {
+    throw new Error(`File too large (${(optimized.sizeBytes / 1024 / 1024).toFixed(1)}MB). Maximum: ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB.`);
+  }
+
+  const signed = await signS3PutRequest({
     bucketId,
     key,
     contentType: optimized.mimeType,
@@ -63,20 +78,20 @@ async function uploadToS3(optimized: OptimizedImage, key: string, bucketId: Buck
 
   let lastError: string = '';
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const uploadResult = await FileSystem.uploadAsync(url, optimized.uri, {
+    const uploadResult = await FileSystem.uploadAsync(signed.url, optimized.uri, {
       httpMethod: 'PUT',
-      headers,
+      headers: signed.headers,
       uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
     });
 
     if (uploadResult.status >= 200 && uploadResult.status < 300) {
-      return;
+      return { cdnUrl: signed.cdnUrl };
     }
 
     lastError = `${uploadResult.status}: ${uploadResult.body?.slice(0, 200) ?? 'unknown'}`;
 
     if (uploadResult.status === 403 || uploadResult.status === 401) {
-      throw new Error(`Upload denied (${uploadResult.status}). Check AWS permissions.`);
+      throw new Error(`Upload denied (${uploadResult.status}). Please re-authenticate and try again.`);
     }
 
     if (attempt < MAX_RETRIES) {
@@ -108,7 +123,7 @@ export async function uploadImage(
       const mainKey = buildStorageKey(options.bucket, options.userId, options.fileName, main.extension);
       const thumbKey = buildStorageKey(options.bucket, options.userId, `${options.fileName}_thumb`, thumbnail.extension);
 
-      await Promise.all([
+      const [mainResult, thumbResult] = await Promise.all([
         uploadToS3(main, mainKey, bucketId),
         uploadToS3(thumbnail, thumbKey, bucketId),
       ]);
@@ -116,9 +131,9 @@ export async function uploadImage(
       return {
         data: {
           key: mainKey,
-          cdnUrl: buildCdnUrl(bucketId, mainKey),
+          cdnUrl: mainResult.cdnUrl,
           thumbnailKey: thumbKey,
-          thumbnailCdnUrl: buildCdnUrl(bucketId, thumbKey),
+          thumbnailCdnUrl: thumbResult.cdnUrl,
           sizeBytes: main.sizeBytes,
           mimeType: main.mimeType,
         },
@@ -129,12 +144,12 @@ export async function uploadImage(
     const optimized = await optimizeImage(fileUri, options.preset);
     const key = buildStorageKey(options.bucket, options.userId, options.fileName, optimized.extension);
 
-    await uploadToS3(optimized, key, bucketId);
+    const result = await uploadToS3(optimized, key, bucketId);
 
     return {
       data: {
         key,
-        cdnUrl: buildCdnUrl(bucketId, key),
+        cdnUrl: result.cdnUrl,
         sizeBytes: optimized.sizeBytes,
         mimeType: optimized.mimeType,
       },

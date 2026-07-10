@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useState, useEffect, useRef, ReactNode, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient } from '@/template';
 import { User } from '@/types';
@@ -26,7 +26,6 @@ function profileEmailFor(userId: string, email?: string | null) {
   return email?.trim().toLowerCase() || `${userId}@carrygo.local`;
 }
 
-/** Human-readable messages for common Supabase auth error codes */
 function mapAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('email rate limit') || m.includes('rate limit')) {
@@ -56,19 +55,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [operationLoading, setOperationLoading] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const loadingRef = useRef(false);
 
   const loadUser = useCallback(async (userId: string, email?: string | null) => {
-    let result = await fetchProfile(userId);
-    if (!result.data && !result.error) {
-      result = await ensureProfile(userId, profileEmailFor(userId, email));
-    }
+    if (loadingRef.current) return { data: null, error: null };
+    loadingRef.current = true;
+    try {
+      let result = await fetchProfile(userId);
+      if (!result.data && !result.error) {
+        result = await ensureProfile(userId, profileEmailFor(userId, email));
+      }
 
-    if (result.data) {
-      setUser(result.data);
-    } else {
-      setUser(null);
+      if (result.data) {
+        setUser(result.data);
+      } else {
+        setUser(null);
+      }
+      return result;
+    } finally {
+      loadingRef.current = false;
     }
-    return result;
   }, []);
 
   useEffect(() => {
@@ -81,30 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     let isMounted = true;
-
-    sb.auth.getSession()
-      .then(async ({ data: { session } }) => {
-        if (!isMounted) return;
-        try {
-          if (session?.user) {
-            await loadUser(session.user.id, session.user.email ?? '');
-          }
-        } catch (err: unknown) {
-          if (isMounted) {
-            const msg = err instanceof Error ? err.message : 'Failed to load session';
-            setSessionError(msg);
-          }
-        } finally {
-          if (isMounted) setIsLoading(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (isMounted) {
-          const msg = err instanceof Error ? err.message : 'Failed to connect';
-          setSessionError(msg);
-          setIsLoading(false);
-        }
-      });
 
     const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
@@ -135,13 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
-      if (subscription) {
-        subscription.unsubscribe();
-      }
+      subscription.unsubscribe();
     };
   }, [loadUser, queryClient]);
 
-  const sendOTP = async (email: string): Promise<{ error: string | null }> => {
+  const sendOTP = useCallback(async (email: string): Promise<{ error: string | null }> => {
     setOperationLoading(true);
     try {
       const sb = getSupabaseClient();
@@ -169,9 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setOperationLoading(false);
     }
-  };
+  }, []);
 
-  const verifyOTP = async (
+  const verifyOTP = useCallback(async (
     email: string,
     otp: string
   ): Promise<{ error: string | null; requiresProfileSetup?: boolean }> => {
@@ -215,9 +195,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setOperationLoading(false);
     }
-  };
+  }, [loadUser]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       const sb = getSupabaseClient();
       await sb.auth.signOut();
@@ -225,30 +205,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       queryClient.clear();
     }
-  };
+  }, [queryClient]);
 
-  const updateUser = (updates: Partial<User>) => {
-    if (user) setUser({ ...user, ...updates });
-  };
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser(prev => prev ? { ...prev, ...updates } : null);
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (user) await loadUser(user.id, user.email);
-  };
+  }, [user, loadUser]);
+
+  const contextValue = useMemo(() => ({
+    user,
+    isAuthenticated: !!user,
+    requiresProfileSetup: !!user && !isProfileComplete(user),
+    isLoading,
+    operationLoading,
+    sessionError,
+    sendOTP,
+    verifyOTP,
+    logout,
+    updateUser,
+    refreshUser,
+  }), [user, isLoading, operationLoading, sessionError, sendOTP, verifyOTP, logout, updateUser, refreshUser]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated: !!user,
-      requiresProfileSetup: !!user && !isProfileComplete(user),
-      isLoading,
-      operationLoading,
-      sessionError,
-      sendOTP,
-      verifyOTP,
-      logout,
-      updateUser,
-      refreshUser,
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
