@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTrips } from '@/services/trips.service';
 import { fetchParcels } from '@/services/parcels.service';
 import { Trip, Parcel, VehicleType } from '@/types';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { calculateRouteDistance } from '@/services/route-intelligence.service';
+import { useDebounce } from './useDebounce';
 
 export type SortOption =
   | 'price_low'
@@ -65,17 +66,6 @@ const DEFAULT_FILTERS: SmartSearchFilters = {
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 300;
 
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState<T>(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-
-  return debounced;
-}
-
 export function useSmartSearch(enabled = true): SmartSearchReturn {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFiltersState] = useState<SmartSearchFilters>(DEFAULT_FILTERS);
@@ -99,39 +89,43 @@ export function useSmartSearch(enabled = true): SmartSearchReturn {
       .slice(0, 8);
   }, [debouncedQuery]);
 
-  // Fetch trips
-  const tripsQuery = useQuery<Trip[]>({
-    queryKey: ['smartSearch', 'trips', filters.fromCity, filters.toCity],
+  const fetchLimit = PAGE_SIZE * 5;
+
+  // Fetch trips with server-side pagination
+  const tripsQuery = useQuery<{ items: Trip[]; total: number }>({
+    queryKey: ['smartSearch', 'trips', filters.fromCity, filters.toCity, page],
     enabled,
     queryFn: async () => {
-      const { data } = await fetchTrips({
+      const { data, total } = await fetchTrips({
         fromCity: filters.fromCity || undefined,
         toCity: filters.toCity || undefined,
-        limit: 100,
+        limit: fetchLimit,
+        offset: 0,
       });
-      return data ?? [];
+      return { items: data ?? [], total };
     },
     staleTime: 60_000,
   });
 
-  // Fetch parcels
-  const parcelsQuery = useQuery<Parcel[]>({
-    queryKey: ['smartSearch', 'parcels', filters.fromCity, filters.toCity],
+  // Fetch parcels with server-side pagination
+  const parcelsQuery = useQuery<{ items: Parcel[]; total: number }>({
+    queryKey: ['smartSearch', 'parcels', filters.fromCity, filters.toCity, page],
     enabled,
     queryFn: async () => {
-      const { data } = await fetchParcels({
+      const { data, total } = await fetchParcels({
         fromCity: filters.fromCity || undefined,
         toCity: filters.toCity || undefined,
-        limit: 100,
+        limit: fetchLimit,
+        offset: 0,
       });
-      return data ?? [];
+      return { items: data ?? [], total };
     },
     staleTime: 60_000,
   });
 
   const filteredAndSorted = useMemo(() => {
-    const trips = (tripsQuery.data ?? []).filter(t => t.status === 'active');
-    const parcels = (parcelsQuery.data ?? []).filter(p => p.status === 'open');
+    const trips = (tripsQuery.data?.items ?? []).filter(t => t.status === 'active');
+    const parcels = (parcelsQuery.data?.items ?? []).filter(p => p.status === 'open');
 
     // Apply filters to trips
     const filteredTrips: SmartSearchResult[] = trips
