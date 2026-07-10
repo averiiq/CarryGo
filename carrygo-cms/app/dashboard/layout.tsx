@@ -1,6 +1,8 @@
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'CarryGo Admin CMS',
   description: 'Internal CMS and dashboard for CarryGo',
