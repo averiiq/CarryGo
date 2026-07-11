@@ -87,6 +87,24 @@ export async function uploadKycDocument(
 ) {
   const sb = getSupabaseClient();
 
+  const { data: session, error: sessionError } = await sb
+    .from('kyc_sessions')
+    .select('user_id, status')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    return { data: null, error: 'KYC session not found.' };
+  }
+
+  if (session.user_id !== userId) {
+    return { data: null, error: 'Session does not belong to this user.' };
+  }
+
+  if (session.status !== 'pending') {
+    return { data: null, error: `Cannot upload documents for a ${session.status} session.` };
+  }
+
   const { data: uploadData, error: uploadError } = await uploadKycToS3(
     fileUri,
     userId,

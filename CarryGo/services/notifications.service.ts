@@ -5,16 +5,19 @@ import { Platform } from 'react-native';
 import * as Application from 'expo-application';
 import { FeatureFlags } from '@/constants/featureFlags';
 
-// Configure how notifications behave when the app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch {
+  // Expo Go SDK 53+ removed push notification support
+}
 
 interface NotificationRow {
   id: string;

@@ -1,216 +1,135 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const AWS_REGION = Deno.env.get('AWS_REGION') ?? 'ap-south-1';
-const AWS_ACCESS_KEY_ID = Deno.env.get('AWS_ACCESS_KEY_ID') ?? '';
-const AWS_SECRET_ACCESS_KEY = Deno.env.get('AWS_SECRET_ACCESS_KEY') ?? '';
+const CLOUDINARY_API_SECRET = Deno.env.get('CLOUDINARY_API_SECRET') ?? '';
+const CLOUDINARY_API_KEY = Deno.env.get('CLOUDINARY_API_KEY') ?? '';
 
-const BUCKETS: Record<string, { name: string; pathPrefix: string; cloudfrontDomain: string }> = {
-  parcelProofs: {
-    name: Deno.env.get('AWS_BUCKET_PARCEL_PROOFS') ?? 'carrygo-parcel-proofs',
-    pathPrefix: 'parcel-proofs',
-    cloudfrontDomain: Deno.env.get('CF_PARCEL_PROOFS') ?? '',
-  },
-  userDocuments: {
-    name: Deno.env.get('AWS_BUCKET_USER_DOCS') ?? 'carrygo-user-documents',
-    pathPrefix: 'user-documents-proof',
-    cloudfrontDomain: Deno.env.get('CF_USER_DOCS') ?? '',
-  },
-};
+const ALLOWED_PREFIXES = ['avatars/', 'parcels/', 'kyc-documents/', 'delivery-proofs/'];
 
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-  'application/pdf',
-];
+const rateLimits = new Map<string, { count: number; resetAt: number }>();
 
-const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimits.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimits.set(userId, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= 15) return false;
+  entry.count++;
+  return true;
+}
 
-function toHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
+async function sha1Hex(message: string): Promise<string> {
+  const data = new TextEncoder().encode(message);
+  const hash = await crypto.subtle.digest('SHA-1', data);
+  return Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
-async function hmacSha256(key: ArrayBuffer | Uint8Array, message: string): Promise<ArrayBuffer> {
-  const keyData: BufferSource = key instanceof Uint8Array ? key : new Uint8Array(key);
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  return crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(message));
-}
-
-async function sha256(data: string): Promise<string> {
-  const buffer = new TextEncoder().encode(data);
-  const hash = await crypto.subtle.digest('SHA-256', buffer);
-  return toHex(hash);
-}
-
-async function getSigningKey(secretKey: string, dateStamp: string, region: string, service: string): Promise<ArrayBuffer> {
-  const kDate = await hmacSha256(new TextEncoder().encode(`AWS4${secretKey}`), dateStamp);
-  const kRegion = await hmacSha256(kDate, region);
-  const kService = await hmacSha256(kRegion, service);
-  return hmacSha256(kService, 'aws4_request');
-}
-
-function encodeURIPath(path: string): string {
-  return path
-    .split('/')
-    .map(segment => encodeURIComponent(segment))
-    .join('/');
-}
-
-interface SignedUploadUrl {
-  url: string;
-  headers: Record<string, string>;
-  cdnUrl: string;
-}
-
-async function generateSignedPutUrl(
-  bucketId: string,
-  key: string,
-  contentType: string,
-  contentLength: number
-): Promise<SignedUploadUrl> {
-  const bucket = BUCKETS[bucketId];
-  if (!bucket) throw new Error(`Invalid bucket: ${bucketId}`);
-
-  const fullKey = `${bucket.pathPrefix}/${key}`;
-  const now = new Date();
-  const dateStamp = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const amzDate = now.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
-
-  const host = `${bucket.name}.s3.${AWS_REGION}.amazonaws.com`;
-  const url = `https://${host}/${fullKey}`;
-  const bodyHash = 'UNSIGNED-PAYLOAD';
-  const signedHeaderNames = 'content-type;host;x-amz-content-sha256;x-amz-date';
-
-  const canonicalHeaders =
-    `content-type:${contentType}\n` +
-    `host:${host}\n` +
-    `x-amz-content-sha256:${bodyHash}\n` +
-    `x-amz-date:${amzDate}\n`;
-
-  const canonicalRequest = [
-    'PUT',
-    `/${encodeURIPath(fullKey)}`,
-    '',
-    canonicalHeaders,
-    signedHeaderNames,
-    bodyHash,
-  ].join('\n');
-
-  const canonicalRequestHash = await sha256(canonicalRequest);
-  const credential = `${AWS_ACCESS_KEY_ID}/${dateStamp}/${AWS_REGION}/s3/aws4_request`;
-  const stringToSign = [
-    'AWS4-HMAC-SHA256',
-    amzDate,
-    `${dateStamp}/${AWS_REGION}/s3/aws4_request`,
-    canonicalRequestHash,
-  ].join('\n');
-
-  const signingKey = await getSigningKey(AWS_SECRET_ACCESS_KEY, dateStamp, AWS_REGION, 's3');
-  const signatureBuffer = await hmacSha256(signingKey, stringToSign);
-  const signature = toHex(signatureBuffer);
-
-  const authorization = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
-
-  const cdnUrl = bucket.cloudfrontDomain
-    ? `https://${bucket.cloudfrontDomain}/${fullKey}`
-    : url;
-
-  return {
-    url,
-    headers: {
-      'Authorization': authorization,
-      'Content-Type': contentType,
-      'Content-Length': String(contentLength),
-      'x-amz-content-sha256': bodyHash,
-      'x-amz-date': amzDate,
-    },
-    cdnUrl,
-  };
-}
-
 Deno.serve(async (req) => {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
+    'Content-Type': 'application/json',
+  };
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
-      },
-    });
+    return new Response(null, { headers });
   }
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
   }
 
   try {
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization' }), { status: 401 });
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), { status: 401, headers });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
+
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
+    }
+
+    if (!checkRateLimit(user.id)) {
+      return new Response(
+        JSON.stringify({ error: 'Too many uploads. Please wait.' }),
+        { status: 429, headers }
+      );
     }
 
     const body = await req.json();
-    const { bucketId, key, contentType, contentLength } = body;
-
-    if (!bucketId || !key || !contentType || !contentLength) {
+    // Support both old format {folder, publicId} and new format {publicId}
+    // If old client sends folder separately, merge it into publicId
+    let publicId: string = body.publicId ?? '';
+    if (!publicId && body.folder && body.publicId === undefined) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: bucketId, key, contentType, contentLength' }),
-        { status: 400 }
+        JSON.stringify({ error: 'Missing required field: publicId' }),
+        { status: 400, headers }
+      );
+    }
+    if (body.folder && publicId && !publicId.startsWith(body.folder)) {
+      publicId = `${body.folder}/${publicId}`;
+    }
+
+    if (!publicId || typeof publicId !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: publicId' }),
+        { status: 400, headers }
       );
     }
 
-    if (!ALLOWED_MIME_TYPES.includes(contentType)) {
+    if (publicId.includes('..') || publicId.includes('\0') || publicId.includes('\\')) {
       return new Response(
-        JSON.stringify({ error: `Invalid content type. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}` }),
-        { status: 400 }
+        JSON.stringify({ error: 'Invalid characters in path.' }),
+        { status: 400, headers }
       );
     }
 
-    if (contentLength > MAX_FILE_SIZE) {
+    const hasValidPrefix = ALLOWED_PREFIXES.some(p => publicId.startsWith(p));
+    if (!hasValidPrefix) {
       return new Response(
-        JSON.stringify({ error: `File too large. Maximum: ${MAX_FILE_SIZE / 1024 / 1024}MB` }),
-        { status: 400 }
+        JSON.stringify({ error: 'Invalid upload path prefix.' }),
+        { status: 400, headers }
       );
     }
 
-    if (!key.includes(user.id)) {
+    if (!publicId.includes(user.id)) {
       return new Response(
-        JSON.stringify({ error: 'Upload key must contain your user ID' }),
-        { status: 403 }
+        JSON.stringify({ error: 'Upload path must include your user ID.' }),
+        { status: 403, headers }
       );
     }
 
-    const signed = await generateSignedPutUrl(bucketId, key, contentType, contentLength);
+    const timestamp = Math.floor(Date.now() / 1000);
 
-    return new Response(JSON.stringify(signed), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    // Sign EXACTLY what we send to Cloudinary: public_id and timestamp only
+    const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${CLOUDINARY_API_SECRET}`;
+    const signature = await sha1Hex(stringToSign);
+
+    return new Response(JSON.stringify({
+      signature,
+      timestamp,
+      apiKey: CLOUDINARY_API_KEY,
+      publicId,
+    }), { headers });
+
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal error';
-    console.error('[generate-upload-url]', message);
-    return new Response(JSON.stringify({ error: message }), { status: 500 });
+    console.error('[generate-upload-url]', err);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers }
+    );
   }
 });

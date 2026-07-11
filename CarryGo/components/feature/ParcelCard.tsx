@@ -16,13 +16,13 @@ const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   other: 'inventory-2',
 };
 
-const categoryColors: Record<string, string> = {
-  documents: '#8B5CF6',
-  electronics: '#06B6D4',
-  clothing: '#F59E0B',
-  food: '#10B981',
-  medicine: '#EF4444',
-  other: '#6B7280',
+const categoryGradients: Record<string, [string, string]> = {
+  documents: ['#8B5CF6', '#7C3AED'],
+  electronics: ['#06B6D4', '#0891B2'],
+  clothing: ['#F59E0B', '#D97706'],
+  food: ['#10B981', '#059669'],
+  medicine: ['#EF4444', '#DC2626'],
+  other: ['#6B7280', '#4B5563'],
 };
 
 interface ParcelCardProps {
@@ -33,101 +33,101 @@ interface ParcelCardProps {
 }
 
 export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, showCarryButton, onCarry }: ParcelCardProps) {
-  const { C, S } = useThemeColors();
-  const cColor = categoryColors[parcel.category] || C.primary;
+  const { C, isDark } = useThemeColors();
+  const cGradient = categoryGradients[parcel.category] || ['#7C3AED', '#6D28D9'];
+  const cColor = cGradient[0];
   const scale = useRef(new Animated.Value(1)).current;
 
-  const onPressIn = () => Animated.spring(scale, { toValue: Motion.cardScale, useNativeDriver: true, ...Motion.springFast }).start();
+  const onPressIn = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, ...Motion.springFast }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
-  const statusColor = parcel.status === 'open' ? C.success : parcel.status === 'in_transit' ? C.primary : C.textMuted;
-  const statusBg = parcel.status === 'open' ? C.successSubtle : parcel.status === 'in_transit' ? C.primarySubtle : C.surfaceElevated;
+  const statusColor = parcel.status === 'open' ? '#10B981' : parcel.status === 'in_transit' ? '#3B82F6' : C.textMuted;
   const statusLabel = parcel.status === 'in_transit' ? 'In Transit' : parcel.status.charAt(0).toUpperCase() + parcel.status.slice(1);
 
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} accessibilityRole="button" accessibilityLabel={`Parcel from ${parcel.fromCity} to ${parcel.toCity}, ${parcel.weight}kg, offered ${parcel.priceOffer} rupees`}>
-      <Animated.View style={[
-        styles.card,
-        S.sm,
-        { backgroundColor: C.surface, borderColor: C.surfaceBorder, transform: [{ scale }] },
-      ]}>
-        <LinearGradient
-          colors={[cColor + '06', 'transparent']}
-          style={styles.cardGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}>
+      <Animated.View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder, transform: [{ scale }] }]}>
         <View style={styles.inner}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={[styles.iconCircle, { backgroundColor: cColor + '14', borderColor: cColor + '25' }]}>
-              <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={20} color={cColor} />
+          {/* Top section */}
+          <View style={styles.topSection}>
+            {/* Category badge */}
+            <View style={styles.catBadge}>
+              <LinearGradient colors={cGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+              <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={20} color="#fff" />
             </View>
-            <View style={styles.routeInfo}>
+
+            {/* Route + description */}
+            <View style={styles.headerContent}>
               <View style={styles.routeRow}>
-                <Text style={[styles.cityText, { color: C.textPrimary }]}>{parcel.fromCity}</Text>
-                <View style={[styles.arrowPill, { backgroundColor: C.surfaceElevated }]}>
-                  <MaterialIcons name="arrow-forward" size={11} color={C.textMuted} />
+                <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>{parcel.fromCity}</Text>
+                <View style={[styles.arrowCircle, { backgroundColor: cColor + '14' }]}>
+                  <MaterialIcons name="arrow-forward" size={10} color={cColor} />
                 </View>
-                <Text style={[styles.cityText, { color: C.textPrimary }]}>{parcel.toCity}</Text>
+                <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>{parcel.toCity}</Text>
               </View>
-              <Text style={[styles.descText, { color: C.textSecondary }]} numberOfLines={1}>{parcel.description}</Text>
+              <Text style={[styles.description, { color: C.textSecondary }]} numberOfLines={1}>{parcel.description}</Text>
             </View>
-            <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
+
+            {/* Status */}
+            <View style={[styles.statusBadge, { backgroundColor: statusColor + '14' }]}>
               <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
+              <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
             </View>
           </View>
 
-          {/* Info row */}
-          <View style={styles.infoRow}>
-            <View style={[styles.infoChip, { backgroundColor: C.surfaceElevated }]}>
-              <MaterialIcons name="scale" size={12} color={C.textMuted} />
-              <Text style={[styles.infoChipText, { color: C.textSecondary }]}>{parcel.weight}kg</Text>
+          {/* Middle - weight, category, date chips */}
+          <View style={styles.metaRow}>
+            <View style={[styles.metaChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+              <MaterialIcons name="scale" size={12} color={C.textSecondary} />
+              <Text style={[styles.metaLabel, { color: C.textSecondary }]}>{parcel.weight}kg</Text>
             </View>
-            <View style={[styles.infoChip, { backgroundColor: cColor + '10' }]}>
+            <View style={[styles.metaChip, { backgroundColor: cColor + '10' }]}>
               <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={12} color={cColor} />
-              <Text style={[styles.infoChipText, { color: cColor }]}>
+              <Text style={[styles.metaLabel, { color: cColor }]}>
                 {parcel.category.charAt(0).toUpperCase() + parcel.category.slice(1)}
               </Text>
             </View>
-            <View style={{ flex: 1 }} />
-            <View style={[styles.priceBlock, { backgroundColor: C.successSubtle, borderColor: C.success + '20' }]}>
-              <Text style={[styles.priceSymbol, { color: C.success }]}>₹</Text>
-              <Text style={[styles.price, { color: C.success }]}>{parcel.priceOffer}</Text>
+            {parcel.deliveryDate && (
+              <View style={[styles.metaChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                <Ionicons name="calendar" size={12} color={C.textSecondary} />
+                <Text style={[styles.metaLabel, { color: C.textSecondary }]}>By {formatScheduleDate(parcel.deliveryDate)}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Bottom - sender + price */}
+          <View style={styles.bottomRow}>
+            <View style={styles.senderSection}>
+              <LinearGradient colors={cGradient} style={styles.senderAvatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Text style={styles.senderLetter}>{parcel.userName.charAt(0).toUpperCase()}</Text>
+              </LinearGradient>
+              <View>
+                <Text style={[styles.senderName, { color: C.textPrimary }]}>{parcel.userName}</Text>
+                {!parcel.deliveryDate && (
+                  <Text style={[styles.timeAgo, { color: C.textMuted }]}>
+                    {new Date(parcel.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <View style={styles.priceBox}>
+              <LinearGradient colors={['#10B98120', '#05966905']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+              <Text style={[styles.priceValue, { color: '#10B981' }]}>
+                <Text style={styles.priceCurrency}>₹</Text>{parcel.priceOffer}
+              </Text>
             </View>
           </View>
 
-          {/* Sender row */}
-          <View style={styles.senderRow}>
-            <View style={[styles.senderAvatar, { backgroundColor: C.primarySubtle, borderColor: C.primary + '20' }]}>
-              <Text style={[styles.senderAvatarText, { color: C.primary }]}>{parcel.userName.charAt(0)}</Text>
-            </View>
-            <Text style={[styles.senderName, { color: C.textSecondary }]}>{parcel.userName}</Text>
-            <Ionicons name={parcel.deliveryDate ? 'calendar-outline' : 'time-outline'} size={11} color={C.textMuted} />
-            <Text style={[styles.timeText, { color: C.textMuted }]}>
-              {parcel.deliveryDate
-                ? `By ${formatScheduleDate(parcel.deliveryDate)}`
-                : new Date(parcel.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-            </Text>
-          </View>
-
-          {showCarryButton ? (
+          {showCarryButton && (
             <Pressable
-              style={({ pressed: p }) => [
-                styles.carryBtn,
-                { backgroundColor: C.primarySubtle, borderColor: C.primary + '30' },
-                p && { backgroundColor: C.primaryGlow, transform: [{ scale: 0.98 }] },
-              ]}
+              style={({ pressed }) => [styles.carryBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               onPress={onCarry}
-              accessibilityRole="button"
-              accessibilityLabel="Carry this parcel"
             >
-              <MaterialIcons name="local-shipping" size={15} color={C.primary} />
-              <Text style={[styles.carryBtnText, { color: C.primary }]}>Carry This Parcel</Text>
+              <LinearGradient colors={cGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
+              <MaterialIcons name="local-shipping" size={15} color="#fff" />
+              <Text style={styles.carryBtnText}>Carry This Parcel</Text>
             </Pressable>
-          ) : null}
+          )}
         </View>
       </Animated.View>
     </Pressable>
@@ -135,42 +135,62 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, show
 });
 
 const styles = StyleSheet.create({
-  card: { borderRadius: BorderRadius.lg, borderWidth: 1, overflow: 'hidden', position: 'relative' },
-  cardGradient: { ...StyleSheet.absoluteFillObject, borderRadius: BorderRadius.lg },
-  inner: { padding: Spacing.md, gap: Spacing.sm + 2 },
-
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  iconCircle: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, flexShrink: 0 },
-  routeInfo: { flex: 1, gap: 3 },
-  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  arrowPill: { width: 20, height: 20, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  cityText: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  descText: { fontSize: FontSize.sm, lineHeight: 18 },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: BorderRadius.full },
-  statusDot: { width: 5, height: 5, borderRadius: 3 },
-  statusText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  infoChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm + 2, paddingVertical: 5, borderRadius: BorderRadius.full },
-  infoChipText: { fontSize: FontSize.xs },
-
-  priceBlock: {
-    flexDirection: 'row', alignItems: 'baseline', gap: 1,
-    paddingHorizontal: Spacing.sm + 2, paddingVertical: 5,
-    borderRadius: BorderRadius.sm, borderWidth: 1,
+  card: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
-  priceSymbol: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  price: { fontSize: FontSize.lg, fontWeight: FontWeight.extrabold },
+  inner: { padding: Spacing.lg, gap: Spacing.md },
 
-  senderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  senderAvatar: { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  senderAvatarText: { fontSize: 10, fontWeight: FontWeight.bold },
-  senderName: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  timeText: { fontSize: FontSize.xs },
+  // Top section
+  topSection: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  catBadge: {
+    width: 44, height: 44, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0,
+  },
+  headerContent: { flex: 1, gap: 4 },
+  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  cityName: { fontSize: 16, fontWeight: FontWeight.extrabold, letterSpacing: -0.3 },
+  arrowCircle: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  description: { fontSize: FontSize.sm, lineHeight: 18 },
+  statusBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 5, borderRadius: BorderRadius.full, flexShrink: 0,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusLabel: { fontSize: 10, fontWeight: FontWeight.bold },
+
+  // Meta
+  metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  metaChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  metaLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+
+  // Bottom
+  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  senderSection: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  senderAvatar: {
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  senderLetter: { color: '#fff', fontSize: 12, fontWeight: FontWeight.bold },
+  senderName: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  timeAgo: { fontSize: FontSize.xs, marginTop: 1 },
+
+  priceBox: {
+    flexDirection: 'row', alignItems: 'baseline',
+    paddingHorizontal: Spacing.md, paddingVertical: 10,
+    borderRadius: 14, overflow: 'hidden',
+  },
+  priceCurrency: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  priceValue: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
 
   carryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: BorderRadius.md, paddingVertical: Spacing.sm + 3, borderWidth: 1,
+    borderRadius: 14, paddingVertical: 14, overflow: 'hidden',
   },
-  carryBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  carryBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
 });

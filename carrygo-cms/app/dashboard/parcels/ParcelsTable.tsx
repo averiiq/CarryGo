@@ -12,6 +12,14 @@ type Parcel = {
   createdAt: string
 }
 
+const statusStyles: Record<string, string> = {
+  open: 'bg-warning-subtle text-warning',
+  matched: 'bg-warning-subtle text-warning',
+  delivered: 'bg-success-subtle text-success',
+  in_transit: 'bg-primary-subtle text-primary',
+  failed: 'bg-danger-subtle text-danger',
+}
+
 export default function ParcelsTable({ initialParcels }: { initialParcels: Parcel[] }) {
   const [parcels, setParcels] = useState(initialParcels)
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -29,56 +37,51 @@ export default function ParcelsTable({ initialParcels }: { initialParcels: Parce
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+    <div className="rounded-2xl bg-surface shadow-[var(--shadow-bento)] border border-border-subtle overflow-hidden">
+      <div className="p-6 border-b border-border-subtle flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Parcels</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage and monitor parcel delivery requests on the platform.</p>
+          <h2 className="text-lg font-heading font-semibold text-foreground">Parcels</h2>
+          <p className="text-xs text-muted mt-1">Manage and monitor parcel delivery requests.</p>
         </div>
       </div>
-      
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50 text-gray-500 font-medium">
+          <thead className="bg-slate-50/50 text-muted text-xs font-semibold uppercase tracking-wider">
             <tr>
               <th className="px-6 py-4">Sender</th>
               <th className="px-6 py-4">Route</th>
               <th className="px-6 py-4">Details</th>
               <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Created On</th>
+              <th className="px-6 py-4">Created</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border-subtle">
             {parcels.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                   No parcels found.
                 </td>
               </tr>
             ) : (
               parcels.map((parcel) => (
-                <tr key={parcel.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900">{parcel.senderName}</td>
-                  <td className="px-6 py-4 text-gray-600">{parcel.route}</td>
-                  <td className="px-6 py-4 text-gray-600">{parcel.details}</td>
+                <tr key={parcel.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-foreground">{parcel.senderName}</td>
+                  <td className="px-6 py-4 text-foreground/70">{parcel.route}</td>
+                  <td className="px-6 py-4 text-foreground/70">{parcel.details}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                      ['open', 'matched'].includes(parcel.status) ? 'bg-amber-100 text-amber-700' :
-                      parcel.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
-                      parcel.status === 'in_transit' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusStyles[parcel.status] || 'bg-slate-100 text-muted'}`}>
                       {parcel.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-gray-500">{parcel.createdAt}</td>
+                  <td className="px-6 py-4 text-muted">{parcel.createdAt}</td>
                   <td className="px-6 py-4 text-right">
                     {['open', 'matched'].includes(parcel.status) && (
                       <button
                         onClick={() => handleCancel(parcel.id)}
                         disabled={loadingId === parcel.id}
-                        className="text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+                        className="text-xs font-semibold text-danger hover:text-danger/80 disabled:opacity-50 transition-colors"
                       >
                         {loadingId === parcel.id ? 'Canceling...' : 'Cancel'}
                       </button>

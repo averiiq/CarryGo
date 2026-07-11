@@ -1,6 +1,7 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { motion } from 'framer-motion'
 
 interface ChartDataPoint {
   name: string
@@ -10,22 +11,68 @@ interface ChartDataPoint {
 
 export default function DashboardChart({ data }: { data: ChartDataPoint[] }) {
   return (
-    <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-      <h2 className="text-lg font-semibold text-gray-900 mb-6">Weekly Activity</h2>
-      <div className="h-[400px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280' }} dy={10} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280' }} />
-            <Tooltip
-              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-            />
-            <Bar dataKey="trips" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Trips Posted" />
-            <Bar dataKey="parcels" fill="#10B981" radius={[4, 4, 0, 0]} name="Parcels Listed" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+      className="h-[320px] w-full"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <defs>
+            <linearGradient id="tripsGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="parcelsGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
+          <XAxis
+            dataKey="name"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: '#94a3b8', fontSize: 12 }}
+            dy={8}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: '#94a3b8', fontSize: 12 }}
+          />
+          <Tooltip
+            contentStyle={{
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.05)',
+              padding: '12px 16px',
+              fontSize: '13px',
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="trips"
+            stroke="#6366f1"
+            strokeWidth={2.5}
+            fill="url(#tripsGradient)"
+            name="Trips"
+            dot={false}
+            activeDot={{ r: 5, strokeWidth: 2, fill: '#fff' }}
+          />
+          <Area
+            type="monotone"
+            dataKey="parcels"
+            stroke="#10b981"
+            strokeWidth={2.5}
+            fill="url(#parcelsGradient)"
+            name="Parcels"
+            dot={false}
+            activeDot={{ r: 5, strokeWidth: 2, fill: '#fff' }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </motion.div>
   )
 }

@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useRef, ReactNode, useCallback, useMemo } from 'react';
+import { createContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient } from '@/template';
 import { User } from '@/types';
@@ -55,11 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [operationLoading, setOperationLoading] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const loadingRef = useRef(false);
 
   const loadUser = useCallback(async (userId: string, email?: string | null) => {
-    if (loadingRef.current) return { data: null, error: null };
-    loadingRef.current = true;
     try {
       let result = await fetchProfile(userId);
       if (!result.data && !result.error) {
@@ -72,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       }
       return result;
-    } finally {
-      loadingRef.current = false;
+    } catch {
+      return { data: null, error: 'Failed to load profile' };
     }
   }, []);
 
@@ -88,12 +85,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let isMounted = true;
 
+    const timeout = setTimeout(() => {
+      if (isMounted && isLoading) setIsLoading(false);
+    }, 8000);
+
     const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
       try {
         setSessionError(null);
         if (session?.user) {
-          await loadUser(session.user.id, session.user.email ?? '');
+          loadUser(session.user.id, session.user.email ?? '').catch(() => {});
           registerForPushNotifications().then(async token => {
             if (token && isMounted) {
               await savePushToken(session.user.id, token);
@@ -117,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, [loadUser, queryClient]);
@@ -126,20 +128,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const sb = getSupabaseClient();
 
-      const { data: allowed } = await sb.rpc('check_auth_rate_limit', {
-        p_email: email,
-        p_type: 'send_otp',
-      });
-      if (allowed === false) {
-        return { error: 'Too many attempts. Please wait before trying again.' };
-      }
+      const sendTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. Please try again.')), 15000)
+      );
 
-      const { error } = await sb.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: true },
-      });
-
-      await sb.rpc('record_auth_attempt', { p_email: email, p_type: 'send_otp', p_success: !error });
+      const { error } = await Promise.race([
+        sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }),
+        sendTimeout,
+      ]);
 
       if (error) return { error: mapAuthError(error.message) };
       return { error: null };
@@ -159,34 +155,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const sb = getSupabaseClient();
 
-      const { data: allowed } = await sb.rpc('check_auth_rate_limit', {
-        p_email: email,
-        p_type: 'verify_otp',
-      });
-      if (allowed === false) {
-        return { error: 'Too many failed attempts. Please wait before trying again.' };
-      }
+      const verifyTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Verification timed out. Please try again.')), 20000)
+      );
 
-      const { data, error } = await sb.auth.verifyOtp({
-        email,
-        token: otp,
-        type: 'email',
-      });
-
-      await sb.rpc('record_auth_attempt', { p_email: email, p_type: 'verify_otp', p_success: !error });
+      const { data, error } = await Promise.race([
+        sb.auth.verifyOtp({ email, token: otp, type: 'email' }),
+        verifyTimeout,
+      ]);
 
       if (error) return { error: mapAuthError(error.message) };
 
       if (data.user) {
-        const ensured = await ensureProfile(data.user.id, profileEmailFor(data.user.id, email));
-        if (ensured.error) return { error: ensured.error };
-        const profileResult = await loadUser(data.user.id, email);
-        if (profileResult.error) return { error: profileResult.error };
         Haptic.success();
-        return {
-          error: null,
-          requiresProfileSetup: !isProfileComplete(profileResult.data),
-        };
+        const quickCheck = new Promise<{ data: User | null; error: string | null }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: null }), 5000)
+        );
+        try {
+          const profileResult = await Promise.race([
+            fetchProfile(data.user.id),
+            quickCheck,
+          ]);
+          if (profileResult.data) {
+            setUser(profileResult.data);
+            return { error: null, requiresProfileSetup: !isProfileComplete(profileResult.data) };
+          }
+        } catch {}
+        return { error: null, requiresProfileSetup: true };
       }
       return { error: 'Could not load the authenticated account.' };
     } catch (err: unknown) {
@@ -195,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setOperationLoading(false);
     }
-  }, [loadUser]);
+  }, []);
 
   const logout = useCallback(async () => {
     try {

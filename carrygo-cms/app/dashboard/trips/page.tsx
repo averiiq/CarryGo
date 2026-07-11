@@ -35,16 +35,16 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
     <div className="space-y-6">
       <TripsTable initialTrips={mappedTrips} />
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-          <p className="text-sm text-gray-500">
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          <p className="text-sm text-muted">
             Showing {from + 1}–{Math.min(to + 1, count || 0)} of {count} trips
           </p>
           <div className="flex gap-2">
             {page > 1 && (
-              <a href={`?page=${page - 1}`} className="px-3 py-1.5 text-sm rounded-md bg-white border border-gray-300 hover:bg-gray-50">Previous</a>
+              <a href={`?page=${page - 1}`} className="px-4 py-2 text-sm rounded-xl bg-surface border border-border text-foreground hover:bg-slate-50 transition-colors font-medium">Previous</a>
             )}
             {page < totalPages && (
-              <a href={`?page=${page + 1}`} className="px-3 py-1.5 text-sm rounded-md bg-white border border-gray-300 hover:bg-gray-50">Next</a>
+              <a href={`?page=${page + 1}`} className="px-4 py-2 text-sm rounded-xl bg-surface border border-border text-foreground hover:bg-slate-50 transition-colors font-medium">Next</a>
             )}
           </div>
         </div>

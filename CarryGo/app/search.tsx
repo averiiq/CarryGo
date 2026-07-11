@@ -19,7 +19,7 @@ import { HistoryChip, SearchHistoryEntry } from '@/components/feature/HistoryChi
 import { RouteMapView } from '@/components/feature/RouteMapView';
 import { SmartSearchBar } from '@/components/feature/SmartSearchBar';
 import { useSmartSearch, SortOption } from '@/hooks/useSmartSearch';
-import { styles } from './search.styles';
+import { styles } from '@/styles/search.styles';
 
 const HISTORY_KEY = 'carrygo_search_history';
 const MAX_HISTORY = 8;

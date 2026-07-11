@@ -20,7 +20,6 @@ export default async function KYCPage({ searchParams }: { searchParams: Promise<
     .order('created_at', { ascending: false })
     .range(from, to)
 
-  // Fetch document counts per session
   const sessionIds = (sessions || []).map((s) => s.id)
   let documentCountsMap: Record<string, number> = {}
 
@@ -38,7 +37,6 @@ export default async function KYCPage({ searchParams }: { searchParams: Promise<
     }
   }
 
-  // Map sessions to the format expected by KycQueue
   const mappedSessions = (sessions || []).map((session) => ({
     id: session.id,
     userId: session.user_id,
@@ -50,7 +48,6 @@ export default async function KYCPage({ searchParams }: { searchParams: Promise<
     status: session.status,
   }))
 
-  // Compute counts per status
   const counts = {
     all: mappedSessions.length,
     submitted: mappedSessions.filter((s) => s.status === 'submitted').length,
@@ -62,8 +59,8 @@ export default async function KYCPage({ searchParams }: { searchParams: Promise<
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">KYC Verification</h1>
-        <p className="text-gray-500">
+        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">KYC Verification</h1>
+        <p className="text-sm text-muted mt-1">
           Review and manage identity verification submissions.
         </p>
       </div>

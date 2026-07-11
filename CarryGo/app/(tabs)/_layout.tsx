@@ -1,72 +1,89 @@
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, View, Text, Pressable, Animated, StyleSheet, Easing } from 'react-native';
 import { useRef, useEffect } from 'react';
+import { BlurView } from 'expo-blur';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { useConversationsQuery } from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
-import { ThemeColors, Motion, Spacing, BorderRadius } from '@/constants/theme';
+import { ThemeColors, Motion, Spacing } from '@/constants/theme';
 
-function TabBadge({ count, bgColor }: { count: number; bgColor: string }) {
+function TabBadge({ count, C }: { count: number; C: ThemeColors }) {
   if (count === 0) return null;
   return (
-    <View style={[tabStyles.badge, { backgroundColor: bgColor }]}>
-      <Text style={tabStyles.badgeText}>{count > 9 ? '9+' : count}</Text>
+    <View style={[styles.badge, { backgroundColor: C.error, borderColor: C.tabBarBg }]}>
+      <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
     </View>
   );
 }
 
 function AnimatedTabIcon({
-  focused, icon, outlineIcon, color, badge = 0, badgeColor, dotAlert = false,
-  C,
+  focused, icon, outlineIcon, label, color, badge = 0, dotAlert = false, C,
 }: {
   focused: boolean;
-  icon: keyof typeof MaterialIcons.glyphMap | keyof typeof Ionicons.glyphMap;
-  outlineIcon: keyof typeof MaterialIcons.glyphMap | keyof typeof Ionicons.glyphMap;
+  icon: keyof typeof Ionicons.glyphMap;
+  outlineIcon: keyof typeof Ionicons.glyphMap;
+  label: string;
   color: string;
   badge?: number;
-  badgeColor?: string;
   dotAlert?: boolean;
   C: ThemeColors;
 }) {
-  const scale = useRef(new Animated.Value(focused ? 1 : 0.92)).current;
-  const glowOpacity = useRef(new Animated.Value(focused ? 0.6 : 0)).current;
+  const scale = useRef(new Animated.Value(focused ? 1 : 0.9)).current;
+  const translateY = useRef(new Animated.Value(focused ? -2 : 0)).current;
+  const pillWidth = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
     if (focused) {
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowOpacity, { toValue: 0.8, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(glowOpacity, { toValue: 0.4, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        ])
-      );
-      loop.start();
-      return () => loop.stop();
+      Animated.parallel([
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springFast }),
+        Animated.spring(translateY, { toValue: -2, useNativeDriver: true, ...Motion.springFast }),
+        Animated.timing(pillWidth, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      ]).start();
     } else {
-      Animated.spring(scale, { toValue: 0.92, useNativeDriver: true, ...Motion.springDefault }).start();
-      Animated.timing(glowOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+      Animated.parallel([
+        Animated.spring(scale, { toValue: 0.9, useNativeDriver: true, ...Motion.springDefault }),
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, ...Motion.springDefault }),
+        Animated.timing(pillWidth, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: false }),
+      ]).start();
     }
-  }, [focused, scale, glowOpacity]);
+  }, [focused, scale, translateY, pillWidth]);
+
+  const indicatorWidth = pillWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 20] });
 
   return (
-    <Animated.View style={[tabStyles.iconWrap, { transform: [{ scale }] }]}>
-      {focused ? <Animated.View style={[tabStyles.activeIndicator, { backgroundColor: C.primaryGlow, opacity: glowOpacity }]} /> : null}
-      <View style={tabStyles.iconInner}>
+    <Animated.View style={[styles.tabItem, { transform: [{ scale }, { translateY }] }]}>
+      <View style={styles.iconContainer}>
         <Ionicons
-          name={(focused ? icon : outlineIcon) as keyof typeof Ionicons.glyphMap}
-          size={22}
+          name={focused ? icon : outlineIcon}
+          size={23}
           color={focused ? C.primary : color}
         />
-        {badge > 0 && badgeColor ? <TabBadge count={badge} bgColor={badgeColor} /> : null}
-        {dotAlert && badge === 0 ? (
-          <View style={[tabStyles.alertDot, { backgroundColor: '#EF4444', borderColor: C.tabBarBg }]} />
-        ) : null}
+        {badge > 0 && <TabBadge count={badge} C={C} />}
+        {dotAlert && badge === 0 && (
+          <View style={[styles.alertDot, { backgroundColor: C.error, borderColor: C.tabBarBg }]} />
+        )}
       </View>
+      <Text
+        style={[
+          styles.tabLabel,
+          { color: focused ? C.primary : C.textMuted },
+          focused && styles.tabLabelActive,
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      <Animated.View
+        style={[
+          styles.activeIndicator,
+          { backgroundColor: C.primary, width: indicatorWidth },
+        ]}
+      />
     </Animated.View>
   );
 }
@@ -74,7 +91,7 @@ function AnimatedTabIcon({
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { user, isLoading, requiresProfileSetup } = useAuth();
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const requestsQuery = useRequestsQuery(user?.id);
   const conversationsQuery = useConversationsQuery(user?.id);
 
@@ -90,29 +107,41 @@ export default function TabLayout() {
   ).length;
   const kycPending = FeatureFlags.kycProvider && (!user.kycStatus || user.kycStatus === 'pending');
 
-  const tabH = Platform.select({ ios: insets.bottom + 64, android: insets.bottom + 68, default: 74 });
+  const bottomPad = Platform.select({ ios: insets.bottom, android: Math.max(insets.bottom, 8), default: 8 });
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          height: tabH,
-          paddingTop: 10,
-          paddingBottom: Platform.select({ ios: insets.bottom + 8, android: insets.bottom + 10, default: 12 }),
-          paddingHorizontal: Spacing.sm,
-          backgroundColor: C.tabBarBg,
-          borderTopWidth: 1,
-          borderTopColor: C.surfaceBorder + '40',
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 70 + bottomPad,
+          paddingBottom: bottomPad,
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
           elevation: 0,
           shadowColor: 'transparent',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0,
-          shadowRadius: 0,
         },
+        tabBarBackground: () => (
+          <View style={[StyleSheet.absoluteFill, styles.tabBarBg]}>
+            <BlurView
+              intensity={isDark ? 40 : 60}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: isDark ? 'rgba(8,8,20,0.82)' : 'rgba(255,255,255,0.88)' },
+            ]} />
+            <View style={[styles.tabBarTopBorder, { backgroundColor: C.surfaceBorder + '50' }]} />
+          </View>
+        ),
         tabBarActiveTintColor: C.primary,
         tabBarInactiveTintColor: C.textMuted,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2, letterSpacing: 0.2 },
+        tabBarShowLabel: false,
         tabBarButton: ({ ref: _ref, ...props }) => (
           <Pressable
             {...props}
@@ -120,8 +149,8 @@ export default function TabLayout() {
               Haptic.select();
               props.onPress?.(e);
             }}
-            android_ripple={{ color: C.primarySubtle, borderless: true, radius: 28 }}
-            style={props.style}
+            android_ripple={{ color: C.primarySubtle, borderless: true, radius: 30 }}
+            style={[props.style, styles.tabButton]}
           />
         ),
       }}
@@ -131,7 +160,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused} icon="home" outlineIcon="home-outline" color={color} C={C} />
+            <AnimatedTabIcon focused={focused} icon="home" outlineIcon="home-outline" label="Home" color={color} C={C} />
           ),
         }}
       />
@@ -140,7 +169,7 @@ export default function TabLayout() {
         options={{
           title: 'Requests',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused} icon="swap-horizontal" outlineIcon="swap-horizontal-outline" color={color} badge={pendingRequests} badgeColor="#EF4444" C={C} />
+            <AnimatedTabIcon focused={focused} icon="swap-horizontal" outlineIcon="swap-horizontal-outline" label="Requests" color={color} badge={pendingRequests} C={C} />
           ),
         }}
       />
@@ -149,7 +178,7 @@ export default function TabLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused} icon="chatbubbles" outlineIcon="chatbubbles-outline" color={color} badge={unreadMessages} badgeColor="#EF4444" C={C} />
+            <AnimatedTabIcon focused={focused} icon="chatbubbles" outlineIcon="chatbubbles-outline" label="Messages" color={color} badge={unreadMessages} C={C} />
           ),
         }}
       />
@@ -158,7 +187,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused} icon="person" outlineIcon="person-outline" color={color} dotAlert={kycPending} C={C} />
+            <AnimatedTabIcon focused={focused} icon="person" outlineIcon="person-outline" label="Profile" color={color} dotAlert={kycPending} C={C} />
           ),
         }}
       />
@@ -166,24 +195,73 @@ export default function TabLayout() {
   );
 }
 
-const tabStyles = StyleSheet.create({
-  iconWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
+const styles = StyleSheet.create({
+  tabBarBg: {
+    overflow: 'hidden',
+  },
+  tabBarTopBorder: {
+    position: 'absolute',
+    top: 0,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    height: 0.5,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    minWidth: 56,
+  },
+  iconContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
+    height: 28,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.1,
+  },
+  tabLabelActive: {
+    fontWeight: '700',
+  },
   activeIndicator: {
-    position: 'absolute', top: -4, width: 36, height: 36,
-    borderRadius: 12, opacity: 0.5,
+    height: 3,
+    borderRadius: 1.5,
+    marginTop: 2,
   },
-  iconInner: { position: 'relative', alignItems: 'center', justifyContent: 'center', height: 26, width: 26 },
   badge: {
-    position: 'absolute', top: -6, right: -10,
-    borderRadius: 10,
-    minWidth: 17, height: 17,
-    alignItems: 'center', justifyContent: 'center',
+    position: 'absolute',
+    top: -5,
+    right: -9,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 3,
+    borderWidth: 1.5,
   },
-  badgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 11,
+  },
   alertDot: {
-    position: 'absolute', top: -2, right: -3,
-    width: 8, height: 8, borderRadius: 4,
+    position: 'absolute',
+    top: -1,
+    right: -2,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     borderWidth: 1.5,
   },
 });

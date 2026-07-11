@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -19,14 +19,33 @@ export function DeliveryPhotoProof({ type, onPhotoCapture, existingPhotoUri, dis
   const { C } = useThemeColors();
   const [photoUri, setPhotoUri] = useState<string | null>(existingPhotoUri ?? null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [capturedAt, setCapturedAt] = useState<Date | null>(null);
+  const mountedRef = useRef(true);
 
-  const compressPhoto = async (uri: string): Promise<string> => {
-    const result = await optimizeImage(uri, 'delivery_proof');
-    return result.uri;
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const processAndCapture = async (uri: string) => {
+    const timestamp = new Date();
+    setIsProcessing(true);
+    try {
+      const result = await optimizeImage(uri, 'delivery_proof');
+      if (!mountedRef.current) return;
+      setPhotoUri(result.uri);
+      setCapturedAt(timestamp);
+      onPhotoCapture(result.uri);
+      Haptic.confirm();
+    } catch {
+      if (!mountedRef.current) return;
+      Haptic.error();
+    } finally {
+      if (mountedRef.current) setIsProcessing(false);
+    }
   };
 
   const takePhoto = async () => {
-    if (disabled) return;
+    if (disabled || isProcessing) return;
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') return;
@@ -39,17 +58,12 @@ export function DeliveryPhotoProof({ type, onPhotoCapture, existingPhotoUri, dis
     });
 
     if (!result.canceled && result.assets[0]) {
-      setIsProcessing(true);
-      const compressed = await compressPhoto(result.assets[0].uri);
-      setPhotoUri(compressed);
-      onPhotoCapture(compressed);
-      setIsProcessing(false);
-      Haptic.confirm();
+      await processAndCapture(result.assets[0].uri);
     }
   };
 
   const pickFromGallery = async () => {
-    if (disabled) return;
+    if (disabled || isProcessing) return;
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
@@ -63,12 +77,7 @@ export function DeliveryPhotoProof({ type, onPhotoCapture, existingPhotoUri, dis
     });
 
     if (!result.canceled && result.assets[0]) {
-      setIsProcessing(true);
-      const compressed = await compressPhoto(result.assets[0].uri);
-      setPhotoUri(compressed);
-      onPhotoCapture(compressed);
-      setIsProcessing(false);
-      Haptic.confirm();
+      await processAndCapture(result.assets[0].uri);
     }
   };
 
@@ -93,7 +102,7 @@ export function DeliveryPhotoProof({ type, onPhotoCapture, existingPhotoUri, dis
           <Image source={{ uri: photoUri }} style={styles.photo} contentFit="cover" transition={200} />
           <View style={[styles.timestampOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
             <MaterialIcons name="access-time" size={11} color="#fff" />
-            <Text style={styles.timestamp}>{new Date().toLocaleString()}</Text>
+            <Text style={styles.timestamp}>{capturedAt?.toLocaleString() ?? ''}</Text>
           </View>
         </View>
         {!disabled && (

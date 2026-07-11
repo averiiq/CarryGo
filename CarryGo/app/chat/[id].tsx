@@ -248,7 +248,7 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: C.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       {/* Delivery CTA bar */}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
   ActivityIndicator,
@@ -79,8 +79,11 @@ export default function KycScreen() {
     setStep(docType);
   }, []);
 
+  const isSubmittingRef = useRef(false);
+
   const handleSubmit = useCallback(async () => {
-    if (!user) return;
+    if (!user || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setStep('submitting');
     setUploadProgress(0);
     setUploadError(null);
@@ -123,6 +126,8 @@ export default function KycScreen() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred';
       setUploadError(message);
+    } finally {
+      isSubmittingRef.current = false;
     }
   }, [user, images, updateUser]);
 

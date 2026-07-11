@@ -2,7 +2,6 @@ export { TripCard } from './feature/TripCard';
 export { ParcelCard } from './feature/ParcelCard';
 export { RequestCard } from './feature/RequestCard';
 export { RatingModal } from './feature/RatingModal';
-export { AppTour, useAppTour } from './feature/AppTour';
 export { RouteMapView } from './feature/RouteMapView';
 export { SmartSearchBar } from './feature/SmartSearchBar';
 export { ETACard } from './feature/ETACard';

@@ -1,6 +1,7 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect, notFound } from 'next/navigation'
 import { isValidUuid } from '@/lib/validation'
+import { getSignedDocumentUrl, getPublicDocumentUrl, isSignedUrlsEnabled } from '@/lib/cdn-url'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import DocumentViewer from './DocumentViewer'
@@ -53,22 +54,19 @@ export default async function KycReviewPage({ params }: PageProps) {
     .eq('session_id', id)
     .order('created_at', { ascending: false })
 
-  // Generate signed URLs for documents (2 hour expiry)
+  // Generate document URLs (signed if CloudFront keys configured, public otherwise)
   const documentTypes = ['id_front', 'id_back', 'selfie', 'address_proof'] as const
 
   const signedDocuments = await Promise.all(
     documentTypes.map(async (docType) => {
-      // First check kyc_documents table
       const doc = documents?.find((d) => d.document_type === docType)
       let url: string | null = null
 
       if (doc?.storage_path) {
-        const { data } = await supabase.storage
-          .from('kyc_documents')
-          .createSignedUrl(doc.storage_path, 60 * 15)
-        url = data?.signedUrl || null
+        url = isSignedUrlsEnabled()
+          ? await getSignedDocumentUrl(doc.storage_path, 60 * 120)
+          : getPublicDocumentUrl(doc.storage_path)
       } else {
-        // Fallback to session-level URLs (legacy support)
         const sessionUrlField =
           docType === 'id_front'
             ? 'document_url'
@@ -80,10 +78,9 @@ export default async function KycReviewPage({ params }: PageProps) {
 
         const storagePath = session[sessionUrlField]
         if (storagePath) {
-          const { data } = await supabase.storage
-            .from('kyc_documents')
-            .createSignedUrl(storagePath, 60 * 15)
-          url = data?.signedUrl || null
+          url = isSignedUrlsEnabled()
+            ? await getSignedDocumentUrl(storagePath, 60 * 120)
+            : getPublicDocumentUrl(storagePath)
         }
       }
 

@@ -1,6 +1,6 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
-import { AlertTriangle, Clock, CheckCircle2, XCircle } from 'lucide-react'
+import { AlertTriangle, Clock, CheckCircle2 } from 'lucide-react'
 import DisputeList from './DisputeList'
 
 export interface Dispute {
@@ -52,39 +52,38 @@ export default async function DisputesPage() {
     .eq('status', 'completed')
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dispute Resolution</h1>
-        <p className="text-gray-500">Manage failed deliveries and resolve disputes between users.</p>
+        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Dispute Resolution</h1>
+        <p className="text-sm text-muted mt-1">Manage failed deliveries and resolve disputes between users.</p>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
-          <div className="p-2 bg-red-100 rounded-lg">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
+        <div className="flex items-center gap-4 p-5 rounded-2xl bg-danger-subtle border border-danger/10 shadow-[var(--shadow-sm)]">
+          <div className="p-2.5 bg-danger/10 rounded-xl">
+            <AlertTriangle className="h-5 w-5 text-danger" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-red-700">{openCount}</p>
-            <p className="text-xs text-red-600">Open Disputes</p>
+            <p className="text-2xl font-heading font-bold text-danger">{openCount}</p>
+            <p className="text-xs font-medium text-danger/70">Open Disputes</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
-          <div className="p-2 bg-amber-100 rounded-lg">
-            <Clock className="h-5 w-5 text-amber-600" />
+        <div className="flex items-center gap-4 p-5 rounded-2xl bg-warning-subtle border border-warning/10 shadow-[var(--shadow-sm)]">
+          <div className="p-2.5 bg-warning/10 rounded-xl">
+            <Clock className="h-5 w-5 text-warning" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-amber-700">0</p>
-            <p className="text-xs text-amber-600">Investigating</p>
+            <p className="text-2xl font-heading font-bold text-warning">0</p>
+            <p className="text-xs font-medium text-warning/70">Investigating</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-          <div className="p-2 bg-emerald-100 rounded-lg">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+        <div className="flex items-center gap-4 p-5 rounded-2xl bg-success-subtle border border-success/10 shadow-[var(--shadow-sm)]">
+          <div className="p-2.5 bg-success/10 rounded-xl">
+            <CheckCircle2 className="h-5 w-5 text-success" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-emerald-700">{totalResolved ?? 0}</p>
-            <p className="text-xs text-emerald-600">Resolved</p>
+            <p className="text-2xl font-heading font-bold text-success">{totalResolved ?? 0}</p>
+            <p className="text-xs font-medium text-success/70">Resolved</p>
           </div>
         </div>
       </div>

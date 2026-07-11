@@ -5,7 +5,7 @@ import { ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { FilterOptions, VehicleType } from '@/types';
 import { CITIES } from '@/constants/mockData';
-import { styles } from '@/app/(tabs)/index.styles';
+import { styles } from '@/styles/tabs/index.styles';
 
 const VEHICLE_TYPES = [
   { type: 'bike' as VehicleType, label: 'Bike', icon: 'two-wheeler' },

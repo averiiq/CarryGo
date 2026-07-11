@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-url-polyfill/auto';
 import { Database } from '@/types/database';
 
@@ -31,50 +32,17 @@ class SupabaseManager {
 
       this.instance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
         auth: {
-          storage: this.createStorageAdapter(),
+          storage: AsyncStorage,
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: Platform.OS === 'web',
-          flowType: 'pkce',
+          flowType: 'implicit',
         },
       });
 
       return this.instance;
     } finally {
       this.creating = false;
-    }
-  }
-
-  private static createStorageAdapter() {
-    if (Platform.OS === 'web') {
-      return {
-        getItem: (key: string): Promise<string | null> => {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            return Promise.resolve(window.localStorage.getItem(key));
-          }
-          return Promise.resolve(null);
-        },
-        setItem: (key: string, value: string): Promise<void> => {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem(key, value);
-          }
-          return Promise.resolve();
-        },
-        removeItem: (key: string): Promise<void> => {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.removeItem(key);
-          }
-          return Promise.resolve();
-        },
-      };
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const SecureStore = require('expo-secure-store');
-      return {
-        getItem: (key: string): Promise<string | null> => SecureStore.getItemAsync(key),
-        setItem: (key: string, value: string): Promise<void> => SecureStore.setItemAsync(key, value),
-        removeItem: (key: string): Promise<void> => SecureStore.deleteItemAsync(key),
-      };
     }
   }
 }
@@ -89,4 +57,3 @@ export const safeSupabaseOperation = async <T>(
   const client = getSharedSupabaseClient();
   return await operation(client);
 };
-

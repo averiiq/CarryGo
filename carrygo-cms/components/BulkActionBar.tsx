@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { CheckCircle2, XCircle, Download, Trash2, AlertTriangle } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface BulkAction {
   key: string
@@ -27,8 +28,6 @@ export default function BulkActionBar({
   const [confirming, setConfirming] = useState<string | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
 
-  if (selectedCount === 0) return null
-
   const handleAction = async (action: BulkAction) => {
     if (action.confirmMessage && confirming !== action.key) {
       setConfirming(action.key)
@@ -41,68 +40,78 @@ export default function BulkActionBar({
   }
 
   const variantClasses = {
-    default: 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50',
-    success: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100',
-    danger: 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100',
+    default: 'bg-surface border-border text-foreground hover:bg-slate-50',
+    success: 'bg-success-subtle border-success/20 text-success hover:bg-success/10',
+    danger: 'bg-danger-subtle border-danger/20 text-danger hover:bg-danger/10',
   }
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4">
-      <div className="flex items-center gap-3 px-5 py-3 bg-white rounded-xl shadow-lg border border-gray-200">
-        <div className="flex items-center gap-2 pr-3 border-r border-gray-200">
-          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-            <span className="text-xs font-bold text-blue-700">{selectedCount}</span>
-          </div>
-          <span className="text-sm font-medium text-gray-600">selected</span>
-        </div>
-
-        {confirming ? (
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <span className="text-sm text-gray-700">
-              {actions.find(a => a.key === confirming)?.confirmMessage}
-            </span>
-            <button
-              onClick={() => handleAction(actions.find(a => a.key === confirming)!)}
-              className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700"
-            >
-              Confirm
-            </button>
-            <button
-              onClick={() => setConfirming(null)}
-              className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            {actions.map(action => {
-              const Icon = action.icon
-              return (
-                <button
-                  key={action.key}
-                  onClick={() => handleAction(action)}
-                  disabled={loading === action.key}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition-colors disabled:opacity-50 ${variantClasses[action.variant]}`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {action.label}
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        <button
-          onClick={onClear}
-          className="ml-2 p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-          title="Clear selection"
+    <AnimatePresence>
+      {selectedCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.2 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
         >
-          <XCircle className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
+          <div className="flex items-center gap-3 px-5 py-3 bg-surface rounded-2xl shadow-2xl border border-border">
+            <div className="flex items-center gap-2 pr-3 border-r border-border">
+              <div className="w-7 h-7 rounded-lg bg-primary-subtle flex items-center justify-center">
+                <span className="text-xs font-bold text-primary">{selectedCount}</span>
+              </div>
+              <span className="text-sm font-medium text-muted">selected</span>
+            </div>
+
+            {confirming ? (
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                <span className="text-sm text-foreground">
+                  {actions.find(a => a.key === confirming)?.confirmMessage}
+                </span>
+                <button
+                  onClick={() => handleAction(actions.find(a => a.key === confirming)!)}
+                  className="px-3 py-1.5 text-xs font-semibold bg-danger text-white rounded-lg hover:bg-danger/90"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setConfirming(null)}
+                  className="px-3 py-1.5 text-xs font-semibold bg-slate-100 text-muted rounded-lg hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {actions.map(action => {
+                  const Icon = action.icon
+                  return (
+                    <button
+                      key={action.key}
+                      onClick={() => handleAction(action)}
+                      disabled={loading === action.key}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors disabled:opacity-50 ${variantClasses[action.variant]}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {action.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            <button
+              onClick={onClear}
+              className="ml-2 p-1.5 rounded-lg hover:bg-slate-50 text-muted-foreground hover:text-foreground transition-colors"
+              title="Clear selection"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 

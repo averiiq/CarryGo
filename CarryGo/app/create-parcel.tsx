@@ -195,7 +195,7 @@ export default function CreateParcelScreen() {
       <CityPicker forField="from" />
       <CityPicker forField="to" />
 
-      <KeyboardAvoidingView style={[styles.container, { backgroundColor: C.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView style={[styles.container, { backgroundColor: C.background }]} behavior="padding">
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
           showsVerticalScrollIndicator={false}

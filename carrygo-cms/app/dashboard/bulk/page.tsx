@@ -24,10 +24,10 @@ export default async function BulkPage() {
     .limit(100)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Bulk Operations</h1>
-        <p className="text-gray-500">Perform batch actions on users, trips, and parcels.</p>
+        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Bulk Operations</h1>
+        <p className="text-sm text-muted mt-1">Perform batch actions on users, trips, and parcels.</p>
       </div>
 
       <BulkOperations

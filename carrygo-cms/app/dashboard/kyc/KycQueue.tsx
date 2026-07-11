@@ -35,17 +35,17 @@ type SortDirection = 'asc' | 'desc'
 function getStatusBadge(status: string) {
   switch (status) {
     case 'submitted':
-      return { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Submitted' }
+      return { classes: 'bg-warning-subtle text-warning', label: 'Submitted' }
     case 'approved':
-      return { bg: 'bg-green-100', text: 'text-green-800', label: 'Approved' }
+      return { classes: 'bg-success-subtle text-success', label: 'Approved' }
     case 'rejected':
-      return { bg: 'bg-red-100', text: 'text-red-800', label: 'Rejected' }
+      return { classes: 'bg-danger-subtle text-danger', label: 'Rejected' }
     case 'under_review':
-      return { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Under Review' }
+      return { classes: 'bg-primary-subtle text-primary', label: 'Under Review' }
     case 'pending':
-      return { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Pending' }
+      return { classes: 'bg-slate-100 text-muted', label: 'Pending' }
     default:
-      return { bg: 'bg-gray-100', text: 'text-gray-600', label: status }
+      return { classes: 'bg-slate-100 text-muted', label: status }
   }
 }
 
@@ -67,12 +67,10 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
   const filteredSessions = useMemo(() => {
     let filtered = sessions
 
-    // Filter by tab
     if (activeTab !== 'all') {
       filtered = filtered.filter((s) => s.status === activeTab)
     }
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter((s) =>
@@ -80,7 +78,6 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
       )
     }
 
-    // Sort
     const sorted = [...filtered].sort((a, b) => {
       let comparison = 0
       switch (sortField) {
@@ -123,24 +120,23 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
 
   return (
     <div className="space-y-4">
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 border-b border-gray-200 pb-1">
+      <div className="flex flex-wrap gap-1 bg-slate-50/50 rounded-xl p-1">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
               activeTab === tab.key
-                ? 'bg-white border border-b-0 border-gray-200 text-gray-900'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                ? 'bg-surface text-foreground shadow-sm'
+                : 'text-muted hover:text-foreground'
             }`}
           >
             {tab.label}
             <span
-              className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
                 activeTab === tab.key
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'bg-gray-100 text-gray-600'
+                  ? 'bg-primary-subtle text-primary'
+                  : 'bg-slate-100 text-muted'
               }`}
             >
               {counts[tab.key]}
@@ -149,63 +145,61 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
         ))}
       </div>
 
-      {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           type="text"
           placeholder="Search by user name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full pl-10 pr-4 py-2.5 text-sm border border-border rounded-xl bg-surface text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
         />
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="rounded-2xl bg-surface shadow-[var(--shadow-bento)] border border-border-subtle overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-border-subtle bg-slate-50/50">
                 <th
                   onClick={() => handleSort('fullName')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                  className="px-6 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
                 >
                   User {renderSortIcon('fullName')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider">
                   ID Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Documents
+                <th className="px-6 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider">
+                  Docs
                 </th>
                 <th
                   onClick={() => handleSort('submittedAt')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                  className="px-6 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
                 >
                   Submitted {renderSortIcon('submittedAt')}
                 </th>
                 <th
                   onClick={() => handleSort('attemptNumber')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                  className="px-6 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
                 >
-                  Attempt # {renderSortIcon('attemptNumber')}
+                  Attempt {renderSortIcon('attemptNumber')}
                 </th>
                 <th
                   onClick={() => handleSort('status')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                  className="px-6 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
                 >
                   Status {renderSortIcon('status')}
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3.5 text-right text-xs font-semibold text-muted uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-border-subtle">
               {filteredSessions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                     {searchQuery
                       ? 'No sessions match your search'
                       : 'No KYC sessions in this category'}
@@ -218,34 +212,32 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
                     <tr
                       key={session.id}
                       onClick={() => router.push(`/dashboard/kyc/${session.id}`)}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      className="hover:bg-slate-50/50 transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-foreground">
                           {session.fullName}
                         </div>
-                        <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                        <div className="text-xs text-muted truncate max-w-[200px]">
                           {session.userId}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                        <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-primary-subtle text-primary">
                           {session.idType}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/70">
                         {session.documentsCount}/4
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                         {new Date(session.submittedAt).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                         #{session.attemptNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge.bg} ${badge.text}`}
-                        >
+                        <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${badge.classes}`}>
                           {badge.label}
                         </span>
                       </td>
@@ -255,7 +247,7 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
                             e.stopPropagation()
                             router.push(`/dashboard/kyc/${session.id}`)
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary bg-primary-subtle rounded-lg hover:bg-primary/10 transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           Review

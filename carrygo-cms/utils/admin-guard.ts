@@ -1,16 +1,22 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 
-export async function requireAdmin(): Promise<{ error: string } | { supabase: Awaited<ReturnType<typeof createClient>>; userId: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export async function requireAdmin(): Promise<
+  { error: string } | { supabase: ReturnType<typeof createAdminClient>; userId: string }
+> {
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
 
   if (!user) {
     return { error: 'Authentication required' }
   }
 
-  const { data: profile } = await supabase
+  // Use service role to check system_role (avoids RLS issues on profile check too)
+  const adminClient = createAdminClient()
+
+  const { data: profile } = await adminClient
     .from('user_profiles')
     .select('system_role')
     .eq('id', user.id)
@@ -20,5 +26,6 @@ export async function requireAdmin(): Promise<{ error: string } | { supabase: Aw
     return { error: 'Admin access required' }
   }
 
-  return { supabase, userId: user.id }
+  // Return the service-role client for all subsequent queries
+  return { supabase: adminClient, userId: user.id }
 }

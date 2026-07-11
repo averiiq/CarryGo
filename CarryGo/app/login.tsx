@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
-  Platform, Pressable, TextInput, Animated, Dimensions, Clipboard,
+  Pressable, TextInput, Animated, Dimensions, Clipboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
@@ -249,7 +249,7 @@ export default function LoginScreen() {
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         style={[styles.root, { backgroundColor: C.background }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
       >
         <ScrollView
           style={{ flex: 1 }}
@@ -580,10 +580,10 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: FontSize.xs },
   statDivider: { width: 1, height: 36 },
 
-  formOuter: { overflow: 'hidden', paddingHorizontal: Spacing.md },
+  formOuter: { overflow: 'hidden', paddingHorizontal: Spacing.md, minHeight: 500 },
   formSlide: { width: '100%' },
   formSlideAbs: { position: 'absolute', top: 0, left: Spacing.md, right: Spacing.md },
-  formCard: { borderRadius: BorderRadius.xl, padding: Spacing.lg, borderWidth: 1, gap: Spacing.md },
+  formCard: { borderRadius: BorderRadius.xl, padding: Spacing.lg, borderWidth: 1, gap: Spacing.sm + 4 },
   formHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
   stepIconBox: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 },
   formTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },

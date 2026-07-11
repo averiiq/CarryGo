@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { User, Package, Calendar, DollarSign, MessageSquare } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { Dispute } from './page'
 import { resolveDispute } from './actions'
 
@@ -24,111 +25,121 @@ export default function DisputeList({ disputes }: DisputeListProps) {
 
   if (disputes.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-        <div className="mx-auto w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
-          <Package className="h-6 w-6 text-emerald-500" />
+      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-12 text-center">
+        <div className="mx-auto w-12 h-12 rounded-2xl bg-success-subtle flex items-center justify-center mb-4">
+          <Package className="h-6 w-6 text-success" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">No open disputes</h3>
-        <p className="text-sm text-gray-500 mt-1">All deliveries are running smoothly.</p>
+        <h3 className="text-base font-heading font-semibold text-foreground">No open disputes</h3>
+        <p className="text-sm text-muted mt-1">All deliveries are running smoothly.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {disputes.map(dispute => (
-        <div key={dispute.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div key={dispute.id} className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-sm)] overflow-hidden">
           <button
             onClick={() => setExpandedId(expandedId === dispute.id ? null : dispute.id)}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors"
           >
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
-                <Package className="h-5 w-5 text-red-500" />
+              <div className="w-10 h-10 rounded-xl bg-danger-subtle flex items-center justify-center">
+                <Package className="h-5 w-5 text-danger" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-foreground">
                   {dispute.senderName} → {dispute.travellerName}
                 </p>
-                <p className="text-xs text-gray-500">
-                  Request #{dispute.id.slice(0, 8)} · ₹{dispute.price}
+                <p className="text-xs text-muted">
+                  #{dispute.id.slice(0, 8)} · ₹{dispute.price}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full">
+              <span className="text-xs font-semibold text-danger bg-danger-subtle px-2.5 py-1 rounded-lg">
                 Failed
               </span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-muted">
                 {new Date(dispute.updatedAt).toLocaleDateString()}
               </span>
             </div>
           </button>
 
-          {expandedId === dispute.id && (
-            <div className="px-6 pb-5 border-t border-gray-100 pt-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Sender: <strong>{dispute.senderName}</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Traveller: <strong>{dispute.travellerName}</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Amount: <strong>₹{dispute.price}</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Created: {new Date(dispute.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
+          <AnimatePresence>
+            {expandedId === dispute.id && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="px-6 pb-5 border-t border-border-subtle pt-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted">Sender: <strong className="text-foreground">{dispute.senderName}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted">Traveller: <strong className="text-foreground">{dispute.travellerName}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted">Amount: <strong className="text-foreground">₹{dispute.price}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted">Created: {new Date(dispute.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
 
-              {dispute.message && (
-                <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg">
-                  <MessageSquare className="h-4 w-4 text-gray-400 mt-0.5" />
-                  <p className="text-sm text-gray-600">{dispute.message}</p>
+                  {dispute.message && (
+                    <div className="flex items-start gap-2 p-3 bg-slate-50 rounded-xl">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <p className="text-sm text-foreground/70">{dispute.message}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs font-medium text-muted block mb-1.5">Resolution Note</label>
+                    <textarea
+                      value={note}
+                      onChange={e => setNote(e.target.value)}
+                      placeholder="Add a note about the resolution..."
+                      className="w-full px-3 py-2.5 text-sm border border-border rounded-xl resize-none bg-surface text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleResolve(dispute.id, 'refund_sender')}
+                      disabled={resolving === dispute.id}
+                      className="px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                    >
+                      Refund Sender
+                    </button>
+                    <button
+                      onClick={() => handleResolve(dispute.id, 'pay_traveller')}
+                      disabled={resolving === dispute.id}
+                      className="px-4 py-2 text-xs font-semibold bg-success text-white rounded-xl hover:bg-success/90 disabled:opacity-50 transition-colors"
+                    >
+                      Pay Traveller
+                    </button>
+                    <button
+                      onClick={() => handleResolve(dispute.id, 'split')}
+                      disabled={resolving === dispute.id}
+                      className="px-4 py-2 text-xs font-semibold bg-warning text-white rounded-xl hover:bg-warning/90 disabled:opacity-50 transition-colors"
+                    >
+                      Split 50/50
+                    </button>
+                  </div>
                 </div>
-              )}
-
-              <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1.5">Resolution Note</label>
-                <textarea
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                  placeholder="Add a note about the resolution..."
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  rows={2}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleResolve(dispute.id, 'refund_sender')}
-                  disabled={resolving === dispute.id}
-                  className="px-4 py-2 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Refund Sender
-                </button>
-                <button
-                  onClick={() => handleResolve(dispute.id, 'pay_traveller')}
-                  disabled={resolving === dispute.id}
-                  className="px-4 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  Pay Traveller
-                </button>
-                <button
-                  onClick={() => handleResolve(dispute.id, 'split')}
-                  disabled={resolving === dispute.id}
-                  className="px-4 py-2 text-xs font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
-                >
-                  Split 50/50
-                </button>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       ))}
     </div>

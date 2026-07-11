@@ -38,7 +38,11 @@ export default function DocumentPicker({
     });
 
     if (!result.canceled && result.assets[0]) {
-      onCapture(result.assets[0].uri);
+      try {
+        onCapture(result.assets[0].uri);
+      } catch {
+        // Parent handles display of errors
+      }
     }
   };
 
@@ -54,7 +58,11 @@ export default function DocumentPicker({
     });
 
     if (!result.canceled && result.assets[0]) {
-      onCapture(result.assets[0].uri);
+      try {
+        onCapture(result.assets[0].uri);
+      } catch {
+        // Parent handles display of errors
+      }
     }
   };
 

@@ -1,32 +1,19 @@
+// AWS config removed — migrated to Cloudinary
+// This file is kept temporarily to avoid import errors from any stale references.
+// Safe to delete once all imports are verified clean.
+
 export interface BucketConfig {
   name: string;
   cloudfrontDomain: string;
   pathPrefix: string;
 }
 
-const AWS_CONFIG = {
-  region: process.env.EXPO_PUBLIC_AWS_REGION ?? 'ap-south-1',
+export type BucketId = 'parcelProofs' | 'userDocuments';
 
-  buckets: {
-    parcelProofs: {
-      name: process.env.EXPO_PUBLIC_AWS_BUCKET_PARCEL_PROOFS ?? 'carrygo-parcel-proofs',
-      cloudfrontDomain: process.env.EXPO_PUBLIC_CF_PARCEL_PROOFS ?? 'd1kpta3nvwmxk5.cloudfront.net',
-      pathPrefix: 'parcel-proofs',
-    },
-    userDocuments: {
-      name: process.env.EXPO_PUBLIC_AWS_BUCKET_USER_DOCS ?? 'carrygo-user-documents',
-      cloudfrontDomain: process.env.EXPO_PUBLIC_CF_USER_DOCS ?? '',
-      pathPrefix: 'user-documents-proof',
-    },
-  },
-} as const;
-
-export type BucketId = keyof typeof AWS_CONFIG.buckets;
-
-export function getBucketConfig(bucketId: BucketId): BucketConfig {
-  return AWS_CONFIG.buckets[bucketId];
+export function getBucketConfig(_bucketId: BucketId): BucketConfig {
+  throw new Error('AWS S3 has been replaced by Cloudinary. Update imports to use @/lib/cloudinary.');
 }
 
 export function isAwsConfigured(): boolean {
-  return !!(process.env.EXPO_PUBLIC_SUPABASE_URL);
+  return false;
 }

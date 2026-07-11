@@ -6,6 +6,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -13,17 +14,21 @@ import {
 } from '@/features/conversations/queries';
 import {
   useParcelQuery,
+  useTripsQuery,
   useUpdateParcelStatusMutation,
+  flattenInfiniteData,
 } from '@/features/listings/queries';
 import {
   useRequestsByParcelQuery,
   useUpdateRequestStatusMutation,
+  useCreateRequestMutation,
 } from '@/features/requests/queries';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { Request, Parcel } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Shadow } from '@/constants/theme';
+import { Request, Parcel, Trip } from '@/types';
+import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import { sendLocalNotification } from '@/services/notifications.service';
 
 const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   documents: 'description',
@@ -34,13 +39,13 @@ const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   other: 'inventory-2',
 };
 
-const categoryColors: Record<string, string> = {
-  documents: '#8B5CF6',
-  electronics: '#06B6D4',
-  clothing: '#F59E0B',
-  food: '#22C55E',
-  medicine: '#EF4444',
-  other: '#3B82F6',
+const categoryGradients: Record<string, [string, string]> = {
+  documents: ['#8B5CF6', '#7C3AED'],
+  electronics: ['#06B6D4', '#0891B2'],
+  clothing: ['#F59E0B', '#D97706'],
+  food: ['#10B981', '#059669'],
+  medicine: ['#EF4444', '#DC2626'],
+  other: ['#3B82F6', '#2563EB'],
 };
 
 type StatusKey = 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'failed';
@@ -61,10 +66,11 @@ interface RequestRowProps {
   onTrack: () => void;
   onPayment: () => void;
   C: ThemeColors;
-  S: typeof Shadow;
+  isDark: boolean;
+  catGradient: [string, string];
 }
 
-function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C, S }: RequestRowProps) {
+function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C, isDark, catGradient }: RequestRowProps) {
   const step = timelineStep(request.status as StatusKey);
   const isRejectedOrCancelled = request.status === 'rejected' || request.status === 'cancelled';
 
@@ -81,10 +87,10 @@ function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C
 
   return (
     <View style={[styles.reqRow, { borderBottomColor: C.surfaceBorder }]}>
-      {/* Traveller row */}
       <View style={styles.reqHeader}>
-        <View style={[styles.tAvatar, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-          <Text style={[styles.tAvatarText, { color: C.textSecondary }]}>{request.travellerName.charAt(0)}</Text>
+        <View style={styles.tAvatar}>
+          <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+          <Text style={styles.tAvatarText}>{request.travellerName.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.tName, { color: C.textPrimary }]}>{request.travellerName}</Text>
@@ -100,23 +106,23 @@ function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C
         </View>
       </View>
 
-      {/* Message */}
       {request.message ? (
-        <View style={[styles.msgBox, { backgroundColor: C.surfaceElevated, borderLeftColor: C.surfaceBorderLight }]}>
+        <View style={[styles.msgBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderLeftColor: catGradient[0] + '44' }]}>
           <Ionicons name="chatbubble-ellipses-outline" size={13} color={C.textMuted} />
           <Text style={[styles.msgText, { color: C.textSecondary }]} numberOfLines={2}>{request.message}</Text>
         </View>
       ) : null}
 
-      {/* Price */}
       <View style={styles.priceRow}>
         <Text style={[styles.priceLabel, { color: C.textMuted }]}>Offered price</Text>
-        <Text style={[styles.priceValue, { color: C.primary }]}>₹{request.price}</Text>
+        <View style={styles.priceTag}>
+          <LinearGradient colors={['#10B98120', '#05966905']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+          <Text style={styles.priceValue}>₹{request.price}</Text>
+        </View>
       </View>
 
-      {/* Timeline */}
       {!isRejectedOrCancelled && (
-        <View style={[styles.progressRow, { backgroundColor: C.surfaceElevated, borderRadius: BorderRadius.sm }]}>
+        <View style={[styles.progressRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]}>
           {TIMELINE_ORDER.map((_, i) => {
             const done = step >= i;
             const psc = tlos[i];
@@ -133,7 +139,6 @@ function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C
         </View>
       )}
 
-      {/* Actions */}
       {isSender && request.status === 'pending' ? (
         <Pressable
           style={({ pressed }) => [styles.cancelBtn, { backgroundColor: C.errorSubtle, borderColor: C.error + '44' }, pressed && { opacity: 0.75 }]}
@@ -177,22 +182,34 @@ export default function ParcelDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { C, S } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const parcelQuery = useParcelQuery(id);
   const requestsQuery = useRequestsByParcelQuery(id);
   const conversationsQuery = useConversationsQuery(user?.id);
+  const tripsQuery = useTripsQuery(Boolean(user));
   const { mutateAsync: updateRequestStatusAsync } = useUpdateRequestStatusMutation(user?.id);
+  const { mutateAsync: createRequestAsync } = useCreateRequestMutation(user?.id);
   const updateParcelStatusMutation = useUpdateParcelStatusMutation();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [offerSending, setOfferSending] = useState(false);
 
   const parcel = (parcelQuery.data ?? undefined) as Parcel | undefined;
   const requests = requestsQuery.data ?? [];
   const conversations = conversationsQuery.data ?? [];
+  const allTrips = flattenInfiniteData(tripsQuery.data);
   const loading = parcelQuery.isLoading || requestsQuery.isLoading;
   const isSender = parcel?.userId === user?.id;
-  const canOffer = !isSender && parcel?.status === 'open'; // traveller viewing someone else's parcel
-  const catColor = parcel ? (categoryColors[parcel.category] || C.primary) : C.primary;
+  const canOffer = !isSender && parcel?.status === 'open';
+  const catGradient: [string, string] = parcel ? (categoryGradients[parcel.category] || ['#3B82F6', '#2563EB']) : ['#3B82F6', '#2563EB'];
+  const catColor = catGradient[0];
+
+  const myActiveTrips = allTrips.filter(t => t.userId === user?.id && t.status === 'active');
+  const myMatchingTrips = myActiveTrips.filter(t =>
+    parcel && t.fromCity.toLowerCase() === parcel.fromCity.toLowerCase() &&
+    t.toCity.toLowerCase() === parcel.toCity.toLowerCase()
+  );
+  const alreadyOffered = requests.some(r => r.travellerId === user?.id && r.status !== 'cancelled');
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -210,12 +227,6 @@ export default function ParcelDetailScreen() {
       {
         text: 'Cancel Request', style: 'destructive', onPress: async () => {
           await updateRequestStatusAsync({ requestId: req.id, status: 'cancelled' });
-          /* await createNotification({
-            userId: req.travellerId,
-            title: 'Request Cancelled',
-            body: `${req.senderName} cancelled their delivery request.`,
-            type: 'general', relatedId: req.id,
-          }); */
           await requestsQuery.refetch();
         },
       },
@@ -226,6 +237,102 @@ export default function ParcelDetailScreen() {
     const conv = conversations.find(c => c.requestId === req.id);
     if (conv) router.push({ pathname: '/chat/[id]', params: { id: conv.id } });
     else showAlert('No Chat', 'Chat opens once the request is accepted.');
+  };
+
+  const sendOffer = async (trip: Trip) => {
+    if (!parcel || !user) return;
+    setOfferSending(true);
+    try {
+      const result = await createRequestAsync({
+        parcelId: parcel.id,
+        tripId: trip.id,
+        senderId: parcel.userId,
+        senderName: parcel.userName,
+        travellerId: user.id,
+        travellerName: user.name,
+        status: 'pending',
+        price: parcel.priceOffer,
+        message: `Hi! I am travelling ${trip.fromCity} → ${trip.toCity} on ${trip.date} and can carry your parcel safely.`,
+      });
+      if (result) {
+        await sendLocalNotification('Offer Sent!', `Your offer was sent to ${parcel.userName}`);
+        Haptic.success();
+        showAlert(
+          'Offer Sent!',
+          `${parcel.userName} will review your offer. Check the Requests tab for their response.`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'Stay Here', style: 'cancel' },
+          ]
+        );
+        await requestsQuery.refetch();
+      } else {
+        Haptic.error();
+        showAlert('Error', 'Could not send offer. Please try again.');
+      }
+    } catch (error) {
+      Haptic.error();
+      showAlert('Error', error instanceof Error ? error.message : 'Could not send offer. Please try again.');
+    } finally {
+      setOfferSending(false);
+    }
+  };
+
+  const handleOfferToCarry = () => {
+    if (!parcel || !user) return;
+
+    if (alreadyOffered) {
+      Haptic.warning();
+      showAlert('Already Offered', 'You have already sent an offer to carry this parcel.');
+      return;
+    }
+
+    if (myMatchingTrips.length === 0) {
+      if (myActiveTrips.length === 0) {
+        Haptic.warning();
+        showAlert(
+          'No Active Trips',
+          'You need to post a trip first before you can offer to carry parcels.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Post a Trip', onPress: () => router.push('/create-trip') },
+          ]
+        );
+      } else {
+        Haptic.warning();
+        showAlert(
+          'No Matching Trip',
+          `You don't have an active trip from ${parcel.fromCity} to ${parcel.toCity}. Post a trip on this route first.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Post a Trip', onPress: () => router.push('/create-trip') },
+          ]
+        );
+      }
+      return;
+    }
+
+    if (myMatchingTrips.length === 1) {
+      const trip = myMatchingTrips[0];
+      Haptic.warning();
+      showAlert(
+        'Offer to Carry',
+        `Offer to carry "${parcel.description}" (${parcel.weight}kg) for ₹${parcel.priceOffer} on your ${trip.vehicleType} trip (${trip.date})?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Send Offer', onPress: () => sendOffer(trip) },
+        ]
+      );
+    } else {
+      showAlert(
+        'Select Trip',
+        `You have ${myMatchingTrips.length} trips on this route. Which trip would you like to use?`,
+        myMatchingTrips.map(trip => ({
+          text: `${trip.vehicleType.charAt(0).toUpperCase() + trip.vehicleType.slice(1)} · ${trip.date}`,
+          onPress: () => sendOffer(trip),
+        }))
+      );
+    }
   };
 
   const handleCancelParcel = () => {
@@ -251,7 +358,7 @@ export default function ParcelDetailScreen() {
 
   const pending = requests.filter(r => r.status === 'pending');
   const active = requests.filter(r => r.status === 'accepted');
-  const done = requests.filter(r => ['completed','rejected','cancelled','failed'].includes(r.status));
+  const done = requests.filter(r => ['completed', 'rejected', 'cancelled', 'failed'].includes(r.status));
 
   if (!parcel) {
     return (
@@ -264,31 +371,34 @@ export default function ParcelDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: catColor + '33' }]}>
-        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]} hitSlop={8}>
-          <MaterialIcons name="arrow-back" size={22} color={C.textPrimary} />
+      <View style={styles.header}>
+        <LinearGradient
+          colors={isDark ? [catColor + '18', 'transparent'] : [catColor + '0C', 'transparent']}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.backBtn, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}
+          hitSlop={8}
+        >
+          <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{parcel.fromCity} → {parcel.toCity}</Text>
-          <Text style={[styles.headerSub, { color: C.textSecondary }]}>{parcel.description}</Text>
+          <Text style={[styles.headerSub, { color: C.textMuted }]}>{parcel.description}</Text>
         </View>
         {isSender && parcel.status === 'open' ? (
           <Pressable
             onPress={handleCancelParcel}
-            style={({ pressed }) => [{
-              width: 34, height: 34, borderRadius: 10,
-              backgroundColor: C.errorSubtle,
-              borderWidth: 1, borderColor: C.error + '30',
-              alignItems: 'center' as const, justifyContent: 'center' as const,
-              marginRight: Spacing.sm,
-            }, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.cancelBtn2, { backgroundColor: C.errorSubtle, borderColor: C.error + '30' }, pressed && { opacity: 0.7 }]}
             hitSlop={6}
           >
             <MaterialIcons name="close" size={16} color={C.error} />
           </Pressable>
         ) : null}
-        <View style={[styles.catBadge, { backgroundColor: catColor + '18', borderColor: catColor + '44' }]}>
-          <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={16} color={catColor} />
+        <View style={styles.catBadgeHeader}>
+          <LinearGradient colors={catGradient} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 14 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+          <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={18} color="#fff" />
         </View>
       </View>
 
@@ -297,31 +407,38 @@ export default function ParcelDetailScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
       >
-        {/* Parcel hero card */}
-        <View style={[styles.parcelCard, S.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder, borderTopColor: catColor }]}>
+        {/* Parcel Hero Card */}
+        <View style={[styles.parcelCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <LinearGradient
+            colors={isDark ? [catColor + '15', 'transparent'] : [catColor + '0A', 'transparent']}
+            style={styles.cardGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+
           {/* Route */}
-          <View style={styles.routeRow}>
-            <View style={styles.cityBlock}>
-              <View style={[styles.cityDot, { backgroundColor: C.success }]} />
-              <Text style={[styles.cityName, { color: C.textPrimary }]}>{parcel.fromCity}</Text>
+          <View style={styles.routeSection}>
+            <View style={styles.routeVisual}>
+              <View style={[styles.originDot, { backgroundColor: '#10B981' }]} />
+              <View style={[styles.routeDash, { borderColor: C.surfaceBorderLight }]} />
+              <View style={[styles.destDot, { backgroundColor: C.error }]} />
             </View>
-            <View style={styles.routeMid}>
-              <View style={[styles.routeLine, { backgroundColor: C.surfaceBorderLight }]} />
-              <View style={[styles.catPill, { backgroundColor: catColor + '18', borderColor: catColor + '44' }]}>
-                <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={13} color={catColor} />
-                <Text style={[styles.catPillText, { color: catColor }]}>
-                  {parcel.category.charAt(0).toUpperCase() + parcel.category.slice(1)}
-                </Text>
-              </View>
-              <View style={[styles.routeLine, { backgroundColor: C.surfaceBorderLight }]} />
-            </View>
-            <View style={[styles.cityBlock, { alignItems: 'flex-end' }]}>
-              <View style={[styles.cityDot, { backgroundColor: C.error }]} />
-              <Text style={[styles.cityName, { color: C.textPrimary }]}>{parcel.toCity}</Text>
+            <View style={styles.routeText}>
+              <Text style={[styles.fromCity, { color: C.textPrimary }]}>{parcel.fromCity}</Text>
+              <Text style={[styles.toCity, { color: C.textPrimary }]}>{parcel.toCity}</Text>
             </View>
           </View>
 
-          {/* Image if available */}
+          {/* Category pill */}
+          <View style={styles.catPill}>
+            <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+            <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={14} color="#fff" />
+            <Text style={styles.catPillText}>
+              {parcel.category.charAt(0).toUpperCase() + parcel.category.slice(1)}
+            </Text>
+          </View>
+
+          {/* Image */}
           {parcel.imageUri ? (
             <Image
               source={{ uri: parcel.imageUri }}
@@ -332,32 +449,33 @@ export default function ParcelDetailScreen() {
           ) : null}
 
           {/* Description */}
-          <View style={[styles.descBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+          <View style={[styles.descBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]}>
+            <Ionicons name="document-text-outline" size={14} color={C.textMuted} />
             <Text style={[styles.descText, { color: C.textSecondary }]}>{parcel.description}</Text>
           </View>
 
           {/* Stats */}
-          <View style={[styles.statsRow, { backgroundColor: C.surfaceElevated }]}>
+          <View style={[styles.statsRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]}>
             <View style={styles.statItem}>
-              <MaterialIcons name="scale" size={14} color={C.textMuted} />
+              <MaterialIcons name="scale" size={16} color={C.textMuted} />
               <Text style={[styles.statVal, { color: C.textPrimary }]}>{parcel.weight}kg</Text>
               <Text style={[styles.statLbl, { color: C.textMuted }]}>Weight</Text>
             </View>
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.statItem}>
-              <MaterialIcons name="payments" size={14} color={C.primary} />
-              <Text style={[styles.statVal, { color: C.primary }]}>₹{parcel.priceOffer}</Text>
+              <MaterialIcons name="payments" size={16} color={catColor} />
+              <Text style={[styles.statVal, { color: catColor }]}>₹{parcel.priceOffer}</Text>
               <Text style={[styles.statLbl, { color: C.textMuted }]}>Offered</Text>
             </View>
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.statItem}>
-              <MaterialIcons name="swap-horiz" size={14} color={C.textMuted} />
+              <MaterialIcons name="swap-horiz" size={16} color={C.textMuted} />
               <Text style={[styles.statVal, { color: C.textPrimary }]}>{requests.length}</Text>
               <Text style={[styles.statLbl, { color: C.textMuted }]}>Requests</Text>
             </View>
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.statItem}>
-              <View style={[styles.statusDot, {
+              <View style={[styles.statusDotLg, {
                 backgroundColor:
                   parcel.status === 'open' ? C.success :
                   parcel.status === 'matched' ? C.primary :
@@ -373,42 +491,47 @@ export default function ParcelDetailScreen() {
 
           {/* Owner */}
           <View style={styles.ownerRow}>
-            <View style={[styles.ownerAvatar, { backgroundColor: C.primarySubtle }]}>
-              <Text style={[styles.ownerAvatarText, { color: C.primary }]}>{parcel.userName.charAt(0)}</Text>
+            <View style={styles.ownerAvatar}>
+              <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+              <Text style={styles.ownerAvatarText}>{parcel.userName.charAt(0).toUpperCase()}</Text>
             </View>
-            <Text style={[styles.ownerName, { color: C.textSecondary }]}>{parcel.userName}</Text>
+            <Text style={[styles.ownerName, { color: C.textPrimary }]}>{parcel.userName}</Text>
             <Text style={[styles.postedDate, { color: C.textMuted }]}>
               Posted {new Date(parcel.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
             </Text>
           </View>
         </View>
 
-        {/* CTA for travellers: offer to carry this parcel */}
-        {canOffer ? (
+        {/* CTA */}
+        {canOffer && !alreadyOffered ? (
           <Pressable
-            style={({ pressed }) => [
-              styles.findBtn,
-              { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
-            ]}
-            onPress={() => {
-              // Check if user has any active trips that match this route
-              // Navigate to matching screen in 'trip' mode — user must select their trip first
-              // Or navigate directly to matching if user has a matching trip
-              router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcel!.id } });
-            }}
+            style={({ pressed }) => [styles.findBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
+            onPress={handleOfferToCarry}
+            disabled={offerSending}
           >
-            <MaterialIcons name="local-shipping" size={18} color="#fff" />
-            <Text style={styles.findBtnText}>Offer to Carry This Parcel</Text>
-            <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
+            <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
+            {offerSending ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <MaterialIcons name="local-shipping" size={18} color="#fff" />
+                <Text style={styles.findBtnText}>Offer to Carry This Parcel</Text>
+                <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
+              </>
+            )}
           </Pressable>
+        ) : canOffer && alreadyOffered ? (
+          <View style={[styles.findBtn, { opacity: 0.6 }]}>
+            <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
+            <Ionicons name="checkmark-circle" size={18} color="#fff" />
+            <Text style={styles.findBtnText}>Offer Already Sent</Text>
+          </View>
         ) : isSender && parcel?.status === 'open' ? (
           <Pressable
-            style={({ pressed }) => [
-              styles.findBtn,
-              { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
-            ]}
+            style={({ pressed }) => [styles.findBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
             onPress={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcel!.id } })}
           >
+            <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
             <MaterialIcons name="search" size={18} color="#fff" />
             <Text style={styles.findBtnText}>Find Travellers for This Parcel</Text>
             <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
@@ -422,10 +545,10 @@ export default function ParcelDetailScreen() {
             { count: active.length, label: 'Active', color: C.success, icon: 'check-circle' as const },
             { count: done.filter(r => r.status === 'completed').length, label: 'Done', color: C.info, icon: 'verified' as const },
           ].map(c => (
-            <View key={c.label} style={[styles.chip, { backgroundColor: c.color + '12', borderColor: c.color + '33' }]}>
-              <MaterialIcons name={c.icon} size={12} color={c.color} />
+            <View key={c.label} style={[styles.chip, { backgroundColor: c.color + '12', borderColor: c.color + '30' }]}>
+              <MaterialIcons name={c.icon} size={13} color={c.color} />
               <Text style={[styles.chipCount, { color: c.color }]}>{c.count}</Text>
-              <Text style={[styles.chipLabel, { color: c.color }]}>{c.label}</Text>
+              <Text style={[styles.chipLabel, { color: c.color + 'CC' }]}>{c.label}</Text>
             </View>
           ))}
         </View>
@@ -437,7 +560,7 @@ export default function ParcelDetailScreen() {
           </View>
         ) : requests.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="inbox" size={52} color={C.surfaceBorderLight} />
+            <MaterialIcons name="inbox" size={56} color={C.surfaceBorderLight} />
             <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No requests yet</Text>
             <Text style={[styles.emptySub, { color: C.textMuted }]}>
               {isSender
@@ -455,7 +578,7 @@ export default function ParcelDetailScreen() {
               <View key={section.label} style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.sectionIcon, { backgroundColor: section.color + '15' }]}>
-                    <MaterialIcons name={section.icon} size={14} color={section.color} />
+                    <MaterialIcons name={section.icon} size={16} color={section.color} />
                   </View>
                   <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{section.label}</Text>
                   <View style={[styles.sectionBadge, { backgroundColor: section.color + '20' }]}>
@@ -463,7 +586,7 @@ export default function ParcelDetailScreen() {
                   </View>
                 </View>
                 <View style={[styles.sectionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder, borderLeftColor: section.color + '55' }]}>
-                  {section.items.map((req, i) => (
+                  {section.items.map((req) => (
                     <RequestRow
                       key={req.id}
                       request={req}
@@ -473,7 +596,8 @@ export default function ParcelDetailScreen() {
                       onTrack={() => router.push({ pathname: '/delivery/[id]', params: { id: req.id } })}
                       onPayment={() => router.push({ pathname: '/payment/[id]', params: { id: req.id } })}
                       C={C}
-                      S={S}
+                      isDark={isDark}
+                      catGradient={catGradient}
                     />
                   ))}
                 </View>
@@ -489,92 +613,125 @@ export default function ParcelDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  // Header
   header: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    overflow: 'hidden',
   },
-  backBtn: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  headerSub: { fontSize: FontSize.xs, marginTop: 1 },
-  catBadge: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  headerTitle: { fontSize: 20, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
+  headerSub: { fontSize: FontSize.xs, marginTop: 2 },
+  cancelBtn2: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: Spacing.sm },
+  catBadgeHeader: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
 
-  scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, gap: Spacing.md },
+  scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, gap: Spacing.lg },
 
+  // Hero card
   parcelCard: {
-    borderRadius: BorderRadius.xl, borderWidth: 1,
-    borderTopWidth: 3, padding: Spacing.md, gap: Spacing.md, overflow: 'hidden',
+    borderRadius: 24, borderWidth: 1,
+    padding: Spacing.lg, gap: Spacing.lg, overflow: 'hidden',
   },
-  routeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cityBlock: { flex: 1, gap: 4 },
-  cityDot: { width: 8, height: 8, borderRadius: 4 },
-  cityName: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  routeMid: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.sm, gap: 4 },
-  routeLine: { flex: 1, height: 1 },
-  catPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.full, borderWidth: 1 },
-  catPillText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  parcelImage: { width: '100%', height: 160, borderRadius: BorderRadius.md },
-  descBox: { borderRadius: BorderRadius.sm, padding: Spacing.sm, borderWidth: 1 },
-  descText: { fontSize: FontSize.sm, lineHeight: 20 },
-  statsRow: { flexDirection: 'row', alignItems: 'center', borderRadius: BorderRadius.md, padding: Spacing.md },
-  statItem: { flex: 1, alignItems: 'center', gap: 3 },
-  statVal: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  statLbl: { fontSize: 9, fontWeight: FontWeight.medium },
-  statDiv: { width: 1, height: 28 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  cardGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 100 },
+
+  // Route
+  routeSection: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  routeVisual: { alignItems: 'center', height: 70, justifyContent: 'space-between' },
+  originDot: { width: 14, height: 14, borderRadius: 7 },
+  routeDash: { height: 34, width: 0, borderLeftWidth: 2, borderStyle: 'dashed' },
+  destDot: { width: 14, height: 14, borderRadius: 4 },
+  routeText: { flex: 1, height: 70, justifyContent: 'space-between' },
+  fromCity: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
+  toCity: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
+
+  // Category pill
+  catPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: BorderRadius.full, overflow: 'hidden',
+    alignSelf: 'flex-start',
+  },
+  catPillText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: '#fff' },
+
+  parcelImage: { width: '100%', height: 180, borderRadius: 16 },
+
+  descBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
+    borderRadius: 12, padding: Spacing.md,
+  },
+  descText: { flex: 1, fontSize: FontSize.sm, lineHeight: 22 },
+
+  statsRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: Spacing.md },
+  statItem: { flex: 1, alignItems: 'center', gap: 4 },
+  statVal: { fontSize: 18, fontWeight: FontWeight.extrabold, letterSpacing: -0.3 },
+  statLbl: { fontSize: 10, fontWeight: FontWeight.semibold, letterSpacing: 0.3, textTransform: 'uppercase' },
+  statDiv: { width: 1, height: 32 },
+  statusDotLg: { width: 10, height: 10, borderRadius: 5 },
+
   ownerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  ownerAvatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  ownerAvatarText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  ownerName: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+  ownerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  ownerAvatarText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: '#fff' },
+  ownerName: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   postedDate: { fontSize: FontSize.xs },
 
-  chips: { flexDirection: 'row', gap: Spacing.sm },
-  chip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: BorderRadius.md, borderWidth: 1 },
-  chipCount: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  chipLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-
-  section: { gap: Spacing.sm },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  sectionIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { flex: 1, fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-  sectionBadge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  sectionBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-  sectionCard: { borderRadius: BorderRadius.lg, borderWidth: 1, borderLeftWidth: 3, overflow: 'hidden' },
-
-  reqRow: { padding: Spacing.md, gap: Spacing.sm, borderBottomWidth: 1 },
-  reqHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  tAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  tAvatarText: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  tName: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  tTime: { fontSize: FontSize.xs, marginTop: 1 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.full },
-  statusBadgeText: { fontSize: 10, fontWeight: FontWeight.bold },
-  msgBox: { flexDirection: 'row', gap: Spacing.sm, borderRadius: BorderRadius.sm, padding: Spacing.sm, borderLeftWidth: 2 },
-  msgText: { flex: 1, fontSize: FontSize.xs, lineHeight: 17 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 2 },
-  priceLabel: { fontSize: FontSize.xs },
-  priceValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  progressRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.sm },
-  pStep: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  pDot: { width: 6, height: 6, borderRadius: 3 },
-  pLine: { flex: 1, height: 2 },
-  pLabel: { marginLeft: Spacing.sm, fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: Spacing.sm + 2, borderRadius: BorderRadius.md, borderWidth: 1 },
-  cancelBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  actionRow: { flexDirection: 'row', gap: Spacing.sm },
-  aBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: Spacing.sm + 2, borderRadius: BorderRadius.md, borderWidth: 1 },
-  aBtnText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  doneRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: Spacing.sm },
-  doneText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-
-  loadingState: { paddingVertical: Spacing.xxl, alignItems: 'center', gap: Spacing.md },
-  loadingText: { fontSize: FontSize.sm },
-  emptyState: { borderRadius: BorderRadius.xl, borderWidth: 1, padding: Spacing.xxl, alignItems: 'center', gap: Spacing.md },
-  emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold },
-  emptySub: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+  // CTA
   findBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    borderRadius: BorderRadius.lg, paddingVertical: Spacing.md + 2,
+    borderRadius: 16, paddingVertical: Spacing.md + 4, overflow: 'hidden',
   },
   findBtnText: { flex: 1, textAlign: 'center', fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+
+  // Summary chips
+  chips: { flexDirection: 'row', gap: Spacing.sm },
+  chip: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, paddingVertical: 10, borderRadius: 14, borderWidth: 1,
+  },
+  chipCount: { fontSize: 18, fontWeight: FontWeight.extrabold },
+  chipLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+
+  // Sections
+  section: { gap: Spacing.sm },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  sectionIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { flex: 1, fontSize: FontSize.md, fontWeight: FontWeight.bold },
+  sectionBadge: { minWidth: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  sectionBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  sectionCard: { borderRadius: 20, borderWidth: 1, borderLeftWidth: 3, overflow: 'hidden' },
+
+  // Request row
+  reqRow: { padding: Spacing.md, gap: Spacing.sm, borderBottomWidth: 1 },
+  reqHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  tAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  tAvatarText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+  tName: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  tTime: { fontSize: FontSize.xs, marginTop: 2 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.full },
+  statusBadgeText: { fontSize: 10, fontWeight: FontWeight.bold },
+  msgBox: { flexDirection: 'row', gap: Spacing.sm, borderRadius: 10, padding: Spacing.sm, borderLeftWidth: 3 },
+  msgText: { flex: 1, fontSize: FontSize.xs, lineHeight: 18 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 2 },
+  priceLabel: { fontSize: FontSize.xs },
+  priceTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, overflow: 'hidden' },
+  priceValue: { fontSize: 20, fontWeight: FontWeight.extrabold, color: '#10B981', letterSpacing: -0.3 },
+  progressRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.sm, borderRadius: 10 },
+  pStep: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  pDot: { width: 6, height: 6, borderRadius: 3 },
+  pLine: { flex: 1, height: 2 },
+  pLabel: { marginLeft: Spacing.sm, fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: Spacing.sm + 2, borderRadius: 12, borderWidth: 1 },
+  cancelBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  actionRow: { flexDirection: 'row', gap: Spacing.sm },
+  aBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: Spacing.sm + 2, borderRadius: 12, borderWidth: 1 },
+  aBtnText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  doneRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: Spacing.sm },
+  doneText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+
+  // Empty / Loading
+  loadingState: { paddingVertical: Spacing.xxl, alignItems: 'center', gap: Spacing.md },
+  loadingText: { fontSize: FontSize.sm },
+  emptyState: { borderRadius: 24, borderWidth: 1, padding: Spacing.xl, alignItems: 'center', gap: Spacing.md },
+  emptyTitle: { fontSize: 20, fontWeight: FontWeight.bold },
+  emptySub: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
 });

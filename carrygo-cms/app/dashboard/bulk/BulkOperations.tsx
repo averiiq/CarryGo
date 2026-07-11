@@ -33,7 +33,7 @@ const userColumns: Column<UnverifiedUser>[] = [
   { key: 'name', label: 'Name', sortable: true },
   { key: 'email', label: 'Email', sortable: true },
   { key: 'kycStatus', label: 'KYC Status', render: (v) => (
-    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+    <span className="text-xs font-semibold text-warning bg-warning-subtle px-2.5 py-1 rounded-lg">
       {String(v)}
     </span>
   )},
@@ -45,8 +45,8 @@ const tripColumns: Column<ExpiredTrip>[] = [
   { key: 'fromCity', label: 'From', sortable: true },
   { key: 'toCity', label: 'To', sortable: true },
   { key: 'date', label: 'Date', sortable: true },
-  { key: 'status', label: 'Status', render: (v) => (
-    <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+  { key: 'status', label: 'Status', render: () => (
+    <span className="text-xs font-semibold text-danger bg-danger-subtle px-2.5 py-1 rounded-lg">
       Expired
     </span>
   )},
@@ -86,14 +86,13 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
 
   return (
     <div className="space-y-6">
-      {/* Tab Switcher */}
-      <div className="flex items-center gap-2 border-b border-gray-200">
+      <div className="flex items-center gap-1 bg-slate-50/50 rounded-xl p-1 w-fit">
         <button
           onClick={() => setActiveTab('users')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
             activeTab === 'users'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              ? 'bg-surface text-foreground shadow-sm'
+              : 'text-muted hover:text-foreground'
           }`}
         >
           <Users className="h-4 w-4" />
@@ -101,10 +100,10 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
         </button>
         <button
           onClick={() => setActiveTab('trips')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
             activeTab === 'trips'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              ? 'bg-surface text-foreground shadow-sm'
+              : 'text-muted hover:text-foreground'
           }`}
         >
           <Navigation className="h-4 w-4" />
@@ -112,22 +111,20 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
         </button>
       </div>
 
-      {/* Result Banner */}
       {result && (
-        <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
-          result.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+        <div className={`flex items-center gap-2 p-3 rounded-xl text-sm font-medium ${
+          result.type === 'success' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'
         }`}>
           {result.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
           {result.message}
-          <button onClick={() => setResult(null)} className="ml-auto text-xs underline">Dismiss</button>
+          <button onClick={() => setResult(null)} className="ml-auto text-xs font-semibold hover:underline">Dismiss</button>
         </div>
       )}
 
-      {/* Users Tab */}
       {activeTab === 'users' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted">
               Users awaiting KYC verification. Select and verify in bulk.
             </p>
             <ExportButton
@@ -162,11 +159,10 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
         </div>
       )}
 
-      {/* Trips Tab */}
       {activeTab === 'trips' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted">
               Trips past their departure date still marked active.
             </p>
             <div className="flex items-center gap-2">
@@ -184,7 +180,7 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
               <button
                 onClick={handleCancelExpired}
                 disabled={isProcessing || expiredTrips.length === 0}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-danger rounded-xl hover:bg-danger/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                 Cancel All Expired ({expiredTrips.length})

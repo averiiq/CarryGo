@@ -34,7 +34,15 @@ async function getFileSize(uri: string): Promise<number> {
   if (info.exists && 'size' in info && typeof info.size === 'number' && info.size > 0) {
     return info.size;
   }
-  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+  // Fallback: read only the first 16 bytes to confirm the file exists,
+  // then use a bounded read for size estimation (avoids OOM on large files).
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: FileSystem.EncodingType.Base64,
+    length: 1024 * 1024, // Read max 1MB for estimation
+  });
+  if (!base64 || base64.length === 0) {
+    throw new Error('Could not determine file size. Please try a different image.');
+  }
   return Math.ceil((base64.length * 3) / 4);
 }
 

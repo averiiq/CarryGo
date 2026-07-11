@@ -4,7 +4,7 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { AppNotification } from '@/types';
-import { styles } from '@/app/(tabs)/index.styles';
+import { styles } from '@/styles/tabs/index.styles';
 
 type NotificationPanelProps = {
   visible: boolean;

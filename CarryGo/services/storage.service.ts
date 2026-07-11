@@ -1,8 +1,9 @@
 import * as FileSystem from 'expo-file-system';
-import { getBucketConfig, isAwsConfigured, signS3PutRequest, BucketId } from '@/lib/aws';
+import { isCloudinaryConfigured, getUploadUrl, buildCloudinaryUrl } from '@/lib/cloudinary';
 import { optimizeImage, optimizeWithThumbnail, ImagePreset, OptimizedImage } from '@/lib/imageOptimizer';
 import { captureException } from '@/lib/monitoring';
 import { isValidUuid } from '@/lib/sanitize';
+import { getSupabaseClient } from '@/template';
 
 export type StorageBucket =
   | 'avatars'
@@ -10,15 +11,8 @@ export type StorageBucket =
   | 'kyc-documents'
   | 'delivery-proofs';
 
-const BUCKET_MAPPING: Record<StorageBucket, BucketId> = {
-  'avatars': 'userDocuments',
-  'kyc-documents': 'userDocuments',
-  'parcels': 'parcelProofs',
-  'delivery-proofs': 'parcelProofs',
-};
-
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
-const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
 interface UploadResult {
   key: string;
@@ -37,61 +31,108 @@ interface UploadOptions {
   generateThumbnail?: boolean;
 }
 
-function buildStorageKey(bucket: StorageBucket, userId: string, fileName: string, extension: string): string {
+interface SignatureResponse {
+  signature: string;
+  timestamp: number;
+  apiKey: string;
+  publicId: string;
+}
+
+function buildPublicId(bucket: StorageBucket, userId: string, fileName: string): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
-  return `${bucket}/${userId}/${date}/${fileName}.${extension}`;
+  return `${bucket}/${userId}/${date}/${fileName}`;
 }
 
-function buildCdnUrl(bucketId: BucketId, fullKey: string): string {
-  const config = getBucketConfig(bucketId);
-  if (config.cloudfrontDomain) {
-    return `https://${config.cloudfrontDomain}/${config.pathPrefix}/${fullKey}`;
+async function getSignature(bucket: StorageBucket, publicId: string): Promise<SignatureResponse> {
+  const sb = getSupabaseClient();
+  const { data: sessionData } = await sb.auth.getSession();
+  const token = sessionData?.session?.access_token;
+
+  if (!token) {
+    throw new Error('Authentication required for file uploads');
   }
-  return `https://${config.name}.s3.ap-south-1.amazonaws.com/${config.pathPrefix}/${fullKey}`;
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new Error('Supabase URL not configured');
+  }
+
+  const response = await fetch(
+    `${supabaseUrl}/functions/v1/generate-upload-url`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      },
+      body: JSON.stringify({ folder: bucket, publicId }),
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ error: 'Upload authorization failed' }));
+    throw new Error(body.error || `Upload authorization failed (${response.status})`);
+  }
+
+  return response.json();
 }
 
-const MAX_RETRIES = 2;
-
-interface S3UploadResult {
-  cdnUrl: string;
-}
-
-async function uploadToS3(optimized: OptimizedImage, key: string, bucketId: BucketId): Promise<S3UploadResult> {
+async function uploadToCloudinary(
+  optimized: OptimizedImage,
+  bucket: StorageBucket,
+  userId: string,
+  fileName: string
+): Promise<{ cdnUrl: string; publicId: string }> {
   if (optimized.sizeBytes <= 0) {
     throw new Error('Image optimization produced empty file. Please try again.');
   }
 
   if (!ALLOWED_MIME_TYPES.includes(optimized.mimeType)) {
-    throw new Error(`Invalid file type: ${optimized.mimeType}. Allowed: JPEG, PNG, WebP, PDF.`);
+    throw new Error(`Invalid file type: ${optimized.mimeType}. Allowed: JPEG, PNG, WebP.`);
   }
 
   if (optimized.sizeBytes > MAX_FILE_SIZE_BYTES) {
-    throw new Error(`File too large (${(optimized.sizeBytes / 1024 / 1024).toFixed(1)}MB). Maximum: ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB.`);
+    throw new Error(`File too large (${(optimized.sizeBytes / 1024 / 1024).toFixed(1)} MB). Maximum: 15 MB.`);
   }
 
-  const signed = await signS3PutRequest({
-    bucketId,
-    key,
-    contentType: optimized.mimeType,
-    contentLength: optimized.sizeBytes,
-  });
+  const publicId = buildPublicId(bucket, userId, fileName);
+  const sig = await getSignature(bucket, publicId);
+  const uploadUrl = getUploadUrl();
 
-  let lastError: string = '';
+  const MAX_RETRIES = 2;
+  let lastError = '';
+
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const uploadResult = await FileSystem.uploadAsync(signed.url, optimized.uri, {
-      httpMethod: 'PUT',
-      headers: signed.headers,
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    const result = await FileSystem.uploadAsync(uploadUrl, optimized.uri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      parameters: {
+        api_key: sig.apiKey,
+        timestamp: String(sig.timestamp),
+        signature: sig.signature,
+        public_id: sig.publicId,
+      },
     });
 
-    if (uploadResult.status >= 200 && uploadResult.status < 300) {
-      return { cdnUrl: signed.cdnUrl };
+    if (result.status >= 200 && result.status < 300) {
+      try {
+        await FileSystem.deleteAsync(optimized.uri, { idempotent: true });
+      } catch {}
+      const data = JSON.parse(result.body);
+      return { cdnUrl: data.secure_url, publicId: data.public_id };
     }
 
-    lastError = `${uploadResult.status}: ${uploadResult.body?.slice(0, 200) ?? 'unknown'}`;
+    lastError = `${result.status}: ${result.body?.slice(0, 200) ?? 'unknown'}`;
 
-    if (uploadResult.status === 403 || uploadResult.status === 401) {
-      throw new Error(`Upload denied (${uploadResult.status}). Please re-authenticate and try again.`);
+    if (result.status >= 400 && result.status < 500) {
+      let msg = `Upload failed (${result.status})`;
+      try {
+        const errBody = JSON.parse(result.body);
+        msg = errBody.error?.message || msg;
+      } catch {}
+      throw new Error(msg);
     }
 
     if (attempt < MAX_RETRIES) {
@@ -99,7 +140,7 @@ async function uploadToS3(optimized: OptimizedImage, key: string, bucketId: Buck
     }
   }
 
-  throw new Error(`Upload failed after ${MAX_RETRIES + 1} attempts. Last: ${lastError}`);
+  throw new Error(`Upload failed after retries. Last error: ${lastError}`);
 }
 
 export async function uploadImage(
@@ -107,32 +148,27 @@ export async function uploadImage(
   options: UploadOptions
 ): Promise<{ data: UploadResult | null; error: string | null }> {
   try {
-    if (!isAwsConfigured()) {
-      return { data: null, error: 'Storage is not configured. Check AWS credentials.' };
+    if (!isCloudinaryConfigured()) {
+      return { data: null, error: 'Storage is not configured. Check Cloudinary credentials.' };
     }
 
     if (!isValidUuid(options.userId)) {
       return { data: null, error: 'Invalid user ID.' };
     }
 
-    const bucketId = BUCKET_MAPPING[options.bucket];
-
     if (options.generateThumbnail) {
       const { main, thumbnail } = await optimizeWithThumbnail(fileUri, options.preset);
 
-      const mainKey = buildStorageKey(options.bucket, options.userId, options.fileName, main.extension);
-      const thumbKey = buildStorageKey(options.bucket, options.userId, `${options.fileName}_thumb`, thumbnail.extension);
-
       const [mainResult, thumbResult] = await Promise.all([
-        uploadToS3(main, mainKey, bucketId),
-        uploadToS3(thumbnail, thumbKey, bucketId),
+        uploadToCloudinary(main, options.bucket, options.userId, options.fileName),
+        uploadToCloudinary(thumbnail, options.bucket, options.userId, `${options.fileName}_thumb`),
       ]);
 
       return {
         data: {
-          key: mainKey,
+          key: mainResult.publicId,
           cdnUrl: mainResult.cdnUrl,
-          thumbnailKey: thumbKey,
+          thumbnailKey: thumbResult.publicId,
           thumbnailCdnUrl: thumbResult.cdnUrl,
           sizeBytes: main.sizeBytes,
           mimeType: main.mimeType,
@@ -142,13 +178,11 @@ export async function uploadImage(
     }
 
     const optimized = await optimizeImage(fileUri, options.preset);
-    const key = buildStorageKey(options.bucket, options.userId, options.fileName, optimized.extension);
-
-    const result = await uploadToS3(optimized, key, bucketId);
+    const result = await uploadToCloudinary(optimized, options.bucket, options.userId, options.fileName);
 
     return {
       data: {
-        key,
+        key: result.publicId,
         cdnUrl: result.cdnUrl,
         sizeBytes: optimized.sizeBytes,
         mimeType: optimized.mimeType,
@@ -217,8 +251,8 @@ export async function uploadAvatar(
   });
 }
 
-export function getCdnUrl(key: string | null | undefined, bucket: StorageBucket = 'parcels'): string | undefined {
+export function getCdnUrl(key: string | null | undefined, _bucket: StorageBucket = 'parcels'): string | undefined {
   if (!key) return undefined;
-  const bucketId = BUCKET_MAPPING[bucket];
-  return buildCdnUrl(bucketId, key);
+  if (key.startsWith('http')) return key;
+  return buildCloudinaryUrl(key);
 }

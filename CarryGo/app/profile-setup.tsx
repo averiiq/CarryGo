@@ -4,7 +4,6 @@ import {
   Animated,
   Dimensions,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -223,7 +222,7 @@ export default function ProfileSetupScreen() {
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         style={[styles.root, { backgroundColor: C.background }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
       >
         <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: C.background, borderBottomColor: C.surfaceBorder }]}>
           {stepIndex > 0 ? (

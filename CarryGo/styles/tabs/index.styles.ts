@@ -3,100 +3,102 @@ import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 
 export const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { flexGrow: 1 },
+
+  // ─── Header ────────────────────────────────────────────────────
   headerWrap: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
     overflow: 'hidden',
   },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
-  greeting: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, letterSpacing: 0.3 },
-  userName: { fontSize: FontSize.xxl, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
-  headerBtns: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  greeting: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, opacity: 0.6 },
+  userName: { fontSize: 30, fontWeight: FontWeight.extrabold, letterSpacing: -1.2 },
+  headerBtns: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBtn: {
-    width: 42, height: 42, borderRadius: 14,
+    width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, position: 'relative',
+    borderWidth: 1, position: 'relative',
   },
   notifBadge: {
-    position: 'absolute', top: 4, right: 4,
-    width: 16, height: 16, borderRadius: 8,
+    position: 'absolute', top: -2, right: -2,
+    width: 18, height: 18, borderRadius: 9,
     alignItems: 'center', justifyContent: 'center',
   },
-  notifBadgeText: { fontSize: 8, color: '#fff', fontWeight: '800' },
+  notifBadgeText: { fontSize: 9, color: '#fff', fontWeight: '800' },
   avatarBtn: {
-    width: 42, height: 42, borderRadius: 14,
+    width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 2.5,
   },
-  avatarText: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  avatarText: { fontSize: FontSize.lg, fontWeight: FontWeight.extrabold },
 
-  body: { paddingHorizontal: Spacing.md, gap: Spacing.md },
+  body: { paddingHorizontal: Spacing.md, gap: Spacing.lg, marginBottom: Spacing.md },
 
-  // KYC Alert
+  // ─── KYC Alert ─────────────────────────────────────────────────
   kycAlert: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    padding: Spacing.sm + 4, borderRadius: BorderRadius.lg, borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    padding: Spacing.md, borderRadius: BorderRadius.xl, borderWidth: 1,
   },
-  kycAlertIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  kycAlertTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  kycAlertSub: { fontSize: FontSize.xs, marginTop: 1 },
+  kycAlertIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  kycAlertTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  kycAlertSub: { fontSize: FontSize.xs, marginTop: 2 },
 
-  // Actions
-  actionRow: { flexDirection: 'row', gap: Spacing.sm },
+  // ─── Hero Action Cards ─────────────────────────────────────────
+  actionRow: { flexDirection: 'row', gap: Spacing.md },
   actionCard: {
-    flex: 1, borderRadius: BorderRadius.xl,
-    padding: Spacing.md, minHeight: 160,
-    gap: 6, position: 'relative', overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    flex: 1, borderRadius: 24,
+    padding: Spacing.lg, minHeight: 180,
+    gap: Spacing.sm, position: 'relative', overflow: 'hidden',
+    borderWidth: 1,
   },
   actionIconWrap: {
-    width: 48, height: 48, borderRadius: 14,
+    width: 52, height: 52, borderRadius: 16,
     alignItems: 'center', justifyContent: 'center',
   },
-  actionTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: '#fff', marginTop: 6 },
-  actionSub: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.6)', lineHeight: 17 },
+  actionTitle: { fontSize: 19, fontWeight: FontWeight.extrabold, marginTop: Spacing.sm },
+  actionSub: { fontSize: FontSize.xs, lineHeight: 17, opacity: 0.7 },
   actionArrowWrap: {
-    position: 'absolute', bottom: Spacing.md, right: Spacing.md,
-    width: 28, height: 28, borderRadius: 9,
+    position: 'absolute', bottom: Spacing.lg, right: Spacing.lg,
+    width: 34, height: 34, borderRadius: 17,
     alignItems: 'center', justifyContent: 'center',
   },
 
-  // Stats
+  // ─── Stats Bento ───────────────────────────────────────────────
   statsRow: { flexDirection: 'row', gap: Spacing.sm },
   statCard: {
-    flex: 1, borderRadius: BorderRadius.md,
-    padding: Spacing.sm + 2, alignItems: 'center', gap: 3, borderWidth: 1,
+    flex: 1, borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm,
+    alignItems: 'center', gap: 6, borderWidth: 1,
   },
-  statVal: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  statLabel: { fontSize: 9, fontWeight: FontWeight.medium },
+  statVal: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
+  statLabel: { fontSize: 10, fontWeight: FontWeight.semibold, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.5 },
 
-  // Feed Header
+  // ─── Feed Header ───────────────────────────────────────────────
   feedHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   feedTabs: { flex: 1, flexDirection: 'row', gap: Spacing.sm },
   feedTab: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: Spacing.md, paddingVertical: 9,
-    borderRadius: BorderRadius.full, borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: Spacing.lg, paddingVertical: 12,
+    borderRadius: BorderRadius.full, borderWidth: 1.5,
     flex: 1, justifyContent: 'center',
   },
-  feedTabText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  feedTabText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   filterBtn: {
-    width: 40, height: 40, borderRadius: BorderRadius.md, borderWidth: 1,
+    width: 44, height: 44, borderRadius: 22, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
   filterDot: {
-    position: 'absolute', top: 6, right: 6,
-    width: 7, height: 7, borderRadius: 4,
+    position: 'absolute', top: 8, right: 8,
+    width: 8, height: 8, borderRadius: 4,
   },
   activeFilterBar: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 8, borderWidth: 1,
+    borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: 10, borderWidth: 1,
   },
   activeFilterText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  clearFilter: { padding: 4, borderRadius: 6 },
+  clearFilter: { padding: 5, borderRadius: 8 },
 
-  // Feed
+  // ─── Feed ──────────────────────────────────────────────────────
   feed: { gap: Spacing.md, paddingBottom: Spacing.md },
   loadingCard: {
     alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm,
@@ -107,25 +109,26 @@ export const styles = StyleSheet.create({
   loadingSubtext: { fontSize: FontSize.sm },
 
   emptyFeedCard: {
-    alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm,
-    borderRadius: BorderRadius.xl, borderWidth: 1, paddingHorizontal: Spacing.lg,
+    alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.md,
+    borderRadius: 24, borderWidth: 1, paddingHorizontal: Spacing.xl,
+    marginHorizontal: Spacing.md,
   },
-  emptyTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.semibold, marginTop: 4 },
-  emptySub: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20, maxWidth: 250 },
+  emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, marginTop: 4 },
+  emptySub: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
   emptyClearBtn: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg, paddingVertical: 10,
-    borderRadius: BorderRadius.full, borderWidth: 1, marginTop: 4,
+    paddingHorizontal: Spacing.xl, paddingVertical: 12,
+    borderRadius: BorderRadius.full, borderWidth: 1, marginTop: 8,
   },
-  emptyClearText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+  emptyClearText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   emptyCTA: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 4,
-    borderRadius: BorderRadius.full, marginTop: 4,
+    paddingHorizontal: Spacing.xl + 8, paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.full, marginTop: 8,
   },
-  emptyCTAText: { color: '#fff', fontWeight: FontWeight.semibold, fontSize: FontSize.sm },
+  emptyCTAText: { color: '#fff', fontWeight: FontWeight.bold, fontSize: FontSize.md },
 
-  // Modal
+  // ─── Modal ─────────────────────────────────────────────────────
   overlay: { flex: 1 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.md },
   notifSheet: {

@@ -19,7 +19,16 @@ function isSafeDocUrl(url: string | null): boolean {
   if (!url) return false
   try {
     const parsed = new URL(url)
-    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co')
+    if (parsed.protocol !== 'https:') return false
+    const allowedPatterns = [
+      '.supabase.co',
+      '.cloudinary.com',
+    ]
+    return allowedPatterns.some(
+      (pattern) =>
+        parsed.hostname === pattern.slice(1) ||
+        parsed.hostname.endsWith(pattern)
+    )
   } catch {
     return false
   }

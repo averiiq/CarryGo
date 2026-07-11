@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Pressable,
   Animated, RefreshControl, ActivityIndicator,
@@ -16,24 +16,22 @@ import { Spacing, BorderRadius, ThemeColors, Motion, Gradients } from '@/constan
 import { Haptic } from '@/services/haptics.service';
 import { EmptyTripsSVG, EmptyParcelsSVG } from '@/components/ui/EmptyState';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AppTour, useAppTour, type AppTourTargetId } from '@/components/feature/AppTour';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { usePulse, useFadeIn } from '@/hooks/useAnimations';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { FilterPanel } from '@/components/feature/FilterPanel';
-import { styles } from './index.styles';
+import { styles } from '@/styles/tabs/index.styles';
 
 const DEFAULT_FILTERS: FilterOptions = { fromCity: '', toCity: '', vehicleType: '', dateFrom: '', dateTo: '' };
 
-function ActionCard({ onPress, gradient, icon, title, sub, iconBg, iconColor, dark, C, tourRef }: {
+function ActionCard({ onPress, gradient, icon, title, sub, iconBg, iconColor, dark, C }: {
   onPress: () => void;
   gradient?: [string, string];
   icon: keyof typeof MaterialIcons.glyphMap;
   title: string; sub: string;
   iconBg: string; iconColor: string; dark?: boolean; C: ThemeColors;
-  tourRef?: React.RefObject<View | null>;
 }) {
   const scale = React.useRef(new Animated.Value(1)).current;
 
@@ -41,7 +39,7 @@ function ActionCard({ onPress, gradient, icon, title, sub, iconBg, iconColor, da
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
   return (
-    <View ref={tourRef} collapsable={false} style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <Pressable
         onPress={() => { Haptic.confirm(); onPress(); }}
         onPressIn={onPressIn}
@@ -57,7 +55,7 @@ function ActionCard({ onPress, gradient, icon, title, sub, iconBg, iconColor, da
             <LinearGradient colors={gradient} style={[StyleSheet.absoluteFillObject, { borderRadius: BorderRadius.xl }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
           ) : null}
           <View style={[styles.actionIconWrap, { backgroundColor: iconBg }]}>
-            <MaterialIcons name={icon} size={24} color={iconColor} />
+            <MaterialIcons name={icon} size={22} color={iconColor} />
           </View>
           <Text style={[styles.actionTitle, { color: dark ? '#fff' : C.textPrimary }]}>{title}</Text>
           <Text style={[styles.actionSub, { color: dark ? 'rgba(255,255,255,0.7)' : C.textSecondary }]}>{sub}</Text>
@@ -122,31 +120,6 @@ export default function HomeScreen() {
   const [showNotifs, setShowNotifs] = React.useState(false);
   const [showFilters, setShowFilters] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
-  const { showTour, checkAndShowTour, hideTour } = useAppTour();
-  const searchTourRef = React.useRef<View | null>(null);
-  const notificationsTourRef = React.useRef<View | null>(null);
-  const profileTourRef = React.useRef<View | null>(null);
-  const sendParcelTourRef = React.useRef<View | null>(null);
-  const postTripTourRef = React.useRef<View | null>(null);
-  const statsTourRef = React.useRef<View | null>(null);
-  const tabsTourRef = React.useRef<View | null>(null);
-  const filtersTourRef = React.useRef<View | null>(null);
-  const listingsTourRef = React.useRef<View | null>(null);
-  const tourTargets = useMemo<Partial<Record<AppTourTargetId, React.RefObject<View | null>>>>(() => ({
-    search: searchTourRef,
-    notifications: notificationsTourRef,
-    profileAvatar: profileTourRef,
-    sendParcel: sendParcelTourRef,
-    postTrip: postTripTourRef,
-    activityStats: statsTourRef,
-    marketplaceTabs: tabsTourRef,
-    filters: filtersTourRef,
-    listings: listingsTourRef,
-  }), []);
-
-  useEffect(() => {
-    if (user) checkAndShowTour();
-  }, [user?.id]);
 
   const allTrips = user ? flattenInfiniteData(tripsQuery.data) : [];
   const allParcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
@@ -289,27 +262,26 @@ export default function HomeScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.kycAlertTitle, { color: C.warning }]}>KYC verification needed</Text>
-            <Text style={[styles.kycAlertSub, { color: C.warning + 'BB' }]}>Required to send or carry parcels — takes 2 min</Text>
+            <Text style={[styles.kycAlertSub, { color: C.warning + 'BB' }]}>Required to send or carry parcels</Text>
           </View>
           <MaterialIcons name="arrow-forward-ios" size={13} color={C.warning} />
         </Pressable>
       ) : null}
 
+      {/* Action Cards */}
       <Animated.View style={[styles.actionRow, { opacity: actionsEntrance.opacity, transform: actionsEntrance.transform }]}>
         <ActionCard
-          tourRef={sendParcelTourRef}
           C={C}
           onPress={() => router.push('/create-parcel')}
           gradient={Gradients.primaryVibrant}
           icon="inventory-2"
           title="Send Parcel"
           sub="Find travellers on your route"
-          iconBg="rgba(255,255,255,0.18)"
+          iconBg="rgba(255,255,255,0.2)"
           iconColor="#fff"
           dark
         />
         <ActionCard
-          tourRef={postTripTourRef}
           C={C}
           onPress={() => router.push('/create-trip')}
           icon="directions-car"
@@ -320,33 +292,31 @@ export default function HomeScreen() {
         />
       </Animated.View>
 
-      <View ref={statsTourRef} collapsable={false} style={styles.statsRow}>
+      {/* Quick Stats */}
+      <View style={styles.statsRow}>
         {[
-          { val: myTrips.length.toString(), label: 'My Trips', color: C.primary, icon: 'directions-car' as const, route: '/create-trip' },
-          { val: myParcels.length.toString(), label: 'My Parcels', color: C.success, icon: 'inventory-2' as const, route: '/create-parcel' },
-          { val: (user?.rating || 4.5).toFixed(1), label: 'Rating', color: C.warning, icon: 'star' as const, route: '/(tabs)/profile' },
+          { val: myTrips.length.toString(), label: 'Trips', color: C.primary, icon: 'directions-car' as const },
+          { val: myParcels.length.toString(), label: 'Parcels', color: C.success, icon: 'inventory-2' as const },
+          { val: (user?.rating || 4.5).toFixed(1), label: 'Rating', color: C.warning, icon: 'star' as const },
         ].map((s, i) => (
-          <Pressable
-            key={i}
-            style={({ pressed }) => [styles.statCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }]}
-            onPress={() => router.push(s.route as any)}
-          >
-            <MaterialIcons name={s.icon} size={15} color={s.color} />
+          <View key={i} style={[styles.statCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <MaterialIcons name={s.icon} size={14} color={s.color} />
             <Text style={[styles.statVal, { color: s.color }]}>{s.val}</Text>
             <Text style={[styles.statLabel, { color: C.textMuted }]}>{s.label}</Text>
-          </Pressable>
+          </View>
         ))}
       </View>
 
+      {/* Feed Tabs + Filter */}
       <View style={styles.feedHeaderRow}>
-        <View ref={tabsTourRef} collapsable={false} style={styles.feedTabs}>
+        <View style={styles.feedTabs}>
           {(['trips', 'parcels'] as const).map(tab => (
             <Pressable
               key={tab}
               style={[
                 styles.feedTab,
                 { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                activeTab === tab && { backgroundColor: C.primarySubtle, borderColor: C.primary + '88' },
+                activeTab === tab && { backgroundColor: C.primarySubtle, borderColor: C.primary },
               ]}
               onPress={() => { Haptic.select(); setActiveTab(tab); }}
             >
@@ -361,27 +331,23 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
-        <View ref={filtersTourRef} collapsable={false}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.filterBtn,
-              { backgroundColor: hasActiveFilter ? C.primarySubtle : C.surfaceElevated, borderColor: hasActiveFilter ? C.primary : C.surfaceBorder },
-              pressed && { opacity: 0.75 },
-            ]}
-            onPress={() => { Haptic.tap(); setShowFilters(true); }}
-            hitSlop={6}
-          >
-            <MaterialIcons name="tune" size={17} color={hasActiveFilter ? C.primary : C.textSecondary} />
-            {hasActiveFilter ? (
-              <View style={[styles.filterDot, { backgroundColor: C.primary }]} />
-            ) : null}
-          </Pressable>
-        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.filterBtn,
+            { backgroundColor: hasActiveFilter ? C.primarySubtle : C.surfaceElevated, borderColor: hasActiveFilter ? C.primary : C.surfaceBorder },
+            pressed && { opacity: 0.75 },
+          ]}
+          onPress={() => { Haptic.tap(); setShowFilters(true); }}
+          hitSlop={6}
+        >
+          <MaterialIcons name="tune" size={17} color={hasActiveFilter ? C.primary : C.textSecondary} />
+          {hasActiveFilter && <View style={[styles.filterDot, { backgroundColor: C.primary }]} />}
+        </Pressable>
       </View>
 
-      {hasActiveFilter ? (
+      {hasActiveFilter && (
         <Pressable
-          style={[styles.activeFilterBar, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44', marginTop: Spacing.md }]}
+          style={[styles.activeFilterBar, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}
           onPress={() => { Haptic.tap(); setFilters(DEFAULT_FILTERS); }}
         >
           <MaterialIcons name="filter-list" size={13} color={C.primary} />
@@ -392,13 +358,12 @@ export default function HomeScreen() {
             <MaterialIcons name="close" size={12} color={C.primary} />
           </View>
         </Pressable>
-      ) : null}
+      )}
     </View>
   ), [isOnline, user, C, actionsEntrance, myTrips.length, myParcels.length, activeTab, otherTrips.length, otherParcels.length, hasActiveFilter, filters, router]);
 
   return (
     <>
-      <AppTour visible={showTour} onDone={hideTour} targets={tourTargets} />
       <NotificationPanel
         visible={showNotifs}
         onClose={() => setShowNotifs(false)}
@@ -409,60 +374,54 @@ export default function HomeScreen() {
       <FilterPanel visible={showFilters} filters={filters} onClose={() => setShowFilters(false)} onApply={setFilters} C={C} />
 
       <View style={[styles.container, { backgroundColor: C.background }]}>
-        {/* Fixed Header */}
-        <View style={[styles.headerWrap, { paddingTop: insets.top + 14 }]}>
+        {/* Header */}
+        <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
           <LinearGradient
-            colors={[C.primary + '14', 'transparent']}
+            colors={[C.primary + '0A', 'transparent']}
             style={StyleSheet.absoluteFillObject}
           />
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.greeting, { color: C.textSecondary }]}>{greeting},</Text>
-              <Text style={[styles.userName, { color: C.textPrimary }]}>{firstName} 👋</Text>
+              <Text style={[styles.greeting, { color: C.textMuted }]}>{greeting}</Text>
+              <Text style={[styles.userName, { color: C.textPrimary }]}>{firstName}</Text>
             </View>
             <View style={styles.headerBtns}>
-              <View ref={searchTourRef} collapsable={false}>
-                <Pressable
-                  style={({ pressed }) => [styles.iconBtn, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }]}
-                  onPress={() => { Haptic.tap(); router.push('/search'); }}
-                  hitSlop={4}
-                >
-                  <Ionicons name="search" size={19} color={C.textSecondary} />
-                </Pressable>
-              </View>
-              <View ref={notificationsTourRef} collapsable={false}>
-                <Pressable
-                  style={({ pressed }) => [styles.iconBtn, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }]}
-                  onPress={() => { Haptic.tap(); setShowNotifs(true); }}
-                  hitSlop={4}
-                >
-                  <Ionicons name="notifications-outline" size={19} color={C.textSecondary} />
-                  {unreadCount > 0 ? (
-                    <Animated.View style={[styles.notifBadge, { backgroundColor: C.error, transform: [{ scale: badgePulse }] }]}>
-                      <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-                    </Animated.View>
-                  ) : null}
-                </Pressable>
-              </View>
-              <View ref={profileTourRef} collapsable={false}>
-                <Pressable
-                  style={({ pressed }) => [styles.avatarBtn, { backgroundColor: C.primarySubtle, borderColor: C.primary + '55' }, pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] }]}
-                  onPress={() => { Haptic.tap(); router.push('/(tabs)/profile'); }}
-                  hitSlop={4}
-                >
-                  <Text style={[styles.avatarText, { color: C.primary }]}>{firstName.charAt(0).toUpperCase()}</Text>
-                </Pressable>
-              </View>
+              <Pressable
+                style={({ pressed }) => [styles.iconBtn, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, pressed && { opacity: 0.7, transform: [{ scale: 0.93 }] }]}
+                onPress={() => { Haptic.tap(); router.push('/search'); }}
+                hitSlop={4}
+              >
+                <Ionicons name="search" size={18} color={C.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.iconBtn, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, pressed && { opacity: 0.7, transform: [{ scale: 0.93 }] }]}
+                onPress={() => { Haptic.tap(); setShowNotifs(true); }}
+                hitSlop={4}
+              >
+                <Ionicons name="notifications-outline" size={18} color={C.textSecondary} />
+                {unreadCount > 0 && (
+                  <Animated.View style={[styles.notifBadge, { backgroundColor: C.error, transform: [{ scale: badgePulse }] }]}>
+                    <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                  </Animated.View>
+                )}
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.avatarBtn, { backgroundColor: C.primarySubtle, borderColor: C.primary + '55' }, pressed && { opacity: 0.8, transform: [{ scale: 0.93 }] }]}
+                onPress={() => { Haptic.tap(); router.push('/(tabs)/profile'); }}
+                hitSlop={4}
+              >
+                <Text style={[styles.avatarText, { color: C.primary }]}>{firstName.charAt(0).toUpperCase()}</Text>
+              </Pressable>
             </View>
           </View>
         </View>
 
-        {/* Virtualized Feed */}
-        <View ref={listingsTourRef} collapsable={false} style={{ flex: 1 }}>
+        {/* Feed */}
+        <View style={{ flex: 1 }}>
           <FlashList
             data={feedData}
             renderItem={renderItem}
-            estimatedItemSize={120}
+            estimatedItemSize={140}
             keyExtractor={(item) => item.data.id}
             ListHeaderComponent={ListHeader}
             ListEmptyComponent={ListEmpty}

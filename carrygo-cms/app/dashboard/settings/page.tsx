@@ -1,98 +1,68 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
-import { User, Mail, Shield, Key } from 'lucide-react'
+import SettingsTabs from '@/components/SettingsTabs'
 
 export default async function SettingsPage() {
   const auth = await requireAdmin()
   if ('error' in auth) redirect('/login')
   const supabase = auth.supabase
 
-  const { data: { user } } = await supabase.auth.getUser()
-
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('*')
-    .eq('id', user?.id)
+    .select('full_name, email, system_role')
+    .eq('id', auth.userId)
     .single()
 
+  // Load app config from DB if table exists, otherwise use defaults
+  const { data: configRows } = await supabase
+    .from('app_config')
+    .select('key, value')
+    .limit(50)
+
+  const configMap: Record<string, string> = {}
+  configRows?.forEach((row: any) => {
+    configMap[row.key] = row.value
+  })
+
+  const config = {
+    platformCommissionPercent: Number(configMap['platform_commission_percent'] || '15'),
+    minCommissionAmount: Number(configMap['min_commission_amount'] || '10'),
+    maxCommissionAmount: Number(configMap['max_commission_amount'] || '500'),
+    gstPercent: Number(configMap['gst_percent'] || '18'),
+    paymentGateway: configMap['payment_gateway'] || 'razorpay',
+    autoReleaseHours: Number(configMap['auto_release_hours'] || '48'),
+    maxWeightKg: Number(configMap['max_weight_kg'] || '30'),
+    maxPricePerKg: Number(configMap['max_price_per_kg'] || '5000'),
+    minPricePerKg: Number(configMap['min_price_per_kg'] || '10'),
+    supportEmail: configMap['support_email'] || 'support@carrygo.in',
+    supportPhone: configMap['support_phone'] || '+91-9876543210',
+    maintenanceMode: configMap['maintenance_mode'] === 'true',
+    newUserSignups: configMap['new_user_signups'] !== 'false',
+    kycRequired: configMap['kyc_required'] !== 'false',
+    otpExpiryMinutes: Number(configMap['otp_expiry_minutes'] || '5'),
+    maxOtpAttempts: Number(configMap['max_otp_attempts'] || '5'),
+    ratingThreshold: Number(configMap['rating_threshold'] || '2.5'),
+    autoSuspendDisputes: Number(configMap['auto_suspend_disputes'] || '3'),
+    pushNotifications: configMap['push_notifications'] !== 'false',
+    emailNotifications: configMap['email_notifications'] !== 'false',
+    smsNotifications: configMap['sms_notifications'] !== 'false',
+  }
+
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Admin Settings</h1>
-        <p className="text-gray-500">Manage your administrative profile and portal preferences.</p>
+        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Settings</h1>
+        <p className="text-sm text-muted mt-1">Platform configuration, commission rates, payment settings, and app controls.</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Profile Header */}
-        <div className="px-8 py-8 border-b border-gray-100 flex items-center space-x-6">
-          <div className="h-24 w-24 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-3xl font-bold">
-            {profile?.full_name?.charAt(0) || 'A'}
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{profile?.full_name || 'System Administrator'}</h2>
-            <p className="text-gray-500 flex items-center mt-1">
-              <Shield className="w-4 h-4 mr-1 text-blue-500" /> 
-              {profile?.system_role === 'admin' ? 'Super Admin' : 'Admin'}
-            </p>
-          </div>
-        </div>
-
-        {/* Settings Form */}
-        <div className="p-8 space-y-8">
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-b border-gray-100 pb-8">
-            <div className="col-span-1">
-              <h3 className="text-lg font-medium text-gray-900">Account Details</h3>
-              <p className="text-sm text-gray-500 mt-1">Your basic administrative information.</p>
-            </div>
-            <div className="col-span-2 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                <div className="mt-1 flex rounded-md shadow-sm">
-                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
-                    <User className="h-4 w-4" />
-                  </span>
-                  <input
-                    type="text"
-                    disabled
-                    value={profile?.full_name || 'System Administrator'}
-                    className="flex-1 block w-full rounded-none rounded-r-md sm:text-sm border-gray-300 bg-gray-50 text-gray-500 py-2 px-3"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email Address</label>
-                <div className="mt-1 flex rounded-md shadow-sm">
-                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
-                    <Mail className="h-4 w-4" />
-                  </span>
-                  <input
-                    type="email"
-                    disabled
-                    value={profile?.email || ''}
-                    className="flex-1 block w-full rounded-none rounded-r-md sm:text-sm border-gray-300 bg-gray-50 text-gray-500 py-2 px-3"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="col-span-1">
-              <h3 className="text-lg font-medium text-gray-900">Security</h3>
-              <p className="text-sm text-gray-500 mt-1">Manage your password and security settings.</p>
-            </div>
-            <div className="col-span-2 space-y-4">
-              <button disabled className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                <Key className="w-4 h-4 mr-2" />
-                Change Password
-              </button>
-              <p className="text-xs text-gray-400 mt-2">Password management is handled via the mobile app for now.</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
+      <SettingsTabs
+        profile={{
+          full_name: profile?.full_name || null,
+          email: profile?.email || null,
+          system_role: profile?.system_role || null,
+        }}
+        config={config}
+      />
     </div>
   )
 }
