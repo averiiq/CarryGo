@@ -1,36 +1,23 @@
 import { getSupabaseClient } from '@/template';
 import { Trip } from '@/types';
+import type { Database } from '@/types/database';
 import { sanitizeLikeInput } from '@/lib/sanitize';
 
-interface TripRow {
-  id: string;
-  user_id: string;
-  user_name: string;
-  user_rating?: number | string;
-  from_city: string;
-  to_city: string;
-  date: string;
-  time: string;
-  vehicle_type: string;
-  available_capacity: number | string;
-  price_per_kg: number | string;
-  status: string;
-  created_at: string;
-}
+type TripRow = Database['public']['Tables']['trips']['Row'];
 
 function mapRow(row: TripRow): Trip {
   return {
     id: row.id,
     userId: row.user_id,
     userName: row.user_name,
-    userRating: parseFloat(String(row.user_rating)) || 4.5,
+    userRating: row.user_rating ?? 4.5,
     fromCity: row.from_city,
     toCity: row.to_city,
     date: row.date,
     time: row.time,
     vehicleType: row.vehicle_type as Trip['vehicleType'],
-    availableCapacity: parseFloat(String(row.available_capacity)),
-    pricePerKg: parseFloat(String(row.price_per_kg)),
+    availableCapacity: Number(row.available_capacity),
+    pricePerKg: Number(row.price_per_kg),
     status: row.status as Trip['status'],
     createdAt: row.created_at,
   };
@@ -56,6 +43,12 @@ export async function fetchTripById(tripId: string) {
 }
 
 export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
+  if (!trip.fromCity || !trip.toCity) return { data: null, error: 'Origin and destination cities are required.' };
+  if (!trip.date) return { data: null, error: 'Travel date is required.' };
+  if (trip.availableCapacity <= 0) return { data: null, error: 'Available capacity must be greater than zero.' };
+  if (trip.pricePerKg < 0) return { data: null, error: 'Price per kg cannot be negative.' };
+  if (!trip.userId) return { data: null, error: 'User ID is required.' };
+
   const sb = getSupabaseClient();
   const { data, error } = await sb.from('trips').insert({
     user_id: trip.userId,

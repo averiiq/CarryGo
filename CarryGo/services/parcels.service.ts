@@ -1,22 +1,9 @@
 import { getSupabaseClient } from '@/template';
 import { Parcel } from '@/types';
+import type { Database } from '@/types/database';
 import { sanitizeLikeInput } from '@/lib/sanitize';
 
-interface ParcelRow {
-  id: string;
-  user_id: string;
-  user_name: string;
-  from_city: string;
-  to_city: string;
-  category: string;
-  description: string;
-  delivery_date?: string | null;
-  weight: number | string;
-  price_offer: number | string;
-  status: string;
-  image_url?: string;
-  created_at: string;
-}
+type ParcelRow = Database['public']['Tables']['parcels']['Row'];
 
 function mapRow(row: ParcelRow): Parcel {
   return {
@@ -28,10 +15,10 @@ function mapRow(row: ParcelRow): Parcel {
     category: row.category as Parcel['category'],
     description: row.description,
     deliveryDate: row.delivery_date ?? undefined,
-    weight: parseFloat(String(row.weight)),
-    priceOffer: parseFloat(String(row.price_offer)),
+    weight: Number(row.weight),
+    priceOffer: Number(row.price_offer),
     status: row.status as Parcel['status'],
-    imageUri: row.image_url,
+    imageUri: row.image_url ?? undefined,
     createdAt: row.created_at,
   };
 }
@@ -64,6 +51,12 @@ export async function fetchParcelsByIds(parcelIds: string[]) {
 }
 
 export async function createParcel(parcel: Omit<Parcel, 'id' | 'createdAt'>) {
+  if (!parcel.fromCity || !parcel.toCity) return { data: null, error: 'Origin and destination cities are required.' };
+  if (parcel.weight <= 0) return { data: null, error: 'Parcel weight must be greater than zero.' };
+  if (parcel.priceOffer < 0) return { data: null, error: 'Price offer cannot be negative.' };
+  if (!parcel.userId) return { data: null, error: 'User ID is required.' };
+  if (!parcel.description) return { data: null, error: 'Description is required.' };
+
   const sb = getSupabaseClient();
   const { data, error } = await sb.from('parcels').insert({
     user_id: parcel.userId,

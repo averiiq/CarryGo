@@ -2,20 +2,9 @@ import { getSupabaseClient } from '@/template';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { Payment, RazorpayOrder } from '@/types';
+import type { Database } from '@/types/database';
 
-interface PaymentRow {
-  id: string;
-  request_id: string;
-  sender_id: string;
-  traveller_id: string;
-  amount: number | string;
-  status: string;
-  locked_at: string;
-  released_at?: string;
-  razorpay_order_id?: string;
-  razorpay_payment_id?: string;
-  created_at: string;
-}
+type PaymentRow = Database['public']['Tables']['payments']['Row'];
 
 function mapRow(row: PaymentRow): Payment {
   return {
@@ -23,12 +12,10 @@ function mapRow(row: PaymentRow): Payment {
     requestId: row.request_id,
     senderId: row.sender_id,
     travellerId: row.traveller_id,
-    amount: parseFloat(String(row.amount)),
+    amount: Number(row.amount),
     status: row.status as Payment['status'],
     lockedAt: row.locked_at,
-    releasedAt: row.released_at,
-    razorpayOrderId: row.razorpay_order_id,
-    razorpayPaymentId: row.razorpay_payment_id,
+    releasedAt: row.released_at ?? undefined,
     createdAt: row.created_at,
   };
 }
