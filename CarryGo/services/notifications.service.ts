@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '@/template';
 import { AppNotification } from '@/types';
+import type { Database } from '@/types/database';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as Application from 'expo-application';
@@ -19,16 +20,7 @@ try {
   // Expo Go SDK 53+ removed push notification support
 }
 
-interface NotificationRow {
-  id: string;
-  user_id: string;
-  title: string;
-  body: string;
-  type: string;
-  related_id?: string;
-  read: boolean;
-  created_at: string;
-}
+type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 
 function mapRow(row: NotificationRow): AppNotification {
   return {
@@ -37,7 +29,7 @@ function mapRow(row: NotificationRow): AppNotification {
     title: row.title,
     body: row.body,
     type: row.type as AppNotification['type'],
-    relatedId: row.related_id,
+    relatedId: row.related_id ?? undefined,
     read: row.read,
     createdAt: row.created_at,
   };

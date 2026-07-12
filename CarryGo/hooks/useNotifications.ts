@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { getSupabaseClient } from '@/template';
 import { AppNotification, NotificationType } from '@/types';
+import { captureException } from '@/lib/monitoring';
 import {
   fetchNotifications,
   getDeepLinkRoute,
@@ -11,59 +13,73 @@ import {
   savePushToken,
 } from '@/services/notifications.service';
 import { useAuth } from './useAuth';
+import type { Href } from 'expo-router';
 
 export function useNotifications() {
   const { user } = useAuth();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
   const lastHandledResponseRef = useRef<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data } = await fetchNotifications(user.id);
-    if (data) {
-      setNotifications(data);
-      setUnreadCount(data.filter(notification => !notification.read).length);
-    }
-    setLoading(false);
-  }, [user]);
+  const { data: notifications = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['notifications', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await fetchNotifications(user.id);
+      return data ?? [];
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const unreadCount = useMemo(
+    () => notifications.filter(n => !n.read).length,
+    [notifications]
+  );
+
+  const refresh = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
   const handleNotificationRoute = useCallback((data: Record<string, unknown> | undefined) => {
     if (!data?.type) return;
     const route = getDeepLinkRoute(data.type as NotificationType, data.relatedId as string | undefined);
     if (!route) return;
-    setTimeout(() => router.push(route as any), 400);
+    setTimeout(() => router.push(route as Href), 400);
   }, [router]);
 
   useEffect(() => {
     if (!user) return;
-    void (async () => {
-      const token = await registerForPushNotifications();
-      if (token) await savePushToken(user.id, token);
+    let mounted = true;
+    (async () => {
+      try {
+        const token = await registerForPushNotifications();
+        if (mounted && token) await savePushToken(user.id, token);
+      } catch (err) {
+        captureException(err, { context: 'useNotifications.registerPush' });
+      }
     })();
+    return () => { mounted = false; };
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
 
-    void refresh();
     const sb = getSupabaseClient();
     const realtimeChannel = sb
       .channel(`realtime:notifications:${user.id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        () => { void refresh(); }
+        () => { void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] }); }
       )
       .subscribe();
 
     notifListenerRef.current = Notifications.addNotificationReceivedListener(() => {
-      void refresh();
+      void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
     });
 
     responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
@@ -73,8 +89,9 @@ export function useNotifications() {
       handleNotificationRoute(response.notification.request.content.data as Record<string, unknown>);
     });
 
+    let channelMounted = true;
     void Notifications.getLastNotificationResponseAsync().then(response => {
-      if (!response) return;
+      if (!channelMounted || !response) return;
       const responseId = response.notification.request.identifier;
       if (lastHandledResponseRef.current === responseId) return;
       lastHandledResponseRef.current = responseId;
@@ -82,17 +99,20 @@ export function useNotifications() {
     });
 
     return () => {
+      channelMounted = false;
       notifListenerRef.current?.remove();
       responseListenerRef.current?.remove();
       void sb.removeChannel(realtimeChannel);
     };
-  }, [handleNotificationRoute, refresh, user]);
+  }, [handleNotificationRoute, queryClient, user]);
 
   const markAllRead = async () => {
     if (!user) return;
     await markAllNotificationsRead(user.id);
-    setNotifications(prev => prev.map(notification => ({ ...notification, read: true })));
-    setUnreadCount(0);
+    queryClient.setQueryData<AppNotification[]>(
+      ['notifications', user.id],
+      (prev) => prev?.map(n => ({ ...n, read: true })) ?? []
+    );
   };
 
   return { notifications, unreadCount, loading, refresh, markAllRead };

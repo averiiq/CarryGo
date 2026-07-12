@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,7 +19,7 @@ export default function IndexPage() {
       try {
         if (isAuthenticated) {
           const target = requiresProfileSetup ? '/profile-setup' : '/(tabs)';
-          router.replace(target as any);
+          router.replace(target as Href);
           return;
         }
         const seen = await AsyncStorage.getItem(ONBOARDING_KEY);
@@ -33,7 +34,7 @@ export default function IndexPage() {
     };
     const timer = setTimeout(navigate, 120);
     return () => clearTimeout(timer);
-  }, [isAuthenticated, isLoading, requiresProfileSetup]);
+  }, [isAuthenticated, isLoading, requiresProfileSetup, router]);
 
   return (
     <View style={styles.container}>
