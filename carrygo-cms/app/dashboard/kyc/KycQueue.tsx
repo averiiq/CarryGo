@@ -211,7 +211,15 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
                   return (
                     <tr
                       key={session.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => router.push(`/dashboard/kyc/${session.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          router.push(`/dashboard/kyc/${session.id}`)
+                        }
+                      }}
                       className="hover:bg-slate-50/50 transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-4 whitespace-nowrap">

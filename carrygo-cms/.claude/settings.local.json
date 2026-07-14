@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npm install *)",
       "Bash(npx next *)",
-      "Bash(xargs grep -l \"payment\\\\|commission\\\\|config\")"
+      "Bash(xargs grep -l \"payment\\\\|commission\\\\|config\")",
+      "Bash(xargs du -sh)",
+      "Bash(xargs ls -ld)",
+      "Bash(pnpm list *)",
+      "Bash(npm list *)",
+      "Bash(du -sh node_modules)",
+      "Bash(ls -la node_modules/.package-lock.json)",
+      "Bash(wc -l node_modules/.package-lock.json)"
     ]
   }
 }

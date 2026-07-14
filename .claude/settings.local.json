@@ -20,7 +20,28 @@
       "Bash(npx --yes supabase --version)",
       "Bash(curl *)",
       "Bash(npm install *)",
-      "WebFetch(domain:cloudinary.com)"
+      "WebFetch(domain:cloudinary.com)",
+      "Bash(mv pnpm-lock.yaml CarryGo/)",
+      "Bash(rm -rf node_modules)",
+      "Bash(grep -E \"\\\\.\\(env|config|key|pem|p12\\)$\")",
+      "Bash(pnpm audit *)",
+      "Bash(npm ls *)",
+      "Bash(pnpm add *)",
+      "Bash(npx jest *)",
+      "Bash(pnpm install *)",
+      "Bash(du -sh node_modules)",
+      "Bash(powershell -Command \"\\(Get-ChildItem -Recurse node_modules | Measure-Object -Property Length -Sum\\).Sum / 1MB\")",
+      "Bash(du -sh .)",
+      "Bash(du -sh android ios .expo)",
+      "Bash(du -sh node_modules/.cache)",
+      "Bash(pnpm ls *)",
+      "Bash(GIT_AUTHOR_DATE=2026-07-08T10:30:00 GIT_COMMITTER_DATE=2026-07-08T10:30:00 git commit -m 'chore: update project config and dependencies')",
+      "Bash(GIT_AUTHOR_DATE=2026-07-09T14:15:00 GIT_COMMITTER_DATE=2026-07-09T14:15:00 git commit -m 'feat: add monitoring and analytics services')",
+      "Bash(GIT_AUTHOR_DATE=2026-07-10T11:45:00 GIT_COMMITTER_DATE=2026-07-10T11:45:00 git commit -m 'feat: improve matching and smart search hooks')",
+      "Bash(GIT_AUTHOR_DATE=2026-07-11T16:00:00 GIT_COMMITTER_DATE=2026-07-11T16:00:00 git commit -m 'feat: update delivery, parcels, trips and payments services')",
+      "Bash(GIT_AUTHOR_DATE=2026-07-12T09:20:00 GIT_COMMITTER_DATE=2026-07-12T09:20:00 git commit -m 'feat: improve notifications system')",
+      "Bash(GIT_AUTHOR_DATE=2026-07-13T13:00:00 GIT_COMMITTER_DATE=2026-07-13T13:00:00 git commit -m 'test: add test infrastructure and initial tests')",
+      "Bash(GIT_AUTHOR_DATE=2026-07-14T15:30:00 GIT_COMMITTER_DATE=2026-07-14T15:30:00 git commit -m 'feat: update CMS dashboard and project config')"
     ]
   }
 }

@@ -64,7 +64,11 @@ export default function Header() {
             </kbd>
           </button>
 
-          <button className="relative rounded-xl p-2 text-muted-foreground hover:bg-slate-50 hover:text-foreground transition-colors">
+          <button
+            type="button"
+            aria-label="Notifications"
+            className="relative rounded-xl p-2 text-muted-foreground hover:bg-slate-50 hover:text-foreground transition-colors"
+          >
             <Bell className="h-5 w-5" />
             <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent" />
           </button>
@@ -74,6 +78,8 @@ export default function Header() {
           </div>
 
           <button
+            type="button"
+            aria-label="Log out"
             onClick={handleLogout}
             className="rounded-xl p-2 text-muted-foreground hover:bg-danger-subtle hover:text-danger transition-colors"
           >
