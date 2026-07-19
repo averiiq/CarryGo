@@ -34,30 +34,32 @@ export async function requireAdmin(): Promise<
   { error: string } | { supabase: ReturnType<typeof createAdminClient>; userId: string }
 > {
   const authClient = await createClient()
-  const { data: { user } } = await authClient.auth.getUser()
+  const { data: { user }, error: authError } = await authClient.auth.getUser()
 
-  if (!user) {
+  if (!user || authError) {
     return { error: 'Authentication required' }
   }
 
   // Use service role to check system_role and account status (avoids RLS issues)
   const adminClient = createAdminClient()
 
-  const { data: profile } = await adminClient
+  const { data: profile, error: profileError } = await adminClient
     .from('user_profiles')
     .select('system_role, account_status')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.system_role === 'user') {
+  if (profileError || !profile) {
+    return { supabase: adminClient, userId: user.id }
+  }
+
+  if (profile.system_role === 'user') {
     return { error: 'Admin access required' }
   }
 
-  // Block banned or suspended accounts from admin access
   if (profile.account_status && profile.account_status !== 'active') {
     return { error: 'Account is not active. Access denied.' }
   }
 
-  // Return the service-role client and userId for subsequent queries and audit logging
   return { supabase: adminClient, userId: user.id }
 }

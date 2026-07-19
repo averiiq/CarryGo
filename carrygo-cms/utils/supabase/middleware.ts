@@ -43,6 +43,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  if (user && isAuthRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
   if (user) {
     let systemRole: string = request.cookies.get(ROLE_COOKIE_NAME)?.value ?? ''
 
@@ -58,7 +64,7 @@ export async function updateSession(request: NextRequest) {
       supabaseResponse.cookies.set(ROLE_COOKIE_NAME, systemRole, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: ROLE_COOKIE_MAX_AGE,
         path: '/',
       })
@@ -68,12 +74,6 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone()
       url.pathname = '/unauthorized'
       return NextResponse.redirect(url)
-    }
-
-    if (systemRole !== 'user' && isAuthRoute) {
-       const url = request.nextUrl.clone()
-       url.pathname = '/dashboard'
-       return NextResponse.redirect(url)
     }
   } else {
     supabaseResponse.cookies.delete(ROLE_COOKIE_NAME)
