@@ -189,7 +189,7 @@ export default function ParcelDetailScreen() {
   const tripsQuery = useTripsQuery(Boolean(user));
   const { mutateAsync: updateRequestStatusAsync } = useUpdateRequestStatusMutation(user?.id);
   const { mutateAsync: createRequestAsync } = useCreateRequestMutation(user?.id);
-  const updateParcelStatusMutation = useUpdateParcelStatusMutation();
+  const updateParcelStatusMutation = useUpdateParcelStatusMutation(user?.id);
 
   const [refreshing, setRefreshing] = useState(false);
   const [offerSending, setOfferSending] = useState(false);

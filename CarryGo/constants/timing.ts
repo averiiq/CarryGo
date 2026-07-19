@@ -1,0 +1,26 @@
+export const AUTH_TIMEOUTS = {
+  SESSION_INIT: 8000,
+  SEND_OTP: 15000,
+  VERIFY_OTP: 20000,
+  PROFILE_CHECK: 5000,
+} as const;
+
+export const ANIMATION_DURATIONS = {
+  FAST: 150,
+  NORMAL: 300,
+  SLOW: 500,
+  TAB_SWITCH: 120,
+  FEEDBACK: 400,
+  BREATHING: 4500,
+} as const;
+
+export const POLLING_INTERVALS = {
+  LOCATION: 10000,
+  NOTIFICATIONS: 30000,
+} as const;
+
+export const DELAYS = {
+  OTP_AUTO_SUBMIT: 300,
+  SUCCESS_DISMISS: 1200,
+  DEBOUNCE_SEARCH: 300,
+} as const;

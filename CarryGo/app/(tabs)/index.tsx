@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { AsyncStateCard, OfflineBanner, TripCard, ParcelCard, FeedSkeletonList } from '@/components';
+import { AppErrorBoundary, AsyncStateCard, OfflineBanner, TripCard, ParcelCard, FeedSkeletonList } from '@/components';
 import { FilterOptions, Trip, Parcel } from '@/types';
 import { Spacing, BorderRadius, ThemeColors, Motion, Gradients } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
@@ -418,28 +418,30 @@ export default function HomeScreen() {
 
         {/* Feed */}
         <View style={{ flex: 1 }}>
-          <FlashList
-            data={feedData}
-            renderItem={renderItem}
-            estimatedItemSize={140}
-            keyExtractor={(item) => item.data.id}
-            ListHeaderComponent={ListHeader}
-            ListEmptyComponent={ListEmpty}
-            ListFooterComponent={ListFooter}
-            onEndReached={onEndReached}
-            onEndReachedThreshold={0.5}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={C.primary}
-                colors={[C.primary]}
-                progressBackgroundColor={C.surface}
-              />
-            }
-          />
+          <AppErrorBoundary>
+            <FlashList
+              data={feedData}
+              renderItem={renderItem}
+              estimatedItemSize={140}
+              keyExtractor={(item) => item.data.id}
+              ListHeaderComponent={ListHeader}
+              ListEmptyComponent={ListEmpty}
+              ListFooterComponent={ListFooter}
+              onEndReached={onEndReached}
+              onEndReachedThreshold={0.5}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={C.primary}
+                  colors={[C.primary]}
+                  progressBackgroundColor={C.surface}
+                />
+              }
+            />
+          </AppErrorBoundary>
         </View>
       </View>
     </>

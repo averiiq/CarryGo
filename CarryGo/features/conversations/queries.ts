@@ -133,6 +133,7 @@ export function useConversationsRealtime(userId?: string) {
   useEffect(() => {
     if (!userId) return;
 
+    let mounted = true;
     const sb = getSupabaseClient();
     const channel = sb
       .channel(`realtime:conversations:${userId}`)
@@ -158,9 +159,14 @@ export function useConversationsRealtime(userId?: string) {
         if (!current.some(conversation => conversation.id === conversationId)) return;
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations.byUser(userId) });
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (!mounted) {
+          void sb.removeChannel(channel);
+        }
+      });
 
     return () => {
+      mounted = false;
       void sb.removeChannel(channel);
     };
   }, [queryClient, userId]);
@@ -195,6 +201,7 @@ export function useConversationMessagesRealtime(conversationId?: string, userId?
   useEffect(() => {
     if (!conversationId) return;
 
+    let mounted = true;
     const sb = getSupabaseClient();
     const channel = sb
       .channel(`realtime:messages:${conversationId}`)
@@ -222,9 +229,14 @@ export function useConversationMessagesRealtime(conversationId?: string, userId?
           if (userId) queryClient.invalidateQueries({ queryKey: queryKeys.conversations.byUser(userId) });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (!mounted) {
+          void sb.removeChannel(channel);
+        }
+      });
 
     return () => {
+      mounted = false;
       void sb.removeChannel(channel);
     };
   }, [conversationId, queryClient, userId]);

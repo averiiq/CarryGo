@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, View, Text, Pressable, Animated, StyleSheet, Easing } from 'react-native';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -101,10 +101,16 @@ export default function TabLayout() {
 
   const requests = requestsQuery.data ?? [];
   const conversations = conversationsQuery.data ?? [];
-  const pendingRequests = requests.filter(r => r.travellerId === user.id && r.status === 'pending').length;
-  const unreadMessages = conversations.filter(c =>
-    c.lastMessage && !c.lastMessage.read && c.lastMessage.senderId !== user.id
-  ).length;
+  const pendingRequests = useMemo(() =>
+    requests.filter(r => r.travellerId === user.id && r.status === 'pending').length,
+    [requests, user.id]
+  );
+  const unreadMessages = useMemo(() =>
+    conversations.filter(c =>
+      c.lastMessage && !c.lastMessage.read && c.lastMessage.senderId !== user.id
+    ).length,
+    [conversations, user.id]
+  );
   const kycPending = FeatureFlags.kycProvider && (!user.kycStatus || user.kycStatus === 'pending');
 
   const bottomPad = Platform.select({ ios: insets.bottom, android: Math.max(insets.bottom, 8), default: 8 });

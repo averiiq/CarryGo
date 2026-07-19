@@ -22,7 +22,7 @@ import {
   useMarkMessagesReadMutation,
   useSendMessageMutation,
 } from '@/features/conversations/queries';
-import { AsyncStateCard } from '@/components';
+import { AppErrorBoundary, AsyncStateCard } from '@/components';
 import { formatTime } from '@/lib/dateFormat';
 
 function getDayLabel(ts: string): string {
@@ -265,77 +265,79 @@ export default function ChatScreen() {
         </Pressable>
       ) : null}
 
-      <FlashList
-        ref={flatListRef}
-        data={listItems}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        contentContainerStyle={[styles.messageList, { paddingBottom: 16 }] as any}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={100}
-        ListHeaderComponent={messagesQuery.hasNextPage ? (
-          <Pressable
-            style={[styles.loadOlderBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
-            onPress={() => { void messagesQuery.fetchNextPage(); }}
-            disabled={messagesQuery.isFetchingNextPage}
-          >
-            <MaterialIcons
-              name={messagesQuery.isFetchingNextPage ? 'sync' : 'history'}
-              size={14}
-              color={C.textMuted}
-            />
-            <Text style={[styles.loadOlderText, { color: C.textMuted }]}>
-              {messagesQuery.isFetchingNextPage ? 'Loading earlier messages...' : 'Load earlier messages'}
-            </Text>
-          </Pressable>
-        ) : null}
-        ListEmptyComponent={() => {
-          const chatError = messagesQuery.error || conversationsQuery.error;
-          if (chatError) {
-            return (
-              <AsyncStateCard
-                C={C}
-                icon="cloud-off"
-                title="Could not load chat"
-                message={chatError instanceof Error ? chatError.message : 'Refresh and try again.'}
-                actionLabel="Retry"
-                onAction={() => {
-                  void messagesQuery.refetch();
-                  void conversationsQuery.refetch();
-                }}
-                compact
+      <AppErrorBoundary>
+        <FlashList
+          ref={flatListRef}
+          data={listItems}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          contentContainerStyle={[styles.messageList, { paddingBottom: 16 }] as any}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={100}
+          ListHeaderComponent={messagesQuery.hasNextPage ? (
+            <Pressable
+              style={[styles.loadOlderBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+              onPress={() => { void messagesQuery.fetchNextPage(); }}
+              disabled={messagesQuery.isFetchingNextPage}
+            >
+              <MaterialIcons
+                name={messagesQuery.isFetchingNextPage ? 'sync' : 'history'}
+                size={14}
+                color={C.textMuted}
               />
-            );
-          }
-          if (messagesQuery.isLoading || conversationsQuery.isLoading) {
-            return (
-              <AsyncStateCard
-                C={C}
-                icon="sync"
-                title="Loading chat..."
-                message="Fetching the latest delivery messages."
-                compact
-              />
-            );
-          }
-          return (
-            <View style={styles.emptyChat}>
-              <View style={[styles.emptyIconBox, { backgroundColor: C.surfaceElevated }]}>
-                <Ionicons name="chatbubbles-outline" size={40} color={C.textMuted} />
-              </View>
-              <Text style={[styles.emptyChatText, { color: C.textSecondary }]}>Start the conversation!</Text>
-              <Text style={[styles.emptyChatSubtext, { color: C.textMuted }]}>
-                Coordinate pickup and delivery details with {otherName}
+              <Text style={[styles.loadOlderText, { color: C.textMuted }]}>
+                {messagesQuery.isFetchingNextPage ? 'Loading earlier messages...' : 'Load earlier messages'}
               </Text>
-              <View style={[styles.copyHint, { backgroundColor: C.surfaceElevated }]}>
-                <MaterialIcons name="touch-app" size={13} color={C.textMuted} />
-                <Text style={[styles.copyHintText, { color: C.textMuted }]}>Long-press any message for options</Text>
+            </Pressable>
+          ) : null}
+          ListEmptyComponent={() => {
+            const chatError = messagesQuery.error || conversationsQuery.error;
+            if (chatError) {
+              return (
+                <AsyncStateCard
+                  C={C}
+                  icon="cloud-off"
+                  title="Could not load chat"
+                  message={chatError instanceof Error ? chatError.message : 'Refresh and try again.'}
+                  actionLabel="Retry"
+                  onAction={() => {
+                    void messagesQuery.refetch();
+                    void conversationsQuery.refetch();
+                  }}
+                  compact
+                />
+              );
+            }
+            if (messagesQuery.isLoading || conversationsQuery.isLoading) {
+              return (
+                <AsyncStateCard
+                  C={C}
+                  icon="sync"
+                  title="Loading chat..."
+                  message="Fetching the latest delivery messages."
+                  compact
+                />
+              );
+            }
+            return (
+              <View style={styles.emptyChat}>
+                <View style={[styles.emptyIconBox, { backgroundColor: C.surfaceElevated }]}>
+                  <Ionicons name="chatbubbles-outline" size={40} color={C.textMuted} />
+                </View>
+                <Text style={[styles.emptyChatText, { color: C.textSecondary }]}>Start the conversation!</Text>
+                <Text style={[styles.emptyChatSubtext, { color: C.textMuted }]}>
+                  Coordinate pickup and delivery details with {otherName}
+                </Text>
+                <View style={[styles.copyHint, { backgroundColor: C.surfaceElevated }]}>
+                  <MaterialIcons name="touch-app" size={13} color={C.textMuted} />
+                  <Text style={[styles.copyHintText, { color: C.textMuted }]}>Long-press any message for options</Text>
+                </View>
               </View>
-            </View>
-          );
-        }}
-      />
+            );
+          }}
+        />
+      </AppErrorBoundary>
 
       {/* Scroll to bottom FAB */}
       {showScrollBtn ? (

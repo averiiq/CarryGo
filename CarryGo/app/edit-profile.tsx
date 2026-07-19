@@ -41,7 +41,7 @@ export default function EditProfileScreen() {
     const { error } = await updateProfile(user.id, {
       full_name: name.trim(),
       phone: normalizedPhone,
-    });
+    }, user.id);
     setSaving(false);
     if (error) {
       showAlert('Save Failed', error);

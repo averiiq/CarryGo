@@ -9,16 +9,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
-import { useMatching } from '@/hooks/useMatching';
+import { useMatchingTrips, useMatchingParcels, useMatchingTripsOnRoute } from '@/hooks/useMatching';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useParcelQuery, useTripQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
-import { TripCard, ParcelCard } from '@/components';
+import { AppErrorBoundary, TripCard, ParcelCard } from '@/components';
 import { Request, Trip, Parcel } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
-import { fetchTrips } from '@/services/trips.service';
 import { LinearGradient } from 'expo-linear-gradient';
 
 /**
@@ -53,13 +52,10 @@ export default function MatchingScreen() {
   const { mutateAsync: createRequestAsync } = useCreateRequestMutation(user?.id);
 
   const { showAlert } = useAlert();
-  const { findMatchingTrips, findMatchingParcels, loading } = useMatching();
   const { C } = useThemeColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
-  const [matchingTrips, setMatchingTrips] = useState<Trip[]>([]);
-  const [matchingParcels, setMatchingParcels] = useState<Parcel[]>([]);
   const [sortBy, setSortBy] = useState<'price' | 'rating' | 'capacity'>('price');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const headerScale = useRef(new Animated.Value(0.95)).current;
@@ -67,6 +63,31 @@ export default function MatchingScreen() {
   // Resolve source item
   const currentParcel = parcelQuery.data ?? null;
   const currentTrip = tripQuery.data ?? null;
+
+  // Query-based matching
+  const matchingTripsQuery = useMatchingTrips(
+    isParcelMode && currentParcel
+      ? { fromCity: currentParcel.fromCity, toCity: currentParcel.toCity, userId: currentParcel.userId, weight: currentParcel.weight }
+      : null
+  );
+
+  const matchingParcelsQuery = useMatchingParcels(
+    isTripMode && currentTrip
+      ? { fromCity: currentTrip.fromCity, toCity: currentTrip.toCity, userId: currentTrip.userId, availableCapacity: currentTrip.availableCapacity }
+      : null
+  );
+
+  const browseTripsQuery = useMatchingTripsOnRoute(
+    isBrowseMode && fcParam && tcParam
+      ? { fromCity: fcParam, toCity: tcParam, excludeUserId: user?.id }
+      : null
+  );
+
+  const matchingTrips = isParcelMode
+    ? (matchingTripsQuery.data ?? [])
+    : (browseTripsQuery.data ?? []);
+  const matchingParcels = matchingParcelsQuery.data ?? [];
+  const loading = matchingTripsQuery.isLoading || matchingParcelsQuery.isLoading || browseTripsQuery.isLoading;
 
   // Pre-populate sentRequests from existing requests to prevent duplicate sends
   useEffect(() => {
@@ -81,29 +102,15 @@ export default function MatchingScreen() {
     setSentRequests(existing);
   }, [requestsQuery.data, user?.id]);
 
-  const loadMatches = useCallback(async () => {
-    if (mode === 'parcel' && currentParcel) {
-      const trips = await findMatchingTrips(currentParcel);
-      setMatchingTrips(trips);
-    } else if (mode === 'trip' && currentTrip) {
-      const parcels = await findMatchingParcels(currentTrip);
-      setMatchingParcels(parcels);
-    } else if (mode === 'browse_trips' && fcParam && tcParam) {
-      // Browse trips without a parcel — used from search/home
-      const { data } = await fetchTrips({ fromCity: fcParam, toCity: tcParam });
-      setMatchingTrips((data || []).filter(t => t.status === 'active' && t.userId !== user?.id));
-    }
-
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(headerScale, { toValue: 1, tension: 120, friction: 10, useNativeDriver: true }),
-    ]).start();
-  }, [mode, currentParcel, currentTrip, fcParam, tcParam, user?.id, findMatchingTrips, findMatchingParcels, fadeAnim, headerScale]);
-
-  // Fetch matches on mount and data updates
+  // Animate in when data loads
   useEffect(() => {
-    loadMatches();
-  }, [loadMatches]);
+    if (!loading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(headerScale, { toValue: 1, tension: 120, friction: 10, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [loading, fadeAnim, headerScale]);
 
   // Sort helpers
   const sortedTrips = [...matchingTrips].sort((a, b) => {
@@ -370,22 +377,24 @@ export default function MatchingScreen() {
               C={C}
             />
           ) : (
-            <FlashList
-              data={sortedTrips}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <View style={{ marginBottom: Spacing.md }}>
-                  <TripCard
-                    trip={item}
-                    showRequestButton={!sentRequests.has(item.id)}
-                    onRequest={() => handleSendRequest(item)}
-                    onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
-                  />
-                </View>
-              )}
-              contentContainerStyle={styles.list as any}
-              showsVerticalScrollIndicator={false}
-            />
+            <AppErrorBoundary>
+              <FlashList
+                data={sortedTrips}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => (
+                  <View style={{ marginBottom: Spacing.md }}>
+                    <TripCard
+                      trip={item}
+                      showRequestButton={!sentRequests.has(item.id)}
+                      onRequest={() => handleSendRequest(item)}
+                      onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
+                    />
+                  </View>
+                )}
+                contentContainerStyle={styles.list as any}
+                showsVerticalScrollIndicator={false}
+              />
+            </AppErrorBoundary>
           )
         ) : (
           sortedParcels.length === 0 ? (
@@ -398,22 +407,24 @@ export default function MatchingScreen() {
               C={C}
             />
           ) : (
-            <FlashList
-              data={sortedParcels}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <View style={{ marginBottom: Spacing.md }}>
-                  <ParcelCard
-                    parcel={item}
-                    showCarryButton={!sentRequests.has(item.id)}
-                    onCarry={() => handleCarryParcel(item)}
-                    onPress={() => router.push({ pathname: '/parcel/[id]', params: { id: item.id } })}
-                  />
-                </View>
-              )}
-              contentContainerStyle={styles.list as any}
-              showsVerticalScrollIndicator={false}
-            />
+            <AppErrorBoundary>
+              <FlashList
+                data={sortedParcels}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => (
+                  <View style={{ marginBottom: Spacing.md }}>
+                    <ParcelCard
+                      parcel={item}
+                      showCarryButton={!sentRequests.has(item.id)}
+                      onCarry={() => handleCarryParcel(item)}
+                      onPress={() => router.push({ pathname: '/parcel/[id]', params: { id: item.id } })}
+                    />
+                  </View>
+                )}
+                contentContainerStyle={styles.list as any}
+                showsVerticalScrollIndicator={false}
+              />
+            </AppErrorBoundary>
           )
         )}
       </Animated.View>

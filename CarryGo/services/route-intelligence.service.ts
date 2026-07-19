@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '@/template';
 import { VehicleType } from '@/types';
+import { sanitizeLikeInput } from '@/lib/sanitize';
 import {
   findCity,
   getDistance,
@@ -110,17 +111,20 @@ export async function getRoutePopularity(
 ): Promise<RoutePopularity> {
   const sb = getSupabaseClient();
 
+  const safeFrom = sanitizeLikeInput(fromCity);
+  const safeTo = sanitizeLikeInput(toCity);
+
   const [tripsResult, parcelsResult] = await Promise.all([
     sb
       .from('trips')
       .select('id', { count: 'exact', head: true })
-      .ilike('from_city', `%${fromCity}%`)
-      .ilike('to_city', `%${toCity}%`),
+      .ilike('from_city', `%${safeFrom}%`)
+      .ilike('to_city', `%${safeTo}%`),
     sb
       .from('parcels')
       .select('id', { count: 'exact', head: true })
-      .ilike('from_city', `%${fromCity}%`)
-      .ilike('to_city', `%${toCity}%`),
+      .ilike('from_city', `%${safeFrom}%`)
+      .ilike('to_city', `%${safeTo}%`),
   ]);
 
   const tripCount = tripsResult.count ?? 0;

@@ -21,9 +21,20 @@ export async function getCurrentLocation() {
   }
 }
 
-export async function updateDeliveryLocation(deliveryId: string, lat: number, lng: number) {
+export async function updateDeliveryLocation(deliveryId: string, lat: number, lng: number, userId: string) {
   if (!FeatureFlags.preciseLocationSharing) return { error: disabledFeatureMessage.location };
   const sb = getSupabaseClient();
+
+  // Verify user is the traveller for this delivery (traveller_id lives on requests table)
+  const { data: delivery, error: fetchError } = await sb
+    .from('deliveries')
+    .select('request_id, requests!inner(traveller_id)')
+    .eq('id', deliveryId)
+    .single();
+  if (fetchError) return { error: fetchError.message };
+  const travellerId = (delivery as any).requests?.traveller_id;
+  if (travellerId !== userId) return { error: 'Unauthorized' };
+
   const { error } = await sb.from('deliveries').update({
     traveller_lat: lat,
     traveller_lng: lng,

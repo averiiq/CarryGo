@@ -23,6 +23,8 @@ let config: MonitoringConfig = {
 const LOG_BUFFER: Array<{ level: LogLevel; message: string; context?: LogContext; timestamp: number }> = [];
 const MAX_BUFFER = 100;
 
+const PII_FIELDS = new Set(['password', 'token', 'secret', 'otp', 'authorization']);
+
 export function initMonitoring(overrides?: Partial<MonitoringConfig>) {
   config = { ...config, ...overrides };
 }
@@ -121,10 +123,50 @@ export async function shipLogs(): Promise<void> {
   }
 }
 
+/**
+ * Strips PII fields (password, token, secret, otp, authorization) from a context object.
+ */
+function scrubPii(context: LogContext | undefined): LogContext | undefined {
+  if (!context) return context;
+  const scrubbed: LogContext = {};
+  for (const key of Object.keys(context)) {
+    if (PII_FIELDS.has(key.toLowerCase())) {
+      scrubbed[key] = '[REDACTED]';
+    } else {
+      scrubbed[key] = context[key];
+    }
+  }
+  return scrubbed;
+}
+
+/**
+ * Flushes buffered logs. In dev mode, prints to console. In production,
+ * delegates to shipLogs if a DSN is configured.
+ */
+export function flushLogs(): void {
+  if (LOG_BUFFER.length === 0) return;
+
+  if (__DEV__) {
+    const entries = [...LOG_BUFFER];
+    LOG_BUFFER.length = 0;
+    for (const entry of entries) {
+      const logFn = entry.level === 'error' || entry.level === 'fatal'
+        ? console.error
+        : entry.level === 'warn'
+        ? console.warn
+        : console.log;
+      logFn(`[Flush:${entry.level}]`, entry.message, entry.context);
+    }
+  } else {
+    void shipLogs();
+  }
+}
+
 function pushToBuffer(entry: { level: LogLevel; message: string; context?: LogContext; timestamp: number }) {
-  LOG_BUFFER.push(entry);
-  if (LOG_BUFFER.length > MAX_BUFFER) {
-    LOG_BUFFER.shift();
+  const scrubbedEntry = { ...entry, context: scrubPii(entry.context) };
+  LOG_BUFFER.push(scrubbedEntry);
+  if (LOG_BUFFER.length >= MAX_BUFFER) {
+    flushLogs();
   }
 }
 

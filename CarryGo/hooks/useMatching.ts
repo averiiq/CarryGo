@@ -1,57 +1,98 @@
 import { Trip, Parcel } from '@/types';
 import { fetchTrips } from '@/services/trips.service';
 import { fetchParcels } from '@/services/parcels.service';
-import { useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { captureException } from '@/lib/monitoring';
 
-export function useMatching() {
-  const matchTrips = useMutation({
-    mutationFn: async (parcel: Parcel): Promise<Trip[]> => {
-      const { data, error } = await fetchTrips({ fromCity: parcel.fromCity, toCity: parcel.toCity });
+interface MatchTripsParams {
+  fromCity: string;
+  toCity: string;
+  userId: string;
+  weight: number;
+}
+
+interface MatchParcelsParams {
+  fromCity: string;
+  toCity: string;
+  userId: string;
+  availableCapacity: number;
+}
+
+interface MatchTripsOnRouteParams {
+  fromCity: string;
+  toCity: string;
+  excludeUserId?: string;
+}
+
+export function useMatchingTrips(params: MatchTripsParams | null) {
+  const query = useQuery<Trip[]>({
+    queryKey: ['matching', 'trips', params?.fromCity, params?.toCity, params?.userId, params?.weight],
+    enabled: Boolean(params),
+    queryFn: async () => {
+      if (!params) return [];
+      const { data, error } = await fetchTrips({ fromCity: params.fromCity, toCity: params.toCity });
       if (error) throw new Error(error);
       if (!data) return [];
       return data.filter(
         t =>
           t.status === 'active' &&
-          t.userId !== parcel.userId &&
-          t.availableCapacity >= parcel.weight
+          t.userId !== params.userId &&
+          t.availableCapacity >= params.weight
       );
     },
-    onError: (err) => { captureException(err, { context: 'useMatching.findMatchingTrips' }); },
+    staleTime: 60_000,
   });
 
-  const matchParcels = useMutation({
-    mutationFn: async (trip: Trip): Promise<Parcel[]> => {
-      const { data, error } = await fetchParcels({ fromCity: trip.fromCity, toCity: trip.toCity });
+  if (query.error) {
+    captureException(query.error, { context: 'useMatching.findMatchingTrips' });
+  }
+
+  return query;
+}
+
+export function useMatchingParcels(params: MatchParcelsParams | null) {
+  const query = useQuery<Parcel[]>({
+    queryKey: ['matching', 'parcels', params?.fromCity, params?.toCity, params?.userId, params?.availableCapacity],
+    enabled: Boolean(params),
+    queryFn: async () => {
+      if (!params) return [];
+      const { data, error } = await fetchParcels({ fromCity: params.fromCity, toCity: params.toCity });
       if (error) throw new Error(error);
       if (!data) return [];
       return data.filter(
         p =>
           p.status === 'open' &&
-          p.userId !== trip.userId &&
-          p.weight <= trip.availableCapacity
+          p.userId !== params.userId &&
+          p.weight <= params.availableCapacity
       );
     },
-    onError: (err) => { captureException(err, { context: 'useMatching.findMatchingParcels' }); },
+    staleTime: 60_000,
   });
 
-  const matchTripsOnRoute = useMutation({
-    mutationFn: async ({ fromCity, toCity, excludeUserId }: { fromCity: string; toCity: string; excludeUserId?: string }): Promise<Trip[]> => {
-      const { data, error } = await fetchTrips({ fromCity, toCity });
+  if (query.error) {
+    captureException(query.error, { context: 'useMatching.findMatchingParcels' });
+  }
+
+  return query;
+}
+
+export function useMatchingTripsOnRoute(params: MatchTripsOnRouteParams | null) {
+  const query = useQuery<Trip[]>({
+    queryKey: ['matching', 'tripsOnRoute', params?.fromCity, params?.toCity, params?.excludeUserId],
+    enabled: Boolean(params),
+    queryFn: async () => {
+      if (!params) return [];
+      const { data, error } = await fetchTrips({ fromCity: params.fromCity, toCity: params.toCity });
       if (error) throw new Error(error);
       if (!data) return [];
-      return data.filter(t => t.status === 'active' && (!excludeUserId || t.userId !== excludeUserId));
+      return data.filter(t => t.status === 'active' && (!params.excludeUserId || t.userId !== params.excludeUserId));
     },
-    onError: (err) => { captureException(err, { context: 'useMatching.findTripsOnRoute' }); },
+    staleTime: 60_000,
   });
 
-  const findMatchingTrips = (parcel: Parcel) => matchTrips.mutateAsync(parcel);
-  const findMatchingParcels = (trip: Trip) => matchParcels.mutateAsync(trip);
-  const findTripsOnRoute = (fromCity: string, toCity: string, excludeUserId?: string) =>
-    matchTripsOnRoute.mutateAsync({ fromCity, toCity, excludeUserId });
+  if (query.error) {
+    captureException(query.error, { context: 'useMatching.findTripsOnRoute' });
+  }
 
-  const loading = matchTrips.isPending || matchParcels.isPending || matchTripsOnRoute.isPending;
-  const error = matchTrips.error?.message ?? matchParcels.error?.message ?? matchTripsOnRoute.error?.message ?? null;
-
-  return { findMatchingTrips, findMatchingParcels, findTripsOnRoute, loading, error };
+  return query;
 }

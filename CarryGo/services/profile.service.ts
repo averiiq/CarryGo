@@ -196,8 +196,12 @@ export async function updateProfile(
     push_token: string;
     role: UserRole;
     profile_completed_at: string;
-  }>
+  }>,
+  currentUserId: string
 ) {
+  // Verify the current user is updating their own profile
+  if (userId !== currentUserId) return { error: 'Unauthorized' };
+
   const sb = getSupabaseClient();
   const { error } = await sb.from('user_profiles').update(updates).eq('id', userId);
   return { error: error?.message || null };

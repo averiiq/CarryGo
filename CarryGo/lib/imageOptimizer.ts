@@ -62,6 +62,8 @@ export async function optimizeImage(
     actions.push({ resize: { width: config.maxWidth } });
   }
 
+  // Re-encoding via manipulateAsync strips EXIF metadata (including GPS location)
+  // regardless of whether resize is needed. This prevents location data leaks.
   const result = await ImageManipulator.manipulateAsync(uri, actions, {
     compress: config.quality,
     format,

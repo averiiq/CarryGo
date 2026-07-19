@@ -2,10 +2,11 @@ import { useRef, useEffect, useCallback } from 'react';
 import { Animated, Easing } from 'react-native';
 import { Motion } from '@/constants/theme';
 
-export function usePulse(duration = 2200) {
+export function usePulse(duration = 2200, enabled = true) {
   const anim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    if (!enabled) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(anim, { toValue: 1.08, duration: duration / 2, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -14,15 +15,16 @@ export function usePulse(duration = 2200) {
     );
     loop.start();
     return () => loop.stop();
-  }, [anim, duration]);
+  }, [anim, duration, enabled]);
 
   return anim;
 }
 
-export function useBreathing(min = 0.92, max = 1, duration = 3000) {
+export function useBreathing(min = 0.92, max = 1, duration = 3000, enabled = true) {
   const anim = useRef(new Animated.Value(min)).current;
 
   useEffect(() => {
+    if (!enabled) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(anim, { toValue: max, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -31,15 +33,16 @@ export function useBreathing(min = 0.92, max = 1, duration = 3000) {
     );
     loop.start();
     return () => loop.stop();
-  }, [anim, min, max, duration]);
+  }, [anim, min, max, duration, enabled]);
 
   return anim;
 }
 
-export function useGlowPulse(min = 0.4, max = 1, duration = 2000) {
+export function useGlowPulse(min = 0.4, max = 1, duration = 2000, enabled = true) {
   const anim = useRef(new Animated.Value(min)).current;
 
   useEffect(() => {
+    if (!enabled) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(anim, { toValue: max, duration: duration / 2, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -48,7 +51,7 @@ export function useGlowPulse(min = 0.4, max = 1, duration = 2000) {
     );
     loop.start();
     return () => loop.stop();
-  }, [anim, min, max, duration]);
+  }, [anim, min, max, duration, enabled]);
 
   return anim;
 }

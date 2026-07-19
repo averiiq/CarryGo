@@ -9,7 +9,7 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "userInterfaceStyle": "automatic",  
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "in.averiq.carrygo",
@@ -21,7 +21,9 @@
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "newArchEnabled": true
+      "newArchEnabled": true,
+      "enableProguardInReleaseBuilds": true,
+      "enableShrinkResourcesInReleaseBuilds": true
     },
     "web": {
       "bundler": "metro",
@@ -39,9 +41,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-web-browser",
       "@react-native-community/datetimepicker",
-      "expo-asset",
       "expo-font",
       "expo-secure-store",
       "react-native-edge-to-edge"
@@ -52,8 +52,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6e0d0e74-9d96-400e-9fd0-fdf68de76f4e"
+        "projectId": "85ee60ab-6a6a-4f2e-9688-9fbd4dabca3b"
       }
-    }
+    },
+    "owner": "averiq-software-company"
   }
 }

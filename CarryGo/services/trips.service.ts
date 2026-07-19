@@ -2,6 +2,7 @@ import { getSupabaseClient } from '@/template';
 import { Trip } from '@/types';
 import type { Database } from '@/types/database';
 import { sanitizeLikeInput } from '@/lib/sanitize';
+import { enforceRateLimit } from '@/lib/server-rate-limit';
 
 type TripRow = Database['public']['Tables']['trips']['Row'];
 
@@ -43,11 +44,17 @@ export async function fetchTripById(tripId: string) {
 }
 
 export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
+  if (!trip.userId) return { data: null, error: 'User ID is required.' };
+
+  const rateCheck = await enforceRateLimit(trip.userId, 'create_trip');
+  if (!rateCheck.allowed) {
+    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
+  }
+
   if (!trip.fromCity || !trip.toCity) return { data: null, error: 'Origin and destination cities are required.' };
   if (!trip.date) return { data: null, error: 'Travel date is required.' };
   if (trip.availableCapacity <= 0) return { data: null, error: 'Available capacity must be greater than zero.' };
   if (trip.pricePerKg < 0) return { data: null, error: 'Price per kg cannot be negative.' };
-  if (!trip.userId) return { data: null, error: 'User ID is required.' };
 
   const sb = getSupabaseClient();
   const { data, error } = await sb.from('trips').insert({
@@ -67,8 +74,14 @@ export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
   return { data: mapRow(data), error: null };
 }
 
-export async function updateTripStatus(tripId: string, status: Trip['status']) {
+export async function updateTripStatus(tripId: string, status: Trip['status'], userId: string) {
   const sb = getSupabaseClient();
+
+  // Verify ownership before updating
+  const { data: trip, error: fetchError } = await sb.from('trips').select('user_id').eq('id', tripId).single();
+  if (fetchError) return { error: fetchError.message };
+  if (trip.user_id !== userId) return { error: 'Unauthorized' };
+
   const { error } = await sb.from('trips').update({ status }).eq('id', tripId);
   if (error) return { error: error.message };
   return { error: null };

@@ -1,8 +1,10 @@
 import React, { ReactNode, useEffect } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { AppState, Platform } from 'react-native';
-import { focusManager, onlineManager, QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, onlineManager } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient } from './queryClient';
+import { asyncStoragePersister } from './persister';
 
 function useReactQueryPlatformManagers() {
   useEffect(() => {
@@ -30,8 +32,14 @@ export function AppQueryProvider({ children }: { children: ReactNode }) {
   useReactQueryPlatformManagers();
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: asyncStoragePersister,
+        maxAge: 24 * 60 * 60 * 1000,
+      }}
+    >
       {children}
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

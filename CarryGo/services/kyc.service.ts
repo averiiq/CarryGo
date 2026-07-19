@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '@/template';
 import { KycDocumentType, KycIdType, KycSession, KycDocument } from '@/types';
 import { uploadKycDocument as uploadKycToS3 } from '@/services/storage.service';
+import { enforceRateLimit } from '@/lib/server-rate-limit';
 
 interface KycDocumentRow {
   id: string;
@@ -85,6 +86,9 @@ export async function uploadKycDocument(
   documentType: KycDocumentType,
   fileUri: string
 ) {
+  const rateCheck = await enforceRateLimit(userId, 'kyc_upload');
+  if (!rateCheck.allowed) return { data: null, error: rateCheck.error ?? 'Too many uploads. Please wait before retrying.' };
+
   const sb = getSupabaseClient();
 
   const { data: session, error: sessionError } = await sb

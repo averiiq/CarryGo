@@ -1,0 +1,69 @@
+# CMS project (not needed for mobile build)
+carrygo-cms/
+
+# Dependencies (EAS installs from lockfile)
+node_modules/
+**/node_modules/
+
+# Expo cache
+.expo/
+**/.expo/
+
+# Build outputs
+dist/
+web-build/
+
+# Native directories (EAS runs prebuild fresh)
+android/
+ios/
+.kotlin/
+
+# Git
+.git/
+
+# Tests (not needed for build)
+__tests__/
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+jest.config.*
+coverage/
+
+# Scripts
+scripts/
+
+# Supabase local dev
+supabase/.temp/
+supabase/.branches/
+
+# Documentation
+*.md
+PROJECT_CONTEXT.md
+project.md
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+.claude/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Large unnecessary files
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision

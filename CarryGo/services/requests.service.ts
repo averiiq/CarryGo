@@ -1,7 +1,7 @@
 import { getSupabaseClient } from '@/template';
 import { Request } from '@/types';
 import { sanitizeTextInput } from '@/lib/sanitize';
-import { requestLimiter } from '@/lib/rate-limiter';
+import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { validateUUID, validateAmount, validateDescription } from '@/lib/validation';
 
 interface RequestRow {
@@ -58,8 +58,9 @@ export async function fetchRequestById(requestId: string) {
 }
 
 export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'updatedAt'>) {
-  if (!requestLimiter.canProceed('createRequest')) {
-    return { data: null, error: 'Too many requests. Please wait a moment before trying again.' };
+  const rateCheck = await enforceRateLimit(req.senderId, 'create_request');
+  if (!rateCheck.allowed) {
+    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
   }
 
   const parcelValidation = validateUUID(req.parcelId);
@@ -83,8 +84,6 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
       return { data: null, error: msgValidation.error };
     }
   }
-
-  requestLimiter.record('createRequest');
 
   const message = req.message ? sanitizeTextInput(req.message, 500) : null;
 
@@ -121,17 +120,16 @@ export async function fetchRequestsByParcelId(parcelId: string) {
   return { data: (data || []).map(r => mapRow(r as unknown as RequestRow)), error: null };
 }
 
-export async function updateRequestStatus(requestId: string, status: Request['status']) {
-  if (!requestLimiter.canProceed('updateRequestStatus')) {
-    return { data: null, error: 'Too many requests. Please wait a moment before trying again.' };
+export async function updateRequestStatus(requestId: string, status: Request['status'], userId: string) {
+  const rateCheck = await enforceRateLimit(userId, 'create_request');
+  if (!rateCheck.allowed) {
+    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
   }
 
   const idValidation = validateUUID(requestId);
   if (!idValidation.valid) {
     return { data: null, error: idValidation.error };
   }
-
-  requestLimiter.record('updateRequestStatus');
 
   const sb = getSupabaseClient();
   const { data, error } = await sb.rpc('transition_request_status', {

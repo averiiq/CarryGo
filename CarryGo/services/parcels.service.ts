@@ -2,6 +2,7 @@ import { getSupabaseClient } from '@/template';
 import { Parcel } from '@/types';
 import type { Database } from '@/types/database';
 import { sanitizeLikeInput } from '@/lib/sanitize';
+import { enforceRateLimit } from '@/lib/server-rate-limit';
 
 type ParcelRow = Database['public']['Tables']['parcels']['Row'];
 
@@ -51,10 +52,16 @@ export async function fetchParcelsByIds(parcelIds: string[]) {
 }
 
 export async function createParcel(parcel: Omit<Parcel, 'id' | 'createdAt'>) {
+  if (!parcel.userId) return { data: null, error: 'User ID is required.' };
+
+  const rateCheck = await enforceRateLimit(parcel.userId, 'create_parcel');
+  if (!rateCheck.allowed) {
+    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
+  }
+
   if (!parcel.fromCity || !parcel.toCity) return { data: null, error: 'Origin and destination cities are required.' };
   if (parcel.weight <= 0) return { data: null, error: 'Parcel weight must be greater than zero.' };
   if (parcel.priceOffer < 0) return { data: null, error: 'Price offer cannot be negative.' };
-  if (!parcel.userId) return { data: null, error: 'User ID is required.' };
   if (!parcel.description) return { data: null, error: 'Description is required.' };
 
   const sb = getSupabaseClient();
@@ -75,8 +82,14 @@ export async function createParcel(parcel: Omit<Parcel, 'id' | 'createdAt'>) {
   return { data: mapRow(data), error: null };
 }
 
-export async function updateParcelStatus(parcelId: string, status: Parcel['status']) {
+export async function updateParcelStatus(parcelId: string, status: Parcel['status'], userId: string) {
   const sb = getSupabaseClient();
+
+  // Verify ownership before updating
+  const { data: parcel, error: fetchError } = await sb.from('parcels').select('user_id').eq('id', parcelId).single();
+  if (fetchError) return { error: fetchError.message };
+  if (parcel.user_id !== userId) return { error: 'Unauthorized' };
+
   const { error } = await sb.from('parcels').update({ status }).eq('id', parcelId);
   if (error) return { error: error.message };
   return { error: null };

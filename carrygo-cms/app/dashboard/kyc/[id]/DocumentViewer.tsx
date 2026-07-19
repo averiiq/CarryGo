@@ -19,16 +19,37 @@ function isSafeDocUrl(url: string | null): boolean {
   if (!url) return false
   try {
     const parsed = new URL(url)
+    // Only allow HTTPS protocol
     if (parsed.protocol !== 'https:') return false
-    const allowedPatterns = [
+
+    // Strict domain whitelist - hostname must END WITH these suffixes exactly
+    const allowedSuffixes = [
       '.supabase.co',
       '.cloudinary.com',
     ]
-    return allowedPatterns.some(
-      (pattern) =>
-        parsed.hostname === pattern.slice(1) ||
-        parsed.hostname.endsWith(pattern)
-    )
+
+    // Also allow the project's specific Supabase URL if configured
+    const projectSupabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? (() => {
+          try {
+            return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+          } catch {
+            return null
+          }
+        })()
+      : null
+
+    const hostname = parsed.hostname
+
+    // Check exact match against project Supabase host
+    if (projectSupabaseHost && hostname === projectSupabaseHost) return true
+
+    // Check suffix match - ensure the character before the suffix is a dot or the suffix IS the full hostname
+    return allowedSuffixes.some((suffix) => {
+      if (hostname === suffix.slice(1)) return true // exact match without leading dot
+      if (hostname.endsWith(suffix)) return true // subdomain match (suffix starts with dot)
+      return false
+    })
   } catch {
     return false
   }

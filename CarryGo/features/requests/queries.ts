@@ -103,7 +103,8 @@ export function useUpdateRequestStatusMutation(userId?: string) {
       requestId: string;
       status: Request['status'];
     }) => {
-      const { data, error } = await updateRequestStatus(requestId, status);
+      if (!userId) throw new Error('User session required');
+      const { data, error } = await updateRequestStatus(requestId, status, userId);
       if (error || !data) throw serviceError(error, 'Failed to update request');
       return data;
     },

@@ -44,7 +44,7 @@ export default function TripDetailScreen() {
   const conversationsQuery = useConversationsQuery(user?.id);
   const { mutateAsync: updateRequestStatusAsync } = useUpdateRequestStatusMutation(user?.id);
   const { mutateAsync: createConversationAsync } = useCreateConversationMutation(user?.id);
-  const updateTripStatusMutation = useUpdateTripStatusMutation();
+  const updateTripStatusMutation = useUpdateTripStatusMutation(user?.id);
 
   const [refreshing, setRefreshing] = useState(false);
 

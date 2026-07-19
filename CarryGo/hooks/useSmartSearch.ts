@@ -89,18 +89,17 @@ export function useSmartSearch(enabled = true): SmartSearchReturn {
       .slice(0, 8);
   }, [debouncedQuery]);
 
-  const fetchLimit = PAGE_SIZE * 5;
-
   // Fetch trips with server-side pagination
   const tripsQuery = useQuery<{ items: Trip[]; total: number }>({
     queryKey: ['smartSearch', 'trips', filters.fromCity, filters.toCity, page],
     enabled,
     queryFn: async () => {
+      const offset = (page - 1) * PAGE_SIZE;
       const { data, total } = await fetchTrips({
         fromCity: filters.fromCity || undefined,
         toCity: filters.toCity || undefined,
-        limit: fetchLimit,
-        offset: 0,
+        limit: PAGE_SIZE,
+        offset,
       });
       return { items: data ?? [], total };
     },
@@ -112,11 +111,12 @@ export function useSmartSearch(enabled = true): SmartSearchReturn {
     queryKey: ['smartSearch', 'parcels', filters.fromCity, filters.toCity, page],
     enabled,
     queryFn: async () => {
+      const offset = (page - 1) * PAGE_SIZE;
       const { data, total } = await fetchParcels({
         fromCity: filters.fromCity || undefined,
         toCity: filters.toCity || undefined,
-        limit: fetchLimit,
-        offset: 0,
+        limit: PAGE_SIZE,
+        offset,
       });
       return { items: data ?? [], total };
     },
@@ -195,11 +195,9 @@ export function useSmartSearch(enabled = true): SmartSearchReturn {
     return combined;
   }, [tripsQuery.data, parcelsQuery.data, filters, sortBy]);
 
-  // Paginate
-  const totalCount = filteredAndSorted.length;
-  const startIdx = (page - 1) * PAGE_SIZE;
-  const results = filteredAndSorted.slice(startIdx, startIdx + PAGE_SIZE);
-  const hasMore = startIdx + PAGE_SIZE < totalCount;
+  const results = filteredAndSorted;
+  const totalCount = (tripsQuery.data?.total ?? 0) + (parcelsQuery.data?.total ?? 0);
+  const hasMore = page * PAGE_SIZE < totalCount;
 
   return {
     results,

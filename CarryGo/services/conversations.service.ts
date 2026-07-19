@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '@/template';
 import { Conversation, ChatMessage } from '@/types';
 import { sanitizeMessageText } from '@/lib/sanitize';
+import { enforceRateLimit } from '@/lib/server-rate-limit';
 
 interface ConversationRow {
   id: string;
@@ -135,6 +136,11 @@ export async function sendMessage(msg: {
   senderName: string;
   text: string;
 }) {
+  const rateCheck = await enforceRateLimit(msg.senderId, 'send_message');
+  if (!rateCheck.allowed) {
+    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
+  }
+
   const sanitizedText = sanitizeMessageText(msg.text);
   if (sanitizedText.length === 0) return { data: null, error: 'Message cannot be empty' };
 
@@ -150,6 +156,16 @@ export async function sendMessage(msg: {
 
 export async function markMessagesRead(conversationId: string, userId: string) {
   const sb = getSupabaseClient();
+
+  // Verify user is a participant in this conversation
+  const { data: conv, error: convError } = await sb
+    .from('conversations')
+    .select('participant_ids')
+    .eq('id', conversationId)
+    .single();
+  if (convError) return;
+  if (!conv.participant_ids || !conv.participant_ids.includes(userId)) return;
+
   await sb.from('messages').update({ read: true })
     .eq('conversation_id', conversationId)
     .neq('sender_id', userId);

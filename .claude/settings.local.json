@@ -41,7 +41,20 @@
       "Bash(GIT_AUTHOR_DATE=2026-07-11T16:00:00 GIT_COMMITTER_DATE=2026-07-11T16:00:00 git commit -m 'feat: update delivery, parcels, trips and payments services')",
       "Bash(GIT_AUTHOR_DATE=2026-07-12T09:20:00 GIT_COMMITTER_DATE=2026-07-12T09:20:00 git commit -m 'feat: improve notifications system')",
       "Bash(GIT_AUTHOR_DATE=2026-07-13T13:00:00 GIT_COMMITTER_DATE=2026-07-13T13:00:00 git commit -m 'test: add test infrastructure and initial tests')",
-      "Bash(GIT_AUTHOR_DATE=2026-07-14T15:30:00 GIT_COMMITTER_DATE=2026-07-14T15:30:00 git commit -m 'feat: update CMS dashboard and project config')"
+      "Bash(GIT_AUTHOR_DATE=2026-07-14T15:30:00 GIT_COMMITTER_DATE=2026-07-14T15:30:00 git commit -m 'feat: update CMS dashboard and project config')",
+      "Bash(gh auth *)",
+      "Bash(python -c \"import sys,json; users=json.load\\(sys.stdin\\)['users']; [print\\(u['id'],u['email']\\) for u in users if 'vermajatin' in u.get\\('email',''\\)]\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('SUCCESS' if 'access_token' in d else f'FAIL: {d}'\\)\")",
+      "Bash(xargs du -h)",
+      "Bash(npx vitest *)",
+      "Bash(xargs du -ch)",
+      "Bash(xargs du -sh)",
+      "Bash(npx --yes sharp-cli --input assets/images/onboarding-hero.png --output assets/images/onboarding-hero.webp -- webp --quality 80)",
+      "Bash(npx --yes sharp-cli --input assets/images/empty-parcels.png --output assets/images/empty-parcels.webp -- webp --quality 80)",
+      "Bash(npx --yes sharp-cli --help)",
+      "Bash(npx --yes sharp-cli --input assets/images/onboarding-hero.png --output assets/images/onboarding-hero.webp --format webp --quality 80)",
+      "Bash(awk '{print $5, $NF}')",
+      "Bash(awk '{print $5}')"
     ]
   }
 }

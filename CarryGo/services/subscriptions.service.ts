@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '@/template';
 import { RouteSubscription } from '@/types';
 import { sanitizeTextInput } from '@/lib/sanitize';
+import { enforceRateLimit } from '@/lib/server-rate-limit';
 
 interface SubscriptionRow {
   id: string;
@@ -35,6 +36,11 @@ export async function fetchSubscriptions(userId: string) {
 }
 
 export async function createSubscription(userId: string, fromCity: string, toCity: string) {
+  const rateCheck = await enforceRateLimit(userId, 'create_request');
+  if (!rateCheck.allowed) {
+    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
+  }
+
   const sanitizedFrom = sanitizeTextInput(fromCity, 100);
   const sanitizedTo = sanitizeTextInput(toCity, 100);
   if (!sanitizedFrom || !sanitizedTo) return { data: null, error: 'City names are required' };
@@ -50,15 +56,27 @@ export async function createSubscription(userId: string, fromCity: string, toCit
   return { data: mapRow(data), error: null };
 }
 
-export async function deleteSubscription(subId: string) {
+export async function deleteSubscription(subId: string, userId: string) {
   const sb = getSupabaseClient();
+
+  // Verify ownership before deleting
+  const { data: sub, error: fetchError } = await sb.from('route_subscriptions').select('user_id').eq('id', subId).single();
+  if (fetchError) return { error: fetchError.message };
+  if (sub.user_id !== userId) return { error: 'Unauthorized' };
+
   const { error } = await sb.from('route_subscriptions').delete().eq('id', subId);
   if (error) return { error: error.message };
   return { error: null };
 }
 
-export async function toggleSubscription(subId: string, active: boolean) {
+export async function toggleSubscription(subId: string, active: boolean, userId: string) {
   const sb = getSupabaseClient();
+
+  // Verify ownership before toggling
+  const { data: sub, error: fetchError } = await sb.from('route_subscriptions').select('user_id').eq('id', subId).single();
+  if (fetchError) return { error: fetchError.message };
+  if (sub.user_id !== userId) return { error: 'Unauthorized' };
+
   const { error } = await sb.from('route_subscriptions').update({ active }).eq('id', subId);
   if (error) return { error: error.message };
   return { error: null };

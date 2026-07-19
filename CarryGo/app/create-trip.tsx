@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView,
-  Platform, Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -10,9 +9,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Button, Input } from '@/components';
+import { CityPicker } from '@/components/feature/CityPicker';
 import { formatScheduleDate, SevenDaySchedulePicker } from '@/components/feature/SevenDaySchedulePicker';
 import { VehicleType } from '@/types';
-import { CITIES } from '@/constants/mockData';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import { Haptic } from '@/services/haptics.service';
@@ -47,12 +46,10 @@ export default function CreateTripScreen() {
   const [showFrom, setShowFrom] = useState(false);
   const [showTo, setShowTo] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [citySearch, setCitySearch] = useState('');
   const [showKyc, setShowKyc] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const isKycApproved = FeatureFlags.kycProvider && user?.kycStatus === 'approved';
-  const filteredCities = CITIES.filter(c => c.toLowerCase().includes(citySearch.toLowerCase()));
   const selectedVehicle = VEHICLES.find(v => v.type === vehicle);
 
   const handleSubmit = async () => {
@@ -143,51 +140,6 @@ export default function CreateTripScreen() {
     }
   };
 
-  const CityPicker = ({ forField }: { forField: 'from' | 'to' }) => (
-    <Modal
-      visible={forField === 'from' ? showFrom : showTo}
-      transparent
-      animationType="slide"
-      onRequestClose={() => {
-        if (forField === 'from') setShowFrom(false);
-        else setShowTo(false);
-      }}
-    >
-      <Pressable
-        style={[styles.pickerOverlay, { backgroundColor: C.overlay }]}
-        onPress={() => {
-          if (forField === 'from') setShowFrom(false);
-          else setShowTo(false);
-          setCitySearch('');
-        }}
-      />
-      <View style={[styles.pickerSheet, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
-        <View style={[styles.pickerHandle, { backgroundColor: C.surfaceBorderLight }]} />
-        <Text style={[styles.pickerTitle, { color: C.textPrimary }]}>{forField === 'from' ? 'From City' : 'To City'}</Text>
-        <Input placeholder="Search city..." value={citySearch} onChangeText={setCitySearch} autoFocus />
-        <ScrollView style={{ maxHeight: 300 }}>
-          {filteredCities.map(city => (
-            <Pressable
-              key={city}
-              style={({ pressed }) => [styles.cityOption, { borderBottomColor: C.surfaceBorder, backgroundColor: pressed ? C.surfaceElevated : 'transparent' }]}
-              onPress={() => {
-                if (forField === 'from') setFromCity(city);
-                else setToCity(city);
-                setCitySearch('');
-                if (forField === 'from') setShowFrom(false);
-                else setShowTo(false);
-                Haptic.select();
-              }}
-            >
-              <View style={[styles.cityDotSmall, { backgroundColor: forField === 'from' ? C.success : C.error }]} />
-              <Text style={[styles.cityOptionText, { color: C.textPrimary }]}>{city}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-
   return (
     <>
       <KycOnboarding
@@ -207,8 +159,22 @@ export default function CreateTripScreen() {
         timeLabel="Departure time"
         confirmLabel="Confirm Trip Time"
       />
-      <CityPicker forField="from" />
-      <CityPicker forField="to" />
+      <CityPicker
+        visible={showFrom}
+        onClose={() => setShowFrom(false)}
+        onSelect={(city) => { setFromCity(city); setShowFrom(false); }}
+        title="From City"
+        dotColor={C.success}
+        C={C}
+      />
+      <CityPicker
+        visible={showTo}
+        onClose={() => setShowTo(false)}
+        onSelect={(city) => { setToCity(city); setShowTo(false); }}
+        title="To City"
+        dotColor={C.error}
+        C={C}
+      />
 
       <KeyboardAvoidingView style={[styles.container, { backgroundColor: C.background }]} behavior="padding">
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]} showsVerticalScrollIndicator={false}>
@@ -400,20 +366,4 @@ const styles = StyleSheet.create({
   },
   infoText: { flex: 1, fontSize: FontSize.sm, lineHeight: 20 },
 
-  // Picker shared styles
-  pickerOverlay: { flex: 1 },
-  pickerSheet: {
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    borderTopWidth: 1, padding: Spacing.lg, gap: Spacing.md,
-  },
-  pickerHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 4 },
-  pickerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  pickerLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, textTransform: 'uppercase', letterSpacing: 0.8 },
-
-  cityOption: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1,
-  },
-  cityDotSmall: { width: 8, height: 8, borderRadius: 4 },
-  cityOptionText: { fontSize: FontSize.md },
 });

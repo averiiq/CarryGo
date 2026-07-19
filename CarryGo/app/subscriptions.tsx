@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { getSupabaseClient, useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { AppErrorBoundary } from '@/components';
 import {
   fetchSubscriptions, createSubscription, deleteSubscription, toggleSubscription,
 } from '@/services/subscriptions.service';
@@ -328,7 +329,7 @@ export default function SubscriptionsScreen() {
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Remove', style: 'destructive', onPress: async () => {
-          await deleteSubscription(sub.id);
+          await deleteSubscription(sub.id, user?.id || '');
           setSubs(prev => prev.filter(s => s.id !== sub.id));
           Haptic.success();
         },
@@ -337,7 +338,7 @@ export default function SubscriptionsScreen() {
   };
 
   const handleToggle = async (sub: RouteSubscription) => {
-    await toggleSubscription(sub.id, !sub.active);
+    await toggleSubscription(sub.id, !sub.active, user?.id || '');
     setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, active: !s.active } : s));
     Haptic.select();
   };
@@ -460,57 +461,59 @@ export default function SubscriptionsScreen() {
           <Text style={[styles.loadingText, { color: C.textMuted }]}>Loading subscriptions...</Text>
         </View>
       ) : (
-        <FlashList
-          data={subs}
-          keyExtractor={s => s.id}
-          renderItem={({ item }) => (
-            <View style={{ marginBottom: Spacing.sm }}>
-              <SubCard
-                item={item}
-                onToggle={() => handleToggle(item)}
-                onDelete={() => handleDelete(item)}
-                onView={() => handleView(item)}
-                matchData={matchData[item.id]}
-                C={C}
-              />
-            </View>
-          )}
-          contentContainerStyle={styles.list as any}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={C.primary}
-            />
-          }
-          ListHeaderComponent={subs.length > 0 ? (
-            <View style={[styles.pollBanner, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-              <View style={[styles.pollDot, { backgroundColor: C.success }]} />
-              <Text style={[styles.pollBannerText, { color: C.primary }]}>
-                Live route updates enabled · Pull to refresh
-              </Text>
-            </View>
-          ) : null}
-          ListEmptyComponent={() => (
-            <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <View style={[styles.emptyIconBox, { backgroundColor: C.primarySubtle }]}>
-                <MaterialIcons name="notifications-off" size={40} color={C.primary} />
+        <AppErrorBoundary>
+          <FlashList
+            data={subs}
+            keyExtractor={s => s.id}
+            renderItem={({ item }) => (
+              <View style={{ marginBottom: Spacing.sm }}>
+                <SubCard
+                  item={item}
+                  onToggle={() => handleToggle(item)}
+                  onDelete={() => handleDelete(item)}
+                  onView={() => handleView(item)}
+                  matchData={matchData[item.id]}
+                  C={C}
+                />
               </View>
-              <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No route alerts</Text>
-              <Text style={[styles.emptySub, { color: C.textMuted }]}>
-                Subscribe to routes you care about and get instantly notified when trips or parcels appear.
-              </Text>
-              <Pressable
-                style={({ pressed }) => [styles.emptyCta, { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1 }]}
-                onPress={toggleAddForm}
-              >
-                <MaterialIcons name="add" size={16} color="#fff" />
-                <Text style={styles.emptyCtaText}>Add First Alert</Text>
-              </Pressable>
-            </View>
-          )}
-        />
+            )}
+            contentContainerStyle={styles.list as any}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={C.primary}
+              />
+            }
+            ListHeaderComponent={subs.length > 0 ? (
+              <View style={[styles.pollBanner, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
+                <View style={[styles.pollDot, { backgroundColor: C.success }]} />
+                <Text style={[styles.pollBannerText, { color: C.primary }]}>
+                  Live route updates enabled · Pull to refresh
+                </Text>
+              </View>
+            ) : null}
+            ListEmptyComponent={() => (
+              <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                <View style={[styles.emptyIconBox, { backgroundColor: C.primarySubtle }]}>
+                  <MaterialIcons name="notifications-off" size={40} color={C.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No route alerts</Text>
+                <Text style={[styles.emptySub, { color: C.textMuted }]}>
+                  Subscribe to routes you care about and get instantly notified when trips or parcels appear.
+                </Text>
+                <Pressable
+                  style={({ pressed }) => [styles.emptyCta, { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1 }]}
+                  onPress={toggleAddForm}
+                >
+                  <MaterialIcons name="add" size={16} color="#fff" />
+                  <Text style={styles.emptyCtaText}>Add First Alert</Text>
+                </Pressable>
+              </View>
+            )}
+          />
+        </AppErrorBoundary>
       )}
     </View>
   );

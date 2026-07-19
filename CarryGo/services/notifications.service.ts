@@ -221,11 +221,28 @@ export async function createNotification(notif: {
   type: AppNotification['type'];
   relatedId?: string;
 }) {
+  // Input validation
+  const trimmedTitle = notif.title?.trim();
+  const trimmedBody = notif.body?.trim();
+
+  if (!trimmedTitle || trimmedTitle.length === 0) {
+    return { error: 'Notification title is required.' };
+  }
+  if (trimmedTitle.length > 100) {
+    return { error: 'Notification title must be 100 characters or fewer.' };
+  }
+  if (!trimmedBody || trimmedBody.length === 0) {
+    return { error: 'Notification body is required.' };
+  }
+  if (trimmedBody.length > 500) {
+    return { error: 'Notification body must be 500 characters or fewer.' };
+  }
+
   const sb = getSupabaseClient();
   const { error } = await sb.from('notifications').insert({
     user_id: notif.userId,
-    title: notif.title,
-    body: notif.body,
+    title: trimmedTitle,
+    body: trimmedBody,
     type: notif.type,
     related_id: notif.relatedId,
   });

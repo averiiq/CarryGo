@@ -3,6 +3,10 @@ import { updateSession } from './utils/supabase/middleware'
 import { loginLimiter } from './lib/rate-limit'
 
 function getClientIp(request: NextRequest): string {
+  // SECURITY: In production, only trust x-forwarded-for from a known proxy (e.g., Vercel, Cloudflare).
+  // The first hop (rightmost value appended by your proxy) is the only trustworthy one.
+  // This naive first-element extraction is acceptable only behind a single trusted reverse proxy
+  // that overwrites x-forwarded-for entirely (as Vercel does).
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
     return forwarded.split(',')[0].trim();
@@ -18,7 +22,7 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self';"
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self';"
   );
   return response;
 }
@@ -32,13 +36,15 @@ export async function middleware(request: NextRequest) {
       const result = loginLimiter(ip);
 
       if (!result.allowed) {
+        const retryAfter = String(Math.ceil((result.resetAt.getTime() - Date.now()) / 1000));
         return addSecurityHeaders(
           NextResponse.json(
             { error: 'Too many login attempts. Please try again later.' },
             {
               status: 429,
               headers: {
-                'Retry-After': String(Math.ceil((result.resetAt.getTime() - Date.now()) / 1000)),
+                'Retry-After': retryAfter,
+                'X-RateLimit-Remaining': '0',
               },
             }
           )

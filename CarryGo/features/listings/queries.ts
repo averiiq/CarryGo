@@ -171,12 +171,13 @@ export function useCreateTripMutation() {
   });
 }
 
-export function useUpdateTripStatusMutation() {
+export function useUpdateTripStatusMutation(userId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ tripId, status }: { tripId: string; status: Trip['status'] }) => {
-      const { error } = await updateTripStatus(tripId, status);
+      if (!userId) throw new Error('User session required');
+      const { error } = await updateTripStatus(tripId, status, userId);
       if (error) throw serviceError(error, 'Failed to update trip');
       return { tripId, status };
     },
@@ -206,12 +207,13 @@ export function useCreateParcelMutation() {
   });
 }
 
-export function useUpdateParcelStatusMutation() {
+export function useUpdateParcelStatusMutation(userId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ parcelId, status }: { parcelId: string; status: Parcel['status'] }) => {
-      const { error } = await updateParcelStatus(parcelId, status);
+      if (!userId) throw new Error('User session required');
+      const { error } = await updateParcelStatus(parcelId, status, userId);
       if (error) throw serviceError(error, 'Failed to update parcel');
       return { parcelId, status };
     },
@@ -230,6 +232,7 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
   useEffect(() => {
     if (!enabled) return;
 
+    let mounted = true;
     const sb = getSupabaseClient();
 
     const channelName = cityFilter
@@ -276,10 +279,15 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
         });
     }
 
-    channel.subscribe();
+    channel.subscribe((status) => {
+      if (!mounted) {
+        void sb.removeChannel(channel);
+      }
+    });
 
     return () => {
-      sb.removeChannel(channel);
+      mounted = false;
+      void sb.removeChannel(channel);
     };
   }, [enabled, queryClient, cityFilter]);
 }

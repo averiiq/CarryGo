@@ -15,7 +15,7 @@ export default function IndexPage() {
 
   useEffect(() => {
     if (isLoading) return;
-    const navigate = async () => {
+    (async () => {
       try {
         if (isAuthenticated) {
           const target = requiresProfileSetup ? '/profile-setup' : '/(tabs)';
@@ -23,17 +23,11 @@ export default function IndexPage() {
           return;
         }
         const seen = await AsyncStorage.getItem(ONBOARDING_KEY);
-        if (seen) {
-          router.replace('/login');
-        } else {
-          router.replace('/onboarding');
-        }
+        router.replace(seen ? '/login' : '/onboarding');
       } catch {
         router.replace('/login');
       }
-    };
-    const timer = setTimeout(navigate, 120);
-    return () => clearTimeout(timer);
+    })();
   }, [isAuthenticated, isLoading, requiresProfileSetup, router]);
 
   return (

@@ -1,17 +1,17 @@
-import { createContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { createContext, useState, useEffect, useRef, ReactNode, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient } from '@/template';
 import { User } from '@/types';
 import { ensureProfile, fetchProfile, isProfileComplete } from '@/services/profile.service';
 import { registerForPushNotifications, savePushToken } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
+import { AUTH_TIMEOUTS } from '@/constants/timing';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   requiresProfileSetup: boolean;
   isLoading: boolean;
-  operationLoading: boolean;
   sessionError: string | null;
   sendOTP: (email: string) => Promise<{ error: string | null }>;
   verifyOTP: (email: string, otp: string) => Promise<{ error: string | null; requiresProfileSetup?: boolean }>;
@@ -53,8 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [operationLoading, setOperationLoading] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+
+  // Prevents onAuthStateChange from redundantly loading user when verifyOTP already handled it
+  const verifyHandledRef = useRef(false);
 
   const loadUser = useCallback(async (userId: string, email?: string | null) => {
     try {
@@ -86,15 +88,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
 
     const timeout = setTimeout(() => {
-      if (isMounted && isLoading) setIsLoading(false);
-    }, 8000);
+      if (isMounted) setIsLoading(false);
+    }, AUTH_TIMEOUTS.SESSION_INIT);
 
     const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
       try {
         setSessionError(null);
         if (session?.user) {
-          loadUser(session.user.id, session.user.email ?? '').catch(() => {});
+          // Skip redundant profile load if verifyOTP already set the user
+          if (verifyHandledRef.current) {
+            verifyHandledRef.current = false;
+          } else {
+            await loadUser(session.user.id, session.user.email ?? '');
+          }
           registerForPushNotifications().then(async token => {
             if (token && isMounted) {
               await savePushToken(session.user.id, token);
@@ -124,12 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUser, queryClient]);
 
   const sendOTP = useCallback(async (email: string): Promise<{ error: string | null }> => {
-    setOperationLoading(true);
     try {
       const sb = getSupabaseClient();
 
       const sendTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out. Please try again.')), 15000)
+        setTimeout(() => reject(new Error('Request timed out. Please try again.')), AUTH_TIMEOUTS.SEND_OTP)
       );
 
       const { error } = await Promise.race([
@@ -142,8 +148,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error sending OTP';
       return { error: mapAuthError(message) };
-    } finally {
-      setOperationLoading(false);
     }
   }, []);
 
@@ -151,12 +155,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     otp: string
   ): Promise<{ error: string | null; requiresProfileSetup?: boolean }> => {
-    setOperationLoading(true);
     try {
       const sb = getSupabaseClient();
 
       const verifyTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Verification timed out. Please try again.')), 20000)
+        setTimeout(() => reject(new Error('Verification timed out. Please try again.')), AUTH_TIMEOUTS.VERIFY_OTP)
       );
 
       const { data, error } = await Promise.race([
@@ -168,8 +171,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.user) {
         Haptic.success();
+        verifyHandledRef.current = true;
         const quickCheck = new Promise<{ data: User | null; error: string | null }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: null }), 5000)
+          setTimeout(() => resolve({ data: null, error: null }), AUTH_TIMEOUTS.PROFILE_CHECK)
         );
         try {
           const profileResult = await Promise.race([
@@ -187,8 +191,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error verifying OTP';
       return { error: mapAuthError(message) };
-    } finally {
-      setOperationLoading(false);
     }
   }, []);
 
@@ -215,14 +217,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!user,
     requiresProfileSetup: !!user && !isProfileComplete(user),
     isLoading,
-    operationLoading,
     sessionError,
     sendOTP,
     verifyOTP,
     logout,
     updateUser,
     refreshUser,
-  }), [user, isLoading, operationLoading, sessionError, sendOTP, verifyOTP, logout, updateUser, refreshUser]);
+  }), [user, isLoading, sessionError, sendOTP, verifyOTP, logout, updateUser, refreshUser]);
 
   return (
     <AuthContext.Provider value={contextValue}>

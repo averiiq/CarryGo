@@ -2,6 +2,28 @@
 
 import { requireAdmin } from '@/utils/admin-guard'
 
+/**
+ * Sanitize a cell value to prevent CSV formula injection (Excel/Google Sheets).
+ * Any cell starting with =, +, -, @, \t, or \r is prefixed with a single quote
+ * to prevent execution as a formula.
+ */
+function sanitizeCsvCell(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  const dangerousChars = ['=', '+', '-', '@', '\t', '\r']
+  if (dangerousChars.some((ch) => value.startsWith(ch))) {
+    return `'${value}`
+  }
+  return value
+}
+
+function sanitizeRow(row: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(row)) {
+    sanitized[key] = sanitizeCsvCell(value)
+  }
+  return sanitized
+}
+
 export async function fetchRevenueData(period: 'week' | 'month' | 'quarter') {
   const auth = await requireAdmin()
   if ('error' in auth) return { data: null, error: auth.error }
@@ -76,5 +98,8 @@ export async function exportAnalyticsCSV(type: 'users' | 'trips' | 'parcels' | '
   }
 
   if (error) return { data: null, error }
-  return { data: data ?? [], error: null }
+
+  // Sanitize all string cells to prevent CSV formula injection
+  const sanitizedData = (data ?? []).map((row) => sanitizeRow(row))
+  return { data: sanitizedData, error: null }
 }
