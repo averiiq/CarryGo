@@ -2,6 +2,7 @@
 
 ## Project Overview
 
+
 **CarryGo** is a peer-to-peer parcel delivery marketplace that connects **senders** (people who need parcels delivered) with **travellers** (people already making trips who can carry parcels along their route). The platform operates in India, focusing on intercity delivery via existing travellers.
 
 **Business Model**: Senders post parcels, travellers post trips. The platform matches them via route/date/capacity scoring, facilitates communication, handles escrow payments (Razorpay), and ensures trust via KYC verification and ratings.
