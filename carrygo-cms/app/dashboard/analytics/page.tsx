@@ -7,16 +7,15 @@ import RevenueChart from '@/components/RevenueChart'
 import DeliveryFunnel from '@/components/DeliveryFunnel'
 import RouteMap from '@/components/RouteMap'
 
-interface RouteData {
-  from_city: string
-  to_city: string
-  count: number
-}
+const PLATFORM_COMMISSION_RATE = 0.18
 
 export default async function AnalyticsPage() {
   const auth = await requireAdmin()
   if ('error' in auth) redirect('/login')
   const supabase = auth.supabase
+
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
   const [
     { count: totalUsers },
@@ -29,9 +28,9 @@ export default async function AnalyticsPage() {
     supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
     supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
     supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
-    supabase.from('payments').select('amount, created_at, status'),
+    supabase.from('payments').select('amount, created_at, status').eq('status', 'released').gte('created_at', sixMonthsAgo.toISOString()).limit(10000),
     supabase.from('user_profiles').select('id, full_name, rating, total_deliveries').order('rating', { ascending: false }).limit(5),
-    supabase.from('trips').select('from_city, to_city, status'),
+    supabase.from('trips').select('from_city, to_city, status').eq('status', 'active').limit(5000),
   ])
 
   const totalDeliveries = (completedDeliveries ?? 0) + (failedDeliveries ?? 0)
@@ -39,24 +38,24 @@ export default async function AnalyticsPage() {
     ? Math.round(((completedDeliveries ?? 0) / totalDeliveries) * 100)
     : 0
 
-  const releasedPayments = (payments || []).filter((p: any) => p.status === 'released')
-  const totalRevenue = releasedPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
-  const totalPayouts = Math.round(totalRevenue * 0.82)
+  const releasedPayments = payments || []
+  const totalRevenue = releasedPayments.reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0)
+  const totalPayouts = Math.round(totalRevenue * (1 - PLATFORM_COMMISSION_RATE))
 
   // Build revenue chart data (last 6 months)
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const now = new Date()
   const revenueData = Array.from({ length: 6 }, (_, i) => {
     const monthIndex = (now.getMonth() - 5 + i + 12) % 12
-    const monthPayments = releasedPayments.filter((p: any) => {
+    const monthPayments = releasedPayments.filter((p: { created_at: string }) => {
       const d = new Date(p.created_at)
       return d.getMonth() === monthIndex
     })
-    const monthRevenue = monthPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+    const monthRevenue = monthPayments.reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0)
     return {
       name: months[monthIndex],
       revenue: monthRevenue,
-      payouts: Math.round(monthRevenue * 0.82),
+      payouts: Math.round(monthRevenue * (1 - PLATFORM_COMMISSION_RATE)),
     }
   })
 
@@ -75,7 +74,7 @@ export default async function AnalyticsPage() {
     weeklyGrowth[weekLabel] = 0
   }
 
-  recentUsers?.forEach((u: any) => {
+  recentUsers?.forEach((u: { created_at: string }) => {
     const created = new Date(u.created_at)
     const weeksAgo = Math.floor((now.getTime() - created.getTime()) / (7 * 24 * 60 * 60 * 1000))
     const weekLabel = `W${12 - Math.min(weeksAgo, 11)}`
@@ -89,18 +88,12 @@ export default async function AnalyticsPage() {
   }))
 
   // Route analysis
-  const activeRoutes = (tripRoutes || []).filter((t: any) => t.status === 'active')
-  const routeCounts: Record<string, RouteData> = {}
-  activeRoutes.forEach((t: any) => {
-    const key = `${t.from_city}→${t.to_city}`
-    if (!routeCounts[key]) routeCounts[key] = { from_city: t.from_city, to_city: t.to_city, count: 0 }
-    routeCounts[key].count++
-  })
+  const activeRoutes = tripRoutes || []
 
   // Build origin/destination data for RouteMap
   const originCounts: Record<string, number> = {}
   const destCounts: Record<string, number> = {}
-  activeRoutes.forEach((t: any) => {
+  activeRoutes.forEach((t: { from_city: string; to_city: string }) => {
     if (t.from_city) originCounts[t.from_city] = (originCounts[t.from_city] || 0) + 1
     if (t.to_city) destCounts[t.to_city] = (destCounts[t.to_city] || 0) + 1
   })
@@ -115,17 +108,21 @@ export default async function AnalyticsPage() {
     .slice(0, 5)
     .map(([city, count]) => ({ city, count, type: 'destination' as const }))
 
-  // Delivery funnel from all requests
-  const { data: allRequests } = await supabase
+  // Delivery funnel from recent requests (last 90 days)
+  const ninetyDaysAgo = new Date()
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+  const { data: recentRequests } = await supabase
     .from('requests')
     .select('status')
+    .gte('created_at', ninetyDaysAgo.toISOString())
+    .limit(10000)
 
-  const requestStatuses = allRequests || []
+  const requestStatuses = recentRequests || []
   const funnelSteps = [
     { label: 'Total Requests', count: requestStatuses.length, color: 'bg-gradient-to-r from-primary to-primary/70' },
-    { label: 'Matched', count: requestStatuses.filter((r: any) => ['accepted', 'in_transit', 'completed', 'failed'].includes(r.status)).length, color: 'bg-gradient-to-r from-accent to-accent/70' },
-    { label: 'In Transit', count: requestStatuses.filter((r: any) => ['in_transit', 'completed'].includes(r.status)).length, color: 'bg-gradient-to-r from-warning to-warning/70' },
-    { label: 'Delivered', count: requestStatuses.filter((r: any) => r.status === 'completed').length, color: 'bg-gradient-to-r from-success to-success/70' },
+    { label: 'Matched', count: requestStatuses.filter((r: { status: string }) => ['accepted', 'in_transit', 'completed', 'failed'].includes(r.status)).length, color: 'bg-gradient-to-r from-accent to-accent/70' },
+    { label: 'In Transit', count: requestStatuses.filter((r: { status: string }) => ['in_transit', 'completed'].includes(r.status)).length, color: 'bg-gradient-to-r from-warning to-warning/70' },
+    { label: 'Delivered', count: requestStatuses.filter((r: { status: string }) => r.status === 'completed').length, color: 'bg-gradient-to-r from-success to-success/70' },
   ]
 
   return (
@@ -213,7 +210,7 @@ export default async function AnalyticsPage() {
           {!topTravellers || topTravellers.length === 0 ? (
             <p className="text-sm text-muted py-8 text-center col-span-full">No traveller data yet</p>
           ) : (
-            topTravellers.map((t: any, i: number) => (
+            topTravellers.map((t: { id: string; full_name: string | null; rating: number | null; total_deliveries: number | null }, i: number) => (
               <div key={t.id} className="flex flex-col items-center p-4 rounded-xl border border-border-subtle hover:shadow-sm transition-all text-center">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-warning-subtle to-warning/10 flex items-center justify-center mb-2">
                   <span className="text-sm font-bold text-warning">{i + 1}</span>

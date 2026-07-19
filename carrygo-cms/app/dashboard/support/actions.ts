@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { isValidUuid } from '@/lib/validation'
 
 const VALID_TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const
@@ -23,6 +23,11 @@ export async function updateTicketStatus(ticketId: string, newStatus: string) {
   if (error) {
     return { success: false, error: 'Failed to update ticket status' }
   }
+
+  await logAdminAction(auth.supabase, auth.userId, 'update_ticket_status', {
+    ticket_id: ticketId,
+    new_status: newStatus,
+  })
 
   revalidatePath('/dashboard/support')
   return { success: true }

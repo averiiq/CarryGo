@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 
 /**
  * Sanitize a cell value to prevent CSV formula injection (Excel/Google Sheets).
@@ -98,6 +98,8 @@ export async function exportAnalyticsCSV(type: 'users' | 'trips' | 'parcels' | '
   }
 
   if (error) return { data: null, error }
+
+  await logAdminAction(auth.supabase, auth.userId, 'export_analytics_csv', { type, count: data?.length ?? 0 })
 
   // Sanitize all string cells to prevent CSV formula injection
   const sanitizedData = (data ?? []).map((row) => sanitizeRow(row))

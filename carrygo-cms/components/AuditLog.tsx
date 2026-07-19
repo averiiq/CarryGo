@@ -22,7 +22,7 @@ interface AuditLogProps {
 }
 
 const actionConfig: Record<AuditAction, { icon: React.ComponentType<{ className?: string }>; color: string; bg: string; label: string }> = {
-  view: { icon: Eye, color: 'text-muted-foreground', bg: 'bg-slate-100', label: 'Viewed' },
+  view: { icon: Eye, color: 'text-muted-foreground', bg: 'bg-surface-elevated', label: 'Viewed' },
   create: { icon: UserPlus, color: 'text-success', bg: 'bg-success-subtle', label: 'Created' },
   update: { icon: Edit3, color: 'text-primary', bg: 'bg-primary-subtle', label: 'Updated' },
   delete: { icon: Trash2, color: 'text-danger', bg: 'bg-danger-subtle', label: 'Deleted' },
@@ -75,7 +75,7 @@ export default function AuditLog({ entries }: AuditLogProps) {
               <button
                 onClick={() => setFilter('all')}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                  filter === 'all' ? 'bg-primary text-white' : 'bg-slate-100 text-muted-foreground hover:bg-slate-200'
+                  filter === 'all' ? 'bg-primary text-white' : 'bg-surface-elevated text-muted-foreground hover:bg-border'
                 }`}
               >
                 All
@@ -87,7 +87,7 @@ export default function AuditLog({ entries }: AuditLogProps) {
                     key={action}
                     onClick={() => setFilter(action)}
                     className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all capitalize ${
-                      filter === action ? 'bg-primary text-white' : 'bg-slate-100 text-muted-foreground hover:bg-slate-200'
+                      filter === action ? 'bg-primary text-white' : 'bg-surface-elevated text-muted-foreground hover:bg-border'
                     }`}
                   >
                     {action}
@@ -99,7 +99,7 @@ export default function AuditLog({ entries }: AuditLogProps) {
         )}
       </AnimatePresence>
 
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="divide-y divide-border-subtle">
           {filtered.length === 0 ? (
             <div className="py-12 text-center">
@@ -116,7 +116,7 @@ export default function AuditLog({ entries }: AuditLogProps) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: i * 0.02 }}
-                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50/50 transition-colors"
+                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-elevated/50 transition-colors"
                 >
                   <div className={`shrink-0 rounded-lg p-2 ${config.bg}`}>
                     <Icon className={`h-3.5 w-3.5 ${config.color}`} />
@@ -134,7 +134,7 @@ export default function AuditLog({ entries }: AuditLogProps) {
                     <div className="flex items-center gap-3 mt-0.5">
                       <span className="text-[10px] text-muted-foreground">{entry.timestamp}</span>
                       {entry.resource && (
-                        <span className="text-[10px] text-muted-foreground font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] text-muted-foreground font-mono bg-surface-elevated px-1.5 py-0.5 rounded">
                           {entry.resource}{entry.resourceId ? `#${entry.resourceId.slice(0, 8)}` : ''}
                         </span>
                       )}

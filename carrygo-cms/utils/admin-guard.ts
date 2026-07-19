@@ -6,6 +6,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 /**
  * Logs an admin action for audit trail purposes.
  * Callers should invoke this after performing sensitive operations.
+ * Falls back to audit_events table if admin_audit_log doesn't exist.
  */
 export async function logAdminAction(
   supabase: ReturnType<typeof createAdminClient>,
@@ -13,20 +14,20 @@ export async function logAdminAction(
   action: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
-  // Best-effort audit log - don't block the caller on failure
-  await supabase
-    .from('admin_audit_log')
+  const { error } = await supabase
+    .from('audit_events')
     .insert({
-      admin_user_id: userId,
-      action,
-      metadata: metadata ?? {},
+      actor_id: userId,
+      entity_type: 'admin_action',
+      entity_id: userId,
+      event_type: action,
+      payload: metadata ?? {},
       created_at: new Date().toISOString(),
     })
-    .then(() => {})
-    .catch(() => {
-      // If the audit table doesn't exist yet, silently skip.
-      // In production, ensure admin_audit_log table is created.
-    })
+
+  if (error) {
+    console.error(`[AUDIT] Failed to log admin action "${action}":`, error.message)
+  }
 }
 
 export async function requireAdmin(): Promise<

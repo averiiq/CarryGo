@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { motion } from 'framer-motion'
 import {
   User, Shield, Percent, CreditCard, Smartphone, Globe, Bell,
   Save, ToggleLeft, ToggleRight, Info
 } from 'lucide-react'
+import { saveSettings } from '@/app/dashboard/settings/actions'
 
 interface AdminProfile {
   full_name: string | null
@@ -54,28 +55,58 @@ const tabs = [
 export default function SettingsTabs({ profile, config: initialConfig }: SettingsTabsProps) {
   const [activeTab, setActiveTab] = useState('commission')
   const [config, setConfig] = useState<AppConfig>(initialConfig)
-  const [saving, setSaving] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  const updateConfig = (key: keyof AppConfig, value: any) => {
+  const updateConfig = (key: keyof AppConfig, value: string | number | boolean) => {
     setConfig(prev => ({ ...prev, [key]: value }))
     setSaved(false)
+    setSaveError(null)
   }
 
-  const handleSave = async () => {
-    setSaving(true)
-    // In a real app, this would call a server action to persist to DB
-    await new Promise(resolve => setTimeout(resolve, 800))
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+  const handleSave = () => {
+    startTransition(async () => {
+      const dbConfig: Record<string, string | number | boolean> = {
+        platform_commission_percent: config.platformCommissionPercent,
+        min_commission_amount: config.minCommissionAmount,
+        max_commission_amount: config.maxCommissionAmount,
+        gst_percent: config.gstPercent,
+        payment_gateway: config.paymentGateway,
+        auto_release_hours: config.autoReleaseHours,
+        max_weight_kg: config.maxWeightKg,
+        max_price_per_kg: config.maxPricePerKg,
+        min_price_per_kg: config.minPricePerKg,
+        support_email: config.supportEmail,
+        support_phone: config.supportPhone,
+        maintenance_mode: config.maintenanceMode,
+        new_user_signups: config.newUserSignups,
+        kyc_required: config.kycRequired,
+        otp_expiry_minutes: config.otpExpiryMinutes,
+        max_otp_attempts: config.maxOtpAttempts,
+        rating_threshold: config.ratingThreshold,
+        auto_suspend_disputes: config.autoSuspendDisputes,
+        push_notifications: config.pushNotifications,
+        email_notifications: config.emailNotifications,
+        sms_notifications: config.smsNotifications,
+      }
+
+      const result = await saveSettings(dbConfig)
+      if (result.success) {
+        setSaved(true)
+        setSaveError(null)
+        setTimeout(() => setSaved(false), 3000)
+      } else {
+        setSaveError(result.error ?? 'Failed to save settings')
+      }
+    })
   }
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
       {/* Tab Navigation */}
       <div className="lg:w-56 shrink-0">
-        <nav className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-2 space-y-0.5">
+        <nav className="glass-card p-2 space-y-0.5">
           {tabs.map(tab => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -85,8 +116,8 @@ export default function SettingsTabs({ profile, config: initialConfig }: Setting
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-slate-50'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted hover:text-foreground hover:bg-surface-elevated'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -117,11 +148,11 @@ export default function SettingsTabs({ profile, config: initialConfig }: Setting
           <div className="mt-6 flex items-center gap-3">
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={isPending}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-all"
             >
               <Save className="h-4 w-4" />
-              {saving ? 'Saving...' : 'Save Changes'}
+              {isPending ? 'Saving...' : 'Save Changes'}
             </button>
             {saved && (
               <motion.span
@@ -132,6 +163,9 @@ export default function SettingsTabs({ profile, config: initialConfig }: Setting
                 Changes saved successfully
               </motion.span>
             )}
+            {saveError && (
+              <span className="text-sm text-danger font-medium">{saveError}</span>
+            )}
           </div>
         )}
       </div>
@@ -141,7 +175,7 @@ export default function SettingsTabs({ profile, config: initialConfig }: Setting
 
 function ProfileTab({ profile }: { profile: AdminProfile }) {
   return (
-    <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] overflow-hidden">
+    <div className="glass-card overflow-hidden">
       <div className="px-6 py-6 border-b border-border-subtle flex items-center gap-5">
         <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-primary/20">
           {profile.full_name?.charAt(0) || 'A'}
@@ -164,10 +198,10 @@ function ProfileTab({ profile }: { profile: AdminProfile }) {
   )
 }
 
-function CommissionTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: any) => void }) {
+function CommissionTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: string | number | boolean) => void }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-2 mb-5">
           <Percent className="h-5 w-5 text-primary" />
           <h3 className="text-base font-heading font-semibold text-foreground">Platform Commission</h3>
@@ -213,7 +247,7 @@ function CommissionTab({ config, updateConfig }: { config: AppConfig; updateConf
         </div>
       </div>
 
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <h3 className="text-base font-heading font-semibold text-foreground mb-4">Pricing Limits</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <SettingsNumberField
@@ -246,10 +280,10 @@ function CommissionTab({ config, updateConfig }: { config: AppConfig; updateConf
         </div>
       </div>
 
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <h3 className="text-base font-heading font-semibold text-foreground mb-2">Commission Preview</h3>
         <p className="text-xs text-muted mb-4">Example calculation for a ₹500 delivery</p>
-        <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
+        <div className="bg-background rounded-xl p-4 space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Delivery Amount</span>
             <span className="font-medium text-foreground">₹500.00</span>
@@ -274,10 +308,10 @@ function CommissionTab({ config, updateConfig }: { config: AppConfig; updateConf
   )
 }
 
-function PaymentsTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: any) => void }) {
+function PaymentsTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: string | number | boolean) => void }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-2 mb-5">
           <CreditCard className="h-5 w-5 text-primary" />
           <h3 className="text-base font-heading font-semibold text-foreground">Payment Gateway</h3>
@@ -288,7 +322,7 @@ function PaymentsTab({ config, updateConfig }: { config: AppConfig; updateConfig
             <select
               value={config.paymentGateway}
               onChange={e => updateConfig('paymentGateway', e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-border text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-border text-sm bg-surface-solid text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             >
               <option value="razorpay">Razorpay</option>
               <option value="stripe">Stripe</option>
@@ -309,7 +343,7 @@ function PaymentsTab({ config, updateConfig }: { config: AppConfig; updateConfig
         <InfoBanner text="Payment is locked when a request is accepted and released to the traveller upon delivery confirmation. Auto-release triggers if the sender doesn't confirm within the specified hours." />
       </div>
 
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <h3 className="text-base font-heading font-semibold text-foreground mb-4">Payment Flow</h3>
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           {['Request Accepted', 'Payment Locked', 'Delivery Started', 'OTP Verified', 'Payment Released'].map((step, i) => (
@@ -328,24 +362,24 @@ function PaymentsTab({ config, updateConfig }: { config: AppConfig; updateConfig
         </div>
       </div>
 
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <h3 className="text-base font-heading font-semibold text-foreground mb-4">Refund Policy</h3>
         <div className="space-y-3 text-sm">
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-background">
             <span className="shrink-0 h-6 w-6 rounded-full bg-success/10 text-success flex items-center justify-center text-xs font-bold">✓</span>
             <div>
               <p className="font-medium text-foreground">Full refund if delivery cancelled before pickup</p>
               <p className="text-xs text-muted-foreground mt-0.5">Sender can cancel and receive 100% refund</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-background">
             <span className="shrink-0 h-6 w-6 rounded-full bg-warning/10 text-warning flex items-center justify-center text-xs font-bold">!</span>
             <div>
               <p className="font-medium text-foreground">Dispute-based refund after pickup</p>
               <p className="text-xs text-muted-foreground mt-0.5">Requires admin review and dispute resolution</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-background">
             <span className="shrink-0 h-6 w-6 rounded-full bg-danger/10 text-danger flex items-center justify-center text-xs font-bold">✕</span>
             <div>
               <p className="font-medium text-foreground">No refund after delivery confirmed</p>
@@ -358,10 +392,10 @@ function PaymentsTab({ config, updateConfig }: { config: AppConfig; updateConfig
   )
 }
 
-function AppTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: any) => void }) {
+function AppTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: string | number | boolean) => void }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-2 mb-5">
           <Globe className="h-5 w-5 text-primary" />
           <h3 className="text-base font-heading font-semibold text-foreground">Platform Controls</h3>
@@ -389,7 +423,7 @@ function AppTab({ config, updateConfig }: { config: AppConfig; updateConfig: (ke
         </div>
       </div>
 
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <h3 className="text-base font-heading font-semibold text-foreground mb-4">Contact & Support</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SettingsTextField
@@ -407,7 +441,7 @@ function AppTab({ config, updateConfig }: { config: AppConfig; updateConfig: (ke
         </div>
       </div>
 
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <h3 className="text-base font-heading font-semibold text-foreground mb-4">Moderation</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SettingsNumberField
@@ -434,10 +468,10 @@ function AppTab({ config, updateConfig }: { config: AppConfig; updateConfig: (ke
   )
 }
 
-function NotificationsTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: any) => void }) {
+function NotificationsTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: string | number | boolean) => void }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-2 mb-5">
           <Bell className="h-5 w-5 text-primary" />
           <h3 className="text-base font-heading font-semibold text-foreground">Notification Channels</h3>
@@ -467,10 +501,10 @@ function NotificationsTab({ config, updateConfig }: { config: AppConfig; updateC
   )
 }
 
-function SecurityTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: any) => void }) {
+function SecurityTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: string | number | boolean) => void }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-2 mb-5">
           <Shield className="h-5 w-5 text-primary" />
           <h3 className="text-base font-heading font-semibold text-foreground">OTP & Authentication</h3>
@@ -511,7 +545,7 @@ function SettingsField({ label, value, disabled }: { label: string; value: strin
         disabled={disabled}
         value={value}
         readOnly
-        className="w-full px-3.5 py-2.5 rounded-xl border border-border text-sm bg-slate-50 text-muted"
+        className="w-full px-3.5 py-2.5 rounded-xl border border-border text-sm bg-background text-muted"
       />
     </div>
   )
@@ -525,7 +559,7 @@ function SettingsTextField({ label, value, onChange, type = 'text' }: { label: s
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full px-3.5 py-2.5 rounded-xl border border-border text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+        className="w-full px-3.5 py-2.5 rounded-xl border border-border text-sm bg-surface-solid text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
       />
     </div>
   )
@@ -546,7 +580,7 @@ function SettingsNumberField({ label, value, onChange, min, max, step, prefix, s
           min={min}
           max={max}
           step={step}
-          className="flex-1 px-3.5 py-2.5 rounded-xl border border-border text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all tabular-nums"
+          className="flex-1 px-3.5 py-2.5 rounded-xl border border-border text-sm bg-surface-solid text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all tabular-nums"
         />
         {suffix && <span className="text-sm text-muted-foreground font-medium">{suffix}</span>}
       </div>

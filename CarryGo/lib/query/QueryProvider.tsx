@@ -37,6 +37,10 @@ export function AppQueryProvider({ children }: { children: ReactNode }) {
       persistOptions={{
         persister: asyncStoragePersister,
         maxAge: 24 * 60 * 60 * 1000,
+        buster: '',
+      }}
+      onSuccess={() => {
+        queryClient.resumePausedMutations();
       }}
     >
       {children}

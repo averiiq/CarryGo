@@ -54,7 +54,9 @@
       "Bash(npx --yes sharp-cli --help)",
       "Bash(npx --yes sharp-cli --input assets/images/onboarding-hero.png --output assets/images/onboarding-hero.webp --format webp --quality 80)",
       "Bash(awk '{print $5, $NF}')",
-      "Bash(awk '{print $5}')"
+      "Bash(awk '{print $5}')",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(timeout 8)"
     ]
   }
 }

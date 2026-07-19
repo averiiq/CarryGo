@@ -117,37 +117,38 @@ export default async function DashboardOverview() {
     },
   ]
 
-  // Build activity feed data from recent requests
-  const activityItems = (recentActivity || []).map((req: any, i: number) => {
-    const statusMap: Record<string, { type: string; detail: string }> = {
+  type ActivityType = 'trip_created' | 'parcel_posted' | 'delivery_completed' | 'kyc_submitted' | 'dispute_opened' | 'payment_released'
+  const activityItems = (recentActivity || []).map((req: Record<string, unknown>, i: number) => {
+    const status = req.status as string
+    const statusMap: Record<string, { type: ActivityType; detail: string }> = {
       pending: { type: 'parcel_posted', detail: 'posted a new delivery request' },
       accepted: { type: 'trip_created', detail: 'accepted a delivery' },
       in_transit: { type: 'trip_created', detail: 'started a delivery in transit' },
       completed: { type: 'delivery_completed', detail: 'completed a delivery' },
       failed: { type: 'dispute_opened', detail: 'reported a delivery issue' },
     }
-    const config = statusMap[req.status] || { type: 'parcel_posted', detail: 'updated a request' }
-    const userName = req.sender?.full_name || req.traveller?.full_name || 'A user'
-    const timeAgo = getTimeAgo(req.created_at)
+    const statusConfig = statusMap[status] || { type: 'parcel_posted' as ActivityType, detail: 'updated a request' }
+    const sender = req.sender as { full_name: string | null } | null
+    const traveller = req.traveller as { full_name: string | null } | null
+    const userName = sender?.full_name || traveller?.full_name || 'A user'
+    const timeAgo = getTimeAgo(req.created_at as string)
     return {
-      id: req.id || `activity-${i}`,
-      type: config.type as any,
+      id: (req.id as string) || `activity-${i}`,
+      type: statusConfig.type,
       user: userName,
-      detail: config.detail,
+      detail: statusConfig.detail,
       time: timeAgo,
     }
   })
 
-  // Build delivery funnel from request statuses
   const requestStatuses = recentRequests || []
   const funnelSteps = [
     { label: 'Requests Created', count: requestStatuses.length || 0, color: 'bg-gradient-to-r from-primary to-primary/70' },
-    { label: 'Accepted', count: requestStatuses.filter((r: any) => ['accepted', 'in_transit', 'completed'].includes(r.status)).length || 0, color: 'bg-gradient-to-r from-accent to-accent/70' },
-    { label: 'In Transit', count: requestStatuses.filter((r: any) => ['in_transit', 'completed'].includes(r.status)).length || 0, color: 'bg-gradient-to-r from-warning to-warning/70' },
-    { label: 'Delivered', count: requestStatuses.filter((r: any) => r.status === 'completed').length || 0, color: 'bg-gradient-to-r from-success to-success/70' },
+    { label: 'Accepted', count: requestStatuses.filter((r: { status: string }) => ['accepted', 'in_transit', 'completed'].includes(r.status)).length || 0, color: 'bg-gradient-to-r from-accent to-accent/70' },
+    { label: 'In Transit', count: requestStatuses.filter((r: { status: string }) => ['in_transit', 'completed'].includes(r.status)).length || 0, color: 'bg-gradient-to-r from-warning to-warning/70' },
+    { label: 'Delivered', count: requestStatuses.filter((r: { status: string }) => r.status === 'completed').length || 0, color: 'bg-gradient-to-r from-success to-success/70' },
   ]
 
-  // Quick actions based on current state
   const quickActions = [
     ...(pendingKyc && pendingKyc > 0 ? [{
       label: 'Review KYC Submissions',
@@ -183,7 +184,6 @@ export default async function DashboardOverview() {
     },
   ]
 
-  // System health - check service availability
   const systemMetrics = [
     { name: 'API', status: 'healthy' as const, latency: 42, uptime: '99.9%' },
     { name: 'Database', status: 'healthy' as const, latency: 12, uptime: '99.99%' },
@@ -193,32 +193,22 @@ export default async function DashboardOverview() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">
-          Platform Overview
-        </h1>
-        <p className="text-sm text-muted mt-1">
-          Real-time metrics across the CarryGo network.
-        </p>
-      </div>
-
       <BentoStats stats={stats} />
 
-      {/* Main bento grid: Chart + Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-2xl bg-surface p-6 shadow-[var(--shadow-bento)] border border-border-subtle">
+        <div className="lg:col-span-2 glass-card p-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-heading font-semibold text-foreground">Weekly Activity</h2>
-              <p className="text-xs text-muted mt-0.5">Trips and parcels over the last 7 days</p>
+              <h2 className="text-sm font-heading font-semibold text-foreground">Weekly Activity</h2>
+              <p className="text-[11px] text-muted mt-0.5">Trips and parcels over the last 7 days</p>
             </div>
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-4 text-[11px]">
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                <span className="h-2 w-2 rounded-full bg-primary" />
                 Trips
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-success" />
+                <span className="h-2 w-2 rounded-full bg-success" />
                 Parcels
               </span>
             </div>
@@ -229,7 +219,6 @@ export default async function DashboardOverview() {
         <ActivityFeed initialActivities={activityItems} />
       </div>
 
-      {/* Secondary bento grid: Funnel + Quick Actions + System Health */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <DeliveryFunnel steps={funnelSteps} />
         <QuickActions actions={quickActions} />

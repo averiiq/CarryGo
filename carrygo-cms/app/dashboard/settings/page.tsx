@@ -20,7 +20,7 @@ export default async function SettingsPage() {
     .limit(50)
 
   const configMap: Record<string, string> = {}
-  configRows?.forEach((row: any) => {
+  configRows?.forEach((row: { key: string; value: string }) => {
     configMap[row.key] = row.value
   })
 
@@ -50,10 +50,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Settings</h1>
-        <p className="text-sm text-muted mt-1">Platform configuration, commission rates, payment settings, and app controls.</p>
-      </div>
 
       <SettingsTabs
         profile={{

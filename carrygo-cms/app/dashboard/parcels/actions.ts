@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { isValidUuid } from '@/lib/validation'
 
 export async function cancelParcel(parcelId: string) {
@@ -18,6 +18,8 @@ export async function cancelParcel(parcelId: string) {
   if (error) {
     return { error: 'Failed to cancel parcel' }
   }
+
+  await logAdminAction(auth.supabase, auth.userId, 'cancel_parcel', { parcel_id: parcelId })
 
   revalidatePath('/dashboard/parcels')
   return { success: true }

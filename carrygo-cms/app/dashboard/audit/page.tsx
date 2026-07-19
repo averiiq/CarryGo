@@ -16,7 +16,7 @@ export default async function AuditPage() {
   type AuditAction = 'view' | 'create' | 'update' | 'delete' | 'login' | 'export' | 'approve' | 'reject'
 
   // Map audit_events columns: actor_id, entity_type, entity_id, event_type, payload, created_at
-  const entries = (auditEntries || []).map((entry: any) => {
+  const entries = (auditEntries || []).map((entry: Record<string, unknown>) => {
     const eventToAction: Record<string, AuditAction> = {
       'request.created': 'create',
       'request.accepted': 'approve',
@@ -30,15 +30,17 @@ export default async function AuditPage() {
       'kyc.approved': 'approve',
       'kyc.rejected': 'reject',
     }
-    const action: AuditAction = eventToAction[entry.event_type] || 'view'
+    const eventType = (entry.event_type || '') as string
+    const action: AuditAction = eventToAction[eventType] || 'view'
+    const actorId = (entry.actor_id || '') as string
     return {
       id: entry.id as string,
-      admin: (entry.actor_id?.slice(0, 8) || 'System') as string,
+      admin: actorId.slice(0, 8) || 'System',
       action,
       resource: (entry.entity_type || '') as string,
       resourceId: (entry.entity_id || '') as string,
-      detail: (entry.event_type?.replace(/\./g, ' ') || 'system event') as string,
-      timestamp: formatTimestamp(entry.created_at),
+      detail: eventType.replace(/\./g, ' ') || 'system event',
+      timestamp: formatTimestamp(entry.created_at as string),
       ip: undefined as string | undefined,
     }
   })
@@ -48,10 +50,6 @@ export default async function AuditPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Audit Log</h1>
-        <p className="text-sm text-muted mt-1">Track all admin actions and system events for compliance and security.</p>
-      </div>
 
       <AuditLog entries={displayEntries} />
     </div>

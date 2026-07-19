@@ -1,7 +1,7 @@
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
 export const metadata = {
   title: 'CarryGo Admin CMS',
@@ -15,11 +15,12 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <div className="mesh-gradient" />
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden pl-[260px]">
         <Header />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-[1400px] animate-fade-in">
             {children}
           </div>
         </main>

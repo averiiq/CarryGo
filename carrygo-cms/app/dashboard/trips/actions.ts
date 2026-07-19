@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { isValidUuid } from '@/lib/validation'
 
 export async function cancelTrip(tripId: string) {
@@ -18,6 +18,8 @@ export async function cancelTrip(tripId: string) {
   if (error) {
     return { error: 'Failed to cancel trip' }
   }
+
+  await logAdminAction(auth.supabase, auth.userId, 'cancel_trip', { trip_id: tripId })
 
   revalidatePath('/dashboard/trips')
   return { success: true }

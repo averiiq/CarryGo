@@ -36,19 +36,10 @@ export async function middleware(request: NextRequest) {
       const result = loginLimiter(ip);
 
       if (!result.allowed) {
-        const retryAfter = String(Math.ceil((result.resetAt.getTime() - Date.now()) / 1000));
-        return addSecurityHeaders(
-          NextResponse.json(
-            { error: 'Too many login attempts. Please try again later.' },
-            {
-              status: 429,
-              headers: {
-                'Retry-After': retryAfter,
-                'X-RateLimit-Remaining': '0',
-              },
-            }
-          )
-        );
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        url.searchParams.set('error', 'rate_limited');
+        return addSecurityHeaders(NextResponse.redirect(url));
       }
     }
   }

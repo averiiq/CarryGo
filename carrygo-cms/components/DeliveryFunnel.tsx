@@ -16,13 +16,13 @@ export default function DeliveryFunnel({ steps }: DeliveryFunnelProps) {
   const maxCount = Math.max(...steps.map(s => s.count), 1)
 
   return (
-    <div className="rounded-2xl bg-surface p-5 shadow-[var(--shadow-bento)] border border-border-subtle">
+    <div className="glass-card p-5">
       <h3 className="text-sm font-heading font-semibold text-foreground mb-5">Delivery Funnel</h3>
 
       <div className="space-y-3">
         {steps.map((step, i) => {
           const widthPercent = (step.count / maxCount) * 100
-          const conversionRate = i > 0 ? Math.round((step.count / steps[i - 1].count) * 100) : 100
+          const conversionRate = i > 0 && steps[i - 1].count > 0 ? Math.round((step.count / steps[i - 1].count) * 100) : 100
           return (
             <div key={step.label} className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -40,11 +40,11 @@ export default function DeliveryFunnel({ steps }: DeliveryFunnelProps) {
                   )}
                 </div>
               </div>
-              <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-2.5 rounded-full bg-border-subtle overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${widthPercent}%` }}
-                  transition={{ duration: 0.8, delay: i * 0.1, ease: [0.4, 0, 0.2, 1] }}
+                  transition={{ duration: 0.8, delay: i * 0.12, ease: [0.4, 0, 0.2, 1] }}
                   className={`h-full rounded-full ${step.color}`}
                 />
               </div>
@@ -53,11 +53,11 @@ export default function DeliveryFunnel({ steps }: DeliveryFunnelProps) {
         })}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-border-subtle">
+      <div className="mt-5 pt-4 border-t border-border-subtle">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-muted">Overall conversion</span>
+          <span className="text-muted">End-to-end conversion</span>
           <span className="font-bold text-foreground">
-            {steps.length > 1 ? Math.round((steps[steps.length - 1].count / steps[0].count) * 100) : 100}%
+            {steps.length > 1 && steps[0].count > 0 ? Math.round((steps[steps.length - 1].count / steps[0].count) * 100) : 0}%
           </span>
         </div>
       </div>

@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2, SlidersHorizontal } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export interface Column<T> {
   key: keyof T & string
   label: string
   sortable?: boolean
+  width?: string
   render?: (value: T[keyof T], row: T) => React.ReactNode
 }
 
@@ -20,19 +21,25 @@ interface DataTableProps<T extends { id: string }> {
   searchPlaceholder?: string
   selectable?: boolean
   onSelectionChange?: (ids: string[]) => void
+  onRowClick?: (row: T) => void
   emptyMessage?: string
+  emptyIcon?: React.ReactNode
+  toolbar?: React.ReactNode
 }
 
 export default function DataTable<T extends { id: string }>({
   data,
   columns,
   isLoading = false,
-  pageSize = 10,
+  pageSize = 15,
   searchable = true,
-  searchPlaceholder = 'Search...',
+  searchPlaceholder = 'Search records...',
   selectable = false,
   onSelectionChange,
-  emptyMessage = 'No data found',
+  onRowClick,
+  emptyMessage = 'No records found',
+  emptyIcon,
+  toolbar,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
@@ -98,120 +105,168 @@ export default function DataTable<T extends { id: string }>({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
+      <div className="glass-card p-12 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+        <p className="text-sm text-muted">Loading data...</p>
       </div>
     )
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.3 }}
       className="space-y-4"
     >
-      {searchable && (
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(0) }}
-            placeholder={searchPlaceholder}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
-          />
-        </div>
-      )}
-
-      <div className="overflow-x-auto rounded-2xl border border-border shadow-[var(--shadow-bento)]">
-        <table className="min-w-full">
-          <thead>
-            <tr className="border-b border-border-subtle bg-slate-50/50">
-              {selectable && (
-                <th className="px-4 py-3.5 w-10">
-                  <input
-                    type="checkbox"
-                    checked={pageData.length > 0 && selected.size === pageData.length}
-                    onChange={toggleAll}
-                    className="rounded-md border-border"
-                  />
-                </th>
-              )}
-              {columns.map(col => (
-                <th
-                  key={col.key}
-                  className={`px-4 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider ${col.sortable ? 'cursor-pointer select-none hover:text-foreground transition-colors' : ''}`}
-                  onClick={() => col.sortable && toggleSort(col.key)}
-                >
-                  <div className="flex items-center gap-1.5">
-                    {col.label}
-                    {col.sortable && sortKey === col.key && (
-                      sortDir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-subtle">
-            {pageData.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-4 py-16 text-center text-sm text-muted-foreground">
-                  {emptyMessage}
-                </td>
-              </tr>
-            ) : (
-              pageData.map((row, idx) => (
-                <motion.tr
-                  key={row.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className="hover:bg-slate-50/50 transition-colors"
-                >
-                  {selectable && (
-                    <td className="px-4 py-3.5">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(row.id)}
-                        onChange={() => toggleSelect(row.id)}
-                        className="rounded-md border-border"
-                      />
-                    </td>
-                  )}
-                  {columns.map(col => (
-                    <td key={col.key} className="px-4 py-3.5 text-sm text-foreground/80 whitespace-nowrap">
-                      {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '')}
-                    </td>
-                  ))}
-                </motion.tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {searchable && (
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0) }}
+              placeholder={searchPlaceholder}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl glass border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+            />
+          </div>
+        )}
+        {toolbar}
+        {selected.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="px-3 py-1.5 rounded-lg bg-primary-subtle text-primary text-xs font-medium"
+          >
+            {selected.size} selected
+          </motion.div>
+        )}
       </div>
 
+      {/* Table */}
+      <div className="glass-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-border">
+                {selectable && (
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={pageData.length > 0 && selected.size === pageData.length}
+                      onChange={toggleAll}
+                      aria-label="Select all rows on this page"
+                      className="rounded border-border-strong accent-primary"
+                    />
+                  </th>
+                )}
+                {columns.map(col => (
+                  <th
+                    key={col.key}
+                    style={col.width ? { width: col.width } : undefined}
+                    className={`px-4 py-3 text-left text-[11px] font-semibold text-muted uppercase tracking-wider ${col.sortable ? 'cursor-pointer select-none hover:text-foreground transition-colors' : ''}`}
+                    onClick={() => col.sortable && toggleSort(col.key)}
+                  >
+                    <div className="flex items-center gap-1">
+                      {col.label}
+                      {col.sortable && sortKey === col.key && (
+                        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                          {sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        </motion.span>
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              <AnimatePresence mode="popLayout">
+                {pageData.length === 0 ? (
+                  <tr>
+                    <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-4 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        {emptyIcon || <SlidersHorizontal className="h-8 w-8 text-muted-foreground/40" />}
+                        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  pageData.map((row, idx) => (
+                    <motion.tr
+                      key={row.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ delay: idx * 0.02 }}
+                      onClick={() => onRowClick?.(row)}
+                      className={`group transition-colors ${
+                        selected.has(row.id) ? 'bg-primary-subtle/50' : 'hover:bg-surface-elevated/50'
+                      } ${onRowClick ? 'cursor-pointer' : ''}`}
+                    >
+                      {selectable && (
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(row.id)}
+                            onChange={() => toggleSelect(row.id)}
+                            aria-label={`Select row ${row.id}`}
+                            className="rounded border-border-strong accent-primary"
+                          />
+                        </td>
+                      )}
+                      {columns.map(col => (
+                        <td key={col.key} className="px-4 py-3 text-sm text-foreground/85 whitespace-nowrap">
+                          {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '')}
+                        </td>
+                      ))}
+                    </motion.tr>
+                  ))
+                )}
+              </AnimatePresence>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted">
-          <span>{sorted.length} results</span>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted text-xs">
+            Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, sorted.length)} of {sorted.length}
+          </span>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(0)}
+              disabled={page === 0}
+              className="p-1.5 rounded-lg hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronsLeft className="h-4 w-4 text-muted" />
+            </button>
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="p-2 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-lg hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 text-muted" />
             </button>
-            <span className="px-3 py-1 rounded-lg bg-slate-50 font-medium text-foreground text-xs">
+            <span className="px-3 py-1 rounded-lg bg-surface-elevated text-xs font-medium text-foreground border border-border-subtle">
               {page + 1} / {totalPages}
             </span>
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="p-2 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-lg hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 text-muted" />
+            </button>
+            <button
+              onClick={() => setPage(totalPages - 1)}
+              disabled={page >= totalPages - 1}
+              className="p-1.5 rounded-lg hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronsRight className="h-4 w-4 text-muted" />
             </button>
           </div>
         </div>

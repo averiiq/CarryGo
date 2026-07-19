@@ -12,6 +12,10 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://nuxvuejtnobljutznlss.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51eHZ1ZWp0bm9ibGp1dHpubHNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MzEwMTcsImV4cCI6MjA5NjQwNzAxN30.S6Luoi_LU2B9IB7Q-h8wGfneVqtx42ePDGiKgumMElU",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "gac8q8it",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "carrygo_uploads",
         "EXPO_PUBLIC_APP_MODE": "demo",
         "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "false",
         "EXPO_PUBLIC_ENABLE_PAYMENTS": "false",
@@ -25,6 +29,10 @@
     "preview": {
       "distribution": "internal",
       "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://nuxvuejtnobljutznlss.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51eHZ1ZWp0bm9ibGp1dHpubHNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MzEwMTcsImV4cCI6MjA5NjQwNzAxN30.S6Luoi_LU2B9IB7Q-h8wGfneVqtx42ePDGiKgumMElU",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "gac8q8it",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "carrygo_uploads",
         "EXPO_PUBLIC_APP_MODE": "production",
         "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "true",
         "EXPO_PUBLIC_ENABLE_PAYMENTS": "false",
@@ -35,6 +43,10 @@
     "production": {
       "autoIncrement": true,
       "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://nuxvuejtnobljutznlss.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51eHZ1ZWp0bm9ibGp1dHpubHNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MzEwMTcsImV4cCI6MjA5NjQwNzAxN30.S6Luoi_LU2B9IB7Q-h8wGfneVqtx42ePDGiKgumMElU",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "gac8q8it",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "carrygo_uploads",
         "EXPO_PUBLIC_APP_MODE": "production",
         "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "true",
         "EXPO_PUBLIC_ENABLE_PAYMENTS": "true",

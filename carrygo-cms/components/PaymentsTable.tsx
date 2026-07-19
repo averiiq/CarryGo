@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Filter, Download, ExternalLink, ArrowUpDown, IndianRupee } from 'lucide-react'
+import { Search, Download, ArrowUpDown, IndianRupee, TrendingUp, Lock, RefreshCcw } from 'lucide-react'
 
 interface Payment {
   id: string
@@ -25,9 +25,9 @@ interface PaymentsTableProps {
 }
 
 const statusConfig = {
-  locked: { label: 'Locked', color: 'bg-warning/10 text-warning border-warning/20' },
-  released: { label: 'Released', color: 'bg-success/10 text-success border-success/20' },
-  refunded: { label: 'Refunded', color: 'bg-danger/10 text-danger border-danger/20' },
+  locked: { label: 'Locked', color: 'bg-warning-subtle text-warning border-warning/15', icon: Lock },
+  released: { label: 'Released', color: 'bg-success-subtle text-success border-success/15', icon: TrendingUp },
+  refunded: { label: 'Refunded', color: 'bg-danger-subtle text-danger border-danger/15', icon: RefreshCcw },
 }
 
 export default function PaymentsTable({ payments, totalRevenue, totalLocked, totalRefunded }: PaymentsTableProps) {
@@ -64,20 +64,29 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-xl bg-surface border border-border-subtle p-4 shadow-sm">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Released</p>
-          <p className="text-xl font-heading font-bold text-success mt-1">₹{totalRevenue.toLocaleString()}</p>
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-3.5 h-3.5 text-success" />
+            <p className="text-[11px] text-muted uppercase tracking-wider font-medium">Released</p>
+          </div>
+          <p className="text-2xl font-heading font-bold text-success">₹{totalRevenue.toLocaleString('en-IN')}</p>
         </div>
-        <div className="rounded-xl bg-surface border border-border-subtle p-4 shadow-sm">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Currently Locked</p>
-          <p className="text-xl font-heading font-bold text-warning mt-1">₹{totalLocked.toLocaleString()}</p>
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Lock className="w-3.5 h-3.5 text-warning" />
+            <p className="text-[11px] text-muted uppercase tracking-wider font-medium">Locked</p>
+          </div>
+          <p className="text-2xl font-heading font-bold text-warning">₹{totalLocked.toLocaleString('en-IN')}</p>
         </div>
-        <div className="rounded-xl bg-surface border border-border-subtle p-4 shadow-sm">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Refunded</p>
-          <p className="text-xl font-heading font-bold text-danger mt-1">₹{totalRefunded.toLocaleString()}</p>
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <RefreshCcw className="w-3.5 h-3.5 text-danger" />
+            <p className="text-[11px] text-muted uppercase tracking-wider font-medium">Refunded</p>
+          </div>
+          <p className="text-2xl font-heading font-bold text-danger">₹{totalRefunded.toLocaleString('en-IN')}</p>
         </div>
       </div>
 
@@ -90,21 +99,21 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
             placeholder="Search by name, order ID..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl glass border border-border text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
           />
         </div>
         <div className="flex items-center gap-2">
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:ring-2 focus:ring-primary/20"
+            className="px-3 py-2.5 rounded-xl border border-border text-sm bg-surface-solid text-foreground focus:ring-2 focus:ring-primary/20 transition-all"
           >
             <option value="all">All Status</option>
             <option value="locked">Locked</option>
             <option value="released">Released</option>
             <option value="refunded">Refunded</option>
           </select>
-          <button className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <button className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-border text-sm text-muted hover:text-foreground hover:border-border-strong transition-all">
             <Download className="h-3.5 w-3.5" />
             Export
           </button>
@@ -112,19 +121,19 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-bento)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border-subtle bg-slate-50/50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sender</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Traveller</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none" onClick={() => toggleSort('amount')}>
+              <tr className="border-b border-border">
+                <th className="text-left px-5 py-3 text-[11px] font-semibold text-muted uppercase tracking-wider">Sender</th>
+                <th className="text-left px-5 py-3 text-[11px] font-semibold text-muted uppercase tracking-wider">Traveller</th>
+                <th className="text-left px-5 py-3 text-[11px] font-semibold text-muted uppercase tracking-wider cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('amount')}>
                   <span className="flex items-center gap-1">Amount <ArrowUpDown className="h-3 w-3" /></span>
                 </th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Gateway ID</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none" onClick={() => toggleSort('date')}>
+                <th className="text-left px-5 py-3 text-[11px] font-semibold text-muted uppercase tracking-wider">Status</th>
+                <th className="text-left px-5 py-3 text-[11px] font-semibold text-muted uppercase tracking-wider">Gateway ID</th>
+                <th className="text-left px-5 py-3 text-[11px] font-semibold text-muted uppercase tracking-wider cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('date')}>
                   <span className="flex items-center gap-1">Date <ArrowUpDown className="h-3 w-3" /></span>
                 </th>
               </tr>
@@ -132,47 +141,49 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
             <tbody className="divide-y divide-border-subtle">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center">
-                    <IndianRupee className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-40" />
+                  <td colSpan={6} className="py-16 text-center">
+                    <IndianRupee className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">No payments found</p>
                   </td>
                 </tr>
               ) : (
                 filtered.map((payment, i) => {
                   const config = statusConfig[payment.status]
+                  const StatusIcon = config.icon
                   return (
                     <motion.tr
                       key={payment.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: i * 0.02 }}
-                      className="hover:bg-slate-50/50 transition-colors"
+                      className="hover:bg-surface-elevated/50 transition-colors"
                     >
                       <td className="px-5 py-3.5">
-                        <span className="font-medium text-foreground">{payment.sender_name || 'Unknown'}</span>
+                        <span className="font-medium text-foreground text-xs">{payment.sender_name || 'Unknown'}</span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="font-medium text-foreground">{payment.traveller_name || 'Unknown'}</span>
+                        <span className="font-medium text-foreground text-xs">{payment.traveller_name || 'Unknown'}</span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="font-bold text-foreground tabular-nums">₹{payment.amount.toLocaleString()}</span>
+                        <span className="font-bold text-foreground tabular-nums">₹{payment.amount.toLocaleString('en-IN')}</span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${config.color}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold border ${config.color}`}>
+                          <StatusIcon className="w-3 h-3" />
                           {config.label}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
                         {payment.razorpay_order_id ? (
-                          <span className="text-xs font-mono text-muted-foreground bg-slate-100 px-2 py-0.5 rounded">
-                            {payment.razorpay_order_id.slice(0, 20)}...
+                          <span className="text-[11px] font-mono text-muted bg-background px-2 py-0.5 rounded-md border border-border-subtle">
+                            {payment.razorpay_order_id.slice(0, 18)}…
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted">
                           {new Date(payment.locked_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                       </td>
@@ -185,7 +196,9 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground text-right">Showing {filtered.length} of {payments.length} payments</p>
+      <p className="text-[11px] text-muted-foreground text-right">
+        Showing {filtered.length} of {payments.length} payments
+      </p>
     </div>
   )
 }

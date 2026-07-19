@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { isValidUuid, sanitizeText } from '@/lib/validation'
 
 type ActionResult = { success: true } | { success: false; error: string }
@@ -77,6 +77,11 @@ export async function approveKycSession(sessionId: string): Promise<ActionResult
     notes: null,
   })
 
+  await logAdminAction(supabase, userId, 'approve_kyc', {
+    session_id: sessionId,
+    user_id: session.user_id,
+  })
+
   revalidatePath('/dashboard/kyc')
   revalidatePath(`/dashboard/kyc/${sessionId}`)
   return { success: true }
@@ -144,6 +149,12 @@ export async function rejectKycSession(sessionId: string, reason: string): Promi
     action: 'rejected',
     reason: sanitizedReason,
     notes: null,
+  })
+
+  await logAdminAction(supabase, userId, 'reject_kyc', {
+    session_id: sessionId,
+    user_id: session.user_id,
+    reason: sanitizedReason,
   })
 
   revalidatePath('/dashboard/kyc')

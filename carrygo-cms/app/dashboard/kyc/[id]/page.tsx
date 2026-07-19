@@ -101,32 +101,24 @@ export default async function KycReviewPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb / Back button */}
+      {/* Breadcrumb */}
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard/kyc"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to KYC Queue
+          Back to Queue
         </Link>
-        <span className="text-gray-300">/</span>
-        <span className="text-sm text-gray-500">Review: {userName}</span>
-      </div>
-
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">KYC Review</h1>
-        <p className="text-gray-500 mt-1">
-          Reviewing {session.id_type || 'document'} submission for {userName}
-        </p>
+        <span className="text-border-strong">/</span>
+        <span className="text-sm text-muted">{userName}</span>
       </div>
 
       {/* Two-column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Document Viewer */}
         <div className="lg:col-span-7">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="glass-card p-6">
             <DocumentViewer documents={signedDocuments} />
           </div>
         </div>

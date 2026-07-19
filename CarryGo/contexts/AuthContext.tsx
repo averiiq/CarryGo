@@ -6,6 +6,9 @@ import { ensureProfile, fetchProfile, isProfileComplete } from '@/services/profi
 import { registerForPushNotifications, savePushToken } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { AUTH_TIMEOUTS } from '@/constants/timing';
+import { storageGet, storageSet, storageDelete } from '@/lib/secure-storage';
+
+const CACHED_USER_KEY = 'cached_user_profile';
 
 interface AuthContextType {
   user: User | null;
@@ -55,8 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
 
-  // Prevents onAuthStateChange from redundantly loading user when verifyOTP already handled it
   const verifyHandledRef = useRef(false);
+  const cachedUserRestoredRef = useRef(false);
+
+  const persistUser = useCallback(async (u: User | null) => {
+    if (u) {
+      await storageSet(CACHED_USER_KEY, u).catch(() => {});
+    } else {
+      await storageDelete(CACHED_USER_KEY).catch(() => {});
+    }
+  }, []);
 
   const loadUser = useCallback(async (userId: string, email?: string | null) => {
     try {
@@ -67,13 +78,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (result.data) {
         setUser(result.data);
+        persistUser(result.data);
       } else {
         setUser(null);
+        persistUser(null);
       }
       return result;
     } catch {
       return { data: null, error: 'Failed to load profile' };
     }
+  }, [persistUser]);
+
+  // Instantly restore cached user on mount — no network needed
+  useEffect(() => {
+    let active = true;
+    storageGet<User>(CACHED_USER_KEY).then(cached => {
+      if (active && cached && !cachedUserRestoredRef.current) {
+        cachedUserRestoredRef.current = true;
+        setUser(cached);
+        setIsLoading(false);
+      }
+    }).catch(() => {});
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -96,7 +122,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setSessionError(null);
         if (session?.user) {
-          // Skip redundant profile load if verifyOTP already set the user
           if (verifyHandledRef.current) {
             verifyHandledRef.current = false;
           } else {
@@ -109,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }).catch(() => {});
         } else {
           setUser(null);
+          persistUser(null);
           queryClient.clear();
         }
       } catch (err: unknown) {
@@ -128,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, [loadUser, queryClient]);
+  }, [loadUser, persistUser, queryClient]);
 
   const sendOTP = useCallback(async (email: string): Promise<{ error: string | null }> => {
     try {
@@ -182,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ]);
           if (profileResult.data) {
             setUser(profileResult.data);
+            persistUser(profileResult.data);
             return { error: null, requiresProfileSetup: !isProfileComplete(profileResult.data) };
           }
         } catch {}
@@ -200,9 +227,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await sb.auth.signOut();
     } finally {
       setUser(null);
+      persistUser(null);
       queryClient.clear();
     }
-  }, [queryClient]);
+  }, [queryClient, persistUser]);
 
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser(prev => prev ? { ...prev, ...updates } : null);

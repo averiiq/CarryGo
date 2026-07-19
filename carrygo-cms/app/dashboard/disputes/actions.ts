@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { isValidUuid, sanitizeText } from '@/lib/validation'
 
 export async function resolveDispute(
@@ -28,21 +28,36 @@ export async function resolveDispute(
 
   if (error) return { error: error.message }
 
-  if (resolution === 'refund_sender' || resolution === 'split') {
-    await auth.supabase
+  if (resolution === 'refund_sender') {
+    const { error: payErr } = await auth.supabase
       .from('payments')
       .update({ status: 'refunded' })
       .eq('request_id', requestId)
       .eq('status', 'locked')
-  }
-
-  if (resolution === 'pay_traveller' || resolution === 'split') {
-    await auth.supabase
+    if (payErr) return { error: `Request resolved but payment refund failed: ${payErr.message}` }
+  } else if (resolution === 'pay_traveller') {
+    const { error: payErr } = await auth.supabase
       .from('payments')
       .update({ status: 'released', released_at: new Date().toISOString() })
       .eq('request_id', requestId)
       .eq('status', 'locked')
+    if (payErr) return { error: `Request resolved but payment release failed: ${payErr.message}` }
+  } else if (resolution === 'split') {
+    // For split: refund the sender (partial refund logic would go here in production).
+    // Currently marks as refunded since split payment isn't implemented at the DB level.
+    const { error: payErr } = await auth.supabase
+      .from('payments')
+      .update({ status: 'refunded' })
+      .eq('request_id', requestId)
+      .eq('status', 'locked')
+    if (payErr) return { error: `Request resolved but split payment failed: ${payErr.message}` }
   }
+
+  await logAdminAction(auth.supabase, auth.userId, 'resolve_dispute', {
+    request_id: requestId,
+    resolution,
+    note: sanitizedNote,
+  })
 
   revalidatePath('/dashboard/disputes')
   return { error: null }
@@ -73,6 +88,11 @@ export async function addDisputeNote(requestId: string, note: string) {
     .eq('id', requestId)
 
   if (error) return { error: error.message }
+
+  await logAdminAction(auth.supabase, auth.userId, 'add_dispute_note', {
+    request_id: requestId,
+  })
+
   revalidatePath('/dashboard/disputes')
   return { error: null }
 }

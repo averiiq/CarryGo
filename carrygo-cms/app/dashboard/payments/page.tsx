@@ -23,37 +23,40 @@ export default async function PaymentsPage() {
     .order('locked_at', { ascending: false })
     .limit(200)
 
-  const formattedPayments = (payments || []).map((p: any) => ({
-    id: p.id,
-    sender_name: p.sender?.full_name || 'Unknown',
-    traveller_name: p.traveller?.full_name || 'Unknown',
-    amount: Number(p.amount),
-    status: p.status,
-    razorpay_order_id: p.razorpay_order_id,
-    razorpay_payment_id: p.razorpay_payment_id,
-    locked_at: p.locked_at || p.created_at,
-    released_at: p.released_at,
-    request_id: p.request_id || '',
-  }))
+  type PaymentRow = Record<string, unknown>
+  const formattedPayments = (payments || []).map((p: PaymentRow) => {
+    const sender = p.sender as { full_name: string | null } | null
+    const traveller = p.traveller as { full_name: string | null } | null
+    return {
+      id: p.id as string,
+      sender_name: sender?.full_name || 'Unknown',
+      traveller_name: traveller?.full_name || 'Unknown',
+      amount: Number(p.amount),
+      status: p.status as 'locked' | 'released' | 'refunded',
+      razorpay_order_id: p.razorpay_order_id as string | null,
+      razorpay_payment_id: p.razorpay_payment_id as string | null,
+      locked_at: (p.locked_at || p.created_at) as string,
+      released_at: p.released_at as string | null,
+      request_id: (p.request_id || '') as string,
+    }
+  })
+
+  type FormattedPayment = (typeof formattedPayments)[number]
 
   const totalRevenue = formattedPayments
-    .filter((p: any) => p.status === 'released')
-    .reduce((sum: number, p: any) => sum + p.amount, 0)
+    .filter((p: FormattedPayment) => p.status === 'released')
+    .reduce((sum: number, p: FormattedPayment) => sum + p.amount, 0)
 
   const totalLocked = formattedPayments
-    .filter((p: any) => p.status === 'locked')
-    .reduce((sum: number, p: any) => sum + p.amount, 0)
+    .filter((p: FormattedPayment) => p.status === 'locked')
+    .reduce((sum: number, p: FormattedPayment) => sum + p.amount, 0)
 
   const totalRefunded = formattedPayments
-    .filter((p: any) => p.status === 'refunded')
-    .reduce((sum: number, p: any) => sum + p.amount, 0)
+    .filter((p: FormattedPayment) => p.status === 'refunded')
+    .reduce((sum: number, p: FormattedPayment) => sum + p.amount, 0)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Payments</h1>
-        <p className="text-sm text-muted mt-1">Monitor all payment transactions, escrow status, and gateway records.</p>
-      </div>
 
       <PaymentsTable
         payments={formattedPayments}

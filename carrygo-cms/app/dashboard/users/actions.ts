@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { isValidUuid } from '@/lib/validation'
 
 export async function toggleUserStatus(userId: string, currentStatus: string) {
@@ -31,6 +31,12 @@ export async function toggleUserStatus(userId: string, currentStatus: string) {
   if (error) {
     return { success: false, error: 'Failed to update user status' }
   }
+
+  await logAdminAction(auth.supabase, auth.userId, 'toggle_user_status', {
+    target_user_id: userId,
+    from_status: currentStatus,
+    to_status: newStatus,
+  })
 
   revalidatePath('/dashboard/users')
   return { success: true, newStatus }

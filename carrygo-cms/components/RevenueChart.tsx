@@ -24,7 +24,7 @@ export default function RevenueChart({ data, totalRevenue, totalPayouts, period 
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="rounded-2xl bg-surface p-6 shadow-[var(--shadow-bento)] border border-border-subtle"
+      className="glass-card p-6"
     >
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -56,14 +56,16 @@ export default function RevenueChart({ data, totalRevenue, totalPayouts, period 
                 <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.4} />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={8} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} dy={8} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
             <Tooltip
               contentStyle={{
                 borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.06)',
+                border: '1px solid var(--border)',
+                background: 'var(--surface-elevated)',
+                backdropFilter: 'blur(8px)',
+                boxShadow: 'var(--shadow-lg)',
                 padding: '10px 14px',
                 fontSize: '12px',
               }}
