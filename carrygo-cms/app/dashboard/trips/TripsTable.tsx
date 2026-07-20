@@ -45,7 +45,7 @@ export default function TripsTable({ initialTrips }: { initialTrips: Trip[] }) {
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50/50 text-muted text-xs font-semibold uppercase tracking-wider">
+          <thead className="bg-surface text-muted text-xs font-semibold uppercase tracking-wider">
             <tr>
               <th className="px-6 py-4">Traveller</th>
               <th className="px-6 py-4">Route</th>
@@ -64,12 +64,12 @@ export default function TripsTable({ initialTrips }: { initialTrips: Trip[] }) {
               </tr>
             ) : (
               trips.map((trip) => (
-                <tr key={trip.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={trip.id} className="hover:bg-surface transition-colors">
                   <td className="px-6 py-4 font-medium text-foreground">{trip.travellerName}</td>
                   <td className="px-6 py-4 text-foreground/70">{trip.route}</td>
                   <td className="px-6 py-4 text-foreground/70">{trip.date}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusStyles[trip.status] || 'bg-slate-100 text-muted'}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusStyles[trip.status] || 'bg-surface text-muted'}`}>
                       {trip.status}
                     </span>
                   </td>

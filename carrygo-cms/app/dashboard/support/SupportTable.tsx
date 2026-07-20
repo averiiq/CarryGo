@@ -73,7 +73,7 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
             <li className="p-12 text-center text-muted-foreground">No support tickets found.</li>
           ) : (
             tickets.map((ticket) => (
-              <li key={ticket.id} className="p-5 hover:bg-slate-50/50 transition-colors">
+              <li key={ticket.id} className="p-5 hover:bg-surface transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1">
@@ -130,7 +130,7 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
                   <h3 className="text-lg font-heading font-semibold text-foreground">Ticket Details</h3>
                   <button
                     onClick={() => setSelectedTicket(null)}
-                    className="p-2 rounded-xl text-muted-foreground hover:bg-slate-50 hover:text-foreground transition-colors"
+                    className="p-2 rounded-xl text-muted-foreground hover:bg-surface-elevated hover:text-foreground transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -148,7 +148,7 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
                     <p className="text-xs text-muted-foreground font-mono mt-1">ID: {selectedTicket.id}</p>
                   </div>
 
-                  <div className="bg-slate-50 p-4 rounded-xl border border-border-subtle mb-6">
+                  <div className="bg-background p-4 rounded-xl border border-border-subtle mb-6">
                     <h5 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Description</h5>
                     <p className="text-foreground/80 whitespace-pre-wrap text-sm leading-relaxed">
                       {selectedTicket.description || 'No description provided.'}

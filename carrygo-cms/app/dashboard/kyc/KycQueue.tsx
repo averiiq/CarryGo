@@ -43,9 +43,9 @@ function getStatusBadge(status: string) {
     case 'under_review':
       return { classes: 'bg-primary-subtle text-primary', label: 'Under Review' }
     case 'pending':
-      return { classes: 'bg-slate-100 text-muted', label: 'Pending' }
+      return { classes: 'bg-surface text-muted', label: 'Pending' }
     default:
-      return { classes: 'bg-slate-100 text-muted', label: status }
+      return { classes: 'bg-surface text-muted', label: status }
   }
 }
 
@@ -120,7 +120,7 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-1 bg-slate-50/50 rounded-xl p-1">
+      <div className="flex flex-wrap gap-1 bg-surface rounded-xl p-1">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -136,7 +136,7 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
               className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
                 activeTab === tab.key
                   ? 'bg-primary-subtle text-primary'
-                  : 'bg-slate-100 text-muted'
+                  : 'bg-surface text-muted'
               }`}
             >
               {counts[tab.key]}
@@ -160,7 +160,7 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-border-subtle bg-slate-50/50">
+              <tr className="border-b border-border-subtle bg-surface">
                 <th
                   onClick={() => handleSort('fullName')}
                   className="px-6 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
@@ -220,7 +220,7 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
                           router.push(`/dashboard/kyc/${session.id}`)
                         }
                       }}
-                      className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                      className="hover:bg-surface transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-foreground">

@@ -40,7 +40,7 @@ export default function BulkActionBar({
   }
 
   const variantClasses = {
-    default: 'bg-surface border-border text-foreground hover:bg-slate-50',
+    default: 'bg-surface border-border text-foreground hover:bg-surface-elevated',
     success: 'bg-success-subtle border-success/20 text-success hover:bg-success/10',
     danger: 'bg-danger-subtle border-danger/20 text-danger hover:bg-danger/10',
   }
@@ -77,7 +77,7 @@ export default function BulkActionBar({
                 </button>
                 <button
                   onClick={() => setConfirming(null)}
-                  className="px-3 py-1.5 text-xs font-semibold bg-slate-100 text-muted rounded-lg hover:bg-slate-200"
+                  className="px-3 py-1.5 text-xs font-semibold bg-surface text-muted rounded-lg hover:bg-surface-elevated"
                 >
                   Cancel
                 </button>
@@ -103,7 +103,7 @@ export default function BulkActionBar({
 
             <button
               onClick={onClear}
-              className="ml-2 p-1.5 rounded-lg hover:bg-slate-50 text-muted-foreground hover:text-foreground transition-colors"
+              className="ml-2 p-1.5 rounded-lg hover:bg-surface-elevated text-muted-foreground hover:text-foreground transition-colors"
               title="Clear selection"
             >
               <XCircle className="h-4 w-4" />

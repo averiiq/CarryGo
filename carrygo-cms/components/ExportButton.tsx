@@ -69,7 +69,7 @@ export default function ExportButton({
     <button
       onClick={handleExport}
       disabled={isExporting || data.length === 0}
-      className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground bg-surface border border-border rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground bg-surface border border-border rounded-xl hover:bg-surface-elevated disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
     >
       {isExporting ? (
         <Loader2 className="h-4 w-4 animate-spin" />

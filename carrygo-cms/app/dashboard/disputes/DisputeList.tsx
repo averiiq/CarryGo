@@ -41,7 +41,7 @@ export default function DisputeList({ disputes }: DisputeListProps) {
         <div key={dispute.id} className="rounded-2xl bg-surface border border-border-subtle shadow-[var(--shadow-sm)] overflow-hidden">
           <button
             onClick={() => setExpandedId(expandedId === dispute.id ? null : dispute.id)}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors"
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-surface transition-colors"
           >
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-danger-subtle flex items-center justify-center">
@@ -96,7 +96,7 @@ export default function DisputeList({ disputes }: DisputeListProps) {
                   </div>
 
                   {dispute.message && (
-                    <div className="flex items-start gap-2 p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-start gap-2 p-3 bg-background rounded-xl">
                       <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <p className="text-sm text-foreground/70">{dispute.message}</p>
                     </div>

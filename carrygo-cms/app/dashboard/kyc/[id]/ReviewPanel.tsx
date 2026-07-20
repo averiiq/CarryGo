@@ -37,11 +37,11 @@ function getStatusBadge(status: string) {
     case 'approved':
       return { bg: 'bg-green-100', text: 'text-green-800', label: 'Approved' }
     case 'rejected':
-      return { bg: 'bg-red-100', text: 'text-red-800', label: 'Rejected' }
+      return { bg: 'bg-danger-subtle', text: 'text-danger', label: 'Rejected' }
     case 'pending':
-      return { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Pending' }
+      return { bg: 'bg-surface', text: 'text-foreground', label: 'Pending' }
     default:
-      return { bg: 'bg-gray-100', text: 'text-gray-600', label: status }
+      return { bg: 'bg-surface', text: 'text-muted', label: status }
   }
 }
 
@@ -65,13 +65,13 @@ function getActionColor(action: string): string {
     case 'approved':
       return 'text-green-700 bg-green-50 border-green-200'
     case 'rejected':
-      return 'text-red-700 bg-red-50 border-red-200'
+      return 'text-danger bg-danger-subtle border-danger/20'
     case 'resubmission_requested':
       return 'text-amber-700 bg-amber-50 border-amber-200'
     case 'note_added':
-      return 'text-blue-700 bg-blue-50 border-blue-200'
+      return 'text-primary bg-primary-subtle border-primary/20'
     default:
-      return 'text-gray-700 bg-gray-50 border-gray-200'
+      return 'text-foreground bg-background border-border'
   }
 }
 
@@ -174,8 +174,8 @@ export default function ReviewPanel({
         <div
           className={`p-3 rounded-lg text-sm font-medium ${
             actionMessage.type === 'success'
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
+              ? 'bg-success-subtle text-success border border-success/20'
+              : 'bg-danger-subtle text-danger border border-danger/20'
           }`}
         >
           {actionMessage.text}
@@ -183,31 +183,31 @@ export default function ReviewPanel({
       )}
 
       {/* User Info Card */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">User Information</h3>
+      <div className="bg-surface-solid rounded-xl border border-border shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-foreground mb-4">User Information</h3>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">Name</span>
-            <span className="text-sm font-medium text-gray-900">{userName}</span>
+            <span className="text-sm text-muted-foreground">Name</span>
+            <span className="text-sm font-medium text-foreground">{userName}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">Email</span>
-            <span className="text-sm font-medium text-gray-900">{userEmail}</span>
+            <span className="text-sm text-muted-foreground">Email</span>
+            <span className="text-sm font-medium text-foreground">{userEmail}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">Signed up</span>
-            <span className="text-sm text-gray-700">{userSignupDate}</span>
+            <span className="text-sm text-muted-foreground">Signed up</span>
+            <span className="text-sm text-foreground">{userSignupDate}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">Submitted</span>
-            <span className="text-sm text-gray-700">{submissionDate}</span>
+            <span className="text-sm text-muted-foreground">Submitted</span>
+            <span className="text-sm text-foreground">{submissionDate}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">Attempt</span>
-            <span className="text-sm text-gray-700">#{attemptNumber}</span>
+            <span className="text-sm text-muted-foreground">Attempt</span>
+            <span className="text-sm text-foreground">#{attemptNumber}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500">Status</span>
+            <span className="text-sm text-muted-foreground">Status</span>
             <span
               className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusBadge.bg} ${statusBadge.text}`}
             >
@@ -218,8 +218,8 @@ export default function ReviewPanel({
       </div>
 
       {/* Action Buttons */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Actions</h3>
+      <div className="bg-surface-solid rounded-xl border border-border shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-foreground mb-4">Actions</h3>
         <div className="space-y-3">
           {/* Approve */}
           <button
@@ -256,7 +256,7 @@ export default function ReviewPanel({
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Enter rejection reason (min 10 characters)..."
                 rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
               />
               <div className="flex gap-2">
                 <button
@@ -271,12 +271,12 @@ export default function ReviewPanel({
                     setShowRejectForm(false)
                     setRejectionReason('')
                   }}
-                  className="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-muted border border-border rounded-lg hover:bg-surface-elevated transition-colors"
                 >
                   Cancel
                 </button>
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 {rejectionReason.length}/10 minimum characters
               </p>
             </div>
@@ -303,7 +303,7 @@ export default function ReviewPanel({
                 onChange={(e) => setResubmissionReason(e.target.value)}
                 placeholder="Describe what needs to be resubmitted (min 10 characters)..."
                 rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
               />
               <div className="flex gap-2">
                 <button
@@ -318,12 +318,12 @@ export default function ReviewPanel({
                     setShowResubmitForm(false)
                     setResubmissionReason('')
                   }}
-                  className="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-muted border border-border rounded-lg hover:bg-surface-elevated transition-colors"
                 >
                   Cancel
                 </button>
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 {resubmissionReason.length}/10 minimum characters
               </p>
             </div>
@@ -332,33 +332,33 @@ export default function ReviewPanel({
       </div>
 
       {/* Internal Notes */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-gray-500" />
+      <div className="bg-surface-solid rounded-xl border border-border shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-muted-foreground" />
           Internal Notes
         </h3>
-        <p className="text-xs text-gray-400 mb-3">Not visible to the user</p>
+        <p className="text-xs text-muted-foreground mb-3">Not visible to the user</p>
         <textarea
           value={internalNote}
           onChange={(e) => setInternalNote(e.target.value)}
           placeholder="Add internal reviewer notes..."
           rows={4}
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
         />
         <button
           onClick={handleSaveNote}
           disabled={isPending || internalNote.trim().length === 0}
-          className="mt-3 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-3 px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Save Note
         </button>
       </div>
 
       {/* Review History Timeline */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Review History</h3>
+      <div className="bg-surface-solid rounded-xl border border-border shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-foreground mb-4">Review History</h3>
         {reviewHistory.length === 0 ? (
-          <p className="text-sm text-gray-400">No review actions yet</p>
+          <p className="text-sm text-muted-foreground">No review actions yet</p>
         ) : (
           <div className="space-y-3">
             {reviewHistory.map((item) => (

@@ -61,7 +61,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: UserRow[] }
       <div className="rounded-2xl bg-surface shadow-[var(--shadow-bento)] border border-border-subtle overflow-hidden">
         <table className="min-w-full">
           <thead>
-            <tr className="border-b border-border-subtle bg-slate-50/50">
+            <tr className="border-b border-border-subtle bg-surface">
               <th className="px-6 py-4 text-left text-xs font-semibold text-muted uppercase tracking-wider">Name</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-muted uppercase tracking-wider">Role</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-muted uppercase tracking-wider">Status</th>
@@ -77,7 +77,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: UserRow[] }
               </tr>
             ) : (
               filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={user.id} className="hover:bg-surface transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-9 w-9 flex-shrink-0 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center font-bold text-primary text-sm">
@@ -90,7 +90,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: UserRow[] }
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${roleStyles[user.role] || 'bg-slate-100 text-muted'}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${roleStyles[user.role] || 'bg-surface text-muted'}`}>
                       {user.role}
                     </span>
                   </td>

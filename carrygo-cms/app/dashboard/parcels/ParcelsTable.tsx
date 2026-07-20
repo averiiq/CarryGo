@@ -47,7 +47,7 @@ export default function ParcelsTable({ initialParcels }: { initialParcels: Parce
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50/50 text-muted text-xs font-semibold uppercase tracking-wider">
+          <thead className="bg-surface text-muted text-xs font-semibold uppercase tracking-wider">
             <tr>
               <th className="px-6 py-4">Sender</th>
               <th className="px-6 py-4">Route</th>
@@ -66,12 +66,12 @@ export default function ParcelsTable({ initialParcels }: { initialParcels: Parce
               </tr>
             ) : (
               parcels.map((parcel) => (
-                <tr key={parcel.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={parcel.id} className="hover:bg-surface transition-colors">
                   <td className="px-6 py-4 font-medium text-foreground">{parcel.senderName}</td>
                   <td className="px-6 py-4 text-foreground/70">{parcel.route}</td>
                   <td className="px-6 py-4 text-foreground/70">{parcel.details}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusStyles[parcel.status] || 'bg-slate-100 text-muted'}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusStyles[parcel.status] || 'bg-surface text-muted'}`}>
                       {parcel.status}
                     </span>
                   </td>

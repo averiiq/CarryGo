@@ -41,10 +41,10 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           </p>
           <div className="flex gap-2">
             {page > 1 && (
-              <a href={`?page=${page - 1}`} className="px-4 py-2 text-sm rounded-xl bg-surface border border-border text-foreground hover:bg-slate-50 transition-colors font-medium">Previous</a>
+              <a href={`?page=${page - 1}`} className="px-4 py-2 text-sm rounded-xl bg-surface border border-border text-foreground hover:bg-surface-elevated transition-colors font-medium">Previous</a>
             )}
             {page < totalPages && (
-              <a href={`?page=${page + 1}`} className="px-4 py-2 text-sm rounded-xl bg-surface border border-border text-foreground hover:bg-slate-50 transition-colors font-medium">Next</a>
+              <a href={`?page=${page + 1}`} className="px-4 py-2 text-sm rounded-xl bg-surface border border-border text-foreground hover:bg-surface-elevated transition-colors font-medium">Next</a>
             )}
           </div>
         </div>

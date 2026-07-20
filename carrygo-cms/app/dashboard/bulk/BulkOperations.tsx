@@ -86,7 +86,7 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-1 bg-slate-50/50 rounded-xl p-1 w-fit">
+      <div className="flex items-center gap-1 bg-surface rounded-xl p-1 w-fit">
         <button
           onClick={() => setActiveTab('users')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
