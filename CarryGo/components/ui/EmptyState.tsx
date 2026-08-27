@@ -31,7 +31,7 @@ export function EmptyRequestsSVG({ width = 200, height = 160 }: EmptyStateProps)
     floatAnim.start();
     pulseAnim.start();
     return () => { floatAnim.stop(); pulseAnim.stop(); };
-  }, []);
+  }, [float, pulse]);
 
   const primary = C.primary;
   const surface = C.surfaceElevated;
@@ -82,7 +82,7 @@ export function EmptyTripsSVG({ width = 200, height = 160 }: EmptyStateProps) {
     moveAnim.start();
     bounceAnim.start();
     return () => { moveAnim.stop(); bounceAnim.stop(); };
-  }, []);
+  }, [bounce, move]);
 
   const primary = C.primary;
   const surface = C.surfaceElevated;
@@ -132,12 +132,11 @@ export function EmptyParcelsSVG({ width = 200, height = 160 }: EmptyStateProps) 
     floatAnim.start();
     rotateAnim.start();
     return () => { floatAnim.stop(); rotateAnim.stop(); };
-  }, []);
+  }, [float, rotate]);
 
   const rot = rotate.interpolate({ inputRange: [0, 1], outputRange: ['-5deg', '5deg'] });
   const primary = C.primary;
   const warning = C.warning;
-  const surface = C.surfaceElevated;
 
   return (
     <View style={[styles.svgContainer, { width, height }]}>
@@ -190,7 +189,7 @@ export function EmptyMessagesSVG({ width = 200, height = 160 }: EmptyStateProps)
     dot2Anim.start();
     dot3Anim.start();
     return () => { floatAnim.stop(); dot1Anim.stop(); dot2Anim.stop(); dot3Anim.stop(); };
-  }, []);
+  }, [dot1, dot2, dot3, float]);
 
   const primary = C.primary;
   const surface = C.surfaceElevated;
@@ -236,7 +235,7 @@ export function EmptyTransactionsSVG({ width = 200, height = 160 }: EmptyStatePr
     scaleAnim.start();
     floatAnim.start();
     return () => { scaleAnim.stop(); floatAnim.stop(); };
-  }, []);
+  }, [float, scale]);
 
   const success = C.success;
   const warning = C.warning;

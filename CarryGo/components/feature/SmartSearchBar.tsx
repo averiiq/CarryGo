@@ -7,12 +7,10 @@ import {
   StyleSheet,
   Animated,
   ScrollView,
-  FlatList,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { useSmartSearch, SortOption } from '@/hooks/useSmartSearch';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
+import { FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { DELIVERY_OTP_LENGTH } from '@/constants/security';
 
 type DeliveryOtpEntryProps = {

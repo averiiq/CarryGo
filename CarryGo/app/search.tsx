@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { TripCard, ParcelCard } from '@/components';
 import { Trip, Parcel } from '@/types';
-import { CITIES } from '@/constants/mockData';
+import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { Haptic } from '@/services/haptics.service';
 import { createSubscription } from '@/services/subscriptions.service';
 import { useAlert } from '@/template';
@@ -17,9 +17,10 @@ import { flattenInfiniteData, useParcelsQuery, useTripsQuery } from '@/features/
 import { CityDropdown } from '@/components/feature/CityDropdown';
 import { HistoryChip, SearchHistoryEntry } from '@/components/feature/HistoryChip';
 import { RouteMapView } from '@/components/feature/RouteMapView';
-import { SmartSearchBar } from '@/components/feature/SmartSearchBar';
-import { useSmartSearch, SortOption } from '@/hooks/useSmartSearch';
+import { SortOption } from '@/hooks/useSmartSearch';
 import { styles } from '@/styles/search.styles';
+
+const CITIES = INDIAN_CITIES.map(c => c.name);
 
 const HISTORY_KEY = 'carrygo_search_history';
 const MAX_HISTORY = 8;
@@ -38,11 +39,11 @@ const POPULAR_ROUTES = [
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'date_nearest', label: 'Nearest Date' },
-  { value: 'price_low', label: 'Price: Low' },
-  { value: 'price_high', label: 'Price: High' },
-  { value: 'rating_best', label: 'Best Rating' },
-  { value: 'distance_shortest', label: 'Shortest' },
+  { value: 'date_nearest', label: 'Nearest date' },
+  { value: 'price_low', label: 'Price low' },
+  { value: 'price_high', label: 'Price high' },
+  { value: 'rating_best', label: 'Best rating' },
+  { value: 'distance_shortest', label: 'Shortest route' },
 ];
 
 type ResultTab = 'all' | 'trips' | 'parcels';
@@ -241,7 +242,7 @@ export default function SearchScreen() {
     >
       <View style={[styles.container, { backgroundColor: C.background }]}>
         <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
-          <LinearGradient colors={[C.primary + '10', 'transparent']} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={[C.primarySubtle, 'transparent']} style={StyleSheet.absoluteFillObject} />
           <View style={styles.headerRow}>
             <Pressable
               style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]}
@@ -399,13 +400,13 @@ export default function SearchScreen() {
               <Pressable
                 style={[
                   styles.searchBtn,
-                  { backgroundColor: canSearch ? C.primary : C.surfaceElevated, borderColor: canSearch ? C.primary : C.surfaceBorder },
+                  { backgroundColor: canSearch ? C.primaryDark : C.surfaceElevated, borderColor: canSearch ? C.primaryDark : C.surfaceBorder },
                 ]}
                 onPress={handleSearch}
                 disabled={!canSearch}
               >
-                <Ionicons name="search" size={17} color={canSearch ? '#fff' : C.textMuted} />
-                <Text style={[styles.searchBtnText, { color: canSearch ? '#fff' : C.textMuted }]}>Search</Text>
+                <Ionicons name="search" size={17} color={canSearch ? C.textInverse : C.textMuted} />
+                <Text style={[styles.searchBtnText, { color: canSearch ? C.textInverse : C.textMuted }]}>Search</Text>
               </Pressable>
             </Animated.View>
             <Pressable
@@ -651,21 +652,21 @@ export default function SearchScreen() {
 const localStyles = StyleSheet.create({
   viewToggle: {
     flexDirection: 'row',
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: 1.2,
     overflow: 'hidden',
   },
   viewToggleBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   resultsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 14,
+    marginBottom: 6,
   },
   resultsCount: {
     fontSize: 13,
@@ -675,10 +676,10 @@ const localStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 22,
+    borderWidth: 1.2,
   },
   sortBtnText: {
     fontSize: 11,
@@ -686,7 +687,7 @@ const localStyles = StyleSheet.create({
   },
   sortPanel: {
     marginHorizontal: 16,
-    marginTop: 4,
+    marginTop: 6,
   },
   sortRow: {
     flexDirection: 'row',
@@ -694,10 +695,10 @@ const localStyles = StyleSheet.create({
     paddingVertical: 8,
   },
   sortChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 22,
+    borderWidth: 1.2,
   },
   sortChipText: {
     fontSize: 11,
@@ -705,7 +706,7 @@ const localStyles = StyleSheet.create({
   },
   mapContainer: {
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 14,
   },
   refreshBtn: {
     flexDirection: 'row',
@@ -714,9 +715,9 @@ const localStyles = StyleSheet.create({
     gap: 6,
     marginHorizontal: 16,
     marginTop: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1.2,
   },
   refreshText: {
     fontSize: 12,

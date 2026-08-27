@@ -42,7 +42,7 @@ export async function submitRating(rating: {
     p_request_id: rating.requestId,
     p_to_user_id: rating.toUserId,
     p_rating: rating.rating,
-    p_comment: comment,
+    p_comment: comment || undefined,
   }).single();
   if (error) return { data: null, error: error.message };
   return { data: mapRow(data as unknown as RatingRow), error: null };

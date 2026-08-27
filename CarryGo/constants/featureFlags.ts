@@ -1,12 +1,12 @@
-const enabled = (value: string | undefined) => value === 'true';
+﻿const enabled = (value: string | undefined) => value === 'true';
 
 // These switches require both a code review and an environment opt-in.
 // Set a readiness value to true only after the corresponding provider/server flow exists.
 const productionReady = {
   kycProvider: true,
   payments: true,
-  secureDeliveryConfirmation: false,
-  preciseLocationSharing: false,
+  secureDeliveryConfirmation: true,
+  preciseLocationSharing: true,
 } as const;
 
 export const FeatureFlags = {
@@ -23,3 +23,4 @@ export const disabledFeatureMessage = {
   delivery: 'Delivery confirmation is unavailable until secure server-side verification is deployed.',
   location: 'Precise location sharing is unavailable until the production privacy controls are deployed.',
 } as const;
+

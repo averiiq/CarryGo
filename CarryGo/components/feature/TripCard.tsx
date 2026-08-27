@@ -15,24 +15,26 @@ const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 };
 
 const vehicleColors: Record<string, [string, string]> = {
-  bike: ['#F59E0B', '#D97706'],
-  car: ['#10B981', '#059669'],
-  bus: ['#8B5CF6', '#7C3AED'],
-  train: ['#06B6D4', '#0891B2'],
-  flight: ['#3B82F6', '#2563EB'],
+  bike: ['#64748B', '#475569'],
+  car: ['#4B5563', '#374151'],
+  bus: ['#6B7280', '#4B5563'],
+  train: ['#0F766E', '#0D9488'],
+  flight: ['#16A34A', '#15803D'],
 };
 
 interface TripCardProps {
   trip: Trip;
+  matchScore?: number;
+  onMatchPress?: () => void;
   onPress?: () => void;
   showRequestButton?: boolean;
   onRequest?: () => void;
   compact?: boolean;
 }
 
-export const TripCard = React.memo(function TripCard({ trip, onPress, showRequestButton, onRequest }: TripCardProps) {
-  const { C, isDark } = useThemeColors();
-  const vGradient = vehicleColors[trip.vehicleType] || ['#7C3AED', '#6D28D9'];
+export const TripCard = React.memo(function TripCard({ trip, matchScore, onMatchPress, onPress, showRequestButton, onRequest }: TripCardProps) {
+  const { C } = useThemeColors();
+  const vGradient = vehicleColors[trip.vehicleType] || ['#4B5563', '#374151'];
   const vColor = vGradient[0];
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -42,25 +44,22 @@ export const TripCard = React.memo(function TripCard({ trip, onPress, showReques
   return (
     <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}>
       <Animated.View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder, transform: [{ scale }] }]}>
-        {/* Hero gradient header */}
         <LinearGradient
-          colors={isDark ? [vGradient[0] + '20', vGradient[1] + '05'] : [vGradient[0] + '12', vGradient[1] + '03']}
+          colors={[vGradient[0] + '16', 'transparent']}
           style={styles.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
 
-        {/* Vehicle badge - top right */}
         <View style={[styles.vehicleBadge, { backgroundColor: vColor + '18' }]}>
           <LinearGradient colors={vGradient} style={styles.vehicleGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-          <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'directions-car'} size={18} color="#fff" />
+          <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'directions-car'} size={18} color={C.textInverse} />
         </View>
 
         <View style={styles.inner}>
-          {/* Route - big and bold */}
           <View style={styles.routeSection}>
             <View style={styles.routeVisual}>
-              <View style={[styles.originDot, { backgroundColor: '#10B981' }]} />
+              <View style={[styles.originDot, { backgroundColor: C.success }]} />
               <View style={[styles.routeDash, { borderColor: C.surfaceBorderLight }]} />
               <View style={[styles.destDot, { backgroundColor: C.error }]} />
             </View>
@@ -70,13 +69,28 @@ export const TripCard = React.memo(function TripCard({ trip, onPress, showReques
             </View>
           </View>
 
-          {/* Chips row */}
           <View style={styles.chipsRow}>
-            <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+            {typeof matchScore === 'number' && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.chip,
+                  styles.matchChip,
+                  { backgroundColor: C.primary + '12' },
+                  pressed && onMatchPress ? { opacity: 0.8 } : null,
+                ]}
+                onPress={onMatchPress}
+                disabled={!onMatchPress}
+              >
+                <MaterialIcons name={'auto-awesome'} size={12} color={C.primary} />
+                <Text style={[styles.chipLabel, { color: C.primary }]}>{matchScore}% match</Text>
+                <MaterialIcons name={'info-outline'} size={12} color={C.primary} />
+              </Pressable>
+            )}
+            <View style={[styles.chip, { backgroundColor: C.surfaceElevated }]}>
               <Ionicons name="calendar" size={12} color={C.textSecondary} />
               <Text style={[styles.chipLabel, { color: C.textSecondary }]}>{trip.date}</Text>
             </View>
-            <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+            <View style={[styles.chip, { backgroundColor: C.surfaceElevated }]}>
               <Ionicons name="time" size={12} color={C.textSecondary} />
               <Text style={[styles.chipLabel, { color: C.textSecondary }]}>{trip.time}</Text>
             </View>
@@ -86,7 +100,6 @@ export const TripCard = React.memo(function TripCard({ trip, onPress, showReques
             </View>
           </View>
 
-          {/* Footer - user + price */}
           <View style={styles.footer}>
             <View style={styles.userRow}>
               <LinearGradient colors={vGradient} style={styles.avatarGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
@@ -95,17 +108,18 @@ export const TripCard = React.memo(function TripCard({ trip, onPress, showReques
               <View>
                 <Text style={[styles.userName, { color: C.textPrimary }]}>{trip.userName}</Text>
                 <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={11} color="#F59E0B" />
+                  <Ionicons name="star" size={11} color={C.warning} />
                   <Text style={[styles.ratingVal, { color: C.textMuted }]}>{trip.userRating.toFixed(1)}</Text>
                 </View>
               </View>
             </View>
-            <View style={[styles.priceBox]}>
-              <LinearGradient colors={isDark ? [C.primary + '25', C.primary + '10'] : [C.primary + '14', C.primary + '06']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-              <Text style={[styles.priceValue, { color: C.primary }]}>
-                <Text style={styles.priceCurrency}>₹</Text>{trip.pricePerKg}
+
+            <View style={styles.priceBox}>
+              <LinearGradient colors={[C.successSubtle, C.primarySubtle]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+              <Text style={[styles.priceValue, { color: C.success }]}> 
+                <Text style={styles.priceCurrency}>Rs </Text>{trip.pricePerKg}
               </Text>
-              <Text style={[styles.priceUnit, { color: C.primary + '88' }]}>/kg</Text>
+              <Text style={[styles.priceUnit, { color: C.success + 'CC' }]}>/kg</Text>
             </View>
           </View>
 
@@ -114,8 +128,8 @@ export const TripCard = React.memo(function TripCard({ trip, onPress, showReques
               style={({ pressed }) => [styles.requestBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               onPress={onRequest}
             >
-              <LinearGradient colors={vGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-              <MaterialIcons name="send" size={15} color="#fff" />
+              <LinearGradient colors={[C.primary, C.primaryDark]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
+              <MaterialIcons name="send" size={15} color={C.textInverse} />
               <Text style={styles.requestBtnText}>Send Request</Text>
             </Pressable>
           )}
@@ -128,8 +142,13 @@ export const TripCard = React.memo(function TripCard({ trip, onPress, showReques
 const styles = StyleSheet.create({
   card: {
     borderRadius: 24,
-    borderWidth: 1,
+    borderWidth: 1.2,
     overflow: 'hidden',
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 3,
   },
   headerGradient: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 80,
@@ -143,7 +162,6 @@ const styles = StyleSheet.create({
 
   inner: { padding: Spacing.lg, paddingTop: Spacing.md, gap: Spacing.md },
 
-  // Route
   routeSection: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingRight: 48 },
   routeVisual: { alignItems: 'center', height: 50, justifyContent: 'space-between' },
   originDot: { width: 10, height: 10, borderRadius: 5 },
@@ -153,16 +171,15 @@ const styles = StyleSheet.create({
   fromCity: { fontSize: 17, fontWeight: FontWeight.extrabold, letterSpacing: -0.3 },
   toCity: { fontSize: 17, fontWeight: FontWeight.extrabold, letterSpacing: -0.3 },
 
-  // Chips
   chipsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 6,
     borderRadius: BorderRadius.full,
   },
+  matchChip: { borderWidth: 1, borderColor: 'transparent' },
   chipLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
-  // Footer
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarGradient: {

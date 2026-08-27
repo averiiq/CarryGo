@@ -6,41 +6,102 @@ import ActivityFeed from '@/components/ActivityFeed'
 import SystemHealth from '@/components/SystemHealth'
 import QuickActions from '@/components/QuickActions'
 import DeliveryFunnel from '@/components/DeliveryFunnel'
+import { isAwsCmsBackendEnabled } from '@/utils/backend/provider'
+import { awsCmsRequest } from '@/utils/aws/api'
 
 export default async function DashboardOverview() {
   const auth = await requireAdmin()
   if ('error' in auth) redirect('/login')
   const supabase = auth.supabase
 
-  const [
-    { count: totalUsers },
-    { count: activeTrips },
-    { count: pendingParcels },
-    { count: pendingKyc },
-    { count: openDisputes },
-  ] = await Promise.all([
+  const awsMode = isAwsCmsBackendEnabled()
+
+  let totalUsers = 0
+  let activeTrips = 0
+  let pendingParcels = 0
+  let pendingKyc = 0
+  let openDisputes = 0
+
+  const [usersCountResult, kycCountResult] = await Promise.all([
     supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('trips').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('parcels').select('*', { count: 'exact', head: true }).in('status', ['open', 'matched']),
     supabase.from('kyc_sessions').select('*', { count: 'exact', head: true }).eq('status', 'submitted'),
-    supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
   ])
+
+  totalUsers = usersCountResult.count ?? 0
+  pendingKyc = kycCountResult.count ?? 0
 
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
   const fromDate = sevenDaysAgo.toISOString()
 
-  const [
-    { data: recentTrips },
-    { data: recentParcels },
-    { data: recentRequests },
-    { data: recentActivity },
-  ] = await Promise.all([
-    supabase.from('trips').select('created_at').gte('created_at', fromDate),
-    supabase.from('parcels').select('created_at').gte('created_at', fromDate),
-    supabase.from('requests').select('status').gte('created_at', fromDate),
-    supabase.from('requests').select('id, status, created_at, sender:sender_id(full_name), traveller:traveller_id(full_name)').order('created_at', { ascending: false }).limit(15),
-  ])
+  let recentTrips: Array<{ created_at: string }> = []
+  let recentParcels: Array<{ created_at: string }> = []
+  let recentRequests: Array<{ status: string }> = []
+  let recentActivity: Array<Record<string, unknown>> = []
+
+  if (awsMode) {
+    const [tripsResponse, parcelsResponse, disputesResponse] = await Promise.all([
+      awsCmsRequest('/trips?limit=200&offset=0') as Promise<{ data: Array<{ createdAt: string }>; total?: number }>,
+      awsCmsRequest('/parcels?limit=200&offset=0') as Promise<{ data: Array<{ createdAt: string }>; total?: number }>,
+      awsCmsRequest('/admin/disputes?limit=50') as Promise<{
+        data: {
+          failedRequests: Array<{
+            id: string
+            status: string
+            createdAt: string
+            senderName?: string
+            travellerName?: string
+          }>
+        }
+      }>,
+    ])
+
+    activeTrips = tripsResponse.total ?? tripsResponse.data.length
+    pendingParcels = parcelsResponse.total ?? parcelsResponse.data.length
+    openDisputes = disputesResponse.data.failedRequests.length
+
+    recentTrips = tripsResponse.data
+      .filter((item) => item.createdAt >= fromDate)
+      .map((item) => ({ created_at: item.createdAt }))
+
+    recentParcels = parcelsResponse.data
+      .filter((item) => item.createdAt >= fromDate)
+      .map((item) => ({ created_at: item.createdAt }))
+
+    recentRequests = disputesResponse.data.failedRequests.map((item) => ({ status: item.status }))
+    recentActivity = disputesResponse.data.failedRequests.map((item) => ({
+      id: item.id,
+      status: item.status,
+      created_at: item.createdAt,
+      sender: { full_name: item.senderName ?? null },
+      traveller: { full_name: item.travellerName ?? null },
+    }))
+  } else {
+    const [tripsResult, parcelsResult, requestsResult, activityResult, countsResult] = await Promise.all([
+      supabase.from('trips').select('created_at').gte('created_at', fromDate),
+      supabase.from('parcels').select('created_at').gte('created_at', fromDate),
+      supabase.from('requests').select('status').gte('created_at', fromDate),
+      supabase
+        .from('requests')
+        .select('id, status, created_at, sender:sender_id(full_name), traveller:traveller_id(full_name)')
+        .order('created_at', { ascending: false })
+        .limit(15),
+      Promise.all([
+        supabase.from('trips').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('parcels').select('*', { count: 'exact', head: true }).in('status', ['open', 'matched']),
+        supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
+      ]),
+    ])
+
+    recentTrips = tripsResult.data ?? []
+    recentParcels = parcelsResult.data ?? []
+    recentRequests = requestsResult.data ?? []
+    recentActivity = activityResult.data ?? []
+
+    activeTrips = countsResult[0].count ?? 0
+    pendingParcels = countsResult[1].count ?? 0
+    openDisputes = countsResult[2].count ?? 0
+  }
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const chartDataMap: Record<string, { name: string; trips: number; parcels: number }> = {}
@@ -184,11 +245,24 @@ export default async function DashboardOverview() {
     },
   ]
 
+  let awsApiStatus: 'healthy' | 'degraded' | 'down' | null = null
+  if (isAwsCmsBackendEnabled()) {
+    try {
+      await awsCmsRequest<{ status?: string }>('/health')
+      awsApiStatus = 'healthy'
+    } catch {
+      awsApiStatus = 'down'
+    }
+  }
+
   const systemMetrics = [
     { name: 'API', status: 'healthy' as const, latency: 42, uptime: '99.9%' },
     { name: 'Database', status: 'healthy' as const, latency: 12, uptime: '99.99%' },
     { name: 'Supabase', status: 'healthy' as const, latency: 28, uptime: '99.95%' },
     { name: 'Realtime', status: 'healthy' as const, latency: 8, uptime: '99.8%' },
+    ...(awsApiStatus
+      ? [{ name: 'AWS API', status: awsApiStatus, latency: awsApiStatus === 'healthy' ? 45 : 0, uptime: awsApiStatus === 'healthy' ? '99.9%' : 'degraded' }]
+      : []),
   ]
 
   return (

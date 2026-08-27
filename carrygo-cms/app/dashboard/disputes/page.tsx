@@ -2,6 +2,8 @@ import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
 import { AlertTriangle, Clock, CheckCircle2 } from 'lucide-react'
 import DisputeList from './DisputeList'
+import { isAwsCmsBackendEnabled } from '@/utils/backend/provider'
+import { awsCmsRequest } from '@/utils/aws/api'
 
 export interface Dispute {
   id: string
@@ -23,33 +25,77 @@ export default async function DisputesPage() {
   if ('error' in auth) redirect('/login')
   const supabase = auth.supabase
 
-  const { data: failedRequests } = await supabase
-    .from('requests')
-    .select('*')
-    .in('status', ['failed'])
-    .order('updated_at', { ascending: false })
-    .limit(50)
+  let disputes: Dispute[] = []
+  let totalResolved = 0
 
-  const disputes: Dispute[] = (failedRequests ?? []).map(r => ({
-    id: r.id,
-    parcelId: r.parcel_id,
-    tripId: r.trip_id,
-    senderId: r.sender_id,
-    senderName: r.sender_name ?? 'Unknown',
-    travellerId: r.traveller_id,
-    travellerName: r.traveller_name ?? 'Unknown',
-    price: Number(r.price),
-    status: r.status,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-    message: r.message,
-  }))
+  if (isAwsCmsBackendEnabled()) {
+    const response = (await awsCmsRequest('/admin/disputes?limit=50')) as {
+      data: {
+        failedRequests: Array<{
+          id: string
+          parcelId: string
+          tripId: string
+          senderId: string
+          senderName: string
+          travellerId: string
+          travellerName: string
+          price: number
+          status: string
+          createdAt: string
+          updatedAt: string
+          message?: string
+        }>
+        totalResolved: number
+      }
+    }
+
+    disputes = response.data.failedRequests.map((entry) => ({
+      id: entry.id,
+      parcelId: entry.parcelId,
+      tripId: entry.tripId,
+      senderId: entry.senderId,
+      senderName: entry.senderName ?? 'Unknown',
+      travellerId: entry.travellerId,
+      travellerName: entry.travellerName ?? 'Unknown',
+      price: Number(entry.price),
+      status: entry.status,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      message: entry.message,
+    }))
+    totalResolved = response.data.totalResolved
+  } else {
+    const { data: failedRequests } = await supabase
+      .from('requests')
+      .select('*')
+      .in('status', ['failed'])
+      .order('updated_at', { ascending: false })
+      .limit(50)
+
+    disputes = (failedRequests ?? []).map((entry) => ({
+      id: entry.id,
+      parcelId: entry.parcel_id,
+      tripId: entry.trip_id,
+      senderId: entry.sender_id,
+      senderName: entry.sender_name ?? 'Unknown',
+      travellerId: entry.traveller_id,
+      travellerName: entry.traveller_name ?? 'Unknown',
+      price: Number(entry.price),
+      status: entry.status,
+      createdAt: entry.created_at,
+      updatedAt: entry.updated_at,
+      message: entry.message,
+    }))
+
+    const { count } = await supabase
+      .from('requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'completed')
+
+    totalResolved = count ?? 0
+  }
 
   const openCount = disputes.length
-  const { count: totalResolved } = await supabase
-    .from('requests')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'completed')
 
   return (
     <div className="space-y-6">
@@ -82,7 +128,7 @@ export default async function DisputesPage() {
             <CheckCircle2 className="h-5 w-5 text-success" />
           </div>
           <div>
-            <p className="text-2xl font-heading font-bold text-success">{totalResolved ?? 0}</p>
+            <p className="text-2xl font-heading font-bold text-success">{totalResolved}</p>
             <p className="text-xs font-medium text-success/70">Resolved</p>
           </div>
         </div>

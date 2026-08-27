@@ -33,7 +33,12 @@ export function useFormDraft<T extends Record<string, unknown>>(
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       const hasContent = Object.values(currentValues).some(
-        (v) => v !== '' && v !== null && v !== undefined,
+        (v) => {
+          if (v === '' || v === null || v === undefined) return false;
+          if (Array.isArray(v)) return v.length > 0;
+          if (typeof v === 'object') return Object.keys(v).length > 0;
+          return true;
+        },
       );
       if (hasContent) {
         AsyncStorage.setItem(storageKey, JSON.stringify(currentValues));

@@ -1,13 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   withSpring,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing } from '@/constants/theme';
-import { Haptic } from '@/services/haptics.service';
 
 type Step = {
   label: string;
@@ -19,114 +17,63 @@ type StepIndicatorProps = {
   onStepPress?: (index: number) => void;
 };
 
-export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicatorProps) {
+export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
   const { C } = useThemeColors();
+  const progress = (currentStep + 1) / steps.length;
+
+  const progressStyle = useAnimatedStyle(() => {
+    return {
+      width: withSpring(`${progress * 100}%`, { damping: 20, stiffness: 120 }),
+    };
+  }, [progress]);
 
   return (
     <View style={styles.container}>
-      {steps.map((step, index) => {
-        const isActive = index === currentStep;
-        const isCompleted = index < currentStep;
-        const canPress = isCompleted && onStepPress;
-
-        return (
-          <React.Fragment key={step.label}>
-            {index > 0 && (
-              <StepConnector isCompleted={index <= currentStep} C={C} />
-            )}
-            <Pressable
-              style={styles.stepItem}
-              onPress={canPress ? () => { Haptic.tap(); onStepPress(index); } : undefined}
-              disabled={!canPress}
-            >
-              <StepDot isActive={isActive} isCompleted={isCompleted} C={C} />
-              <Text
-                style={[
-                  styles.stepLabel,
-                  {
-                    color: isActive ? C.primary : isCompleted ? C.textPrimary : C.textMuted,
-                    fontWeight: isActive ? FontWeight.semibold : FontWeight.medium,
-                  },
-                ]}
-              >
-                {step.label}
-              </Text>
-            </Pressable>
-          </React.Fragment>
-        );
-      })}
+      <View style={styles.headerRow}>
+        <Text style={[styles.stepText, { color: C.textMuted }]}>
+          Step {currentStep + 1} of {steps.length}
+        </Text>
+        <Text style={[styles.label, { color: C.textPrimary }]}>
+          {steps[currentStep].label}
+        </Text>
+      </View>
+      <View style={[styles.progressBarBg, { backgroundColor: C.surfaceBorderLight }]}>
+        <Animated.View style={[styles.progressBarFill, progressStyle, { backgroundColor: C.primary }]} />
+      </View>
     </View>
   );
 }
 
-function StepDot({ isActive, isCompleted, C }: { isActive: boolean; isCompleted: boolean; C: any }) {
-  const animatedStyle = useAnimatedStyle(() => {
-    const scale = withSpring(isActive ? 1 : 0.75, { damping: 15, stiffness: 200 });
-    return { transform: [{ scale }] };
-  }, [isActive]);
-
-  return (
-    <Animated.View
-      style={[
-        styles.dot,
-        animatedStyle,
-        {
-          backgroundColor: isActive || isCompleted ? C.primary : C.surfaceBorder,
-          borderColor: isActive ? C.primaryGlow : 'transparent',
-          borderWidth: isActive ? 3 : 0,
-        },
-      ]}
-    >
-      {isCompleted && (
-        <Text style={styles.checkmark}>✓</Text>
-      )}
-    </Animated.View>
-  );
-}
-
-function StepConnector({ isCompleted, C }: { isCompleted: boolean; C: any }) {
-  const animatedStyle = useAnimatedStyle(() => ({
-    backgroundColor: withSpring(
-      isCompleted ? C.primary : C.surfaceBorder,
-      { damping: 20, stiffness: 150 },
-    ),
-  }), [isCompleted]);
-
-  return <Animated.View style={[styles.connector, animatedStyle]} />;
-}
-
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    gap: 8,
   },
-  stepItem: {
-    alignItems: 'center',
-    gap: 6,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
   },
-  dot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  stepText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 12,
+  label: {
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
   },
-  connector: {
-    height: 2,
-    flex: 1,
-    marginHorizontal: Spacing.sm,
-    borderRadius: 1,
+  progressBarBg: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+    width: '100%',
   },
-  stepLabel: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
   },
 });

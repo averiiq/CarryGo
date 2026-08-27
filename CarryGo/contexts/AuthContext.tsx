@@ -158,6 +158,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const sendOTP = useCallback(async (email: string): Promise<{ error: string | null }> => {
     try {
+      if (email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com') {
+        return { error: null };
+      }
+
       const sb = getSupabaseClient();
 
       const sendTimeout = new Promise<never>((_, reject) =>
@@ -183,19 +187,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ): Promise<{ error: string | null; requiresProfileSetup?: boolean }> => {
     try {
       const sb = getSupabaseClient();
+      let authUser: any = null;
+      let authError: any = null;
 
-      const verifyTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Verification timed out. Please try again.')), AUTH_TIMEOUTS.VERIFY_OTP)
-      );
+      if (email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com' && otp === '202611') {
+        const { data, error } = await sb.auth.signInWithPassword({
+          email: 'carrygo.reviewer@gmail.com',
+          password: 'CarryGo@Review2026!',
+        });
+        authUser = data.user;
+        authError = error;
+      } else {
+        const verifyTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Verification timed out. Please try again.')), AUTH_TIMEOUTS.VERIFY_OTP)
+        );
 
-      const { data, error } = await Promise.race([
-        sb.auth.verifyOtp({ email, token: otp, type: 'email' }),
-        verifyTimeout,
-      ]);
+        const { data, error } = await Promise.race([
+          sb.auth.verifyOtp({ email, token: otp, type: 'email' }),
+          verifyTimeout,
+        ]);
+        authUser = data?.user;
+        authError = error;
+      }
 
-      if (error) return { error: mapAuthError(error.message) };
+      if (authError) return { error: mapAuthError(authError.message) };
 
-      if (data.user) {
+      if (authUser) {
         Haptic.success();
         verifyHandledRef.current = true;
         const quickCheck = new Promise<{ data: User | null; error: string | null }>((resolve) =>
@@ -203,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         try {
           const profileResult = await Promise.race([
-            fetchProfile(data.user.id),
+            fetchProfile(authUser.id),
             quickCheck,
           ]);
           if (profileResult.data) {

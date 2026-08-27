@@ -25,11 +25,11 @@ const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   train: 'train', flight: 'flight',
 };
 const vehicleGradients: Record<string, [string, string]> = {
-  bike: ['#F59E0B', '#D97706'],
-  car: ['#10B981', '#059669'],
-  bus: ['#8B5CF6', '#7C3AED'],
-  train: ['#06B6D4', '#0891B2'],
-  flight: ['#3B82F6', '#2563EB'],
+  bike: ['#64748B', '#475569'],
+  car: ['#4B5563', '#374151'],
+  bus: ['#6B7280', '#4B5563'],
+  train: ['#0F766E', '#0D9488'],
+  flight: ['#16A34A', '#15803D'],
 };
 
 export default function TripDetailScreen() {
@@ -38,7 +38,7 @@ export default function TripDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { C, isDark } = useThemeColors();
+  const { C } = useThemeColors();
   const tripQuery = useTripQuery(id);
   const requestsQuery = useRequestsByTripQuery(id);
   const conversationsQuery = useConversationsQuery(user?.id);
@@ -51,17 +51,25 @@ export default function TripDetailScreen() {
   const trip = (tripQuery.data ?? undefined) as Trip | undefined;
   const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
+  const isOwner = trip?.userId === user?.id;
+  const visibleRequests = useMemo(() => {
+    if (isOwner) return requests;
+    return requests.filter(request => request.senderId === user?.id);
+  }, [isOwner, requests, user?.id]);
+  const viewerRole: 'traveller' | 'sender' | 'observer' = isOwner
+    ? 'traveller'
+    : visibleRequests.length > 0
+      ? 'sender'
+      : 'observer';
   const requestedParcelIds = useMemo(
-    () => [...new Set(requests.map(request => request.parcelId))].sort(),
-    [requests]
+    () => [...new Set(visibleRequests.map(request => request.parcelId))].sort(),
+    [visibleRequests]
   );
   const parcelsQuery = useParcelsByIdsQuery(requestedParcelIds);
   const parcels = parcelsQuery.data ?? [];
   const loading = tripQuery.isLoading || requestsQuery.isLoading || parcelsQuery.isLoading;
-  const isOwner = trip?.userId === user?.id;
-  const vGradient: [string, string] = trip ? (vehicleGradients[trip.vehicleType] || ['#7C3AED', '#6D28D9']) : ['#7C3AED', '#6D28D9'];
+  const vGradient: [string, string] = trip ? (vehicleGradients[trip.vehicleType] || ['#52525B', '#18181B']) : ['#52525B', '#18181B'];
   const vColor = vGradient[0];
-  const canBrowseParcels = !isOwner && trip?.status === 'active';
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -75,7 +83,12 @@ export default function TripDetailScreen() {
   };
 
   const handleAccept = (req: Request) => {
-    showAlert('Accept Request?', `Accept delivery for ₹${req.price} from ${req.senderName}?`, [
+    if (!user || req.travellerId !== user.id) {
+      showAlert('Not Allowed', 'Only the assigned traveller can accept this request.');
+      return;
+    }
+
+    showAlert('Accept Request?', `Accept delivery for Rs ${req.price} from ${req.senderName}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Accept', onPress: async () => {
@@ -106,6 +119,11 @@ export default function TripDetailScreen() {
   };
 
   const handleReject = (req: Request) => {
+    if (!user || req.travellerId !== user.id) {
+      showAlert('Not Allowed', 'Only the assigned traveller can reject this request.');
+      return;
+    }
+
     showAlert('Reject Request?', 'Reject this delivery request?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -152,10 +170,10 @@ export default function TripDetailScreen() {
     ]);
   };
 
-  const pending = requests.filter(r => r.status === 'pending');
-  const active = requests.filter(r => r.status === 'accepted');
-  const done = requests.filter(r => r.status === 'completed' || r.status === 'rejected' || r.status === 'cancelled' || r.status === 'failed');
-  const totalEarnings = requests.filter(r => r.status === 'completed').reduce((s, r) => s + r.price, 0);
+  const pending = visibleRequests.filter(r => r.status === 'pending');
+  const active = visibleRequests.filter(r => r.status === 'accepted');
+  const done = visibleRequests.filter(r => r.status === 'completed' || r.status === 'rejected' || r.status === 'cancelled' || r.status === 'failed');
+  const totalEarnings = visibleRequests.filter(r => r.status === 'completed').reduce((s, r) => s + r.price, 0);
 
   if (!trip) {
     return (
@@ -170,7 +188,7 @@ export default function TripDetailScreen() {
       {/* Header */}
       <View style={styles.header}>
         <LinearGradient
-          colors={isDark ? [vColor + '18', 'transparent'] : [vColor + '0C', 'transparent']}
+          colors={[vColor + '12', 'transparent']}
           style={styles.headerGradient}
         />
         <Pressable
@@ -207,7 +225,7 @@ export default function TripDetailScreen() {
         {/* Trip Hero Card */}
         <View style={[styles.tripCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           <LinearGradient
-            colors={isDark ? [vColor + '15', 'transparent'] : [vColor + '0A', 'transparent']}
+            colors={[vColor + '10', 'transparent']}
             style={styles.cardGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -236,7 +254,7 @@ export default function TripDetailScreen() {
           </View>
 
           {/* Stats */}
-          <View style={[styles.tripStats, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]}>
+          <View style={[styles.tripStats, { backgroundColor: C.surfaceElevated }]}> 
             <View style={styles.tripStat}>
               <MaterialIcons name="scale" size={16} color={C.textMuted} />
               <Text style={[styles.tripStatValue, { color: C.textPrimary }]}>{trip.availableCapacity}kg</Text>
@@ -245,19 +263,19 @@ export default function TripDetailScreen() {
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.tripStat}>
               <MaterialIcons name="payments" size={16} color={vColor} />
-              <Text style={[styles.tripStatValue, { color: vColor }]}>₹{trip.pricePerKg}</Text>
+              <Text style={[styles.tripStatValue, { color: vColor }]}>Rs {trip.pricePerKg}</Text>
               <Text style={[styles.tripStatLabel, { color: C.textMuted }]}>Per kg</Text>
             </View>
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.tripStat}>
               <MaterialIcons name="swap-horiz" size={16} color={C.textMuted} />
-              <Text style={[styles.tripStatValue, { color: C.textPrimary }]}>{requests.length}</Text>
+              <Text style={[styles.tripStatValue, { color: C.textPrimary }]}>{visibleRequests.length}</Text>
               <Text style={[styles.tripStatLabel, { color: C.textMuted }]}>Requests</Text>
             </View>
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.tripStat}>
-              <MaterialIcons name="verified" size={16} color="#10B981" />
-              <Text style={[styles.tripStatValue, { color: '#10B981' }]}>₹{totalEarnings}</Text>
+              <MaterialIcons name="verified" size={16} color={C.success} />
+              <Text style={[styles.tripStatValue, { color: C.success }]}>Rs {totalEarnings}</Text>
               <Text style={[styles.tripStatLabel, { color: C.textMuted }]}>Earned</Text>
             </View>
           </View>
@@ -287,41 +305,27 @@ export default function TripDetailScreen() {
                 <Text style={styles.travellerAvatarText}>{trip.userName.charAt(0).toUpperCase()}</Text>
               </View>
               <Text style={[styles.travellerName, { color: C.textPrimary }]}>{trip.userName}</Text>
-              <Ionicons name="star" size={12} color="#F59E0B" />
+              <Ionicons name="star" size={12} color={C.warning} />
               <Text style={[styles.travellerRating, { color: C.textMuted }]}>{trip.userRating.toFixed(1)}</Text>
             </View>
           </View>
         </View>
 
         {/* CTA */}
-        {canBrowseParcels ? (
-          <Pressable
-            style={({ pressed }) => [styles.findBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
-            onPress={() => router.push({ pathname: '/matching', params: { mode: 'trip', id: trip!.id } })}
-          >
-            <LinearGradient colors={vGradient} style={styles.findBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-            <MaterialIcons name="inventory-2" size={18} color="#fff" />
-            <Text style={styles.findBtnText}>Find Parcels to Carry on This Route</Text>
-            <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
-          </Pressable>
-        ) : isOwner && trip?.status === 'active' ? (
-          <Pressable
-            style={({ pressed }) => [styles.findBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
-            onPress={() => router.push({ pathname: '/matching', params: { mode: 'trip', id: trip!.id } })}
-          >
-            <LinearGradient colors={vGradient} style={styles.findBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-            <MaterialIcons name="search" size={18} color="#fff" />
-            <Text style={styles.findBtnText}>Browse Parcels on Your Route</Text>
-            <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
-          </Pressable>
+        {!isOwner ? (
+          <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <MaterialIcons name="info-outline" size={28} color={C.primary} />
+            <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>Sender View</Text>
+            <Text style={[styles.emptySubtext, { color: C.textMuted }]}>Use your parcel listing to send request on this route.</Text>
+          </View>
         ) : null}
 
         {/* Summary chips */}
         <View style={styles.summaryChips}>
-          <SummaryChip count={pending.length} label="Pending" color={C.warning} icon="hourglass-empty" C={C} isDark={isDark} />
-          <SummaryChip count={active.length} label="Active" color={C.success} icon="check-circle" C={C} isDark={isDark} />
-          <SummaryChip count={done.filter(r => r.status === 'completed').length} label="Done" color={C.info} icon="verified" C={C} isDark={isDark} />
-          <SummaryChip count={done.filter(r => r.status === 'rejected').length} label="Rejected" color={C.error} icon="cancel" C={C} isDark={isDark} />
+          <SummaryChip count={pending.length} label="Pending" color={C.warning} icon="hourglass-empty" C={C} />
+          <SummaryChip count={active.length} label="Active" color={C.success} icon="check-circle" C={C} />
+          <SummaryChip count={done.filter(r => r.status === 'completed').length} label="Done" color={C.info} icon="verified" C={C} />
+          <SummaryChip count={done.filter(r => r.status === 'rejected').length} label="Rejected" color={C.error} icon="cancel" C={C} />
         </View>
 
         {loading ? (
@@ -329,26 +333,26 @@ export default function TripDetailScreen() {
             <ActivityIndicator color={C.primary} size="large" />
             <Text style={[styles.loadingText, { color: C.textMuted }]}>Loading requests...</Text>
           </View>
-        ) : requests.length === 0 ? (
+        ) : visibleRequests.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <MaterialIcons name="inbox" size={56} color={C.surfaceBorderLight} />
             <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No requests yet</Text>
             <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
               {isOwner
                 ? 'Senders will send requests when they see your trip in the feed.'
-                : 'Send a request to this traveller to get started.'}
+                : 'Use your parcel listing to send request to this traveller.'}
             </Text>
           </View>
         ) : (
           <>
             {pending.length > 0 && (
-              <Section title="Pending Requests" icon="hourglass-empty" color={C.warning} count={pending.length} C={C} isDark={isDark}>
+              <Section title="Pending Requests" icon="hourglass-empty" color={C.warning} count={pending.length} C={C}>
                 {pending.map((req, i) => (
                   <React.Fragment key={req.id}>
                     <RequestItem
                       request={req}
                       parcel={parcels.find(p => p.id === req.parcelId)}
-                      isOwner={isOwner}
+                      viewerRole={viewerRole}
                       onAccept={() => handleAccept(req)}
                       onReject={() => handleReject(req)}
                       onChat={() => handleChat(req)}
@@ -362,13 +366,13 @@ export default function TripDetailScreen() {
             )}
 
             {active.length > 0 && (
-              <Section title="In Progress" icon="local-shipping" color={C.primary} count={active.length} C={C} isDark={isDark}>
+              <Section title="In Progress" icon="local-shipping" color={C.primary} count={active.length} C={C}>
                 {active.map((req, i) => (
                   <React.Fragment key={req.id}>
                     <RequestItem
                       request={req}
                       parcel={parcels.find(p => p.id === req.parcelId)}
-                      isOwner={isOwner}
+                      viewerRole={viewerRole}
                       onAccept={() => handleAccept(req)}
                       onReject={() => handleReject(req)}
                       onChat={() => handleChat(req)}
@@ -382,13 +386,13 @@ export default function TripDetailScreen() {
             )}
 
             {done.length > 0 && (
-              <Section title="History" icon="history" color={C.textMuted} count={done.length} C={C} isDark={isDark}>
+              <Section title="History" icon="history" color={C.textMuted} count={done.length} C={C}>
                 {done.map((req, i) => (
                   <React.Fragment key={req.id}>
                     <RequestItem
                       request={req}
                       parcel={parcels.find(p => p.id === req.parcelId)}
-                      isOwner={isOwner}
+                      viewerRole={viewerRole}
                       onAccept={() => handleAccept(req)}
                       onReject={() => handleReject(req)}
                       onChat={() => handleChat(req)}
@@ -407,10 +411,10 @@ export default function TripDetailScreen() {
   );
 }
 
-function SummaryChip({ count, label, color, icon, C, isDark }: {
+function SummaryChip({ count, label, color, icon, C }: {
   count: number; label: string; color: string;
   icon: keyof typeof MaterialIcons.glyphMap;
-  C: any; isDark: boolean;
+  C: any;
 }) {
   return (
     <View style={[styles.chip, { backgroundColor: color + '12', borderColor: color + '30' }]}>
@@ -421,10 +425,10 @@ function SummaryChip({ count, label, color, icon, C, isDark }: {
   );
 }
 
-function Section({ title, icon, color, count, children, C, isDark }: {
+function Section({ title, icon, color, count, children, C }: {
   title: string; icon: keyof typeof MaterialIcons.glyphMap;
   color: string; count: number; children: React.ReactNode;
-  C: any; isDark: boolean;
+  C: any;
 }) {
   return (
     <View style={styles.section}>
@@ -443,4 +447,3 @@ function Section({ title, icon, color, count, children, C, isDark }: {
     </View>
   );
 }
-

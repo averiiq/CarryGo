@@ -1,53 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
-import { storageGet, storageSet } from '@/lib/secure-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SAFETY_KEY_PREFIX = 'safety_agreed_';
+const SAFETY_KEY_PREFIX = 'CARRYGO_SAFETY_AGREED_';
 
-export function useSafetyAgreement(userId?: string): {
-  hasAgreed: boolean;
-  isLoading: boolean;
-  markAgreed: () => Promise<void>;
-} {
+export function useSafetyAgreement(userId: string | undefined) {
   const [hasAgreed, setHasAgreed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const storageKey = userId ? `${SAFETY_KEY_PREFIX}${userId}` : null;
 
   useEffect(() => {
-    if (!userId) {
-      setIsLoading(false);
-      return;
-    }
+    if (!storageKey) return;
+    AsyncStorage.getItem(storageKey).then((val) => {
+      if (val === 'true') setHasAgreed(true);
+    });
+  }, [storageKey]);
 
-    let cancelled = false;
-
-    async function check() {
-      try {
-        const value = await storageGet<string>(`${SAFETY_KEY_PREFIX}${userId}`);
-        if (!cancelled) {
-          setHasAgreed(value === 'true');
-        }
-      } catch {
-        if (!cancelled) {
-          setHasAgreed(false);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    check();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  const markAgreed = useCallback(async () => {
-    if (!userId) return;
-    await storageSet(`${SAFETY_KEY_PREFIX}${userId}`, 'true');
+  const markAgreed = useCallback(() => {
+    if (!storageKey) return;
     setHasAgreed(true);
-  }, [userId]);
+    AsyncStorage.setItem(storageKey, 'true');
+  }, [storageKey]);
 
-  return { hasAgreed, isLoading, markAgreed };
+  return { hasAgreed, markAgreed };
 }

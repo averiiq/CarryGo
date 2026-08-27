@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,17 +9,21 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { Button, Input } from '@/components';
 import { CitySearchField } from '@/components/feature/CitySearchField';
 import { WizardContainer } from '@/components/feature/WizardContainer';
-import { formatScheduleDate, SevenDaySchedulePicker } from '@/components/feature/SevenDaySchedulePicker';
+import { formatScheduleDate, SevenDaySchedulePicker, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
+import { ParcelImagePicker } from '@/components/feature/ParcelImagePicker';
 import { useFormDraft } from '@/hooks/useFormDraft';
 import { ParcelCategory } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import { detectCurrentCity } from '@/services/location.service';
+import { uploadParcelImage } from '@/services/storage.service';
 import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateParcelMutation } from '@/features/listings/queries';
 import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
+import { DocumentsIllustration, ElectronicsIllustration, ClothingIllustration, FoodIllustration, MedicineIllustration, OtherIllustration } from '@/components/illustrations';
 
 const STEPS = [
   { label: 'Route' },
@@ -26,14 +31,26 @@ const STEPS = [
   { label: 'Review' },
 ];
 
+const CATEGORY_ILLUSTRATIONS: Record<ParcelCategory, React.FC<{ size?: number; color?: string; active?: boolean }>> = {
+  documents: DocumentsIllustration,
+  electronics: ElectronicsIllustration,
+  clothing: ClothingIllustration,
+  food: FoodIllustration,
+  medicine: MedicineIllustration,
+  other: OtherIllustration,
+};
+
 const CATEGORIES: { type: ParcelCategory; label: string; icon: keyof typeof MaterialIcons.glyphMap; color: string }[] = [
-  { type: 'documents', label: 'Documents', icon: 'description', color: '#8B5CF6' },
-  { type: 'electronics', label: 'Electronics', icon: 'devices', color: '#06B6D4' },
-  { type: 'clothing', label: 'Clothing', icon: 'checkroom', color: '#F59E0B' },
-  { type: 'food', label: 'Food', icon: 'restaurant', color: '#22C55E' },
-  { type: 'medicine', label: 'Medicine', icon: 'local-pharmacy', color: '#EF4444' },
-  { type: 'other', label: 'Other', icon: 'inventory-2', color: '#4F8EF7' },
+  { type: 'documents', label: 'Documents', icon: 'description', color: '#6B7280' },
+  { type: 'electronics', label: 'Electronics', icon: 'devices', color: '#0F766E' },
+  { type: 'clothing', label: 'Clothing', icon: 'checkroom', color: '#64748B' },
+  { type: 'food', label: 'Food', icon: 'restaurant', color: '#EA580C' },
+  { type: 'medicine', label: 'Medicine', icon: 'local-pharmacy', color: '#16A34A' },
+  { type: 'other', label: 'Other', icon: 'inventory-2', color: '#4B5563' },
 ];
+
+const WEIGHT_PRESETS = ['0.5', '1', '2', '5'];
+const OFFER_PRESETS = ['100', '200', '500', '1000'];
 
 type ParcelDraft = {
   fromCity: string;
@@ -43,11 +60,16 @@ type ParcelDraft = {
   description: string;
   weight: string;
   priceOffer: string;
+  images: string[];
 };
 
 const EMPTY_DRAFT: ParcelDraft = {
-  fromCity: '', toCity: '', deliveryDate: '', category: 'documents', description: '', weight: '', priceOffer: '',
+  fromCity: '', toCity: '', deliveryDate: '', category: 'documents', description: '', weight: '', priceOffer: '', images: [],
 };
+
+function normalizeCity(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
 
 export default function CreateParcelScreen() {
   const { user } = useAuth();
@@ -63,6 +85,9 @@ export default function CreateParcelScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showKyc, setShowKyc] = useState(false);
   const [showSafety, setShowSafety] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
+  const [locationHint, setLocationHint] = useState<string | null>(null);
 
   const { hasAgreed: hasSafetyAgreed, markAgreed: markSafetyAgreed } = useSafetyAgreement(user?.id);
 
@@ -77,38 +102,85 @@ export default function CreateParcelScreen() {
     });
   };
 
-  const selectedCategory = CATEGORIES.find((c) => c.type === form.category);
+  const prepareDraft = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const prepared: ParcelDraft = {
+      ...form,
+      fromCity: normalizeCity(form.fromCity),
+      toCity: normalizeCity(form.toCity),
+      deliveryDate: form.deliveryDate || toLocalDateKey(tomorrow),
+      description: form.description.trim(),
+      weight: form.weight.trim(),
+      priceOffer: form.priceOffer.trim(),
+    };
+
+    if (
+      prepared.fromCity !== form.fromCity ||
+      prepared.toCity !== form.toCity ||
+      prepared.deliveryDate !== form.deliveryDate ||
+      prepared.description !== form.description ||
+      prepared.weight !== form.weight ||
+      prepared.priceOffer !== form.priceOffer
+    ) {
+      setForm(prepared);
+    }
+
+    return prepared;
+  };
+
+  const validateRouteStep = (draft: ParcelDraft) => {
+    const errors: Record<string, string> = {};
+    if (!draft.fromCity) errors.fromCity = 'Select origin city';
+    if (!draft.toCity) errors.toCity = 'Select destination city';
+    if (draft.fromCity && draft.toCity && draft.fromCity.toLowerCase() === draft.toCity.toLowerCase()) {
+      errors.toCity = 'Must differ from origin';
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      Haptic.error();
+      return false;
+    }
+    return true;
+  };
+
+  const validateDetailsStep = (draft: ParcelDraft) => {
+    const errors: Record<string, string> = {};
+    if (draft.images.length < 1) errors.images = 'Add at least 1 parcel photo';
+    const parcelWeight = Number(draft.weight);
+    const offerAmount = Number(draft.priceOffer);
+    if (!draft.weight) errors.weight = 'Enter weight';
+    else if (!Number.isFinite(parcelWeight) || parcelWeight <= 0 || parcelWeight > 100) errors.weight = '0.1 - 100 kg';
+    if (!draft.priceOffer) errors.priceOffer = 'Enter price offer';
+    else if (!Number.isFinite(offerAmount) || offerAmount < 1 || offerAmount > 100000) errors.priceOffer = 'Rs 1 - Rs 1,00,000';
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      Haptic.error();
+      return false;
+    }
+    return true;
+  };
+
+  const canMoveToStep = (targetStep: number) => {
+    const prepared = prepareDraft();
+    for (let checkStep = step; checkStep < targetStep; checkStep++) {
+      if (checkStep === 0 && !validateRouteStep(prepared)) {
+        setDirection('backward');
+        setStep(0);
+        return false;
+      }
+      if (checkStep === 1 && !validateDetailsStep(prepared)) {
+        setDirection('backward');
+        setStep(1);
+        return false;
+      }
+    }
+    return true;
+  };
 
   const goNext = () => {
-    if (step === 0) {
-      const errors: Record<string, string> = {};
-      if (!form.fromCity) errors.fromCity = 'Select origin city';
-      if (!form.toCity) errors.toCity = 'Select destination city';
-      if (form.fromCity && form.toCity && form.fromCity === form.toCity) {
-        errors.toCity = 'Must differ from origin';
-      }
-      if (!form.deliveryDate) errors.deliveryDate = 'Select send-by date';
-      if (Object.keys(errors).length > 0) {
-        setFieldErrors(errors);
-        Haptic.error();
-        return;
-      }
-    }
-    if (step === 1) {
-      const errors: Record<string, string> = {};
-      if (!form.description) errors.description = 'Describe your parcel';
-      const parcelWeight = Number(form.weight);
-      const offerAmount = Number(form.priceOffer);
-      if (!form.weight) errors.weight = 'Enter weight';
-      else if (!Number.isFinite(parcelWeight) || parcelWeight <= 0 || parcelWeight > 100) errors.weight = '0.1 – 100 kg';
-      if (!form.priceOffer) errors.priceOffer = 'Enter price offer';
-      else if (!Number.isFinite(offerAmount) || offerAmount < 1 || offerAmount > 100000) errors.priceOffer = '₹1 – ₹1,00,000';
-      if (Object.keys(errors).length > 0) {
-        setFieldErrors(errors);
-        Haptic.error();
-        return;
-      }
-    }
+    if (!canMoveToStep(Math.min(step + 1, 2))) return;
     setFieldErrors({});
     setDirection('forward');
     Haptic.tap();
@@ -122,12 +194,44 @@ export default function CreateParcelScreen() {
   };
 
   const handleStepPress = (index: number) => {
+    if (index === step) return;
+    if (index > step && !canMoveToStep(index)) return;
     setDirection(index < step ? 'backward' : 'forward');
     setStep(index);
   };
 
+  const handleUseCurrentLocation = async () => {
+    if (isDetectingCurrentLocation) return;
+    Haptic.tap();
+    setLocationHint(null);
+    setIsDetectingCurrentLocation(true);
+    const { data, error } = await detectCurrentCity();
+    setIsDetectingCurrentLocation(false);
+
+    if (error || !data) {
+      Haptic.warning();
+      setLocationHint(error || 'Could not detect your current city.');
+      return;
+    }
+
+    updateField('fromCity', data);
+    setLocationHint(`Using ${data} as your pickup city.`);
+    Haptic.success();
+  };
+
   const handleSubmit = async () => {
-    if (createParcelMutation.isPending) return;
+    if (createParcelMutation.isPending || isSubmitting) return;
+    const prepared = prepareDraft();
+    if (!validateRouteStep(prepared)) {
+      setDirection('backward');
+      setStep(0);
+      return;
+    }
+    if (!validateDetailsStep(prepared)) {
+      setDirection('backward');
+      setStep(1);
+      return;
+    }
     if (!user) {
       Haptic.warning();
       showAlert('Sign In Required', 'Please sign in before listing a parcel.', [
@@ -154,27 +258,47 @@ export default function CreateParcelScreen() {
       ]);
       return;
     }
+    setFieldErrors({});
+    setIsSubmitting(true);
     Haptic.confirm();
     try {
+      const categoryLabel = CATEGORIES.find((entry) => entry.type === prepared.category)?.label ?? 'Parcel';
+      const fallbackDescription = `${categoryLabel} parcel${prepared.weight ? ` (${prepared.weight}kg)` : ''}`;
+      const parcelDescription = prepared.description || fallbackDescription;
+
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < prepared.images.length; i++) {
+        const { data, error: uploadErr } = await uploadParcelImage(
+          prepared.images[i],
+          user.id,
+          `draft_${Date.now()}_${i}`
+        );
+        if (uploadErr || !data) {
+          throw new Error(uploadErr || `Failed to upload image ${i + 1}`);
+        }
+        uploadedUrls.push(data.cdnUrl);
+      }
+
       const result = await createParcelMutation.mutateAsync({
         userId: user.id,
         userName: user.name || 'User',
-        fromCity: form.fromCity,
-        toCity: form.toCity,
-        category: form.category,
-        description: form.description,
-        deliveryDate: form.deliveryDate,
-        weight: Number(form.weight),
-        priceOffer: Number(form.priceOffer),
+        fromCity: prepared.fromCity,
+        toCity: prepared.toCity,
+        category: prepared.category,
+        description: parcelDescription,
+        deliveryDate: prepared.deliveryDate,
+        weight: Number(prepared.weight),
+        priceOffer: Number(prepared.priceOffer),
         status: 'open',
+        imageUris: uploadedUrls,
       });
       await notifyRouteSubscribers({
         listingType: 'parcel',
         listingId: result.id,
-        fromCity: form.fromCity,
-        toCity: form.toCity,
+        fromCity: prepared.fromCity,
+        toCity: prepared.toCity,
         title: 'New Parcel on Your Route!',
-        body: `${user.name || 'Someone'} needs delivery from ${form.fromCity} to ${form.toCity} by ${formatScheduleDate(form.deliveryDate)}.`,
+        body: `${user.name || 'Someone'} needs delivery from ${prepared.fromCity} to ${prepared.toCity} by ${formatScheduleDate(prepared.deliveryDate)}.`,
       });
       clearDraft();
       Haptic.success();
@@ -185,6 +309,8 @@ export default function CreateParcelScreen() {
         'Parcel Not Listed',
         error instanceof Error ? error.message : 'Failed to list parcel. Please try again.',
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -221,7 +347,18 @@ export default function CreateParcelScreen() {
         onStepPress={handleStepPress}
         direction={direction}
       >
-        {step === 0 && <StepRoute form={form} updateField={updateField} fieldErrors={fieldErrors} C={C} onDatePress={() => setShowDatePicker(true)} />}
+        {step === 0 && (
+          <StepRoute
+            form={form}
+            updateField={updateField}
+            fieldErrors={fieldErrors}
+            C={C}
+            onDatePress={() => setShowDatePicker(true)}
+            onUseCurrentLocation={handleUseCurrentLocation}
+            isDetectingCurrentLocation={isDetectingCurrentLocation}
+            locationHint={locationHint}
+          />
+        )}
         {step === 1 && <StepDetails form={form} updateField={updateField} fieldErrors={fieldErrors} C={C} />}
         {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} />}
 
@@ -235,7 +372,7 @@ export default function CreateParcelScreen() {
             <Button
               title="Send Parcel"
               onPress={handleSubmit}
-              loading={createParcelMutation.isPending}
+              loading={createParcelMutation.isPending || isSubmitting}
               fullWidth={step === 0}
               style={step > 0 ? { flex: 2 } : undefined}
               icon={<MaterialIcons name="check" size={18} color="#fff" />}
@@ -247,16 +384,25 @@ export default function CreateParcelScreen() {
   );
 }
 
-function StepRoute({ form, updateField, fieldErrors, C, onDatePress }: {
+function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurrentLocation, isDetectingCurrentLocation, locationHint }: {
   form: ParcelDraft;
   updateField: <K extends keyof ParcelDraft>(key: K, value: ParcelDraft[K]) => void;
   fieldErrors: Record<string, string>;
   C: any;
   onDatePress: () => void;
+  onUseCurrentLocation: () => void;
+  isDetectingCurrentLocation: boolean;
+  locationHint: string | null;
 }) {
   return (
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where's it going?</Text>
+      <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where&apos;s it going?</Text>
+      <StepHero
+        title='Share a secure parcel route'
+        subtitle='A clear origin, destination, and handover date helps trusted travellers match faster.'
+        image={require('@/assets/images/onboarding-1.webp')}
+        C={C}
+      />
       <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
         Set the pickup and delivery cities
       </Text>
@@ -269,6 +415,8 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress }: {
           dotColor={C.success}
           error={fieldErrors.fromCity}
           placeholder="Pickup city..."
+          onUseCurrentLocation={onUseCurrentLocation}
+          isDetectingCurrentLocation={isDetectingCurrentLocation}
         />
         <CitySearchField
           label="To"
@@ -278,6 +426,11 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress }: {
           error={fieldErrors.toCity}
           placeholder="Delivery city..."
         />
+        {locationHint ? (
+          <Text style={[styles.locationHint, { color: locationHint.startsWith('Using ') ? C.success : C.textMuted }]}>
+            {locationHint}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.fieldGroup}>
@@ -320,6 +473,12 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
 }) {
   return (
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false}>
+      <StepHero
+        title='Add parcel essentials'
+        subtitle='Category, weight, and photos reduce confusion and improve acceptance quality.'
+        image={require('@/assets/images/onboarding-2.webp')}
+        C={C}
+      />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Parcel details</Text>
       <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
         What are you sending and how much will you pay?
@@ -328,27 +487,35 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
       <View style={styles.fieldGroup}>
         <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Category</Text>
         <View style={styles.categoryGrid}>
-          {CATEGORIES.map((cat) => (
-            <Pressable
-              key={cat.type}
-              style={({ pressed }) => [
-                styles.categoryCard,
-                { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-                form.category === cat.type && { backgroundColor: cat.color + '14', borderColor: cat.color },
-                pressed && { transform: [{ scale: 0.96 }] },
-              ]}
-              onPress={() => { Haptic.select(); updateField('category', cat.type); }}
-            >
-              <View style={[styles.categoryIconBox, { backgroundColor: form.category === cat.type ? cat.color + '20' : C.surfaceElevated }]}>
-                <MaterialIcons name={cat.icon} size={22} color={form.category === cat.type ? cat.color : C.textMuted} />
-              </View>
-              <Text style={[styles.categoryLabel, { color: form.category === cat.type ? cat.color : C.textSecondary }]}>
-                {cat.label}
-              </Text>
-            </Pressable>
-          ))}
+          {CATEGORIES.map((cat) => {
+            const Illustration = CATEGORY_ILLUSTRATIONS[cat.type];
+            const isActive = form.category === cat.type;
+            return (
+              <Pressable
+                key={cat.type}
+                style={({ pressed }) => [
+                  styles.categoryCard,
+                  { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+                  isActive && { backgroundColor: cat.color + '14', borderColor: cat.color },
+                  pressed && { transform: [{ scale: 0.96 }] },
+                ]}
+                onPress={() => { Haptic.select(); updateField('category', cat.type); }}
+              >
+                <Illustration size={40} color={isActive ? cat.color : C.textMuted} active={isActive} />
+                <Text style={[styles.categoryLabel, { color: isActive ? cat.color : C.textSecondary }]}>
+                  {cat.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
+
+      <ParcelImagePicker
+        images={form.images}
+        onImagesChange={(imgs) => updateField('images', imgs)}
+        error={fieldErrors.images}
+      />
 
       <View style={styles.fieldGroup}>
         <Input
@@ -377,7 +544,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
             error={fieldErrors.weight}
           />
           <Input
-            label="Price Offer (₹)"
+            label="Price Offer (Rs)"
             placeholder="e.g. 150"
             value={form.priceOffer}
             onChangeText={(v) => updateField('priceOffer', v)}
@@ -385,6 +552,36 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
             containerStyle={{ flex: 1 }}
             error={fieldErrors.priceOffer}
           />
+        </View>
+        <View style={styles.presetRow}>
+          {WEIGHT_PRESETS.map((value) => (
+            <Pressable
+              key={'weight-' + value}
+              style={({ pressed }) => [
+                styles.presetChip,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                form.weight === value && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => { Haptic.select(); updateField('weight', value); }}
+            >
+              <Text style={[styles.presetText, { color: form.weight === value ? C.primary : C.textSecondary }]}>{value} kg</Text>
+            </Pressable>
+          ))}
+          {OFFER_PRESETS.map((value) => (
+            <Pressable
+              key={'offer-' + value}
+              style={({ pressed }) => [
+                styles.presetChip,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                form.priceOffer === value && { backgroundColor: C.successSubtle, borderColor: C.success + '66' },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => { Haptic.select(); updateField('priceOffer', value); }}
+            >
+              <Text style={[styles.presetText, { color: form.priceOffer === value ? C.success : C.textSecondary }]}>Rs {value}</Text>
+            </Pressable>
+          ))}
         </View>
       </View>
     </ScrollView>
@@ -400,6 +597,12 @@ function StepReview({ form, C, onEdit }: {
 
   return (
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false}>
+      <StepHero
+        title='Review and send confidently'
+        subtitle='Your summary sets expectations before you connect with travellers on your route.'
+        image={require('@/assets/images/onboarding-3.webp')}
+        C={C}
+      />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Review your parcel</Text>
       <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
         Confirm the details before listing
@@ -438,6 +641,15 @@ function StepReview({ form, C, onEdit }: {
             <MaterialIcons name="edit" size={16} color={C.primary} />
           </Pressable>
         </View>
+        {form.images.length > 0 && (
+          <View style={styles.reviewImagesRow}>
+            {form.images.map((uri, i) => (
+              <View key={i} style={[styles.reviewImageThumb, { borderColor: C.surfaceBorder }]}>
+                <Image source={{ uri }} style={styles.reviewImageImg} contentFit="cover" />
+              </View>
+            ))}
+          </View>
+        )}
         <View style={styles.reviewDetailsGrid}>
           <View style={styles.reviewDetailItem}>
             <View style={[styles.reviewDetailIcon, { backgroundColor: selectedCategory ? selectedCategory.color + '20' : C.surfaceElevated }]}>
@@ -458,7 +670,7 @@ function StepReview({ form, C, onEdit }: {
               <MaterialIcons name="currency-rupee" size={20} color={C.success} />
             </View>
             <Text style={[styles.reviewDetailLabel, { color: C.textMuted }]}>Offer</Text>
-            <Text style={[styles.reviewDetailValue, { color: C.textPrimary }]}>₹{form.priceOffer}</Text>
+            <Text style={[styles.reviewDetailValue, { color: C.textPrimary }]}>Rs {form.priceOffer}</Text>
           </View>
         </View>
         {form.description ? (
@@ -473,29 +685,94 @@ function StepReview({ form, C, onEdit }: {
       <View style={[styles.infoBox, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
         <MaterialIcons name="info-outline" size={16} color={C.primary} />
         <Text style={[styles.infoText, { color: C.textSecondary }]}>
-          After listing, you'll see travellers on your route. Tap Send Request to book one.
+          After listing, you&apos;ll see travellers on your route. Tap Send Request to book one.
         </Text>
       </View>
     </ScrollView>
   );
 }
 
+function StepHero({
+  title,
+  subtitle,
+  image,
+  C,
+}: {
+  title: string;
+  subtitle: string;
+  image: number;
+  C: any;
+}) {
+  return (
+    <View style={[styles.heroCard, { borderColor: C.surfaceBorder }]}>
+      <Image source={image} style={styles.heroImage} contentFit='cover' transition={180} />
+      <View style={[styles.heroOverlay, { backgroundColor: C.overlayLight }]} />
+      <View style={[styles.heroGlow, { backgroundColor: C.primarySubtle }]} />
+      <Text style={[styles.heroTitle, { color: C.textPrimary }]}>{title}</Text>
+      <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>{subtitle}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   stepContent: { flex: 1 },
-  stepInner: { gap: Spacing.lg, paddingBottom: 100 },
+  stepInner: { gap: Spacing.lg, paddingBottom: 124 },
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    padding: Spacing.md,
+    minHeight: 136,
+    justifyContent: 'flex-end',
+    position: 'relative',
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    opacity: 0.55,
+  },
+  heroTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  heroSubtitle: {
+    marginTop: 4,
+    fontSize: FontSize.sm,
+    lineHeight: 19,
+  },
   stepTitle: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold },
   stepSubtitle: { fontSize: FontSize.md, marginTop: -Spacing.sm },
 
   fieldGroup: { gap: Spacing.sm },
   fieldLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },
+  locationHint: { fontSize: FontSize.xs, marginLeft: 2 },
   row: { flexDirection: 'row', gap: Spacing.md },
+  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  presetChip: {
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 6,
+  },
+  presetText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   charCount: { fontSize: FontSize.xs, textAlign: 'right', marginTop: -4 },
 
   scheduleBtn: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    borderRadius: BorderRadius.lg, borderWidth: 1.5, padding: Spacing.md, minHeight: 68,
+    borderRadius: BorderRadius.xl, borderWidth: 1.2, padding: Spacing.md, minHeight: 72,
   },
-  scheduleIconBox: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  scheduleIconBox: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   scheduleDateText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   scheduleHintText: { fontSize: FontSize.sm, marginTop: 2 },
   schedulePlaceholder: { fontSize: FontSize.md },
@@ -503,22 +780,22 @@ const styles = StyleSheet.create({
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   categoryCard: {
     alignItems: 'center', gap: 8,
-    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg, borderWidth: 1.5,
-    width: '30%', flexGrow: 1,
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.md + 2,
+    borderRadius: BorderRadius.xl, borderWidth: 1.2,
+    width: '31%', flexGrow: 1,
   },
-  categoryIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  categoryIconBox: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   categoryLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
 
   reviewCard: {
-    borderRadius: BorderRadius.lg, borderWidth: 1, padding: Spacing.md, gap: Spacing.sm,
+    borderRadius: BorderRadius.xl, borderWidth: 1.2, padding: Spacing.lg, gap: Spacing.sm,
   },
   reviewHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
   },
   reviewLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, letterSpacing: 0.8 },
   reviewRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  reviewDot: { width: 10, height: 10, borderRadius: 5 },
+  reviewDot: { width: 12, height: 12, borderRadius: 6 },
   reviewValue: { fontSize: FontSize.lg, fontWeight: FontWeight.semibold },
   reviewConnector: { paddingLeft: 4, height: 16, justifyContent: 'center' },
   reviewLine: { width: 2, flex: 1, marginLeft: 4, borderRadius: 1 },
@@ -527,11 +804,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, paddingTop: Spacing.sm, marginTop: 4,
   },
   reviewMetaText: { fontSize: FontSize.sm },
+  reviewImagesRow: {
+    flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm,
+  },
+  reviewImageThumb: {
+    flex: 1, aspectRatio: 1, borderRadius: BorderRadius.lg, borderWidth: 1.2, overflow: 'hidden',
+  },
+  reviewImageImg: { width: '100%', height: '100%' },
   reviewDetailsGrid: {
     flexDirection: 'row', gap: Spacing.md, marginTop: 4,
   },
   reviewDetailItem: { flex: 1, alignItems: 'center', gap: 6 },
-  reviewDetailIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  reviewDetailIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   reviewDetailLabel: { fontSize: FontSize.xs },
   reviewDetailValue: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   descriptionBox: {
@@ -541,7 +825,7 @@ const styles = StyleSheet.create({
 
   infoBox: {
     flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start',
-    borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1,
+    borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1.2,
   },
   infoText: { flex: 1, fontSize: FontSize.sm, lineHeight: 20 },
 
@@ -549,5 +833,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: Spacing.md,
     position: 'absolute', bottom: 0, left: 0, right: 0,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

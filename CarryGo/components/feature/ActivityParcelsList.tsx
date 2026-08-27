@@ -11,8 +11,8 @@ const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   food: 'restaurant', medicine: 'local-pharmacy', other: 'inventory-2',
 };
 const CATEGORY_COLORS: Record<string, string> = {
-  documents: '#8B5CF6', electronics: '#06B6D4', clothing: '#F59E0B',
-  food: '#22C55E', medicine: '#EF4444', other: '#7C3AED',
+  documents: '#71717A', electronics: '#52525B', clothing: '#3F3F46',
+  food: '#27272A', medicine: '#18181B', other: '#71717A',
 };
 
 function ParcelRow({ parcel, requests, onPress, onDelete, C }: {
@@ -31,7 +31,7 @@ function ParcelRow({ parcel, requests, onPress, onDelete, C }: {
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: keyof typeof MaterialIcons.glyphMap }> = {
     open:       { label: 'Open',       color: C.success, bg: C.successSubtle,   icon: 'check-circle' },
     matched:    { label: 'Matched',    color: C.primary, bg: C.primarySubtle,    icon: 'handshake' },
-    in_transit: { label: 'In Transit', color: '#06B6D4', bg: 'rgba(6,182,212,0.1)', icon: 'local-shipping' },
+    in_transit: { label: 'In Transit', color: C.textSecondary, bg: C.primarySubtle, icon: 'local-shipping' },
     delivered:  { label: 'Delivered',  color: C.info,    bg: C.infoSubtle,       icon: 'verified' },
     failed:     { label: 'Failed',     color: C.error,   bg: C.errorSubtle,      icon: 'error' },
   };
@@ -53,7 +53,7 @@ function ParcelRow({ parcel, requests, onPress, onDelete, C }: {
           <View style={{ flex: 1 }}>
             <Text style={[styles.rowRoute, { color: C.textPrimary }]}>{parcel.fromCity} → {parcel.toCity}</Text>
             <Text style={[styles.rowMeta, { color: C.textSecondary }]} numberOfLines={1}>
-              {parcel.description} · {parcel.weight}kg · ₹{parcel.priceOffer}
+              {parcel.description} · {parcel.weight}kg · Rs {parcel.priceOffer}
             </Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
@@ -114,7 +114,7 @@ function EmptyActivity({ onCta, C }: { onCta: () => void; C: ThemeColors }) {
       Animated.timing(bounceAnim, { toValue: 1.08, duration: 800, useNativeDriver: true }),
       Animated.timing(bounceAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
     ])).start();
-  }, []);
+  }, [bounceAnim]);
   return (
     <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
       <Animated.View style={[styles.emptyIcon, { backgroundColor: C.primarySubtle, transform: [{ scale: bounceAnim }] }]}>

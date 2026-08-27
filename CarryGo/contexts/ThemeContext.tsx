@@ -14,20 +14,20 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const THEME_KEY = 'carrygo_theme_mode';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('dark');
+  const [mode, setMode] = useState<ThemeMode>('light');
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then(saved => {
-      if (saved === 'light' || saved === 'dark') setMode(saved);
+      if (saved !== 'light') {
+        AsyncStorage.setItem(THEME_KEY, 'light');
+      }
+      setMode('light');
     });
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setMode(prev => {
-      const next: ThemeMode = prev === 'dark' ? 'light' : 'dark';
-      AsyncStorage.setItem(THEME_KEY, next);
-      return next;
-    });
+    setMode('light');
+    AsyncStorage.setItem(THEME_KEY, 'light');
   }, []);
 
   const value = useMemo(() => ({

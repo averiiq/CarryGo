@@ -3,6 +3,8 @@ import { Trip } from '@/types';
 import type { Database } from '@/types/database';
 import { sanitizeLikeInput } from '@/lib/sanitize';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
+import { isAwsBackendEnabled } from '@/lib/backend/provider';
+import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
 
 type TripRow = Database['public']['Tables']['trips']['Row'];
 
@@ -24,19 +26,54 @@ function mapRow(row: TripRow): Trip {
   };
 }
 
-export async function fetchTrips(filters?: { fromCity?: string; toCity?: string; limit?: number; offset?: number }) {
+export async function fetchTrips(filters?: { fromCity?: string; toCity?: string; userCity?: string; limit?: number; offset?: number }) {
+  if (isAwsBackendEnabled()) {
+    try {
+      const limit = filters?.limit ?? 50;
+      const offset = filters?.offset ?? 0;
+      const query = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+      });
+
+      if (filters?.fromCity) query.set('fromCity', filters.fromCity);
+      if (filters?.toCity) query.set('toCity', filters.toCity);
+      if (filters?.userCity) query.set('userCity', filters.userCity);
+
+      const response = await awsApiRequest<{ data: Trip[]; total: number }>(`/trips?${query.toString()}`);
+      return { data: response.data, error: null, total: response.total };
+    } catch (error) {
+      const message = error instanceof AwsApiError ? error.message : 'Failed to fetch trips';
+      return { data: null, error: message, total: 0 };
+    }
+  }
+
   const sb = getSupabaseClient();
   const limit = filters?.limit ?? 50;
   const offset = filters?.offset ?? 0;
   let query = sb.from('trips').select('*', { count: 'exact' }).eq('status', 'active').order('created_at', { ascending: false }).range(offset, offset + limit - 1);
   if (filters?.fromCity) query = query.ilike('from_city', `%${sanitizeLikeInput(filters.fromCity)}%`);
   if (filters?.toCity) query = query.ilike('to_city', `%${sanitizeLikeInput(filters.toCity)}%`);
+  if (filters?.userCity && !filters.fromCity && !filters.toCity) {
+    const city = sanitizeLikeInput(filters.userCity);
+    query = query.or(`from_city.ilike.%${city}%,to_city.ilike.%${city}%`);
+  }
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message, total: 0 };
   return { data: (data || []).map(mapRow), error: null, total: count ?? 0 };
 }
 
 export async function fetchTripById(tripId: string) {
+  if (isAwsBackendEnabled()) {
+    try {
+      const response = await awsApiRequest<{ data: Trip }>(`/trips/${tripId}`);
+      return { data: response.data, error: null };
+    } catch (error) {
+      const message = error instanceof AwsApiError ? error.message : 'Failed to fetch trip';
+      return { data: null, error: message };
+    }
+  }
+
   const sb = getSupabaseClient();
   const { data, error } = await sb.from('trips').select('*').eq('id', tripId).single();
   if (error) return { data: null, error: error.message };
@@ -46,15 +83,28 @@ export async function fetchTripById(tripId: string) {
 export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
   if (!trip.userId) return { data: null, error: 'User ID is required.' };
 
-  const rateCheck = await enforceRateLimit(trip.userId, 'create_trip');
-  if (!rateCheck.allowed) {
-    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
-  }
-
   if (!trip.fromCity || !trip.toCity) return { data: null, error: 'Origin and destination cities are required.' };
   if (!trip.date) return { data: null, error: 'Travel date is required.' };
   if (trip.availableCapacity <= 0) return { data: null, error: 'Available capacity must be greater than zero.' };
   if (trip.pricePerKg < 0) return { data: null, error: 'Price per kg cannot be negative.' };
+
+  if (isAwsBackendEnabled()) {
+    try {
+      const response = await awsApiRequest<{ data: Trip }>('/trips', {
+        method: 'POST',
+        body: trip,
+      });
+      return { data: response.data, error: null };
+    } catch (error) {
+      const message = error instanceof AwsApiError ? error.message : 'Failed to create trip';
+      return { data: null, error: message };
+    }
+  }
+
+  const rateCheck = await enforceRateLimit(trip.userId, 'create_trip');
+  if (!rateCheck.allowed) {
+    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
+  }
 
   const sb = getSupabaseClient();
   const { data, error } = await sb.from('trips').insert({
@@ -75,6 +125,19 @@ export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
 }
 
 export async function updateTripStatus(tripId: string, status: Trip['status'], userId: string) {
+  if (isAwsBackendEnabled()) {
+    try {
+      await awsApiRequest<{ error: null }>(`/trips/${tripId}/status`, {
+        method: 'PATCH',
+        body: { status, userId },
+      });
+      return { error: null };
+    } catch (error) {
+      const message = error instanceof AwsApiError ? error.message : 'Failed to update trip status';
+      return { error: message };
+    }
+  }
+
   const sb = getSupabaseClient();
 
   // Verify ownership before updating

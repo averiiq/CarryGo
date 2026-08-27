@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { ThemeColors } from '@/constants/theme';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { ThemeColors , FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 
 export interface CityDropdownProps {

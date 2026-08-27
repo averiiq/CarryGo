@@ -15,14 +15,6 @@ interface RouteMapViewProps {
   showLegend?: boolean;
 }
 
-const DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#1d2c4d' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8ec3b9' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a3646' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#304a7d' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1626' }] },
-];
-
 export const RouteMapView = React.memo(function RouteMapView({
   trips = [],
   parcels = [],
@@ -30,7 +22,7 @@ export const RouteMapView = React.memo(function RouteMapView({
   height = 300,
   showLegend = true,
 }: RouteMapViewProps) {
-  const { C, isDark } = useThemeColors();
+  const { C } = useThemeColors();
   const { region, markers, polylines, hasData } = useRouteMap(trips, parcels);
   const mapRef = useRef<MapView>(null);
 
@@ -60,7 +52,6 @@ export const RouteMapView = React.memo(function RouteMapView({
         ref={mapRef}
         style={[styles.map, { height }]}
         region={region}
-        customMapStyle={isDark ? DARK_MAP_STYLE : undefined}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         showsUserLocation
         showsMyLocationButton={false}

@@ -25,6 +25,7 @@ export interface User {
   kycStatus: KycStatus;
   fullName?: string;
   role?: UserRole;
+  city?: string;
   profileCompletedAt?: string;
 }
 
@@ -60,6 +61,7 @@ export interface Parcel {
   weight: number;
   priceOffer: number;
   imageUri?: string;
+  imageUris?: string[];
   status: 'open' | 'matched' | 'in_transit' | 'delivered' | 'failed' | 'cancelled';
   createdAt: string;
 }

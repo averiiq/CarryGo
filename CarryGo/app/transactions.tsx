@@ -4,17 +4,17 @@ import {
   Animated, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
-import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchUserPayments } from '@/services/payments.service';
 import { Payment } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { Haptic } from '@/services/haptics.service';
 import { EmptyTransactionsSVG } from '@/components/ui/EmptyState';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 // Group payments by month
 function groupByMonth(payments: Payment[]): { title: string; data: Payment[] }[] {
@@ -28,15 +28,9 @@ function groupByMonth(payments: Payment[]): { title: string; data: Payment[] }[]
   return Object.entries(groups).map(([title, data]) => ({ title, data }));
 }
 
-// Status config
-const STATUS_CONFIG = {
-  locked:   { color: '#F59E0B', bg: 'rgba(245,158,11,0.1)',  icon: 'lock' as const,         label: 'Locked',   desc: 'Legacy pending record' },
-  released: { color: '#22C55E', bg: 'rgba(34,197,94,0.1)',  icon: 'check-circle' as const,  label: 'Released', desc: 'Payment completed' },
-  refunded: { color: '#EF4444', bg: 'rgba(239,68,68,0.1)',  icon: 'refresh' as const,        label: 'Refunded', desc: 'Returned to sender' },
-};
-
 // ── Summary Header ───────────────────────────────────────────────────────────
-function SummaryCard({ payments, userId, C }: { payments: Payment[]; userId: string; C: ThemeColors }) {
+function SummaryCard({ payments, userId }: { payments: Payment[]; userId: string }) {
+  const { C, S } = useThemeColors();
   const totalEarned = payments.filter(p => p.status === 'released' && p.travellerId === userId).reduce((s, p) => s + p.amount, 0);
   const totalSpent  = payments.filter(p => p.status === 'released' && p.senderId   === userId).reduce((s, p) => s + p.amount, 0);
   const locked      = payments.filter(p => p.status === 'locked').reduce((s, p) => s + p.amount, 0);
@@ -44,9 +38,9 @@ function SummaryCard({ payments, userId, C }: { payments: Payment[]; userId: str
   const net = totalEarned - totalSpent;
 
   return (
-    <View style={[styles.summaryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+    <View style={[styles.summaryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
       <LinearGradient
-        colors={[C.primary + '12', 'transparent']}
+        colors={[C.primarySubtle, 'transparent']}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       />
@@ -54,37 +48,37 @@ function SummaryCard({ payments, userId, C }: { payments: Payment[]; userId: str
       {/* Net balance */}
       <View style={styles.netRow}>
         <View style={[styles.netIconBox, { backgroundColor: net >= 0 ? C.successSubtle : C.errorSubtle }]}>
-          <MaterialIcons
-            name={net >= 0 ? 'account-balance-wallet' : 'trending-down'}
-            size={22}
+          <Feather
+            name={(net >= 0 ? 'wallet' : 'trending-down') as any}
+            size={18}
             color={net >= 0 ? C.success : C.error}
           />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.netLabel, { color: C.textMuted }]}>Net Balance</Text>
-          <Text style={[styles.netAmount, { color: net >= 0 ? C.success : C.error }]}>
-            {net >= 0 ? '+' : ''}₹{Math.abs(net)}
+          <Text style={[styles.netAmount, { color: C.textPrimary }]}>
+            {net >= 0 ? '+' : '-'}Rs {Math.abs(net)}
           </Text>
         </View>
-        <View style={[styles.txCountBadge, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
-          <Text style={[styles.txCountText, { color: C.primary }]}>{payments.length} tx</Text>
+        <View style={[styles.txCountBadge, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorderLight }]}>
+          <Text style={[styles.txCountText, { color: C.textSecondary }]}>{payments.length} transfers</Text>
         </View>
       </View>
 
       {/* 4-stat grid */}
       <View style={styles.statsGrid}>
         {[
-          { label: 'Earned', amount: totalEarned, icon: 'arrow-downward' as const, color: C.success },
-          { label: 'Spent',  amount: totalSpent,  icon: 'arrow-upward' as const,   color: C.error },
-          { label: 'Locked', amount: locked,       icon: 'lock' as const,           color: '#F59E0B' },
-          { label: 'Refunded', amount: refunded,   icon: 'refresh' as const,        color: C.info },
+          { label: 'Earned', amount: totalEarned, icon: 'arrow-down-left' as const, color: C.success, bg: C.successSubtle },
+          { label: 'Spent',  amount: totalSpent,  icon: 'arrow-up-right' as const,   color: C.error,   bg: C.errorSubtle },
+          { label: 'Locked', amount: locked,       icon: 'lock' as const,           color: C.warning, bg: C.warningSubtle },
+          { label: 'Refunded', amount: refunded,   icon: 'rotate-ccw' as const,        color: C.info,    bg: C.infoSubtle },
         ].map((s, i) => (
-          <View key={i} style={[styles.statBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <View style={[styles.statIconBox, { backgroundColor: s.color + '15' }]}>
-              <MaterialIcons name={s.icon} size={13} color={s.color} />
+          <View key={i} style={[styles.statBox, { backgroundColor: s.bg }]}>
+            <View style={[styles.statIconBox, { backgroundColor: s.color + '12' }]}>
+              <Feather name={s.icon} size={11} color={s.color} />
             </View>
-            <Text style={[styles.statAmount, { color: s.color }]}>₹{s.amount}</Text>
-            <Text style={[styles.statLabel, { color: C.textMuted }]}>{s.label}</Text>
+            <Text style={[styles.statAmount, { color: C.textPrimary }]}>Rs {s.amount}</Text>
+            <Text style={[styles.statLabel, { color: C.textSecondary }]}>{s.label}</Text>
           </View>
         ))}
       </View>
@@ -93,8 +87,14 @@ function SummaryCard({ payments, userId, C }: { payments: Payment[]; userId: str
 }
 
 // ── Transaction Row ──────────────────────────────────────────────────────────
-function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; onPress: () => void; C: ThemeColors }) {
-  const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG.locked;
+function TxRow({ item, userId, onPress }: { item: Payment; userId: string; onPress: () => void }) {
+  const { C, S } = useThemeColors();
+  const statusConfig = {
+    locked:   { color: C.warning, bg: C.warningSubtle,  icon: 'lock' as const,         label: 'Locked',   desc: 'Escrow payment secured' },
+    released: { color: C.success, bg: C.successSubtle,  icon: 'check-circle' as const,  label: 'Released', desc: 'Payment completed' },
+    refunded: { color: C.error,   bg: C.errorSubtle,    icon: 'rotate-ccw' as const,   label: 'Refunded', desc: 'Returned to sender' },
+  };
+  const sc = statusConfig[item.status as keyof typeof statusConfig] || statusConfig.locked;
   const isEarning = item.travellerId === userId;
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -104,7 +104,7 @@ function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; on
   const amountColor = item.status === 'released'
     ? (isEarning ? C.success : C.error)
     : item.status === 'locked'
-    ? '#F59E0B'
+    ? C.warning
     : C.textMuted;
 
   const amountPrefix = item.status === 'released' && isEarning ? '+' : item.status === 'released' && !isEarning ? '-' : '';
@@ -115,6 +115,7 @@ function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; on
         style={({ pressed }) => [
           styles.txRow,
           { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+          S.sm,
           pressed && { backgroundColor: C.surfaceElevated },
         ]}
         onPress={() => { Haptic.tap(); onPress(); }}
@@ -128,7 +129,7 @@ function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; on
           {/* Icon + info */}
           <View style={styles.txMain}>
             <View style={[styles.txIconBox, { backgroundColor: sc.bg }]}>
-              <MaterialIcons name={sc.icon} size={20} color={sc.color} />
+              <Feather name={sc.icon} size={18} color={sc.color} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.txTitle, { color: C.textPrimary }]} numberOfLines={1}>
@@ -143,20 +144,20 @@ function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; on
             {/* Amount + badge */}
             <View style={styles.txRight}>
               <Text style={[styles.txAmount, { color: amountColor }]}>
-                {amountPrefix}₹{item.amount}
+                {amountPrefix}Rs {item.amount}
               </Text>
               <View style={[styles.txStatusBadge, { backgroundColor: sc.bg }]}>
-                <MaterialIcons name={sc.icon} size={10} color={sc.color} />
+                <Feather name={sc.icon} size={10} color={sc.color} />
                 <Text style={[styles.txStatusText, { color: sc.color }]}>{sc.label}</Text>
               </View>
             </View>
           </View>
 
           {/* Escrow desc row */}
-          <View style={[styles.txDescRow, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="account-balance" size={11} color={C.textMuted} />
-            <Text style={[styles.txDesc, { color: C.textMuted }]}>{sc.desc} · Historical data</Text>
-            <MaterialIcons name="chevron-right" size={14} color={C.surfaceBorderLight} />
+          <View style={[styles.txDescRow, { borderTopWidth: 1, borderTopColor: C.surfaceBorder }]}>
+            <Feather name="shield" size={11} color={C.textMuted} />
+            <Text style={[styles.txDesc, { color: C.textMuted }]}>{sc.desc}</Text>
+            <Feather name="chevron-right" size={14} color={C.textMuted} />
           </View>
         </View>
       </Pressable>
@@ -165,26 +166,27 @@ function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; on
 }
 
 // ── Section Header ───────────────────────────────────────────────────────────
-function MonthHeader({ title, payments, userId, C }: {
-  title: string; payments: Payment[]; userId: string; C: ThemeColors;
+function MonthHeader({ title, payments, userId }: {
+  title: string; payments: Payment[]; userId: string;
 }) {
+  const { C } = useThemeColors();
   const monthEarned = payments.filter(p => p.status === 'released' && p.travellerId === userId).reduce((s, p) => s + p.amount, 0);
   const monthSpent  = payments.filter(p => p.status === 'released' && p.senderId === userId).reduce((s, p) => s + p.amount, 0);
 
   return (
     <View style={[styles.monthHeader, { backgroundColor: C.background }]}>
-      <View style={[styles.monthTitleRow, { borderColor: C.surfaceBorder }]}>
-        <View style={[styles.monthDot, { backgroundColor: C.primary }]} />
+      <View style={styles.monthTitleRow}>
+        <View style={[styles.monthDot, { backgroundColor: C.accent }]} />
         <Text style={[styles.monthTitle, { color: C.textSecondary }]}>{title}</Text>
         <View style={styles.monthStats}>
           {monthEarned > 0 ? (
             <View style={[styles.monthStatChip, { backgroundColor: C.successSubtle }]}>
-              <Text style={[styles.monthStatText, { color: C.success }]}>+₹{monthEarned}</Text>
+              <Text style={[styles.monthStatText, { color: C.success }]}>+Rs {monthEarned}</Text>
             </View>
           ) : null}
           {monthSpent > 0 ? (
             <View style={[styles.monthStatChip, { backgroundColor: C.errorSubtle }]}>
-              <Text style={[styles.monthStatText, { color: C.error }]}>-₹{monthSpent}</Text>
+              <Text style={[styles.monthStatText, { color: C.error }]}>-Rs {monthSpent}</Text>
             </View>
           ) : null}
           <View style={[styles.monthCountChip, { backgroundColor: C.surfaceElevated }]}>
@@ -202,15 +204,15 @@ export default function TransactionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
+  const STATUS_CONFIG = {
+    locked:   { color: C.warning, bg: C.warningSubtle,  icon: 'lock' as const },
+    released: { color: C.success, bg: C.successSubtle,  icon: 'check-circle' as const },
+    refunded: { color: C.error,   bg: C.errorSubtle,    icon: 'rotate-ccw' as const },
+  };
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'locked' | 'released' | 'refunded'>('all');
-
-  useEffect(() => {
-    if (FeatureFlags.payments && user) load();
-    else setLoading(false);
-  }, [user]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -219,6 +221,11 @@ export default function TransactionsScreen() {
     setLoading(false);
     setRefreshing(false);
   }, [user]);
+
+  useEffect(() => {
+    if (FeatureFlags.payments && user) void load();
+    else setLoading(false);
+  }, [load, user]);
 
   const handleRefresh = () => {
     if (!FeatureFlags.payments) return;
@@ -242,7 +249,7 @@ export default function TransactionsScreen() {
               onPress={() => router.back()}
               hitSlop={8}
             >
-              <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+              <Feather name="arrow-left" size={20} color={C.textPrimary} />
             </Pressable>
             <View style={{ flex: 1 }}>
               <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Payment Records</Text>
@@ -251,7 +258,7 @@ export default function TransactionsScreen() {
           </View>
         </View>
         <View style={styles.emptyState}>
-          <MaterialIcons name="construction" size={52} color={C.warning} />
+          <Feather name="alert-triangle" size={48} color={C.warning} />
           <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>Payments are not active</Text>
           <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
             {disabledFeatureMessage.payments} No transaction records shown here represent live funds.
@@ -265,19 +272,19 @@ export default function TransactionsScreen() {
     <View style={[styles.container, { backgroundColor: C.background }]}>
       {/* ── Header ─────────────────────────────────────────── */}
       <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
-        <LinearGradient colors={[C.primary + '10', 'transparent']} style={StyleSheet.absoluteFillObject} />
+        <LinearGradient colors={[C.primarySubtle, 'transparent']} style={StyleSheet.absoluteFillObject} />
         <View style={styles.headerRow}>
           <Pressable
             style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]}
             onPress={() => { Haptic.tap(); router.back(); }}
             hitSlop={8}
           >
-            <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+            <Feather name="arrow-left" size={20} color={C.textPrimary} />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Transactions</Text>
             <Text style={[styles.headerSub, { color: C.textMuted }]}>
-              {payments.length} records · ₹{totalEarned} earned · ₹{totalSpent} spent
+              {payments.length} records · Rs {totalEarned} earned · Rs {totalSpent} spent
             </Text>
           </View>
         </View>
@@ -293,18 +300,18 @@ export default function TransactionsScreen() {
                 style={[
                   styles.filterChip,
                   { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  filterStatus === f && { backgroundColor: sc ? sc.bg : C.primarySubtle, borderColor: sc ? sc.color + '66' : C.primary + '66' },
+                  filterStatus === f && { backgroundColor: sc ? sc.bg : C.primarySubtle, borderColor: sc ? sc.color + '44' : C.primary + '44' },
                 ]}
                 onPress={() => { Haptic.select(); setFilterStatus(f); }}
               >
-                {sc ? <MaterialIcons name={sc.icon} size={11} color={filterStatus === f ? sc.color : C.textMuted} /> : null}
+                {sc ? <Feather name={sc.icon} size={11} color={filterStatus === f ? sc.color : C.textMuted} /> : null}
                 <Text style={[
                   styles.filterChipText,
                   { color: filterStatus === f ? (sc ? sc.color : C.primary) : C.textMuted },
                 ]}>
                   {f.charAt(0).toUpperCase() + f.slice(1)}
                 </Text>
-                <View style={[styles.filterChipCount, { backgroundColor: filterStatus === f ? (sc ? sc.color + '25' : C.primarySubtle) : C.surfaceBorder + '80' }]}>
+                <View style={[styles.filterChipCount, { backgroundColor: filterStatus === f ? (sc ? sc.color + '18' : C.primarySubtle) : C.surfaceBorder + '80' }]}>
                   <Text style={[styles.filterChipCountText, { color: filterStatus === f ? (sc ? sc.color : C.primary) : C.textMuted }]}>
                     {count}
                   </Text>
@@ -329,16 +336,15 @@ export default function TransactionsScreen() {
               item={item}
               userId={user?.id || ''}
               onPress={() => router.push({ pathname: '/payment/[id]', params: { id: item.requestId } })}
-              C={C}
             />
           )}
           renderSectionHeader={({ section }) => (
-            <MonthHeader title={section.title} payments={section.data} userId={user?.id || ''} C={C} />
+            <MonthHeader title={section.title} payments={section.data} userId={user?.id || ''} />
           )}
           ListHeaderComponent={
             payments.length > 0 ? (
               <View style={{ paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm }}>
-                <SummaryCard payments={payments} userId={user?.id || ''} C={C} />
+                <SummaryCard payments={payments} userId={user?.id || ''} />
               </View>
             ) : null
           }
@@ -425,7 +431,7 @@ const styles = StyleSheet.create({
   txCountText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   statsGrid: { flexDirection: 'row', gap: Spacing.sm },
   statBox: {
-    flex: 1, borderRadius: BorderRadius.md, borderWidth: 1,
+    flex: 1, borderRadius: BorderRadius.md,
     padding: Spacing.sm, alignItems: 'center', gap: 4,
   },
   statIconBox: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
@@ -436,7 +442,7 @@ const styles = StyleSheet.create({
   monthHeader: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
   monthTitleRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingBottom: Spacing.sm, borderBottomWidth: 1,
+    paddingBottom: Spacing.sm,
   },
   monthDot: { width: 6, height: 6, borderRadius: 3 },
   monthTitle: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.semibold, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -452,7 +458,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden', flexDirection: 'row',
     marginHorizontal: Spacing.md,
   },
-  txAccent: { width: 4 },
+  txAccent: { width: 3, marginVertical: 12, borderRadius: 1.5, marginLeft: 8 },
   txInner: { flex: 1, padding: Spacing.sm + 4, gap: Spacing.sm - 2 },
   txMain: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   txIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -467,8 +473,7 @@ const styles = StyleSheet.create({
   txStatusText: { fontSize: 10, fontWeight: FontWeight.bold },
   txDescRow: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: Spacing.sm, paddingVertical: 6,
-    borderRadius: BorderRadius.sm, borderWidth: 1,
+    paddingHorizontal: Spacing.sm, paddingTop: 10, marginTop: 4,
   },
   txDesc: { flex: 1, fontSize: FontSize.xs },
 

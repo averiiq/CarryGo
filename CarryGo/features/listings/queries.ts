@@ -53,14 +53,14 @@ export function useTripsInfiniteQuery(filters?: { fromCity?: string; toCity?: st
   });
 }
 
-export function useTripsQuery(enabled = true) {
+export function useTripsQuery(enabled = true, userCity?: string) {
   return useInfiniteQuery<PaginatedResult<Trip>>({
-    queryKey: queryKeys.listings.trips(),
+    queryKey: queryKeys.listings.trips(userCity ? { userCity } : undefined),
     enabled,
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       const offset = pageParam as number;
-      const { data, error, total } = await fetchTrips({ limit: PAGE_SIZE, offset });
+      const { data, error, total } = await fetchTrips({ userCity, limit: PAGE_SIZE, offset });
       if (error) throw serviceError(error, 'Failed to load trips');
       const items = data ?? [];
       const nextOffset = offset + items.length < total ? offset + items.length : null;
@@ -108,14 +108,14 @@ export function useParcelsInfiniteQuery(filters?: { fromCity?: string; toCity?: 
   });
 }
 
-export function useParcelsQuery(enabled = true) {
+export function useParcelsQuery(enabled = true, userCity?: string) {
   return useInfiniteQuery<PaginatedResult<Parcel>>({
-    queryKey: queryKeys.listings.parcels(),
+    queryKey: queryKeys.listings.parcels(userCity ? { userCity } : undefined),
     enabled,
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       const offset = pageParam as number;
-      const { data, error, total } = await fetchParcels({ limit: PAGE_SIZE, offset });
+      const { data, error, total } = await fetchParcels({ userCity, limit: PAGE_SIZE, offset });
       if (error) throw serviceError(error, 'Failed to load parcels');
       const items = data ?? [];
       const nextOffset = offset + items.length < total ? offset + items.length : null;
@@ -235,59 +235,49 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
     let mounted = true;
     const sb = getSupabaseClient();
 
-    const channelName = cityFilter
-      ? `realtime:listings:${cityFilter}`
-      : 'realtime:listings';
+    const invalidateAll = () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
+    };
 
-    const tripsFilter = cityFilter
-      ? `from_city=eq.${cityFilter}`
-      : undefined;
+    const suffix = cityFilter || 'all';
 
-    const parcelsFilter = cityFilter
-      ? `from_city=eq.${cityFilter}`
-      : undefined;
+    let tripsChannel = sb.channel(`listings-trips:${suffix}`);
+    let parcelsChannel = sb.channel(`listings-parcels:${suffix}`);
 
-    let channel = sb.channel(channelName);
-
-    if (tripsFilter) {
-      channel = channel
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: tripsFilter }, () => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: tripsFilter }, () => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: parcelsFilter }, () => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: parcelsFilter }, () => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
-        });
+    if (cityFilter) {
+      const fromFilter = `from_city=eq.${cityFilter}`;
+      const toFilter = `to_city=eq.${cityFilter}`;
+      tripsChannel = tripsChannel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: fromFilter }, invalidateAll)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: fromFilter }, invalidateAll)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll);
+      parcelsChannel = parcelsChannel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: fromFilter }, invalidateAll)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: toFilter }, invalidateAll)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: fromFilter }, invalidateAll)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: toFilter }, invalidateAll);
     } else {
-      channel = channel
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips' }, () => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips' }, () => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels' }, () => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels' }, () => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
-        });
+      tripsChannel = tripsChannel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips' }, invalidateAll)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips' }, invalidateAll);
+      parcelsChannel = parcelsChannel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels' }, invalidateAll)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels' }, invalidateAll);
     }
 
-    channel.subscribe((status) => {
-      if (!mounted) {
-        void sb.removeChannel(channel);
-      }
+    tripsChannel.subscribe((status) => {
+      if (!mounted) void sb.removeChannel(tripsChannel);
+    });
+    parcelsChannel.subscribe((status) => {
+      if (!mounted) void sb.removeChannel(parcelsChannel);
     });
 
     return () => {
       mounted = false;
-      void sb.removeChannel(channel);
+      void sb.removeChannel(tripsChannel);
+      void sb.removeChannel(parcelsChannel);
     };
   }, [enabled, queryClient, cityFilter]);
 }

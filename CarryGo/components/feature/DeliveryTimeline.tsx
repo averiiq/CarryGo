@@ -1,33 +1,37 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import Reanimated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 export type DeliveryStep = 'awaiting_pickup' | 'picked_up' | 'in_transit' | 'delivered';
+
+export function stepIndex(status: DeliveryStep) {
+  const steps: DeliveryStep[] = ['awaiting_pickup', 'picked_up', 'in_transit', 'delivered'];
+  return steps.indexOf(status);
+}
 
 export const STEPS: {
   key: DeliveryStep;
   label: string;
   sub: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
+  icon: keyof typeof Feather.glyphMap;
   color: string;
 }[] = [
-  { key: 'awaiting_pickup', label: 'Awaiting Pickup', sub: 'Traveller will collect parcel', icon: 'schedule', color: '#F59E0B' },
-  { key: 'picked_up',       label: 'Picked Up',       sub: 'Parcel collected from sender',   icon: 'inventory',       color: '#7C3AED' },
-  { key: 'in_transit',      label: 'In Transit',      sub: 'On the way to destination',      icon: 'local-shipping',  color: '#06B6D4' },
-  { key: 'delivered',       label: 'Delivered',       sub: 'Delivery complete!',              icon: 'celebration',     color: '#22C55E' },
+  { key: 'awaiting_pickup', label: 'Awaiting Pickup', sub: 'Traveller will collect parcel', icon: 'clock' as const, color: '#F59E0B' },
+  { key: 'picked_up',       label: 'Picked Up',       sub: 'Parcel collected from sender',   icon: 'package' as const, color: '#3B82F6' },
+  { key: 'in_transit',      label: 'In Transit',      sub: 'On the way to destination',      icon: 'truck' as const, color: '#4F46E5' },
+  { key: 'delivered',       label: 'Delivered',       sub: 'Delivery complete!',              icon: 'check-circle' as const, color: '#10B981' },
 ];
-
-export function stepIndex(status: DeliveryStep) {
-  return STEPS.findIndex(s => s.key === status);
-}
 
 type DeliveryTimelineProps = {
   step: DeliveryStep;
-  C: ThemeColors;
+  C?: ThemeColors;
 };
 
-export function DeliveryTimeline({ step, C }: DeliveryTimelineProps) {
+export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
+  const { C, S } = useThemeColors();
   const currentIdx = stepIndex(step);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -35,47 +39,61 @@ export function DeliveryTimeline({ step, C }: DeliveryTimelineProps) {
     if (step !== 'delivered') {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.3, duration: 700, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.25, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
         ])
       ).start();
     }
-  }, [step]);
+  }, [pulseAnim, step]);
+
+  const stepsData = STEPS.map(s => {
+    if (s.key === 'awaiting_pickup') return { ...s, color: C.warning, bg: C.warningSubtle };
+    if (s.key === 'picked_up') return { ...s, color: C.info, bg: C.infoSubtle };
+    if (s.key === 'in_transit') return { ...s, color: C.primary, bg: C.primarySubtle };
+    return { ...s, color: C.success, bg: C.successSubtle };
+  });
+
+  const progressStyle = useAnimatedStyle(() => {
+    const targetWidth = ((currentIdx) / (stepsData.length - 1)) * 100;
+    return {
+      width: withSpring(`${targetWidth}%`, { damping: 20, stiffness: 100 }),
+    };
+  }, [currentIdx]);
 
   return (
-    <View style={[styles.timelineCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+    <View style={[styles.timelineCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.sm]}>
       <View style={styles.timelineHeader}>
         <View style={[styles.timelineIconBox, { backgroundColor: C.primarySubtle }]}>
-          <MaterialIcons name="local-shipping" size={18} color={C.primary} />
+          <Feather name="truck" size={16} color={C.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.timelineTitle, { color: C.textPrimary }]}>Delivery Progress</Text>
           <Text style={[styles.timelineSub, { color: C.textMuted }]}>
-            Step {currentIdx + 1} of {STEPS.length}
+            Step {currentIdx + 1} of {stepsData.length}
           </Text>
         </View>
-        <View style={[styles.progressPill, { backgroundColor: STEPS[currentIdx].color + '18', borderColor: STEPS[currentIdx].color + '44' }]}>
-          <Text style={[styles.progressPillText, { color: STEPS[currentIdx].color }]}>
-            {STEPS[currentIdx].label}
+        <View style={[styles.progressPill, { backgroundColor: stepsData[currentIdx].bg, borderColor: stepsData[currentIdx].color + '33' }]}>
+          <Text style={[styles.progressPillText, { color: stepsData[currentIdx].color }]}>
+            {stepsData[currentIdx].label}
           </Text>
         </View>
       </View>
 
       {/* Linear progress bar */}
       <View style={[styles.progressBarBg, { backgroundColor: C.surfaceElevated }]}>
-        <Animated.View
+        <Reanimated.View
           style={[
             styles.progressBarFill,
+            progressStyle,
             {
-              backgroundColor: STEPS[currentIdx].color,
-              width: `${((currentIdx) / (STEPS.length - 1)) * 100}%`,
+              backgroundColor: stepsData[currentIdx].color,
             },
           ]}
         />
       </View>
 
       {/* Step rows */}
-      {STEPS.map((s, idx) => {
+      {stepsData.map((s, idx) => {
         const isDone = idx < currentIdx;
         const isCurrent = idx === currentIdx;
         const isPending = idx > currentIdx;
@@ -87,19 +105,19 @@ export function DeliveryTimeline({ step, C }: DeliveryTimelineProps) {
             <View style={styles.stepLeft}>
               <View style={[
                 styles.stepDot,
-                { backgroundColor: dotColor, borderColor: isPending ? C.surfaceBorder : dotColor },
+                { backgroundColor: isPending ? C.surfaceElevated : dotColor, borderColor: isPending ? C.surfaceBorder : dotColor },
               ]}>
                 {isDone ? (
-                  <MaterialIcons name="check" size={11} color="#fff" />
+                  <Feather name="check" size={10} color="#fff" />
                 ) : isCurrent ? (
                   <Animated.View style={[styles.pulseDot, { transform: [{ scale: pulseAnim }] }]}>
-                    <MaterialIcons name={s.icon} size={11} color="#fff" />
+                    <Feather name={s.icon} size={10} color="#fff" />
                   </Animated.View>
                 ) : (
-                  <View style={[styles.pendingDot, { backgroundColor: C.surfaceBorder }]} />
+                  <View style={[styles.pendingDot, { backgroundColor: C.textMuted + '80' }]} />
                 )}
               </View>
-              {idx < STEPS.length - 1 ? (
+              {idx < stepsData.length - 1 ? (
                 <View style={[
                   styles.stepLine,
                   { backgroundColor: isDone ? s.color : C.surfaceBorderLight },
@@ -108,10 +126,10 @@ export function DeliveryTimeline({ step, C }: DeliveryTimelineProps) {
             </View>
 
             {/* Content */}
-            <View style={[styles.stepContent, isCurrent && [styles.stepContentActive, { backgroundColor: s.color + '08', borderColor: s.color + '25' }]]}>
+            <View style={[styles.stepContent, isCurrent && { backgroundColor: s.color + '05', borderColor: s.color + '22', borderWidth: 1 }]}>
               <View style={styles.stepContentInner}>
-                <View style={[styles.stepIconWrap, { backgroundColor: dotColor + (isPending ? '0' : '18') }]}>
-                  <MaterialIcons name={s.icon} size={15} color={isPending ? C.textMuted : dotColor} />
+                <View style={[styles.stepIconWrap, { backgroundColor: dotColor + (isPending ? '00' : '12') }]}>
+                  <Feather name={s.icon} size={14} color={isPending ? C.textMuted : dotColor} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[
@@ -121,13 +139,13 @@ export function DeliveryTimeline({ step, C }: DeliveryTimelineProps) {
                   ]}>
                     {s.label}
                   </Text>
-                  <Text style={[styles.stepSub, { color: isCurrent ? s.color + 'AA' : C.textMuted }]}>
+                  <Text style={[styles.stepSub, { color: isCurrent ? s.color + 'dd' : C.textMuted }]}>
                     {isCurrent ? 'Current step' : s.sub}
                   </Text>
                 </View>
                 {isDone ? (
-                  <View style={[styles.doneChip, { backgroundColor: s.color + '15' }]}>
-                    <MaterialIcons name="check-circle" size={13} color={s.color} />
+                  <View style={[styles.doneChip, { backgroundColor: s.color + '12' }]}>
+                    <Feather name="check-circle" size={11} color={s.color} />
                     <Text style={[styles.doneChipText, { color: s.color }]}>Done</Text>
                   </View>
                 ) : isCurrent ? (
@@ -171,7 +189,6 @@ const styles = StyleSheet.create({
   pendingDot: { width: 8, height: 8, borderRadius: 4 },
   stepLine: { width: 2, flex: 1, minHeight: 16, marginVertical: 3 },
   stepContent: { flex: 1, borderRadius: BorderRadius.md, marginBottom: 8, padding: 10 },
-  stepContentActive: { borderWidth: 1 },
   stepContentInner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   stepIconWrap: {
     width: 32, height: 32, borderRadius: 10,

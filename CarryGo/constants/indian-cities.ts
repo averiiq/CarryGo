@@ -62,6 +62,17 @@ export const INDIAN_CITIES: readonly IndianCity[] = [
   { name: 'Tiruchirappalli', state: 'Tamil Nadu', lat: 10.7905, lng: 78.7047, tier: 'tier3' },
   { name: 'Hubli', state: 'Karnataka', lat: 15.3647, lng: 75.124, tier: 'tier3' },
   { name: 'Jabalpur', state: 'Madhya Pradesh', lat: 23.1815, lng: 79.9864, tier: 'tier3' },
+  { name: 'Bhiwani', state: 'Haryana', lat: 28.7930, lng: 76.1320, tier: 'tier3' },
+  { name: 'Hisar', state: 'Haryana', lat: 29.1492, lng: 75.7217, tier: 'tier3' },
+  { name: 'Rohtak', state: 'Haryana', lat: 28.8955, lng: 76.6066, tier: 'tier3' },
+  { name: 'Karnal', state: 'Haryana', lat: 29.6857, lng: 76.9905, tier: 'tier3' },
+  { name: 'Panipat', state: 'Haryana', lat: 29.3909, lng: 76.9635, tier: 'tier3' },
+  { name: 'Ambala', state: 'Haryana', lat: 30.3782, lng: 76.7767, tier: 'tier3' },
+  { name: 'Sonipat', state: 'Haryana', lat: 28.9931, lng: 77.0151, tier: 'tier3' },
+  { name: 'Gurugram', state: 'Haryana', lat: 28.4595, lng: 77.0266, tier: 'tier1' },
+  { name: 'Faridabad', state: 'Haryana', lat: 28.4089, lng: 77.3178, tier: 'tier1' },
+  { name: 'Meerut', state: 'Uttar Pradesh', lat: 28.9845, lng: 77.7064, tier: 'tier2' },
+  { name: 'Noida', state: 'Uttar Pradesh', lat: 28.5355, lng: 77.3910, tier: 'tier1' },
 ];
 
 /**

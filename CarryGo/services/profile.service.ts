@@ -3,7 +3,7 @@ import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { User, UserRole } from '@/types';
 
 const PROFILE_SELECT =
-  'id, full_name, username, email, phone, rating, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, profile_completed_at';
+  'id, full_name, username, email, phone, rating, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, city, profile_completed_at';
 
 const LEGACY_PROFILE_SELECT =
   'id, full_name, username, email, phone, rating, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status';
@@ -13,20 +13,21 @@ const E164_PHONE_PATTERN = /^\+[1-9][0-9]{7,14}$/;
 
 interface ProfileRow {
   id: string;
-  full_name?: string;
-  username?: string;
-  email?: string;
-  phone?: string;
-  rating?: number | string;
-  total_deliveries?: number;
-  total_trips?: number;
-  joined_at?: string;
-  created_at?: string;
-  verified?: boolean;
-  push_token?: string;
-  kyc_status?: string;
-  role?: string;
-  profile_completed_at?: string;
+  email?: string | null;
+  username?: string | null;
+  full_name?: string | null;
+  phone?: string | null;
+  rating?: number | string | null;
+  total_deliveries?: number | null;
+  total_trips?: number | null;
+  joined_at?: string | null;
+  created_at?: string | null;
+  verified?: boolean | null;
+  push_token?: string | null;
+  kyc_status?: string | null;
+  role?: string | null;
+  city?: string | null;
+  profile_completed_at?: string | null;
 }
 
 function mapProfileRow(data: ProfileRow): User {
@@ -34,18 +35,19 @@ function mapProfileRow(data: ProfileRow): User {
     id: data.id,
     name: data.full_name || data.username || data.email?.split('@')[0] || 'User',
     email: data.email || '',
-    phone: data.phone,
-    username: data.username,
+    phone: data.phone || undefined,
+    username: data.username || undefined,
     rating: parseFloat(String(data.rating ?? '4.5')) || 4.5,
     totalDeliveries: data.total_deliveries || 0,
     totalTrips: data.total_trips || 0,
     joinedAt: data.joined_at || data.created_at || new Date().toISOString(),
     verified: data.verified || false,
-    pushToken: data.push_token,
+    pushToken: data.push_token || undefined,
     kycStatus: (data.kyc_status as User['kycStatus']) || 'pending',
-    fullName: data.full_name,
+    fullName: data.full_name || undefined,
     role: data.role as User['role'],
-    profileCompletedAt: data.profile_completed_at,
+    city: data.city || undefined,
+    profileCompletedAt: data.profile_completed_at || undefined,
   };
 }
 
@@ -70,7 +72,7 @@ export async function isUsernameTaken(username: string, excludeUserId?: string):
   const sb = getSupabaseClient();
   const { data: available, error } = await sb.rpc('check_username_available', {
     check_username: normalizeUsername(username),
-    exclude_user_id: excludeUserId || null
+    exclude_user_id: excludeUserId || undefined
   });
 
   if (error) {
@@ -86,6 +88,7 @@ export function isProfileComplete(user: User | null) {
     && USERNAME_PATTERN.test(user.username)
     && user.fullName?.trim()
     && E164_PHONE_PATTERN.test(user.phone || '')
+    && user.city
     && user.role
   );
 }
@@ -145,6 +148,7 @@ export async function completeProfile(
     username: string;
     fullName: string;
     phone: string;
+    city: string;
     role: UserRole;
   }
 ): Promise<{ data: User | null; error: string | null }> {
@@ -160,6 +164,9 @@ export async function completeProfile(
   const phone = normalizeIndianMobile(input.phone);
   if (!phone) return { data: null, error: 'Please enter a valid 10-digit mobile number.' };
 
+  const city = input.city.trim();
+  if (!city) return { data: null, error: 'Please select your city.' };
+
   const sb = getSupabaseClient();
   const completedAt = new Date().toISOString();
   const { data, error } = await sb
@@ -168,6 +175,7 @@ export async function completeProfile(
       username,
       full_name: fullName,
       phone,
+      city,
       role: input.role,
       profile_completed_at: completedAt,
     })
@@ -193,6 +201,7 @@ export async function updateProfile(
     username: string;
     full_name: string;
     phone: string;
+    city: string;
     push_token: string;
     role: UserRole;
     profile_completed_at: string;

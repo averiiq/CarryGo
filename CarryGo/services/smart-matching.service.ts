@@ -14,32 +14,171 @@ export interface MatchScore {
   grade: 'excellent' | 'good' | 'fair' | 'poor';
 }
 
+export interface RankedTripMatch {
+  trip: Trip;
+  score: MatchScore;
+}
+
+export interface RankedParcelMatch {
+  parcel: Parcel;
+  score: MatchScore;
+}
+
+const ROUTE_SUFFIXES = [' ncr', ' city', ' district'];
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function distanceDecayScore(distanceKm: number, decayKm: number): number {
+  return clampScore(100 * Math.exp(-(Math.max(distanceKm, 0) / Math.max(decayKm, 1))));
+}
+
+function detourScore(detourRatio: number): number {
+  if (detourRatio <= 0.10) return 100;
+  if (detourRatio <= 0.20) return 85;
+  if (detourRatio <= 0.35) return 70;
+  if (detourRatio <= 0.50) return 50;
+  if (detourRatio <= 0.75) return 30;
+  return 10;
+}
+
+function calculateBearing(from: { lat: number; lng: number }, to: { lat: number; lng: number }): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+  const dLng = toRad(to.lng - from.lng);
+
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+
+  const bearing = toDeg(Math.atan2(y, x));
+  return (bearing + 360) % 360;
+}
+
+function directionAlignmentScore(
+  tripFrom: { lat: number; lng: number },
+  tripTo: { lat: number; lng: number },
+  parcelFrom: { lat: number; lng: number },
+  parcelTo: { lat: number; lng: number },
+): number {
+  const tripBearing = calculateBearing(tripFrom, tripTo);
+  const parcelBearing = calculateBearing(parcelFrom, parcelTo);
+  const rawDiff = Math.abs(tripBearing - parcelBearing);
+  const bearingDiff = Math.min(rawDiff, 360 - rawDiff);
+
+  if (bearingDiff <= 20) return 100;
+  if (bearingDiff <= 45) return 85;
+  if (bearingDiff <= 70) return 65;
+  if (bearingDiff <= 100) return 40;
+  return 15;
+}
+
+function normalizeCityName(value: string): string {
+  let normalized = value
+    .toLowerCase()
+    .replace(/[._]/g, ' ')
+    .replace(/[()]/g, ' ')
+    .replace(/[^a-z0-9,\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (normalized.includes(',')) {
+    normalized = normalized.split(',')[0].trim();
+  }
+
+  for (const suffix of ROUTE_SUFFIXES) {
+    if (normalized.endsWith(suffix)) {
+      normalized = normalized.slice(0, -suffix.length).trim();
+      break;
+    }
+  }
+
+  return normalized;
+}
+
+function areCitiesEquivalent(left: string, right: string): boolean {
+  const leftKey = normalizeCityName(left);
+  const rightKey = normalizeCityName(right);
+
+  if (!leftKey || !rightKey) return false;
+  if (leftKey === rightKey) return true;
+
+  const leftCity = findCity(leftKey);
+  const rightCity = findCity(rightKey);
+  const leftCanonical = leftCity ? normalizeCityName(leftCity.name) : leftKey;
+  const rightCanonical = rightCity ? normalizeCityName(rightCity.name) : rightKey;
+
+  return leftCanonical === rightCanonical;
+}
+
 function routeCompatibility(trip: Trip, parcel: Parcel): number {
-  if (trip.fromCity.toLowerCase() === parcel.fromCity.toLowerCase() &&
-      trip.toCity.toLowerCase() === parcel.toCity.toLowerCase()) {
+  const fromExact = areCitiesEquivalent(trip.fromCity, parcel.fromCity);
+  const toExact = areCitiesEquivalent(trip.toCity, parcel.toCity);
+
+  if (fromExact && toExact) {
     return 100;
   }
 
-  const tripFrom = findCity(trip.fromCity);
-  const tripTo = findCity(trip.toCity);
-  const parcelFrom = findCity(parcel.fromCity);
-  const parcelTo = findCity(parcel.toCity);
+  const tripFrom = findCity(normalizeCityName(trip.fromCity));
+  const tripTo = findCity(normalizeCityName(trip.toCity));
+  const parcelFrom = findCity(normalizeCityName(parcel.fromCity));
+  const parcelTo = findCity(normalizeCityName(parcel.toCity));
 
-  if (!tripFrom || !tripTo || !parcelFrom || !parcelTo) return 0;
+  if (!tripFrom || !tripTo || !parcelFrom || !parcelTo) {
+    return fromExact || toExact ? 40 : 0;
+  }
 
   const fromDistance = getDistance(tripFrom, parcelFrom);
   const toDistance = getDistance(tripTo, parcelTo);
 
-  if (fromDistance <= 50 && toDistance <= 50) return 80;
-  if (fromDistance <= 100 && toDistance <= 100) return 60;
-  if (fromDistance <= 200 && toDistance <= 200) return 30;
-  return 0;
+  const legacyBandScore =
+    fromDistance <= 50 && toDistance <= 50 ? 80 :
+    fromDistance <= 100 && toDistance <= 100 ? 60 :
+    fromDistance <= 200 && toDistance <= 200 ? 30 : 0;
+
+  const pickupProximityScore = distanceDecayScore(fromDistance, 80);
+  const dropoffProximityScore = distanceDecayScore(toDistance, 80);
+
+  const baseRouteDistance = Math.max(getDistance(tripFrom, tripTo), 1);
+  const routeWithParcel =
+    getDistance(tripFrom, parcelFrom) +
+    getDistance(parcelFrom, parcelTo) +
+    getDistance(parcelTo, tripTo);
+  const extraDetour = Math.max(routeWithParcel - baseRouteDistance, 0);
+  const detourRatio = extraDetour / baseRouteDistance;
+
+  const dispatchScore = clampScore(
+    pickupProximityScore * 0.30 +
+    dropoffProximityScore * 0.30 +
+    detourScore(detourRatio) * 0.25 +
+    directionAlignmentScore(tripFrom, tripTo, parcelFrom, parcelTo) * 0.15,
+  );
+
+  const finalRouteScore = clampScore(legacyBandScore * 0.55 + dispatchScore * 0.45);
+
+  if (finalRouteScore === 0 && (fromExact || toExact)) {
+    return 40;
+  }
+
+  return finalRouteScore;
 }
 
-function dateAlignment(tripDate: string, parcelCreatedAt: string): number {
+function dateAlignment(tripDate: string, parcelCreatedAt: string, parcelDeliveryDate?: string): number {
   const trip = new Date(tripDate).getTime();
-  const parcel = new Date(parcelCreatedAt).getTime();
-  const daysDiff = Math.abs(trip - parcel) / (1000 * 60 * 60 * 24);
+  const parcelReference = new Date(parcelCreatedAt).getTime();
+  const daysDiff = Math.abs(trip - parcelReference) / (1000 * 60 * 60 * 24);
+
+  if (parcelDeliveryDate) {
+    const deadline = new Date(parcelDeliveryDate).getTime();
+    const daysAfterDeadline = (trip - deadline) / (1000 * 60 * 60 * 24);
+    if (daysAfterDeadline > 1) return 0;
+    if (daysAfterDeadline > 0) return 30;
+    if (daysAfterDeadline >= -1) return 100;
+  }
 
   if (daysDiff <= 0) return 100;
   if (daysDiff <= 1) return 90;
@@ -80,14 +219,27 @@ function ratingScore(rating: number): number {
 export function scoreMatch(trip: Trip, parcel: Parcel): MatchScore {
   const breakdown = {
     routeScore: routeCompatibility(trip, parcel),
-    dateScore: dateAlignment(trip.date, parcel.createdAt),
+    dateScore: dateAlignment(trip.date, parcel.createdAt, parcel.deliveryDate),
     capacityScore: capacityFit(trip.availableCapacity, parcel.weight),
     priceScore: priceCompatibility(trip.pricePerKg, parcel.priceOffer, parcel.weight),
     ratingScore: ratingScore(trip.userRating),
     reliabilityScore: 70,
   };
 
-  const weights = {
+  const deadlineGapDays = parcel.deliveryDate
+    ? (new Date(parcel.deliveryDate).getTime() - new Date(trip.date).getTime()) / (1000 * 60 * 60 * 24)
+    : null;
+
+  const isUrgentDispatch = deadlineGapDays !== null && deadlineGapDays <= 1;
+
+  const weights = isUrgentDispatch ? {
+    routeScore: 0.35,
+    dateScore: 0.27,
+    capacityScore: 0.14,
+    priceScore: 0.09,
+    ratingScore: 0.08,
+    reliabilityScore: 0.07,
+  } : {
     routeScore: 0.30,
     dateScore: 0.20,
     capacityScore: 0.15,
@@ -117,7 +269,7 @@ export function findBestMatches(
   parcel: Parcel,
   trips: Trip[],
   options?: { minScore?: number; limit?: number }
-): Array<{ trip: Trip; score: MatchScore }> {
+): RankedTripMatch[] {
   const minScore = options?.minScore ?? 20;
   const limit = options?.limit ?? 20;
 
@@ -126,6 +278,24 @@ export function findBestMatches(
     .map(trip => ({ trip, score: scoreMatch(trip, parcel) }))
     .filter(m => m.score.total >= minScore)
     .sort((a, b) => b.score.total - a.score.total)
+    .slice(0, limit);
+
+  return scored;
+}
+
+export function findBestParcelsForTrip(
+  trip: Trip,
+  parcels: Parcel[],
+  options?: { minScore?: number; limit?: number }
+): RankedParcelMatch[] {
+  const minScore = options?.minScore ?? 20;
+  const limit = options?.limit ?? 20;
+
+  const scored = parcels
+    .filter(parcel => parcel.userId !== trip.userId && parcel.status === 'open' && parcel.weight <= trip.availableCapacity)
+    .map(parcel => ({ parcel, score: scoreMatch(trip, parcel) }))
+    .filter(match => match.score.total >= minScore)
+    .sort((left, right) => right.score.total - left.score.total)
     .slice(0, limit);
 
   return scored;

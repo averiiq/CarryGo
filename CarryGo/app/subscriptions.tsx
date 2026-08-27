@@ -17,11 +17,13 @@ import {
 import { fetchTrips } from '@/services/trips.service';
 import { fetchParcels } from '@/services/parcels.service';
 import { RouteSubscription, Trip, Parcel } from '@/types';
-import { CITIES } from '@/constants/mockData';
+import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { Haptic } from '@/services/haptics.service';
 import { sendLocalNotification } from '@/services/notifications.service';
+
+const CITIES = INDIAN_CITIES.map(c => c.name);
 
 // ── City Picker ──────────────────────────────────────────────────────────────
 function CityPicker({
@@ -38,11 +40,11 @@ function CityPicker({
               style={[
                 styles.cityChip,
                 { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                selected === city && { backgroundColor: C.primary, borderColor: C.primary },
+                selected === city && { backgroundColor: C.primaryDark, borderColor: C.primaryDark },
               ]}
               onPress={() => { Haptic.select(); onSelect(city); }}
             >
-              <Text style={[styles.cityChipText, { color: selected === city ? '#fff' : C.textSecondary }]}>
+              <Text style={[styles.cityChipText, { color: selected === city ? C.textInverse : C.textSecondary }]}>
                 {city}
               </Text>
             </Pressable>
@@ -168,11 +170,11 @@ function SubCard({
             <Pressable
               style={({ pressed }) => [
                 styles.viewMatchesBtn,
-                { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1 },
+                { backgroundColor: C.primaryDark, opacity: pressed ? 0.85 : 1 },
               ]}
               onPress={() => { Haptic.confirm(); onView(); }}
             >
-              <MaterialIcons name="open-in-new" size={13} color="#fff" />
+              <MaterialIcons name="open-in-new" size={13} color={C.textInverse} />
               <Text style={styles.viewMatchesBtnText}>View Matches</Text>
             </Pressable>
           ) : null}
@@ -210,28 +212,19 @@ export default function SubscriptionsScreen() {
   const prevMatchCounts = useRef<Record<string, number>>({});
   const addPanY = useRef(new Animated.Value(-20)).current;
   const addOpacity = useRef(new Animated.Value(0)).current;
+  const userId = user?.id;
 
-  useEffect(() => { if (user) loadSubs(); }, [user]);
+  const loadSubs = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    const { data } = await fetchSubscriptions(userId);
+    if (data) setSubs(data);
+    setLoading(false);
+  }, [userId]);
 
   useEffect(() => {
-    if (!user || subs.length === 0) return;
-    void refreshMatches();
-
-    const sb = getSupabaseClient();
-    const channel = sb
-      .channel(`realtime:route-subscriptions:${user.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => {
-        void refreshMatches();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'parcels' }, () => {
-        void refreshMatches();
-      })
-      .subscribe();
-
-    return () => {
-      void sb.removeChannel(channel);
-    };
-  }, [subs, user?.id]);
+    if (userId) void loadSubs();
+  }, [loadSubs, userId]);
 
   const refreshMatches = useCallback(async () => {
     const activeSubs = subs.filter(s => s.active);
@@ -243,8 +236,8 @@ export default function SubscriptionsScreen() {
         fetchTrips({ fromCity: sub.fromCity, toCity: sub.toCity }),
         fetchParcels({ fromCity: sub.fromCity, toCity: sub.toCity }),
       ]);
-      const trips = (tripsRes.data || []).filter(t => t.status === 'active' && t.userId !== user?.id);
-      const parcels = (parcelsRes.data || []).filter(p => p.status === 'open' && p.userId !== user?.id);
+      const trips = (tripsRes.data || []).filter(t => t.status === 'active' && t.userId !== userId);
+      const parcels = (parcelsRes.data || []).filter(p => p.status === 'open' && p.userId !== userId);
       const totalCount = trips.length + parcels.length;
       const prevCount = prevMatchCounts.current[sub.id] ?? -1;
 
@@ -267,15 +260,32 @@ export default function SubscriptionsScreen() {
       };
     }));
     setMatchData(results);
-  }, [subs, user?.id]);
+  }, [subs, userId]);
 
-  const loadSubs = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data } = await fetchSubscriptions(user.id);
-    if (data) setSubs(data);
-    setLoading(false);
-  };
+  useEffect(() => {
+    if (!userId || subs.length === 0) return;
+    void refreshMatches();
+
+    const sb = getSupabaseClient();
+    const tripsChannel = sb
+      .channel(`route-sub-trips:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => {
+        void refreshMatches();
+      })
+      .subscribe();
+
+    const parcelsChannel = sb
+      .channel(`route-sub-parcels:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'parcels' }, () => {
+        void refreshMatches();
+      })
+      .subscribe();
+
+    return () => {
+      void sb.removeChannel(tripsChannel);
+      void sb.removeChannel(parcelsChannel);
+    };
+  }, [refreshMatches, subs.length, userId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -356,7 +366,7 @@ export default function SubscriptionsScreen() {
       {/* ── Header ─────────────────────────────────────── */}
       <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
         <LinearGradient
-          colors={[C.primary + '10', 'transparent']}
+          colors={[C.primarySubtle, 'transparent']}
           style={StyleSheet.absoluteFillObject}
         />
         <View style={styles.headerRow}>
@@ -376,11 +386,11 @@ export default function SubscriptionsScreen() {
           <Pressable
             style={[
               styles.addButton,
-              { backgroundColor: showAdd ? C.error : C.primary },
+              { backgroundColor: showAdd ? C.error : C.primaryDark },
             ]}
             onPress={toggleAddForm}
           >
-            <MaterialIcons name={showAdd ? 'close' : 'add'} size={20} color="#fff" />
+            <MaterialIcons name={showAdd ? 'close' : 'add'} size={20} color={C.textInverse} />
           </Pressable>
         </View>
 
@@ -408,7 +418,7 @@ export default function SubscriptionsScreen() {
           { transform: [{ translateY: addPanY }], opacity: addOpacity },
         ]}>
           <LinearGradient
-            colors={[C.primary + '0C', 'transparent']}
+            colors={[C.primarySubtle, 'transparent']}
             style={StyleSheet.absoluteFillObject}
           />
           <View style={styles.addCardHeader}>
@@ -434,18 +444,18 @@ export default function SubscriptionsScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.saveBtn,
-              { backgroundColor: fromCity && toCity ? C.primary : C.surfaceElevated },
+              { backgroundColor: fromCity && toCity ? C.primaryDark : C.surfaceElevated },
               pressed && { opacity: 0.85 },
             ]}
             onPress={handleAdd}
             disabled={saving || !fromCity || !toCity}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color={C.textInverse} size="small" />
             ) : (
               <>
-                <Ionicons name="notifications" size={16} color={fromCity && toCity ? '#fff' : C.textMuted} />
-                <Text style={[styles.saveBtnText, { color: fromCity && toCity ? '#fff' : C.textMuted }]}>
+                <Ionicons name="notifications" size={16} color={fromCity && toCity ? C.textInverse : C.textMuted} />
+                <Text style={[styles.saveBtnText, { color: fromCity && toCity ? C.textInverse : C.textMuted }]}>
                   Subscribe to Route
                 </Text>
               </>
@@ -504,10 +514,10 @@ export default function SubscriptionsScreen() {
                   Subscribe to routes you care about and get instantly notified when trips or parcels appear.
                 </Text>
                 <Pressable
-                  style={({ pressed }) => [styles.emptyCta, { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1 }]}
+                  style={({ pressed }) => [styles.emptyCta, { backgroundColor: C.primaryDark, opacity: pressed ? 0.85 : 1 }]}
                   onPress={toggleAddForm}
                 >
-                  <MaterialIcons name="add" size={16} color="#fff" />
+                  <MaterialIcons name="add" size={16} color={C.textInverse} />
                   <Text style={styles.emptyCtaText}>Add First Alert</Text>
                 </Pressable>
               </View>

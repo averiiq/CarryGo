@@ -1,13 +1,13 @@
 import { ParcelCategory, VehicleType } from '@/types';
 
 export function formatCurrency(amount: number): string {
-  if (amount >= 10_000_000) return `₹${(amount / 10_000_000).toFixed(1)}Cr`;
-  if (amount >= 100_000) return `₹${(amount / 100_000).toFixed(1)}L`;
-  return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  if (amount >= 10_000_000) return `Rs ${(amount / 10_000_000).toFixed(1)}Cr`;
+  if (amount >= 100_000) return `Rs ${(amount / 100_000).toFixed(1)}L`;
+  return `Rs ${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 }
 
 export function formatCurrencyExact(amount: number): string {
-  return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `Rs ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 const PLATFORM_FEE_PERCENT = 10;

@@ -14,21 +14,17 @@ import {
 } from '@/features/conversations/queries';
 import {
   useParcelQuery,
-  useTripsQuery,
   useUpdateParcelStatusMutation,
-  flattenInfiniteData,
 } from '@/features/listings/queries';
 import {
   useRequestsByParcelQuery,
   useUpdateRequestStatusMutation,
-  useCreateRequestMutation,
 } from '@/features/requests/queries';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { Request, Parcel, Trip } from '@/types';
+import { Request, Parcel } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
-import { sendLocalNotification } from '@/services/notifications.service';
 
 const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   documents: 'description',
@@ -40,12 +36,12 @@ const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 };
 
 const categoryGradients: Record<string, [string, string]> = {
-  documents: ['#8B5CF6', '#7C3AED'],
-  electronics: ['#06B6D4', '#0891B2'],
-  clothing: ['#F59E0B', '#D97706'],
-  food: ['#10B981', '#059669'],
-  medicine: ['#EF4444', '#DC2626'],
-  other: ['#3B82F6', '#2563EB'],
+  documents: ['#6B7280', '#4B5563'],
+  electronics: ['#0F766E', '#0D9488'],
+  clothing: ['#64748B', '#475569'],
+  food: ['#EA580C', '#C2410C'],
+  medicine: ['#16A34A', '#15803D'],
+  other: ['#4B5563', '#334155'],
 };
 
 type StatusKey = 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'failed';
@@ -60,19 +56,21 @@ function timelineStep(status: StatusKey): number {
 
 interface RequestRowProps {
   request: Request;
-  isSender: boolean;
+  viewerRole: 'sender' | 'traveller' | 'observer';
   onCancel: () => void;
   onChat: () => void;
   onTrack: () => void;
   onPayment: () => void;
   C: ThemeColors;
-  isDark: boolean;
   catGradient: [string, string];
 }
 
-function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C, isDark, catGradient }: RequestRowProps) {
+function RequestRow({ request, viewerRole, onCancel, onChat, onTrack, onPayment, C, catGradient }: RequestRowProps) {
   const step = timelineStep(request.status as StatusKey);
   const isRejectedOrCancelled = request.status === 'rejected' || request.status === 'cancelled';
+  const canCancel = viewerRole === 'sender' && request.status === 'pending';
+  const canOpenAcceptedActions = viewerRole === 'sender' || viewerRole === 'traveller';
+  const canSeePayment = viewerRole === 'sender';
 
   const statusConfig = {
     pending:   { label: 'Pending',   color: C.warning,   bg: C.warningSubtle,   icon: 'hourglass-empty' as const },
@@ -107,7 +105,7 @@ function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C
       </View>
 
       {request.message ? (
-        <View style={[styles.msgBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderLeftColor: catGradient[0] + '44' }]}>
+        <View style={[styles.msgBox, { backgroundColor: C.surfaceElevated, borderLeftColor: catGradient[0] + '44' }]}>
           <Ionicons name="chatbubble-ellipses-outline" size={13} color={C.textMuted} />
           <Text style={[styles.msgText, { color: C.textSecondary }]} numberOfLines={2}>{request.message}</Text>
         </View>
@@ -117,12 +115,12 @@ function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C
         <Text style={[styles.priceLabel, { color: C.textMuted }]}>Offered price</Text>
         <View style={styles.priceTag}>
           <LinearGradient colors={['#10B98120', '#05966905']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-          <Text style={styles.priceValue}>₹{request.price}</Text>
+          <Text style={styles.priceValue}>Rs {request.price}</Text>
         </View>
       </View>
 
       {!isRejectedOrCancelled && (
-        <View style={[styles.progressRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]}>
+        <View style={[styles.progressRow, { backgroundColor: C.surfaceElevated }]}>
           {TIMELINE_ORDER.map((_, i) => {
             const done = step >= i;
             const psc = tlos[i];
@@ -139,7 +137,7 @@ function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C
         </View>
       )}
 
-      {isSender && request.status === 'pending' ? (
+      {canCancel ? (
         <Pressable
           style={({ pressed }) => [styles.cancelBtn, { backgroundColor: C.errorSubtle, borderColor: C.error + '44' }, pressed && { opacity: 0.75 }]}
           onPress={onCancel}
@@ -149,12 +147,14 @@ function RequestRow({ request, isSender, onCancel, onChat, onTrack, onPayment, C
         </Pressable>
       ) : null}
 
-      {request.status === 'accepted' ? (
+      {request.status === 'accepted' && canOpenAcceptedActions ? (
         <View style={styles.actionRow}>
-          <Pressable style={({ pressed }) => [styles.aBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, pressed && { opacity: 0.75 }]} onPress={onPayment}>
+          {canSeePayment ? (
+            <Pressable style={({ pressed }) => [styles.aBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, pressed && { opacity: 0.75 }]} onPress={onPayment}>
             <MaterialIcons name="account-balance-wallet" size={14} color={C.warning} />
             <Text style={[styles.aBtnText, { color: C.warning }]}>Payment</Text>
-          </Pressable>
+            </Pressable>
+          ) : null}
           <Pressable style={({ pressed }) => [styles.aBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, pressed && { opacity: 0.75 }]} onPress={onChat}>
             <Ionicons name="chatbubble-outline" size={14} color={C.info} />
             <Text style={[styles.aBtnText, { color: C.info }]}>Chat</Text>
@@ -182,34 +182,29 @@ export default function ParcelDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { C, isDark } = useThemeColors();
+  const { C } = useThemeColors();
   const parcelQuery = useParcelQuery(id);
   const requestsQuery = useRequestsByParcelQuery(id);
   const conversationsQuery = useConversationsQuery(user?.id);
-  const tripsQuery = useTripsQuery(Boolean(user));
   const { mutateAsync: updateRequestStatusAsync } = useUpdateRequestStatusMutation(user?.id);
-  const { mutateAsync: createRequestAsync } = useCreateRequestMutation(user?.id);
   const updateParcelStatusMutation = useUpdateParcelStatusMutation(user?.id);
 
   const [refreshing, setRefreshing] = useState(false);
-  const [offerSending, setOfferSending] = useState(false);
 
   const parcel = (parcelQuery.data ?? undefined) as Parcel | undefined;
   const requests = requestsQuery.data ?? [];
   const conversations = conversationsQuery.data ?? [];
-  const allTrips = flattenInfiniteData(tripsQuery.data);
   const loading = parcelQuery.isLoading || requestsQuery.isLoading;
   const isSender = parcel?.userId === user?.id;
-  const canOffer = !isSender && parcel?.status === 'open';
-  const catGradient: [string, string] = parcel ? (categoryGradients[parcel.category] || ['#3B82F6', '#2563EB']) : ['#3B82F6', '#2563EB'];
+  const visibleRequests = isSender ? requests : requests.filter(request => request.travellerId === user?.id);
+  const viewerRole: 'sender' | 'traveller' | 'observer' = isSender
+    ? 'sender'
+    : visibleRequests.length > 0
+      ? 'traveller'
+      : 'observer';
+  const catGradient: [string, string] = parcel ? (categoryGradients[parcel.category] || ['#6B7280', '#4B5563']) : ['#6B7280', '#4B5563'];
   const catColor = catGradient[0];
 
-  const myActiveTrips = allTrips.filter(t => t.userId === user?.id && t.status === 'active');
-  const myMatchingTrips = myActiveTrips.filter(t =>
-    parcel && t.fromCity.toLowerCase() === parcel.fromCity.toLowerCase() &&
-    t.toCity.toLowerCase() === parcel.toCity.toLowerCase()
-  );
-  const alreadyOffered = requests.some(r => r.travellerId === user?.id && r.status !== 'cancelled');
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -239,101 +234,6 @@ export default function ParcelDetailScreen() {
     else showAlert('No Chat', 'Chat opens once the request is accepted.');
   };
 
-  const sendOffer = async (trip: Trip) => {
-    if (!parcel || !user) return;
-    setOfferSending(true);
-    try {
-      const result = await createRequestAsync({
-        parcelId: parcel.id,
-        tripId: trip.id,
-        senderId: parcel.userId,
-        senderName: parcel.userName,
-        travellerId: user.id,
-        travellerName: user.name,
-        status: 'pending',
-        price: parcel.priceOffer,
-        message: `Hi! I am travelling ${trip.fromCity} → ${trip.toCity} on ${trip.date} and can carry your parcel safely.`,
-      });
-      if (result) {
-        await sendLocalNotification('Offer Sent!', `Your offer was sent to ${parcel.userName}`);
-        Haptic.success();
-        showAlert(
-          'Offer Sent!',
-          `${parcel.userName} will review your offer. Check the Requests tab for their response.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'Stay Here', style: 'cancel' },
-          ]
-        );
-        await requestsQuery.refetch();
-      } else {
-        Haptic.error();
-        showAlert('Error', 'Could not send offer. Please try again.');
-      }
-    } catch (error) {
-      Haptic.error();
-      showAlert('Error', error instanceof Error ? error.message : 'Could not send offer. Please try again.');
-    } finally {
-      setOfferSending(false);
-    }
-  };
-
-  const handleOfferToCarry = () => {
-    if (!parcel || !user) return;
-
-    if (alreadyOffered) {
-      Haptic.warning();
-      showAlert('Already Offered', 'You have already sent an offer to carry this parcel.');
-      return;
-    }
-
-    if (myMatchingTrips.length === 0) {
-      if (myActiveTrips.length === 0) {
-        Haptic.warning();
-        showAlert(
-          'No Active Trips',
-          'You need to post a trip first before you can offer to carry parcels.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Post a Trip', onPress: () => router.push('/create-trip') },
-          ]
-        );
-      } else {
-        Haptic.warning();
-        showAlert(
-          'No Matching Trip',
-          `You don't have an active trip from ${parcel.fromCity} to ${parcel.toCity}. Post a trip on this route first.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Post a Trip', onPress: () => router.push('/create-trip') },
-          ]
-        );
-      }
-      return;
-    }
-
-    if (myMatchingTrips.length === 1) {
-      const trip = myMatchingTrips[0];
-      Haptic.warning();
-      showAlert(
-        'Offer to Carry',
-        `Offer to carry "${parcel.description}" (${parcel.weight}kg) for ₹${parcel.priceOffer} on your ${trip.vehicleType} trip (${trip.date})?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Send Offer', onPress: () => sendOffer(trip) },
-        ]
-      );
-    } else {
-      showAlert(
-        'Select Trip',
-        `You have ${myMatchingTrips.length} trips on this route. Which trip would you like to use?`,
-        myMatchingTrips.map(trip => ({
-          text: `${trip.vehicleType.charAt(0).toUpperCase() + trip.vehicleType.slice(1)} · ${trip.date}`,
-          onPress: () => sendOffer(trip),
-        }))
-      );
-    }
-  };
 
   const handleCancelParcel = () => {
     if (!parcel || !isSender) return;
@@ -356,9 +256,9 @@ export default function ParcelDetailScreen() {
     ]);
   };
 
-  const pending = requests.filter(r => r.status === 'pending');
-  const active = requests.filter(r => r.status === 'accepted');
-  const done = requests.filter(r => ['completed', 'rejected', 'cancelled', 'failed'].includes(r.status));
+  const pending = visibleRequests.filter(r => r.status === 'pending');
+  const active = visibleRequests.filter(r => r.status === 'accepted');
+  const done = visibleRequests.filter(r => ['completed', 'rejected', 'cancelled', 'failed'].includes(r.status));
 
   if (!parcel) {
     return (
@@ -373,7 +273,7 @@ export default function ParcelDetailScreen() {
       {/* Header */}
       <View style={styles.header}>
         <LinearGradient
-          colors={isDark ? [catColor + '18', 'transparent'] : [catColor + '0C', 'transparent']}
+          colors={[catColor + '12', 'transparent']}
           style={StyleSheet.absoluteFillObject}
         />
         <Pressable
@@ -410,7 +310,7 @@ export default function ParcelDetailScreen() {
         {/* Parcel Hero Card */}
         <View style={[styles.parcelCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           <LinearGradient
-            colors={isDark ? [catColor + '15', 'transparent'] : [catColor + '0A', 'transparent']}
+            colors={[catColor + '10', 'transparent']}
             style={styles.cardGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -449,13 +349,13 @@ export default function ParcelDetailScreen() {
           ) : null}
 
           {/* Description */}
-          <View style={[styles.descBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]}>
+          <View style={[styles.descBox, { backgroundColor: C.surfaceElevated }]}>
             <Ionicons name="document-text-outline" size={14} color={C.textMuted} />
             <Text style={[styles.descText, { color: C.textSecondary }]}>{parcel.description}</Text>
           </View>
 
           {/* Stats */}
-          <View style={[styles.statsRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]}>
+          <View style={[styles.statsRow, { backgroundColor: C.surfaceElevated }]}>
             <View style={styles.statItem}>
               <MaterialIcons name="scale" size={16} color={C.textMuted} />
               <Text style={[styles.statVal, { color: C.textPrimary }]}>{parcel.weight}kg</Text>
@@ -464,13 +364,13 @@ export default function ParcelDetailScreen() {
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.statItem}>
               <MaterialIcons name="payments" size={16} color={catColor} />
-              <Text style={[styles.statVal, { color: catColor }]}>₹{parcel.priceOffer}</Text>
+              <Text style={[styles.statVal, { color: catColor }]}>Rs {parcel.priceOffer}</Text>
               <Text style={[styles.statLbl, { color: C.textMuted }]}>Offered</Text>
             </View>
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.statItem}>
               <MaterialIcons name="swap-horiz" size={16} color={C.textMuted} />
-              <Text style={[styles.statVal, { color: C.textPrimary }]}>{requests.length}</Text>
+              <Text style={[styles.statVal, { color: C.textPrimary }]}>{visibleRequests.length}</Text>
               <Text style={[styles.statLbl, { color: C.textMuted }]}>Requests</Text>
             </View>
             <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
@@ -503,35 +403,12 @@ export default function ParcelDetailScreen() {
         </View>
 
         {/* CTA */}
-        {canOffer && !alreadyOffered ? (
+        {isSender && parcel?.status === 'open' ? (
           <Pressable
             style={({ pressed }) => [styles.findBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
-            onPress={handleOfferToCarry}
-            disabled={offerSending}
+            onPress={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcel.id } })}
           >
-            <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-            {offerSending ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <MaterialIcons name="local-shipping" size={18} color="#fff" />
-                <Text style={styles.findBtnText}>Offer to Carry This Parcel</Text>
-                <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
-              </>
-            )}
-          </Pressable>
-        ) : canOffer && alreadyOffered ? (
-          <View style={[styles.findBtn, { opacity: 0.6 }]}>
-            <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-            <Ionicons name="checkmark-circle" size={18} color="#fff" />
-            <Text style={styles.findBtnText}>Offer Already Sent</Text>
-          </View>
-        ) : isSender && parcel?.status === 'open' ? (
-          <Pressable
-            style={({ pressed }) => [styles.findBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
-            onPress={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcel!.id } })}
-          >
-            <LinearGradient colors={catGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
+            <LinearGradient colors={[C.primary, C.primaryDark]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
             <MaterialIcons name="search" size={18} color="#fff" />
             <Text style={styles.findBtnText}>Find Travellers for This Parcel</Text>
             <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
@@ -558,14 +435,14 @@ export default function ParcelDetailScreen() {
             <ActivityIndicator color={C.primary} size="large" />
             <Text style={[styles.loadingText, { color: C.textMuted }]}>Loading requests...</Text>
           </View>
-        ) : requests.length === 0 ? (
+        ) : visibleRequests.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <MaterialIcons name="inbox" size={56} color={C.surfaceBorderLight} />
             <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No requests yet</Text>
             <Text style={[styles.emptySub, { color: C.textMuted }]}>
               {isSender
-                ? 'Travellers on your route will send requests here.'
-                : 'Send a request to this sender to carry their parcel.'}
+                ? 'Send requests to matching travellers and they will appear here.'
+                : 'Traveller view is read-only here. Check incoming requests in the Requests tab.'}
             </Text>
           </View>
         ) : (
@@ -590,13 +467,12 @@ export default function ParcelDetailScreen() {
                     <RequestRow
                       key={req.id}
                       request={req}
-                      isSender={isSender}
+                      viewerRole={viewerRole}
                       onCancel={() => handleCancel(req)}
                       onChat={() => handleChat(req)}
                       onTrack={() => router.push({ pathname: '/delivery/[id]', params: { id: req.id } })}
                       onPayment={() => router.push({ pathname: '/payment/[id]', params: { id: req.id } })}
                       C={C}
-                      isDark={isDark}
                       catGradient={catGradient}
                     />
                   ))}

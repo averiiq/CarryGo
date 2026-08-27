@@ -1,10 +1,10 @@
 export const queryKeys = {
   listings: {
     all: ['listings'] as const,
-    trips: (filters?: { fromCity?: string; toCity?: string }) =>
+    trips: (filters?: { fromCity?: string; toCity?: string; userCity?: string }) =>
       filters ? ['listings', 'trips', filters] as const : ['listings', 'trips'] as const,
     trip: (tripId: string) => ['listings', 'trip', tripId] as const,
-    parcels: (filters?: { fromCity?: string; toCity?: string }) =>
+    parcels: (filters?: { fromCity?: string; toCity?: string; userCity?: string }) =>
       filters ? ['listings', 'parcels', filters] as const : ['listings', 'parcels'] as const,
     parcel: (parcelId: string) => ['listings', 'parcel', parcelId] as const,
     parcelsByIds: (parcelIds: string[]) => ['listings', 'parcels-by-ids', ...parcelIds] as const,

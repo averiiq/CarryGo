@@ -38,21 +38,21 @@ function EarningsSummary({ trips, parcels, requests, C }: {
   const inTransit = requests.filter(r => r.status === 'accepted').length;
 
   const stats = [
-    { label: 'Earned', value: `₹${totalEarned}`, icon: 'account-balance-wallet' as const, color: '#22C55E' },
+    { label: 'Earned', value: `Rs ${totalEarned}`, icon: 'account-balance-wallet' as const, color: C.success },
     { label: 'Active trips', value: String(activeTrips), icon: 'directions-car' as const, color: C.primary },
-    { label: 'Open parcels', value: String(openParcels), icon: 'inventory-2' as const, color: '#F59E0B' },
-    { label: 'In transit', value: String(inTransit), icon: 'local-shipping' as const, color: '#06B6D4' },
+    { label: 'Open parcels', value: String(openParcels), icon: 'inventory-2' as const, color: C.warning },
+    { label: 'In transit', value: String(inTransit), icon: 'local-shipping' as const, color: C.primaryDark },
   ];
 
   return (
     <View style={[styles.summaryCard, { borderColor: C.surfaceBorder }]}>
       <LinearGradient
-        colors={[C.primary + '18', C.primary + '05']}
+        colors={[C.primarySubtle, 'transparent']}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       />
       <View style={styles.summaryHeader}>
-        <View style={[styles.summaryIconBox, { backgroundColor: C.primary + '20' }]}>
+        <View style={[styles.summaryIconBox, { backgroundColor: C.primarySubtle }]}>
           <MaterialIcons name="bar-chart" size={18} color={C.primary} />
         </View>
         <Text style={[styles.summaryTitle, { color: C.textPrimary }]}>Activity Summary</Text>
@@ -151,7 +151,7 @@ export default function MyActivityScreen() {
     <View style={[styles.container, { backgroundColor: C.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
-        <LinearGradient colors={[C.primary + '12', 'transparent']} style={StyleSheet.absoluteFillObject} />
+        <LinearGradient colors={[C.primarySubtle, 'transparent']} style={StyleSheet.absoluteFillObject} />
         <View style={styles.headerRow}>
           <Pressable
             style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]}
@@ -163,15 +163,15 @@ export default function MyActivityScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: C.textPrimary }]}>My Activity</Text>
             <Text style={[styles.headerSub, { color: C.textMuted }]}>
-              {myTrips.length} trips · {myParcels.length} parcels · ₹{totalEarned} earned
+              {myTrips.length} trips · {myParcels.length} parcels · Rs {totalEarned} earned
             </Text>
           </View>
           <Pressable
-            style={[styles.addBtn, { backgroundColor: C.primary }]}
+            style={[styles.addBtn, { backgroundColor: C.primaryDark }]}
             onPress={() => { Haptic.confirm(); router.push(activeTab === 'trips' ? '/create-trip' : '/create-parcel'); }}
             hitSlop={4}
           >
-            <MaterialIcons name="add" size={18} color="#fff" />
+            <MaterialIcons name="add" size={18} color={C.textInverse} />
           </Pressable>
         </View>
 
@@ -180,15 +180,15 @@ export default function MyActivityScreen() {
           {(['trips', 'parcels'] as Tab[]).map((tab) => (
             <Pressable
               key={tab}
-              style={[styles.tabBtn, activeTab === tab && { backgroundColor: C.primary }]}
+              style={[styles.tabBtn, activeTab === tab && { backgroundColor: C.primaryDark }]}
               onPress={() => switchTab(tab)}
             >
               <MaterialIcons
                 name={tab === 'trips' ? 'directions-car' : 'inventory-2'}
                 size={15}
-                color={activeTab === tab ? '#fff' : C.textMuted}
+                color={activeTab === tab ? C.textInverse : C.textMuted}
               />
-              <Text style={[styles.tabBtnText, { color: activeTab === tab ? '#fff' : C.textMuted }]}>
+              <Text style={[styles.tabBtnText, { color: activeTab === tab ? C.textInverse : C.textMuted }]}> 
                 {tab === 'trips' ? `Trips (${myTrips.length})` : `Parcels (${myParcels.length})`}
               </Text>
             </Pressable>

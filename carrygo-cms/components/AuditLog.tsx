@@ -81,7 +81,6 @@ export default function AuditLog({ entries }: AuditLogProps) {
                 All
               </button>
               {actionFilters.map(action => {
-                const config = actionConfig[action]
                 return (
                   <button
                     key={action}

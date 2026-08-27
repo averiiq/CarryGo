@@ -1,41 +1,31 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ActivityIndicator,
-  Animated, ScrollView,
+  Animated, ScrollView, Modal,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
-import { useMatchingTrips, useMatchingParcels, useMatchingTripsOnRoute } from '@/hooks/useMatching';
+import { useMatchingTrips, useMatchingTripsOnRoute } from '@/hooks/useMatching';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useParcelQuery, useTripQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
-import { AppErrorBoundary, TripCard, ParcelCard } from '@/components';
-import { Request, Trip, Parcel } from '@/types';
+import { AppErrorBoundary, TripCard } from '@/components';
+import { Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { LinearGradient } from 'expo-linear-gradient';
+import { scoreMatch, MatchScore } from '@/services/smart-matching.service';
 
 /**
- * Matching screen — two flows:
+ * Matching screen supports sender-led request flow.
  *
- * 1. mode = 'parcel', id = parcelId
- *    → User is a SENDER who just listed a parcel (or clicked another user's parcel from feed)
- *    → Show all traveller trips on the same route
- *    → User can "Send Request" to a traveller
- *
- * 2. mode = 'trip', id = tripId
- *    → User is a TRAVELLER who just posted a trip (or clicked a trip from feed)
- *    → Show all open parcels on the same route
- *    → User can "Offer to Carry" a parcel
- *
- * 3. mode = 'browse_trips' (no parcel created yet — sender browsing travellers)
- *    → fromCity + toCity params provided
- *    → Show all trips; user taps one to open parcel creation flow first
+ * 1) `mode=parcel`: sender sees matching travellers and sends request.
+ * 2) `mode=browse_trips`: sender browses route-matching travellers.
+ * 3) `mode=trip`: legacy route, informational only.
  */
 export default function MatchingScreen() {
   const { mode, id, fromCity: fcParam, toCity: tcParam } = useLocalSearchParams<{
@@ -43,20 +33,23 @@ export default function MatchingScreen() {
   }>();
   const { user } = useAuth();
   const isParcelMode = mode === 'parcel';
-  const isTripMode = mode === 'trip';
+  const isTripModeLegacy = mode === 'trip';
   const isBrowseMode = mode === 'browse_trips';
 
   const parcelQuery = useParcelQuery(isParcelMode ? id : undefined);
-  const tripQuery = useTripQuery(isTripMode ? id : undefined);
+  const tripQuery = useTripQuery(isTripModeLegacy ? id : undefined);
   const requestsQuery = useRequestsQuery(user?.id);
-  const { mutateAsync: createRequestAsync } = useCreateRequestMutation(user?.id);
+  const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
 
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<'price' | 'rating' | 'capacity'>('price');
+  const [sortBy, setSortBy] = useState<'match' | 'price' | 'rating' | 'capacity'>('match');
+  const [activeMatchDetails, setActiveMatchDetails] = useState<{
+    title: string;
+    score: MatchScore;
+  } | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const headerScale = useRef(new Animated.Value(0.95)).current;
 
@@ -67,13 +60,17 @@ export default function MatchingScreen() {
   // Query-based matching
   const matchingTripsQuery = useMatchingTrips(
     isParcelMode && currentParcel
-      ? { fromCity: currentParcel.fromCity, toCity: currentParcel.toCity, userId: currentParcel.userId, weight: currentParcel.weight }
-      : null
-  );
-
-  const matchingParcelsQuery = useMatchingParcels(
-    isTripMode && currentTrip
-      ? { fromCity: currentTrip.fromCity, toCity: currentTrip.toCity, userId: currentTrip.userId, availableCapacity: currentTrip.availableCapacity }
+      ? {
+          fromCity: currentParcel.fromCity,
+          toCity: currentParcel.toCity,
+          userId: currentParcel.userId,
+          weight: currentParcel.weight,
+          priceOffer: currentParcel.priceOffer,
+          createdAt: currentParcel.createdAt,
+          deliveryDate: currentParcel.deliveryDate,
+          category: currentParcel.category,
+          description: currentParcel.description,
+        }
       : null
   );
 
@@ -83,11 +80,11 @@ export default function MatchingScreen() {
       : null
   );
 
-  const matchingTrips = isParcelMode
-    ? (matchingTripsQuery.data ?? [])
-    : (browseTripsQuery.data ?? []);
-  const matchingParcels = matchingParcelsQuery.data ?? [];
-  const loading = matchingTripsQuery.isLoading || matchingParcelsQuery.isLoading || browseTripsQuery.isLoading;
+  const matchingTrips = useMemo(
+    () => (isParcelMode ? (matchingTripsQuery.data ?? []) : (browseTripsQuery.data ?? [])),
+    [browseTripsQuery.data, isParcelMode, matchingTripsQuery.data]
+  );
+  const loading = matchingTripsQuery.isLoading || browseTripsQuery.isLoading;
 
   // Pre-populate sentRequests from existing requests to prevent duplicate sends
   useEffect(() => {
@@ -113,17 +110,38 @@ export default function MatchingScreen() {
   }, [loading, fadeAnim, headerScale]);
 
   // Sort helpers
-  const sortedTrips = [...matchingTrips].sort((a, b) => {
-    if (sortBy === 'price') return a.pricePerKg - b.pricePerKg;
-    if (sortBy === 'rating') return b.userRating - a.userRating;
-    if (sortBy === 'capacity') return b.availableCapacity - a.availableCapacity;
-    return 0;
-  });
-  const sortedParcels = [...matchingParcels].sort((a, b) => b.priceOffer - a.priceOffer);
+  const sortedTrips = useMemo(() => (
+    sortBy === 'match'
+      ? [...matchingTrips]
+      : [...matchingTrips].sort((a, b) => {
+        if (sortBy === 'price') return a.pricePerKg - b.pricePerKg;
+        if (sortBy === 'rating') return b.userRating - a.userRating;
+        if (sortBy === 'capacity') return b.availableCapacity - a.availableCapacity;
+        return 0;
+      })
+  ), [matchingTrips, sortBy]);
+  const tripMatchBreakdowns = useMemo(() => {
+    if (!currentParcel) return new Map<string, MatchScore>();
+    return new Map(sortedTrips.map(trip => [trip.id, scoreMatch(trip, currentParcel)]));
+  }, [sortedTrips, currentParcel]);
 
   // ── Send request: sender → traveller ──────────────────────────────────────
   const handleSendRequest = useCallback((trip: Trip) => {
-    if (!currentParcel || !user) return;
+    if (!currentParcel) return;
+    if (!user) {
+      Haptic.warning();
+      showAlert('Sign In Required', 'Please sign in before sending a delivery request.');
+      return;
+    }
+    if (currentParcel.userId !== user.id) {
+      Haptic.warning();
+      showAlert('Sender Only', 'Only the parcel owner can send request to a traveller.');
+      return;
+    }
+    if (isCreatingRequest) {
+      showAlert('Request in Progress', 'Please wait while we finish your previous request.');
+      return;
+    }
     if (sentRequests.has(trip.id)) {
       showAlert('Already Sent', 'You have already sent a request to this traveller for this parcel.');
       return;
@@ -132,7 +150,7 @@ export default function MatchingScreen() {
     Haptic.warning();
     showAlert(
       'Send Delivery Request',
-      `Ask ${trip.userName} to carry your ${currentParcel.category} (${currentParcel.weight}kg) for ₹${price}?`,
+      `Ask ${trip.userName} to carry your ${currentParcel.category} (${currentParcel.weight}kg) for Rs ${price}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -157,7 +175,7 @@ export default function MatchingScreen() {
                 /* await createNotification({
                   userId: trip.userId,
                   title: 'New Delivery Request!',
-                  body: `${user.name} wants you to carry a ${currentParcel.category} (${currentParcel.weight}kg) ${currentParcel.fromCity} → ${currentParcel.toCity} for ₹${price}`,
+                  body: `${user.name} wants you to carry a ${currentParcel.category} (${currentParcel.weight}kg) ${currentParcel.fromCity} → ${currentParcel.toCity} for Rs ${price}`,
                   type: 'new_request',
                   relatedId: result.id,
                 }); */
@@ -175,7 +193,7 @@ export default function MatchingScreen() {
                 Haptic.error();
                 showAlert('Error', 'Could not send request. Please try again.');
               }
-            } catch (error) {
+            } catch {
               Haptic.error();
               showAlert('Error', 'Could not send request. Please try again.');
             }
@@ -183,74 +201,9 @@ export default function MatchingScreen() {
         },
       ]
     );
-  }, [currentParcel, user, sentRequests, createRequestAsync, showAlert, router]);
+  }, [currentParcel, user, sentRequests, createRequestAsync, showAlert, router, isCreatingRequest]);
 
-  // ── Offer to carry: traveller → parcel owner ──────────────────────────────
-  const handleCarryParcel = useCallback((parcel: Parcel) => {
-    if (!currentTrip || !user) return;
-    if (sentRequests.has(parcel.id)) {
-      showAlert('Already Offered', 'You have already offered to carry this parcel.');
-      return;
-    }
-    Haptic.warning();
-    showAlert(
-      'Offer to Carry',
-      `Offer to carry "${parcel.description}" (${parcel.weight}kg) from ${parcel.fromCity} to ${parcel.toCity} for ₹${parcel.priceOffer}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send Offer',
-          onPress: async () => {
-            Haptic.confirm();
-            try {
-              const result = await createRequestAsync({
-                parcelId: parcel.id,
-                tripId: currentTrip.id,
-                // The sender is the parcel owner
-                senderId: parcel.userId,
-                senderName: parcel.userName,
-                // The traveller is the current user
-                travellerId: user.id,
-                travellerName: user.name,
-                status: 'pending',
-                price: parcel.priceOffer,
-                message: `Hi! I am travelling ${currentTrip.fromCity} → ${currentTrip.toCity} on ${currentTrip.date} and can carry your parcel safely.`,
-              });
-              if (result) {
-                setSentRequests(prev => new Set([...prev, parcel.id]));
-                // Notify the parcel owner
-                /* await createNotification({
-                  userId: parcel.userId,
-                  title: 'Traveller Offer! 🚀',
-                  body: `${user.name} can carry your ${parcel.category} from ${parcel.fromCity} to ${parcel.toCity} for ₹${parcel.priceOffer}`,
-                  type: 'new_request',
-                  relatedId: result.id,
-                }); */
-                await sendLocalNotification('Offer Sent!', `Your offer was sent to ${parcel.userName}`);
-                Haptic.success();
-                showAlert(
-                  'Offer Sent! 🎉',
-                  `${parcel.userName} will review your offer. Check the Requests tab for their response.`,
-                  [
-                    { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-                    { text: 'Browse More', style: 'cancel' },
-                  ]
-                );
-              } else {
-                Haptic.error();
-                showAlert('Error', 'Could not send offer. Please try again.');
-              }
-            } catch (error) {
-              Haptic.error();
-              showAlert('Error', 'Could not send offer. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  }, [currentTrip, user, sentRequests, createRequestAsync, showAlert, router]);
-
-  const resultCount = isParcelMode || isBrowseMode ? sortedTrips.length : sortedParcels.length;
+  const resultCount = isTripModeLegacy ? 0 : sortedTrips.length;
 
   const fromCity = currentParcel?.fromCity ?? currentTrip?.fromCity ?? fcParam ?? '';
   const toCity = currentParcel?.toCity ?? currentTrip?.toCity ?? tcParam ?? '';
@@ -262,18 +215,18 @@ export default function MatchingScreen() {
         <Animated.View style={[
           styles.sourceCard,
           {
-            backgroundColor: C.primarySubtle,
-            borderColor: C.primary + '44',
+            backgroundColor: C.surface,
+            borderColor: C.surfaceBorder,
             transform: [{ scale: headerScale }],
           },
         ]}>
           <LinearGradient
-            colors={[C.primary + '12', 'transparent']}
+            colors={[C.primarySubtle, 'transparent']}
             style={StyleSheet.absoluteFillObject}
           />
-          <View style={[styles.sourceIconBox, { backgroundColor: C.primary + '20' }]}>
+          <View style={[styles.sourceIconBox, { backgroundColor: C.primarySubtle }]}>
             <MaterialIcons
-              name={isParcelMode ? 'inventory-2' : isTripMode ? 'directions-car' : 'search'}
+              name={isParcelMode ? 'inventory-2' : isTripModeLegacy ? 'directions-car' : 'search'}
               size={22}
               color={C.primary}
             />
@@ -286,7 +239,7 @@ export default function MatchingScreen() {
             </View>
             {currentParcel ? (
               <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
-                {currentParcel.category} · {currentParcel.weight}kg · ₹{currentParcel.priceOffer} budget
+                {currentParcel.category} · {currentParcel.weight}kg · Rs {currentParcel.priceOffer} budget
               </Text>
             ) : currentTrip ? (
               <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
@@ -307,21 +260,20 @@ export default function MatchingScreen() {
             )}
           </View>
         </Animated.View>
-
         {/* ── What's being shown ── */}
         <View style={styles.sectionHeader}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
               {loading
                 ? 'Searching...'
-                : isParcelMode || isBrowseMode
-                ? `${resultCount} traveller${resultCount !== 1 ? 's' : ''} found`
-                : `${resultCount} parcel${resultCount !== 1 ? 's' : ''} found`}
+                : isTripModeLegacy
+                  ? 'Trip is live'
+                  : `${resultCount} traveller${resultCount !== 1 ? 's' : ''} found`}
             </Text>
             <Text style={[styles.sectionSub, { color: C.textMuted }]}>
-              {isParcelMode || isBrowseMode
-                ? 'Tap "Send Request" to book a traveller'
-                : 'Tap "Offer to Carry" to earn on this route'}
+              {isTripModeLegacy
+                ? 'Travellers receive sender requests on matching parcel routes'
+                : 'Tap "Send Request" to book a traveller'}
             </Text>
           </View>
           {/* Sort controls (only for trips list) */}
@@ -329,6 +281,7 @@ export default function MatchingScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
               <View style={styles.sortRow}>
                 {([
+                  { key: 'match', label: 'Best match', icon: 'auto-awesome' },
                   { key: 'price', label: 'Cheapest', icon: 'payments' },
                   { key: 'rating', label: 'Top rated', icon: 'star' },
                   { key: 'capacity', label: 'Most space', icon: 'scale' },
@@ -352,7 +305,6 @@ export default function MatchingScreen() {
             </ScrollView>
           ) : null}
         </View>
-
         {/* ── Content ── */}
         {loading ? (
           <View style={styles.loadingWrap}>
@@ -360,9 +312,9 @@ export default function MatchingScreen() {
               <ActivityIndicator size="large" color={C.primary} />
               <Text style={[styles.loadingText, { color: C.textSecondary }]}>Finding matches...</Text>
               <Text style={[styles.loadingSub, { color: C.textMuted }]}>
-                {isParcelMode || isBrowseMode
-                  ? 'Looking for travellers on your route'
-                  : 'Looking for parcels to carry'}
+                {isTripModeLegacy
+                  ? 'Preparing your trip dashboard'
+                  : 'Looking for travellers on your route'}
               </Text>
             </View>
           </View>
@@ -385,6 +337,17 @@ export default function MatchingScreen() {
                   <View style={{ marginBottom: Spacing.md }}>
                     <TripCard
                       trip={item}
+                      matchScore={isParcelMode ? tripMatchBreakdowns.get(item.id)?.total : undefined}
+                      onMatchPress={isParcelMode
+                        ? () => {
+                          const score = tripMatchBreakdowns.get(item.id);
+                          if (!score) return;
+                          setActiveMatchDetails({
+                            title: `${item.fromCity} → ${item.toCity}`,
+                            score,
+                          });
+                        }
+                        : undefined}
                       showRequestButton={!sentRequests.has(item.id)}
                       onRequest={() => handleSendRequest(item)}
                       onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
@@ -397,38 +360,76 @@ export default function MatchingScreen() {
             </AppErrorBoundary>
           )
         ) : (
-          sortedParcels.length === 0 ? (
-            <EmptyMatches
-              icon="inventory-2"
-              title="No parcels on this route"
-              sub="No one needs delivery on your route right now. Check back later or browse other routes."
-              cta="Search Other Routes"
-              onCta={() => router.push('/search')}
-              C={C}
-            />
-          ) : (
-            <AppErrorBoundary>
-              <FlashList
-                data={sortedParcels}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                  <View style={{ marginBottom: Spacing.md }}>
-                    <ParcelCard
-                      parcel={item}
-                      showCarryButton={!sentRequests.has(item.id)}
-                      onCarry={() => handleCarryParcel(item)}
-                      onPress={() => router.push({ pathname: '/parcel/[id]', params: { id: item.id } })}
-                    />
-                  </View>
-                )}
-                contentContainerStyle={styles.list as any}
-                showsVerticalScrollIndicator={false}
-              />
-            </AppErrorBoundary>
-          )
+          <EmptyMatches
+            icon="directions-car"
+            title="Trip posted successfully"
+            sub="Travellers do not send offers. Senders with matching routes will send requests to you."
+            cta="Open Requests"
+            onCta={() => router.push('/(tabs)/requests')}
+            C={C}
+          />
         )}
+
+        <MatchBreakdownSheet
+          visible={Boolean(activeMatchDetails)}
+          details={activeMatchDetails}
+          onClose={() => setActiveMatchDetails(null)}
+          C={C}
+        />
       </Animated.View>
     </View>
+  );
+}
+
+function MatchBreakdownSheet({ visible, details, onClose, C }: {
+  visible: boolean;
+  details: { title: string; score: MatchScore } | null;
+  onClose: () => void;
+  C: ThemeColors;
+}) {
+  if (!details) return null;
+
+  const rows = [
+    { label: 'Route Fit', value: details.score.breakdown.routeScore, icon: 'directions' as const },
+    { label: 'Time Fit', value: details.score.breakdown.dateScore, icon: 'schedule' as const },
+    { label: 'Capacity Fit', value: details.score.breakdown.capacityScore, icon: 'fitness-center' as const },
+    { label: 'Price Fit', value: details.score.breakdown.priceScore, icon: 'currency-rupee' as const },
+    { label: 'Rating Fit', value: details.score.breakdown.ratingScore, icon: 'star' as const },
+    { label: 'Reliability', value: details.score.breakdown.reliabilityScore, icon: 'verified-user' as const },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType={'slide'} onRequestClose={onClose}>
+      <Pressable style={[styles.sheetOverlay, { backgroundColor: C.overlay }]} onPress={onClose} />
+      <View style={[styles.sheetContainer, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
+        <View style={[styles.sheetHandle, { backgroundColor: C.surfaceBorderLight }]} />
+        <View style={styles.sheetHeader}>
+          <Text style={[styles.sheetTitle, { color: C.textPrimary }]}>Why this match?</Text>
+          <Pressable onPress={onClose} hitSlop={8}>
+            <MaterialIcons name={'close'} size={20} color={C.textMuted} />
+          </Pressable>
+        </View>
+        <Text style={[styles.sheetRoute, { color: C.textSecondary }]}>{details.title}</Text>
+
+        <View style={[styles.sheetTotalCard, { backgroundColor: C.primarySubtle, borderColor: C.primary + '55' }]}>
+          <Text style={[styles.sheetTotalLabel, { color: C.textSecondary }]}>Overall Match</Text>
+          <Text style={[styles.sheetTotalValue, { color: C.primary }]}>{details.score.total}%</Text>
+          <Text style={[styles.sheetGrade, { color: C.textMuted }]}>{details.score.grade.toUpperCase()}</Text>
+        </View>
+
+        <View style={styles.sheetRows}>
+          {rows.map((row) => (
+            <View key={row.label} style={styles.sheetRow}>
+              <View style={styles.sheetRowLabelWrap}>
+                <MaterialIcons name={row.icon} size={14} color={C.textSecondary} />
+                <Text style={[styles.sheetRowLabel, { color: C.textSecondary }]}>{row.label}</Text>
+              </View>
+              <Text style={[styles.sheetRowValue, { color: C.textPrimary }]}>{row.value}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -442,7 +443,7 @@ function EmptyMatches({ icon, title, sub, cta, onCta, C }: {
       Animated.timing(bounceAnim, { toValue: 1.06, duration: 900, useNativeDriver: true }),
       Animated.timing(bounceAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
     ])).start();
-  }, []);
+  }, [bounceAnim]);
 
   return (
     <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -517,6 +518,51 @@ const styles = StyleSheet.create({
   },
   loadingText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   loadingSub: { fontSize: FontSize.sm, textAlign: 'center', paddingHorizontal: Spacing.xl },
+
+  sheetOverlay: { flex: 1 },
+  sheetContainer: {
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 2,
+  },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sheetTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  sheetRoute: { fontSize: FontSize.sm, marginTop: -2 },
+  sheetTotalCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.sm,
+  },
+  sheetTotalLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  sheetTotalValue: { fontSize: FontSize.xxl, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
+  sheetGrade: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  sheetRows: { gap: 6, marginTop: 4 },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 7,
+  },
+  sheetRowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sheetRowLabel: { fontSize: FontSize.sm },
+  sheetRowValue: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 
   emptyWrap: {
     margin: Spacing.md, borderRadius: BorderRadius.xl, borderWidth: 1,

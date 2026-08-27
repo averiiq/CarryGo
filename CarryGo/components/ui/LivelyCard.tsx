@@ -1,7 +1,8 @@
-import React, { useRef, useCallback } from 'react';
+﻿import React, { useRef, useCallback } from 'react';
 import { Animated, Pressable, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import { Image } from 'expo-image';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing, Motion } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 
 interface LivelyCardProps {
@@ -13,35 +14,42 @@ interface LivelyCardProps {
   glowColor?: string;
   disabled?: boolean;
   hapticOnPress?: boolean;
+  imageBackground?: any;
+  imageOpacity?: number;
 }
 
 export function LivelyCard({
   children,
   onPress,
   style,
-  scaleOnPress = 0.975,
+  scaleOnPress = Motion.cardScale,
   elevated = false,
   glowColor,
   disabled,
   hapticOnPress = true,
+  imageBackground,
+  imageOpacity = 0.14,
 }: LivelyCardProps) {
   const { C, isDark } = useThemeColors();
   const scale = useRef(new Animated.Value(1)).current;
-  const elevation = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: scaleOnPress, useNativeDriver: true, tension: 350, friction: 20 }),
-      Animated.timing(elevation, { toValue: 1, duration: 100, useNativeDriver: true }),
-    ]).start();
-  }, [scale, elevation, scaleOnPress]);
+    Animated.spring(scale, {
+      toValue: scaleOnPress,
+      useNativeDriver: true,
+      tension: Motion.springFast.tension,
+      friction: Motion.springFast.friction,
+    }).start();
+  }, [scale, scaleOnPress]);
 
   const handlePressOut = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 150, friction: 8 }),
-      Animated.timing(elevation, { toValue: 0, duration: 250, useNativeDriver: true }),
-    ]).start();
-  }, [scale, elevation]);
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: Motion.springBouncy.tension,
+      friction: Motion.springBouncy.friction,
+    }).start();
+  }, [scale]);
 
   const handlePress = useCallback(() => {
     if (hapticOnPress) Haptic.tap();
@@ -52,7 +60,7 @@ export function LivelyCard({
     backgroundColor: C.surface,
     borderColor: C.surfaceBorder,
     ...(elevated && {
-      shadowColor: glowColor || (isDark ? '#7C3AED' : '#000'),
+      shadowColor: glowColor || '#000000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: isDark ? 0.3 : 0.12,
       shadowRadius: 20,
@@ -60,13 +68,21 @@ export function LivelyCard({
     }),
   };
 
-  if (!onPress) {
-    return (
-      <Animated.View style={[styles.card, cardStyle, style]}>
-        {children}
-      </Animated.View>
-    );
-  }
+  const content = (
+    <Animated.View style={[styles.card, cardStyle, style, { transform: [{ scale }] }]}>
+      {imageBackground ? (
+        <Image
+          source={imageBackground}
+          style={[styles.imageBg, { opacity: imageOpacity }]}
+          contentFit="cover"
+          transition={220}
+        />
+      ) : null}
+      {children}
+    </Animated.View>
+  );
+
+  if (!onPress) return content;
 
   return (
     <Pressable
@@ -75,9 +91,7 @@ export function LivelyCard({
       onPressOut={handlePressOut}
       disabled={disabled}
     >
-      <Animated.View style={[styles.card, cardStyle, style, { transform: [{ scale }] }]}>
-        {children}
-      </Animated.View>
+      {content}
     </Pressable>
   );
 }
@@ -87,5 +101,9 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     padding: Spacing.md,
+    overflow: 'hidden',
+  },
+  imageBg: {
+    ...StyleSheet.absoluteFillObject,
   },
 });

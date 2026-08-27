@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, View, Text, Pressable, Animated, StyleSheet, Easing } from 'react-native';
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect } from 'react';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -14,15 +14,23 @@ import { ThemeColors, Motion, Spacing } from '@/constants/theme';
 
 function TabBadge({ count, C }: { count: number; C: ThemeColors }) {
   if (count === 0) return null;
+
   return (
-    <View style={[styles.badge, { backgroundColor: C.error, borderColor: C.tabBarBg }]}>
+    <View style={[styles.badge, { backgroundColor: C.error, borderColor: C.tabBarBg }]}> 
       <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
     </View>
   );
 }
 
 function AnimatedTabIcon({
-  focused, icon, outlineIcon, label, color, badge = 0, dotAlert = false, C,
+  focused,
+  icon,
+  outlineIcon,
+  label,
+  color,
+  badge = 0,
+  dotAlert = false,
+  C,
 }: {
   focused: boolean;
   icon: keyof typeof Ionicons.glyphMap;
@@ -33,30 +41,35 @@ function AnimatedTabIcon({
   dotAlert?: boolean;
   C: ThemeColors;
 }) {
-  const scale = useRef(new Animated.Value(focused ? 1 : 0.9)).current;
-  const translateY = useRef(new Animated.Value(focused ? -2 : 0)).current;
+  const scale = useRef(new Animated.Value(focused ? 1 : 0.94)).current;
+  const translateY = useRef(new Animated.Value(focused ? -1 : 0)).current;
   const pillWidth = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
     if (focused) {
       Animated.parallel([
         Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springFast }),
-        Animated.spring(translateY, { toValue: -2, useNativeDriver: true, ...Motion.springFast }),
+        Animated.spring(translateY, { toValue: -1, useNativeDriver: true, ...Motion.springFast }),
         Animated.timing(pillWidth, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+        Animated.timing(pillOpacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: false }),
       ]).start();
-    } else {
-      Animated.parallel([
-        Animated.spring(scale, { toValue: 0.9, useNativeDriver: true, ...Motion.springDefault }),
-        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, ...Motion.springDefault }),
-        Animated.timing(pillWidth, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: false }),
-      ]).start();
+      return;
     }
-  }, [focused, scale, translateY, pillWidth]);
 
-  const indicatorWidth = pillWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 20] });
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 0.94, useNativeDriver: true, ...Motion.springDefault }),
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, ...Motion.springDefault }),
+      Animated.timing(pillWidth, { toValue: 0, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(pillOpacity, { toValue: 0, duration: 180, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+    ]).start();
+  }, [focused, scale, translateY, pillWidth, pillOpacity]);
+
+  const indicatorWidth = pillWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 22] });
 
   return (
-    <Animated.View style={[styles.tabItem, { transform: [{ scale }, { translateY }] }]}>
+    <Animated.View style={[styles.tabItem, { transform: [{ scale }, { translateY }] }]}> 
+      <Animated.View style={[styles.focusPill, { backgroundColor: C.primarySubtle, opacity: pillOpacity }]} />
       <View style={styles.iconContainer}>
         <Ionicons
           name={focused ? icon : outlineIcon}
@@ -91,29 +104,25 @@ function AnimatedTabIcon({
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { user, isLoading, requiresProfileSetup } = useAuth();
-  const { C, isDark } = useThemeColors();
+  const { C } = useThemeColors();
   const requestsQuery = useRequestsQuery(user?.id);
   const conversationsQuery = useConversationsQuery(user?.id);
 
   if (isLoading) return null;
-  if (!user) return <Redirect href="/login" />;
-  if (requiresProfileSetup) return <Redirect href="/profile-setup" />;
+  if (!user) return <Redirect href={'/login'} />;
+  if (requiresProfileSetup) return <Redirect href={'/profile-setup'} />;
 
   const requests = requestsQuery.data ?? [];
   const conversations = conversationsQuery.data ?? [];
-  const pendingRequests = useMemo(() =>
-    requests.filter(r => r.travellerId === user.id && r.status === 'pending').length,
-    [requests, user.id]
-  );
-  const unreadMessages = useMemo(() =>
-    conversations.filter(c =>
-      c.lastMessage && !c.lastMessage.read && c.lastMessage.senderId !== user.id
-    ).length,
-    [conversations, user.id]
-  );
+  const pendingRequests = requests.filter(
+    (request) => request.travellerId === user.id && request.status === 'pending',
+  ).length;
+  const unreadMessages = conversations.filter(
+    (conversation) => conversation.lastMessage && !conversation.lastMessage.read && conversation.lastMessage.senderId !== user.id,
+  ).length;
   const kycPending = FeatureFlags.kycProvider && (!user.kycStatus || user.kycStatus === 'pending');
 
-  const bottomPad = Platform.select({ ios: insets.bottom, android: Math.max(insets.bottom, 8), default: 8 });
+  const bottomPad = Platform.select({ ios: insets.bottom, android: Math.max(insets.bottom, 10), default: 10 });
 
   return (
     <Tabs
@@ -124,7 +133,7 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 70 + bottomPad,
+          height: 76 + bottomPad,
           paddingBottom: bottomPad,
           backgroundColor: 'transparent',
           borderTopWidth: 0,
@@ -134,15 +143,17 @@ export default function TabLayout() {
         tabBarBackground: () => (
           <View style={[StyleSheet.absoluteFill, styles.tabBarBg]}>
             <BlurView
-              intensity={isDark ? 40 : 60}
-              tint={isDark ? 'dark' : 'light'}
+              intensity={48}
+              tint={'light'}
               style={StyleSheet.absoluteFill}
             />
-            <View style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: isDark ? 'rgba(8,8,20,0.82)' : 'rgba(255,255,255,0.88)' },
-            ]} />
-            <View style={[styles.tabBarTopBorder, { backgroundColor: C.surfaceBorder + '50' }]} />
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: 'rgba(255,255,255,0.94)' },
+              ]}
+            />
+            <View style={[styles.tabBarTopBorder, { backgroundColor: C.surfaceBorder + '88' }]} />
           </View>
         ),
         tabBarActiveTintColor: C.primary,
@@ -151,49 +162,49 @@ export default function TabLayout() {
         tabBarButton: ({ ref: _ref, ...props }) => (
           <Pressable
             {...props}
-            onPress={(e) => {
+            onPress={(event) => {
               Haptic.select();
-              props.onPress?.(e);
+              props.onPress?.(event);
             }}
-            android_ripple={{ color: C.primarySubtle, borderless: true, radius: 30 }}
+            android_ripple={{ color: C.primarySubtle, borderless: true, radius: 34 }}
             style={[props.style, styles.tabButton]}
           />
         ),
       }}
     >
       <Tabs.Screen
-        name="index"
+        name={'index'}
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused} icon="home" outlineIcon="home-outline" label="Home" color={color} C={C} />
+            <AnimatedTabIcon focused={focused} icon={'home'} outlineIcon={'home-outline'} label={'Home'} color={color} C={C} />
           ),
         }}
       />
       <Tabs.Screen
-        name="requests"
+        name={'requests'}
         options={{
           title: 'Requests',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused} icon="swap-horizontal" outlineIcon="swap-horizontal-outline" label="Requests" color={color} badge={pendingRequests} C={C} />
+            <AnimatedTabIcon focused={focused} icon={'swap-horizontal'} outlineIcon={'swap-horizontal-outline'} label={'Requests'} color={color} badge={pendingRequests} C={C} />
           ),
         }}
       />
       <Tabs.Screen
-        name="messages"
+        name={'messages'}
         options={{
           title: 'Messages',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused} icon="chatbubbles" outlineIcon="chatbubbles-outline" label="Messages" color={color} badge={unreadMessages} C={C} />
+            <AnimatedTabIcon focused={focused} icon={'chatbubbles'} outlineIcon={'chatbubbles-outline'} label={'Messages'} color={color} badge={unreadMessages} C={C} />
           ),
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name={'profile'}
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused} icon="person" outlineIcon="person-outline" label="Profile" color={color} dotAlert={kycPending} C={C} />
+            <AnimatedTabIcon focused={focused} icon={'person'} outlineIcon={'person-outline'} label={'Profile'} color={color} dotAlert={kycPending} C={C} />
           ),
         }}
       />
@@ -208,9 +219,9 @@ const styles = StyleSheet.create({
   tabBarTopBorder: {
     position: 'absolute',
     top: 0,
-    left: Spacing.lg,
-    right: Spacing.lg,
-    height: 0.5,
+    left: Spacing.md,
+    right: Spacing.md,
+    height: 1,
   },
   tabButton: {
     flex: 1,
@@ -221,7 +232,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    minWidth: 56,
+    minWidth: 62,
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  focusPill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 18,
   },
   iconContainer: {
     position: 'relative',
@@ -233,15 +253,15 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 10,
     fontWeight: '500',
-    letterSpacing: 0.1,
+    letterSpacing: 0.2,
   },
   tabLabelActive: {
     fontWeight: '700',
   },
   activeIndicator: {
     height: 3,
-    borderRadius: 1.5,
-    marginTop: 2,
+    borderRadius: 2,
+    marginTop: 1,
   },
   badge: {
     position: 'absolute',

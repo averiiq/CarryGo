@@ -82,7 +82,7 @@ export async function savePushToken(userId: string, token: string) {
     p_device_key: `${Platform.OS}:${token}`,
     p_expo_push_token: token,
     p_platform: Platform.OS,
-    p_app_version: Application.nativeApplicationVersion || null,
+    p_app_version: Application.nativeApplicationVersion || undefined,
   });
   await sb.from('user_profiles').update({ push_token: token }).eq('id', userId);
 }
@@ -100,7 +100,7 @@ export async function sendRequestNotification(type: 'received' | 'accepted' | 'r
   const configs = {
     received: {
       title: '📦 New Delivery Request!',
-      body: `${name} wants you to carry their parcel${price ? ` for ₹${price}` : ''}. Tap to review.`,
+      body: `${name} wants you to carry their parcel${price ? ` for Rs ${price}` : ''}. Tap to review.`,
     },
     accepted: {
       title: '✅ Request Accepted!',
@@ -140,15 +140,15 @@ export async function sendPaymentNotification(type: 'locked' | 'released' | 'ref
   const configs = {
     locked: {
       title: '🔒 Payment Reserved',
-      body: `The payment provider reports ₹${amount} as reserved for this delivery.`,
+      body: `The payment provider reports Rs ${amount} as reserved for this delivery.`,
     },
     released: {
       title: '💰 Payment Released!',
-      body: `₹${amount} has been released to your account. Great job on the delivery!`,
+      body: `Rs ${amount} has been released to your account. Great job on the delivery!`,
     },
     refunded: {
       title: '↩️ Payment Refunded',
-      body: `₹${amount} has been refunded to the sender's account.`,
+      body: `Rs ${amount} has been refunded to the sender's account.`,
     },
   };
   const cfg = configs[type];

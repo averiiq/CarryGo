@@ -35,10 +35,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo.png",
-          "imageWidth": 200,
+          "image": "./assets/images/splash-logo.png",
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#F3F7EF",
+          "dark": {
+            "image": "./assets/images/splash-logo.png",
+            "backgroundColor": "#0F141B"
+          }
         }
       ],
       "@react-native-community/datetimepicker",
@@ -53,6 +57,15 @@
       "router": {},
       "eas": {
         "projectId": "85ee60ab-6a6a-4f2e-9688-9fbd4dabca3b"
+      }
+    },
+    "splash": {
+      "image": "./assets/images/splash-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F3F7EF",
+      "dark": {
+        "image": "./assets/images/splash-logo.png",
+        "backgroundColor": "#0F141B"
       }
     },
     "owner": "averiq-software-company"

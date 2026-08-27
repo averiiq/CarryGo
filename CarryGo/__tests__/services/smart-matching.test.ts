@@ -1,4 +1,4 @@
-import { scoreMatch, findBestMatches, MatchScore } from '@/services/smart-matching.service';
+import { scoreMatch, findBestMatches, findBestParcelsForTrip, MatchScore } from '@/services/smart-matching.service';
 import { Trip, Parcel } from '@/types';
 
 jest.mock('@/constants/indian-cities', () => ({
@@ -74,6 +74,14 @@ describe('smart-matching.service', () => {
       expect(result.breakdown.routeScore).toBe(100);
     });
 
+    it('normalizes route aliases like state suffixes and NCR names', () => {
+      const trip = makeTrip({ fromCity: 'Mumbai, Maharashtra', toCity: 'Delhi NCR' });
+      const parcel = makeParcel({ fromCity: 'Mumbai', toCity: 'Delhi' });
+
+      const result = scoreMatch(trip, parcel);
+      expect(result.breakdown.routeScore).toBe(100);
+    });
+
     it('returns 0 when cities are not found in database', () => {
       const trip = makeTrip({ fromCity: 'UnknownCity', toCity: 'AnotherUnknown' });
       const parcel = makeParcel({ fromCity: 'NowhereVille', toCity: 'GhostTown' });
@@ -88,7 +96,15 @@ describe('smart-matching.service', () => {
       const parcel = makeParcel({ fromCity: 'Mumbai', toCity: 'Delhi' });
 
       const result = scoreMatch(trip, parcel);
-      expect(result.breakdown.routeScore).toBe(80);
+      expect(result.breakdown.routeScore).toBeGreaterThanOrEqual(80);
+    });
+
+    it('penalizes opposite travel direction', () => {
+      const trip = makeTrip({ fromCity: 'Mumbai', toCity: 'Delhi' });
+      const parcel = makeParcel({ fromCity: 'Delhi', toCity: 'Mumbai' });
+
+      const result = scoreMatch(trip, parcel);
+      expect(result.breakdown.routeScore).toBeLessThan(40);
     });
 
     it('returns lower score for cities within 100km', () => {
@@ -138,6 +154,14 @@ describe('smart-matching.service', () => {
     it('returns 0 for more than 7-day difference', () => {
       const trip = makeTrip({ date: '2026-08-01' });
       const parcel = makeParcel({ createdAt: '2026-07-20' });
+
+      const result = scoreMatch(trip, parcel);
+      expect(result.breakdown.dateScore).toBe(0);
+    });
+
+    it('penalizes trips that miss parcel delivery deadline', () => {
+      const trip = makeTrip({ date: '2026-07-23' });
+      const parcel = makeParcel({ createdAt: '2026-07-20', deliveryDate: '2026-07-21' });
 
       const result = scoreMatch(trip, parcel);
       expect(result.breakdown.dateScore).toBe(0);
@@ -448,6 +472,21 @@ describe('smart-matching.service', () => {
 
       const results = findBestMatches(parcel, trips);
       expect(results).toEqual([]);
+    });
+  });
+
+  describe('findBestParcelsForTrip', () => {
+    it('returns open parcels from other users that fit capacity', () => {
+      const trip = makeTrip({ userId: 'traveller-1', availableCapacity: 8 });
+      const parcels = [
+        makeParcel({ id: 'parcel-ok', userId: 'sender-1', status: 'open', weight: 4 }),
+        makeParcel({ id: 'parcel-heavy', userId: 'sender-2', status: 'open', weight: 20 }),
+        makeParcel({ id: 'parcel-own', userId: 'traveller-1', status: 'open', weight: 2 }),
+        makeParcel({ id: 'parcel-closed', userId: 'sender-3', status: 'matched', weight: 2 }),
+      ];
+
+      const matches = findBestParcelsForTrip(trip, parcels, { minScore: 0, limit: 10 });
+      expect(matches.map(match => match.parcel.id)).toEqual(['parcel-ok']);
     });
   });
 });

@@ -70,7 +70,7 @@ export function useNotifications() {
 
     const sb = getSupabaseClient();
     const realtimeChannel = sb
-      .channel(`realtime:notifications:${user.id}`)
+      .channel(`notifications:${user.id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },

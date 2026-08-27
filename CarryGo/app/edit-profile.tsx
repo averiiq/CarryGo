@@ -11,6 +11,7 @@ import { useAlert } from '@/template';
 import { normalizeIndianMobile, updateProfile } from '@/services/profile.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { getCityNames } from '@/constants/indian-cities';
 
 export default function EditProfileScreen() {
   const { user, updateUser } = useAuth();
@@ -21,10 +22,12 @@ export default function EditProfileScreen() {
 
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [city, setCity] = useState(user?.city || '');
+  const [showCityPicker, setShowCityPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const hasChanges = name.trim() !== (user?.name || '') || phone.trim() !== (user?.phone || '');
+  const hasChanges = name.trim() !== (user?.name || '') || phone.trim() !== (user?.phone || '') || city !== (user?.city || '');
 
   const handleSave = async () => {
     if (!user) return;
@@ -41,14 +44,14 @@ export default function EditProfileScreen() {
     const { error } = await updateProfile(user.id, {
       full_name: name.trim(),
       phone: normalizedPhone,
+      ...(city !== user.city ? { city } : {}),
     }, user.id);
     setSaving(false);
     if (error) {
       showAlert('Save Failed', error);
       return;
     }
-    // Update auth context immediately
-    updateUser({ name: name.trim(), fullName: name.trim(), phone: normalizedPhone });
+    updateUser({ name: name.trim(), fullName: name.trim(), phone: normalizedPhone, city });
     setSaved(true);
     setTimeout(() => {
       setSaved(false);
@@ -153,6 +156,44 @@ export default function EditProfileScreen() {
             </View>
             <Text style={[styles.fieldHint, { color: C.textMuted }]}>
               Optional — used for coordination with your delivery partner
+            </Text>
+          </View>
+
+          <View style={[styles.fieldDiv, { backgroundColor: C.surfaceBorder }]} />
+
+          {/* City */}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.fieldLabel, { color: C.textMuted }]}>CITY</Text>
+            <Pressable
+              style={[styles.inputRow, { backgroundColor: C.inputBg, borderColor: C.surfaceBorder }]}
+              onPress={() => setShowCityPicker(!showCityPicker)}
+            >
+              <MaterialIcons name="location-city" size={18} color={C.textMuted} />
+              <Text style={[styles.input, { color: city ? C.textPrimary : C.textMuted }]}>
+                {city || 'Select your city'}
+              </Text>
+              <MaterialIcons name={showCityPicker ? 'expand-less' : 'expand-more'} size={20} color={C.textMuted} />
+            </Pressable>
+            {showCityPicker && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                {getCityNames().slice(0, 20).map(c => (
+                  <Pressable
+                    key={c}
+                    onPress={() => { setCity(c); setShowCityPicker(false); }}
+                    style={{
+                      paddingHorizontal: 10, paddingVertical: 6,
+                      borderRadius: 8, borderWidth: 1,
+                      backgroundColor: city === c ? C.primarySubtle : C.surfaceElevated,
+                      borderColor: city === c ? C.primary : C.surfaceBorder,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: city === c ? C.primary : C.textSecondary }}>{c}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            <Text style={[styles.fieldHint, { color: C.textMuted }]}>
+              Your feed shows trips and parcels relevant to this city
             </Text>
           </View>
 

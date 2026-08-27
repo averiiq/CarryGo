@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { isValidUuid, sanitizeText } from '@/lib/validation'
+import { isAwsCmsBackendEnabled } from '@/utils/backend/provider'
+import { awsCmsRequest } from '@/utils/aws/api'
 
 export async function resolveDispute(
   requestId: string,
@@ -16,6 +18,29 @@ export async function resolveDispute(
 
   const sanitizedNote = note ? sanitizeText(note, 1000) : undefined
   const newStatus = resolution === 'refund_sender' ? 'cancelled' : 'completed'
+
+  if (isAwsCmsBackendEnabled()) {
+    try {
+      const message = sanitizedNote
+        ? `[RESOLVED: ${resolution}] ${sanitizedNote}`
+        : `[RESOLVED: ${resolution}]`
+
+      await awsCmsRequest(`/requests/${requestId}/status`, {
+        method: 'PATCH',
+        body: {
+          status: newStatus,
+          userId: auth.userId,
+          message,
+        },
+      })
+
+      revalidatePath('/dashboard/disputes')
+      return { error: null }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to resolve dispute'
+      return { error: message }
+    }
+  }
 
   const { error } = await auth.supabase
     .from('requests')
@@ -71,6 +96,36 @@ export async function addDisputeNote(requestId: string, note: string) {
 
   const sanitizedNote = sanitizeText(note, 1000)
   if (!sanitizedNote) return { error: 'Note cannot be empty' }
+
+  if (isAwsCmsBackendEnabled()) {
+    try {
+      const response = (await awsCmsRequest(`/requests/${requestId}`)) as {
+        data: {
+          status?: string
+          message?: string
+        }
+      }
+      const existingMessage = response.data?.message
+      const updatedMessage = existingMessage
+        ? `${existingMessage}\n[NOTE ${new Date().toISOString()}] ${sanitizedNote}`
+        : `[NOTE ${new Date().toISOString()}] ${sanitizedNote}`
+
+      await awsCmsRequest(`/requests/${requestId}/status`, {
+        method: 'PATCH',
+        body: {
+          status: response.data?.status ?? 'failed',
+          userId: auth.userId,
+          message: updatedMessage,
+        },
+      })
+
+      revalidatePath('/dashboard/disputes')
+      return { error: null }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add note'
+      return { error: message }
+    }
+  }
 
   const { data: existing } = await auth.supabase
     .from('requests')

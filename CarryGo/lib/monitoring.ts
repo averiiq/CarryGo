@@ -165,6 +165,9 @@ export function flushLogs(): void {
 function pushToBuffer(entry: { level: LogLevel; message: string; context?: LogContext; timestamp: number }) {
   const scrubbedEntry = { ...entry, context: scrubPii(entry.context) };
   LOG_BUFFER.push(scrubbedEntry);
+  if (LOG_BUFFER.length > MAX_BUFFER) {
+    LOG_BUFFER.shift();
+  }
   if (LOG_BUFFER.length >= MAX_BUFFER) {
     flushLogs();
   }

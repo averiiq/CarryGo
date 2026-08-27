@@ -1,8 +1,18 @@
-import React, { useRef } from 'react';
-import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, Animated, View } from 'react-native';
+﻿import React, { useRef } from 'react';
+import {
+  Pressable,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
+  Animated,
+  View,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BorderRadius, FontSize, FontWeight, Spacing, Gradients, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { Haptic } from '@/services/haptics.service';
 
 interface ButtonProps {
   title: string;
@@ -29,7 +39,7 @@ export function Button({
   fullWidth = false,
   icon,
 }: ButtonProps) {
-  const { C } = useThemeColors();
+  const { C, S } = useThemeColors();
   const isDisabled = disabled || loading;
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -51,8 +61,14 @@ export function Button({
     }).start();
   };
 
-  const sizeStyle = size === 'sm' ? styles.size_sm : size === 'lg' ? styles.size_lg : styles.size_md;
-  const textSizeStyle = size === 'sm' ? styles.textSize_sm : size === 'lg' ? styles.textSize_lg : styles.textSize_md;
+  const handlePress = () => {
+    if (isDisabled) return;
+    Haptic.tap();
+    onPress();
+  };
+
+  const sizeStyle = size === 'sm' ? styles.sizeSm : size === 'lg' ? styles.sizeLg : styles.sizeMd;
+  const textSizeStyle = size === 'sm' ? styles.textSizeSm : size === 'lg' ? styles.textSizeLg : styles.textSizeMd;
 
   const variantBg = {
     primary: 'transparent',
@@ -62,20 +78,26 @@ export function Button({
     danger: C.error,
   }[variant];
 
-  const variantBorder = variant === 'outline' ? C.primary : 'transparent';
+  const variantBorder = {
+    primary: 'transparent',
+    secondary: C.surfaceBorder,
+    outline: C.primary,
+    ghost: 'transparent',
+    danger: 'transparent',
+  }[variant];
 
   const textColor = {
-    primary: '#FFFFFF',
+    primary: C.textInverse,
     secondary: C.textPrimary,
     outline: C.primary,
     ghost: C.primary,
-    danger: '#FFFFFF',
+    danger: C.textInverse,
   }[variant];
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, fullWidth && styles.fullWidth, style]}>
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         disabled={isDisabled}
@@ -85,25 +107,35 @@ export function Button({
           {
             backgroundColor: variantBg,
             borderColor: variantBorder,
-            borderWidth: variant === 'outline' ? 1.5 : 0,
+            borderWidth: variant === 'ghost' ? 0 : 1.2,
           },
+          variant === 'primary' ? S.glow : null,
           isDisabled && styles.disabled,
         ]}
       >
         {variant === 'primary' ? (
-          <LinearGradient
-            colors={Gradients.primaryVibrant}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0.8 }}
-            style={[StyleSheet.absoluteFillObject, { borderRadius: BorderRadius.md }]}
-          />
+          <>
+            <LinearGradient
+              colors={Gradients.primaryVibrant}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[StyleSheet.absoluteFillObject, { borderRadius: BorderRadius.md }]}
+            />
+            <LinearGradient
+              colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0.0)']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.highlightLayer}
+            />
+          </>
         ) : null}
+
         {loading ? (
-          <ActivityIndicator color={textColor} size="small" />
+          <ActivityIndicator color={textColor} size={'small'} />
         ) : (
           <View style={styles.content}>
             {icon}
-            <Text style={[styles.text, textSizeStyle, { color: textColor }, textStyle]}>
+            <Text style={[styles.text, textSizeStyle, { color: textColor }, textStyle]} numberOfLines={1}>
               {title}
             </Text>
           </View>
@@ -121,19 +153,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fullWidth: { width: '100%' },
-  disabled: { opacity: 0.45 },
+  disabled: { opacity: 0.5 },
+  highlightLayer: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: BorderRadius.md,
+  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
 
-  size_sm: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, minHeight: 38 },
-  size_md: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm + 4, minHeight: 50 },
-  size_lg: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, minHeight: 58 },
+  sizeSm: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, minHeight: 40 },
+  sizeMd: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm + 4, minHeight: 52 },
+  sizeLg: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, minHeight: 60 },
 
   text: { fontWeight: FontWeight.semibold, letterSpacing: 0.2 },
-  textSize_sm: { fontSize: FontSize.sm },
-  textSize_md: { fontSize: FontSize.md },
-  textSize_lg: { fontSize: FontSize.lg },
+  textSizeSm: { fontSize: FontSize.sm },
+  textSizeMd: { fontSize: FontSize.md },
+  textSizeLg: { fontSize: FontSize.lg },
 });

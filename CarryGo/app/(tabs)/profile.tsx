@@ -1,13 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch, Animated, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { useTheme } from '@/contexts/ThemeContext';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Gradients } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -73,12 +73,12 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
-  const { isDark, toggleTheme } = useTheme();
   const heroEntrance = useFadeIn(0, 600);
   const statsEntrance = useFadeIn(120, 500);
   const sectionsEntrance = useFadeIn(240, 500);
   const avatarBreathing = useBreathing(0.97, 1, 4500);
   const starHeartbeat = useHeartbeat(5000, 1.12);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [showKyc, setShowKyc] = useState(false);
   const tripsQuery = useTripsQuery(Boolean(user));
   const parcelsQuery = useParcelsQuery(Boolean(user));
@@ -115,6 +115,18 @@ export default function ProfileScreen() {
   const isKycSubmitted = isKycAvailable && user.kycStatus === 'submitted';
   const canOpenKycBanner = !isKycApproved && !isKycSubmitted;
 
+  const heroTranslateY = scrollY.interpolate({
+    inputRange: [0, 190],
+    outputRange: [0, -10],
+    extrapolate: 'clamp',
+  });
+
+  const heroScale = scrollY.interpolate({
+    inputRange: [0, 210],
+    outputRange: [1, 0.975],
+    extrapolate: 'clamp',
+  });
+
   const kycColor = !isKycAvailable ? C.warning : isKycApproved ? C.success : isKycSubmitted ? C.warning : C.error;
   const kycBg = !isKycAvailable ? C.warningSubtle : isKycApproved ? C.successSubtle : isKycSubmitted ? C.warningSubtle : C.errorSubtle;
   const kycTitle = !isKycAvailable ? 'Identity Verification Unavailable' : isKycApproved ? 'Identity Verified' : isKycSubmitted ? 'KYC Under Review' : 'Verify Your Identity';
@@ -133,17 +145,28 @@ export default function ProfileScreen() {
         onClose={() => setShowKyc(false)}
         onComplete={() => { setShowKyc(false); }}
       />
-      <ScrollView
+      <Animated.ScrollView
         ref={scrollRef}
         style={[styles.container, { backgroundColor: C.background }]}
         contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       >
         {/* ── Hero ──────────────────────────────────────── */}
-        <Animated.View style={{ opacity: heroEntrance.opacity, transform: heroEntrance.transform }}>
+        <Animated.View style={{ opacity: heroEntrance.opacity, transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }] }}>
           <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <Image
+              source={require('@/assets/images/onboarding-hero.webp')}
+              contentFit='cover'
+              style={styles.heroBackdropImage}
+              transition={200}
+            />
             <LinearGradient
-              colors={[C.primaryGlow, C.primarySubtle, 'transparent']}
+              colors={[C.primaryGlow, C.primarySubtle, 'rgba(255,255,255,0.4)']}
               style={[StyleSheet.absoluteFillObject, { opacity: 0.8 }]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             />
@@ -273,19 +296,10 @@ export default function ProfileScreen() {
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
               <MenuItem C={C}
-                icon={<Ionicons name={isDark ? 'moon' : 'sunny'} size={17} color={isDark ? '#A78BFA' : C.warning} />}
-                label={isDark ? 'Dark Mode' : 'Light Mode'}
-                subtitle="Appearance"
-                right={
-                  <Switch
-                    value={isDark}
-                    onValueChange={() => { Haptic.select(); toggleTheme(); }}
-                    trackColor={{ false: C.surfaceBorderLight, true: C.primary + '66' }}
-                    thumbColor={isDark ? C.primary : '#fff'}
-                    ios_backgroundColor={C.surfaceBorderLight}
-                    style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] } : undefined}
-                  />
-                }
+                icon={<Ionicons name={'sunny'} size={17} color={C.warning} />}
+                label={'Light Theme'}
+                subtitle="Clean white-first interface"
+                right={<MaterialIcons name="check-circle" size={18} color={C.success} />}
               />
             </View>
           </View>
@@ -321,7 +335,7 @@ export default function ProfileScreen() {
             </View>
           </View>
         </Animated.View>
-      </ScrollView>
+      </Animated.ScrollView>
     </>
   );
 }
@@ -342,6 +356,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     marginTop: Spacing.sm,
+  },
+  heroBackdropImage: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.24,
   },
   heroTopRight: {
     position: 'absolute',

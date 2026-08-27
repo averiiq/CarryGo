@@ -178,4 +178,55 @@ export const styles = StyleSheet.create({
     borderRadius: BorderRadius.md, borderWidth: 1,
   },
   loadMoreText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  
+  // ─── Search Bar and Compact Actions ────────────────────────────
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    gap: Spacing.sm,
+  },
+  searchBarTextContainer: {
+    flex: 1,
+  },
+  searchBarPlaceholder: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
+  searchBarValue: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  searchBarDivider: {
+    width: 1,
+    height: 20,
+    marginHorizontal: Spacing.xs,
+  },
+  compactActionRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  compactActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: BorderRadius.xl,
+    paddingVertical: 14,
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  compactActionTextPrimary: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    color: '#fff',
+  },
+  compactActionTextSecondary: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
 });

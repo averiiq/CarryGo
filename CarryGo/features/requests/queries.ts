@@ -9,7 +9,6 @@ import {
   updateRequestStatus,
 } from '@/services/requests.service';
 import { Request } from '@/types';
-import { enforceRateLimit } from '@/lib/server-rate-limit';
 
 function serviceError(message: string | null | undefined, fallback: string) {
   return new Error(message || fallback);
@@ -73,9 +72,8 @@ export function useCreateRequestMutation(userId?: string) {
 
   return useMutation({
     mutationFn: async (request: Omit<Request, 'id' | 'createdAt' | 'updatedAt'>) => {
-      const rateCheck = await enforceRateLimit(request.senderId, 'create_request');
-      if (!rateCheck.allowed) throw new Error(rateCheck.error);
-      const { data, error } = await createRequest(request);
+      if (!userId) throw new Error('User session required');
+      const { data, error } = await createRequest(request, userId);
       if (error || !data) throw serviceError(error, 'Failed to create request');
       return data;
     },

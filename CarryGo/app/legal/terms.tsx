@@ -80,7 +80,7 @@ export default function TermsScreen() {
             2.6. Senders must remain reachable by phone or in-app messaging throughout the delivery period until the parcel is confirmed delivered.
           </Paragraph>
           <Paragraph C={C}>
-            2.7. Senders must pay the agreed price without negotiation after booking confirmation. Any payment disputes after acceptance will be handled through the platform's mediation process.
+            2.7. Senders must pay the agreed price without negotiation after booking confirmation. Any payment disputes after acceptance will be handled through the platform’s mediation process.
           </Paragraph>
         </Section>
 
@@ -102,7 +102,7 @@ export default function TermsScreen() {
             3.5. Travelers must confirm delivery through the app using OTP verification and photographic proof.
           </Paragraph>
           <Paragraph C={C}>
-            3.6. Travelers may refuse a parcel at pickup if it appears to differ significantly from the sender's description or if they have reasonable suspicion the contents are illegal.
+            3.6. Travelers may refuse a parcel at pickup if it appears to differ significantly from the sender’s description or if they have reasonable suspicion the contents are illegal.
           </Paragraph>
         </Section>
 
@@ -145,22 +145,22 @@ export default function TermsScreen() {
             5.3. Damage to fragile items that were inadequately packaged (as determined by photographic evidence) will not be eligible for compensation claims against the traveler.
           </Paragraph>
           <Paragraph C={C}>
-            5.4. Perishable food items are sent at the sender's own risk. CarryGo does not guarantee temperature control during transit.
+            5.4. Perishable food items are sent at the sender’s own risk. CarryGo does not guarantee temperature control during transit.
           </Paragraph>
         </Section>
 
         {/* Section 6 */}
         <Section number="6" title="Liability & Insurance" C={C}>
           <Paragraph C={C}>
-            6.1. CarryGo's liability is limited to facilitating dispute resolution and refunding escrowed payments where appropriate. CarryGo does not carry cargo insurance.
+            6.1. CarryGo’s liability is limited to facilitating dispute resolution and refunding escrowed payments where appropriate. CarryGo does not carry cargo insurance.
           </Paragraph>
           <Paragraph C={C}>
             6.2. Maximum compensation for lost or damaged items is capped at:
           </Paragraph>
           <BulletList C={C} items={[
-            'Standard parcels: ₹5,000',
-            'Electronics: ₹15,000',
-            'Documents: ₹2,000',
+            'Standard parcels: Rs 5,000',
+            'Electronics: Rs 15,000',
+            'Documents: Rs 2,000',
           ]} />
           <Paragraph C={C}>
             6.3. CarryGo does NOT provide insurance coverage for any shipments. Users are strongly encouraged to purchase separate transit insurance for high-value items.
@@ -188,7 +188,7 @@ export default function TermsScreen() {
             7.4. Photographic evidence from both pickup and delivery is critical to dispute resolution. Parties who fail to provide photographic evidence will have a weaker position in claims.
           </Paragraph>
           <Paragraph C={C}>
-            7.5. CarryGo's dispute resolution decision is final and binding on both parties for claims under ₹15,000. Claims above this amount may be escalated to arbitration.
+            7.5. CarryGo’s dispute resolution decision is final and binding on both parties for claims under Rs 15,000. Claims above this amount may be escalated to arbitration.
           </Paragraph>
         </Section>
 
@@ -211,7 +211,7 @@ export default function TermsScreen() {
         {/* Section 9 */}
         <Section number="9" title="Delivery Verification" C={C}>
           <Paragraph C={C}>
-            9.1. Delivery is confirmed only when the recipient enters the One-Time Password (OTP) provided to the sender into the traveler's app.
+            9.1. Delivery is confirmed only when the recipient enters the One-Time Password (OTP) provided to the sender into the traveler’s app.
           </Paragraph>
           <Paragraph C={C}>
             9.2. Photographic proof of delivery is required alongside OTP confirmation.
@@ -227,10 +227,10 @@ export default function TermsScreen() {
         {/* Section 10 */}
         <Section number="10" title="Payment & Escrow" C={C}>
           <Paragraph C={C}>
-            10.1. All payments are processed through CarryGo's secure escrow system. The sender pays upon booking, and funds are held until successful delivery.
+            10.1. All payments are processed through CarryGo’s secure escrow system. The sender pays upon booking, and funds are held until successful delivery.
           </Paragraph>
           <Paragraph C={C}>
-            10.2. CarryGo charges a platform service fee (currently 10% of the delivery price) deducted from the traveler's payout.
+            10.2. CarryGo charges a platform service fee (currently 10% of the delivery price) deducted from the traveler’s payout.
           </Paragraph>
           <Paragraph C={C}>
             10.3. Payouts to travelers are processed within 24 hours of confirmed delivery via UPI or bank transfer.
@@ -275,7 +275,7 @@ export default function TermsScreen() {
             13.1. Senders may cancel free of charge within 30 minutes of booking if no traveler has accepted.
           </Paragraph>
           <Paragraph C={C}>
-            13.2. After traveler acceptance, sender cancellation incurs a fee of 15% of the delivery price (minimum ₹50).
+            13.2. After traveler acceptance, sender cancellation incurs a fee of 15% of the delivery price (minimum Rs 50).
           </Paragraph>
           <Paragraph C={C}>
             13.3. Travelers may cancel up to 2 hours before the scheduled pickup without penalty. Late cancellation affects their reliability score.
@@ -354,10 +354,10 @@ export default function TermsScreen() {
             18.1. These Terms shall be governed by and construed in accordance with the laws of India.
           </Paragraph>
           <Paragraph C={C}>
-            18.2. Any disputes arising from these Terms that cannot be resolved through the platform's dispute resolution mechanism shall be subject to the exclusive jurisdiction of the courts in Bengaluru, Karnataka, India.
+            18.2. Any disputes arising from these Terms that cannot be resolved through the platform’s dispute resolution mechanism shall be subject to the exclusive jurisdiction of the courts in Bengaluru, Karnataka, India.
           </Paragraph>
           <Paragraph C={C}>
-            18.3. For claims exceeding ₹15,000, disputes shall be resolved through binding arbitration conducted in English, seated in Bengaluru, under the Arbitration and Conciliation Act, 1996.
+            18.3. For claims exceeding Rs 15,000, disputes shall be resolved through binding arbitration conducted in English, seated in Bengaluru, under the Arbitration and Conciliation Act, 1996.
           </Paragraph>
         </Section>
 

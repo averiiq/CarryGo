@@ -11,7 +11,7 @@ const VEHICLE_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   train: 'train', flight: 'flight',
 };
 const VEHICLE_COLORS: Record<string, string> = {
-  bike: '#F59E0B', car: '#22C55E', bus: '#8B5CF6', train: '#06B6D4', flight: '#7C3AED',
+  bike: '#71717A', car: '#52525B', bus: '#3F3F46', train: '#27272A', flight: '#18181B',
 };
 
 function TripRow({ trip, requests, onPress, onCancel, onDelete, C }: {
@@ -52,7 +52,7 @@ function TripRow({ trip, requests, onPress, onCancel, onDelete, C }: {
           <View style={{ flex: 1 }}>
             <Text style={[styles.rowRoute, { color: C.textPrimary }]}>{trip.fromCity} → {trip.toCity}</Text>
             <Text style={[styles.rowMeta, { color: C.textSecondary }]}>
-              {trip.date} · {trip.time} · {trip.availableCapacity}kg · ₹{trip.pricePerKg}/kg
+              {trip.date} · {trip.time} · {trip.availableCapacity}kg · Rs {trip.pricePerKg}/kg
             </Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
@@ -66,7 +66,7 @@ function TripRow({ trip, requests, onPress, onCancel, onDelete, C }: {
             { label: 'Requests', value: String(tripRequests.length), icon: 'swap-horiz' as const, color: C.textSecondary },
             { label: 'Accepted', value: String(accepted), icon: 'check-circle' as const, color: C.success },
             { label: 'Done', value: String(completed), icon: 'verified' as const, color: C.info },
-            { label: 'Earned', value: `₹${earned}`, icon: 'payments' as const, color: C.primary },
+            { label: 'Earned', value: `Rs ${earned}`, icon: 'payments' as const, color: C.primary },
           ].map((s, i) => (
             <React.Fragment key={i}>
               {i > 0 ? <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} /> : null}
@@ -180,7 +180,7 @@ function EmptyActivity({ tab, onCta, C }: { tab: 'trips' | 'parcels'; onCta: () 
       Animated.timing(bounceAnim, { toValue: 1.08, duration: 800, useNativeDriver: true }),
       Animated.timing(bounceAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
     ])).start();
-  }, []);
+  }, [bounceAnim]);
   return (
     <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
       <Animated.View style={[styles.emptyIcon, { backgroundColor: C.primarySubtle, transform: [{ scale: bounceAnim }] }]}>

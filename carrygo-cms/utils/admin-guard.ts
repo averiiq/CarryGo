@@ -50,7 +50,7 @@ export async function requireAdmin(): Promise<
     .single()
 
   if (profileError || !profile) {
-    return { supabase: adminClient, userId: user.id }
+    return { error: 'Admin access required' }
   }
 
   if (profile.system_role === 'user') {

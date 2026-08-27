@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, TextInput, ScrollView } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Modal, Pressable, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
 import { Colors, FontSize, FontWeight, Spacing, BorderRadius, Shadow } from '@/constants/theme';
 import { submitRating } from '@/services/ratings.service';
 import { useAlert } from '@/template';

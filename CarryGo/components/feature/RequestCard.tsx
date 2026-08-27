@@ -11,6 +11,7 @@ interface RequestCardProps {
   type: 'incoming' | 'outgoing';
   onAccept?: () => void;
   onReject?: () => void;
+  onCancel?: () => void;
   onChat?: () => void;
   onDelivery?: () => void;
   onPayment?: () => void;
@@ -25,11 +26,10 @@ const STATUS_CONFIG = (C: ThemeColors): Record<string, { color: string; bg: stri
   failed: { color: C.error, bg: C.errorSubtle, label: 'Failed', icon: 'alert-circle-outline' },
 });
 
-export const RequestCard = React.memo(function RequestCard({ request, type, onAccept, onReject, onChat, onDelivery, onPayment }: RequestCardProps) {
+export const RequestCard = React.memo(function RequestCard({ request, type, onAccept, onReject, onCancel, onChat, onDelivery, onPayment }: RequestCardProps) {
   const { C, S } = useThemeColors();
   const translateX = useRef(new Animated.Value(0)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
-  const cardOpacity = useRef(new Animated.Value(1)).current;
 
   const sc = STATUS_CONFIG(C)[request.status] || STATUS_CONFIG(C).pending;
   const personName = type === 'incoming' ? request.senderName : request.travellerName;
@@ -112,7 +112,7 @@ export const RequestCard = React.memo(function RequestCard({ request, type, onAc
           onPressOut={onPressOut}
           android_ripple={{ color: C.primarySubtle }}
           accessibilityRole="button"
-          accessibilityLabel={`${type === 'incoming' ? 'Incoming' : 'Outgoing'} request from ${personName}, ₹${request.price}, ${sc.label}`}
+          accessibilityLabel={`${type === 'incoming' ? 'Incoming' : 'Outgoing'} request from ${personName}, Rs ${request.price}, ${sc.label}`}
           accessibilityHint={showSwipeHint ? 'Swipe right to accept, left to reject' : undefined}
         >
           {/* Header */}
@@ -138,7 +138,7 @@ export const RequestCard = React.memo(function RequestCard({ request, type, onAc
           <View style={styles.details}>
             <View style={styles.detailItem}>
               <MaterialIcons name="currency-rupee" size={14} color={C.success} />
-              <Text style={[styles.priceText, { color: C.success }]}>₹{request.price}</Text>
+              <Text style={[styles.priceText, { color: C.success }]}>Rs {request.price}</Text>
             </View>
             <View style={[styles.detailSep, { backgroundColor: C.surfaceBorderLight }]} />
             <View style={styles.detailItem}>
@@ -186,21 +186,34 @@ export const RequestCard = React.memo(function RequestCard({ request, type, onAc
             </View>
           ) : null}
 
+          {type === 'outgoing' && request.status === 'pending' ? (
+            <Pressable
+              style={({ pressed }) => [styles.historyBtn, { backgroundColor: C.errorSubtle, borderColor: C.error + '44', opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => { Haptic.tap(); onCancel?.(); }}
+            >
+              <MaterialIcons name="cancel" size={14} color={C.error} />
+              <Text style={[styles.actionBtnText, { color: C.error }]}>Cancel Request</Text>
+            </Pressable>
+          ) : null}
+
           {request.status === 'accepted' ? (
             <View style={styles.actions}>
+              {type === 'outgoing' ? (
+                <Pressable
+                  style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.warning + '18', borderColor: C.warning + '44', borderWidth: 1, flex: undefined, paddingHorizontal: Spacing.md, opacity: pressed ? 0.8 : 1 }]}
+                  onPress={() => { Haptic.tap(); onPayment?.(); }}
+                >
+                  <MaterialIcons name="account-balance-wallet" size={14} color={C.warning} />
+                  <Text style={[styles.actionBtnText, { color: C.warning }]}>Pay</Text>
+                </Pressable>
+              ) : null}
+
               <Pressable
                 style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44', borderWidth: 1, flex: undefined, paddingHorizontal: Spacing.md, opacity: pressed ? 0.8 : 1 }]}
                 onPress={() => { Haptic.tap(); onChat?.(); }}
               >
                 <Ionicons name="chatbubble-outline" size={14} color={C.primary} />
                 <Text style={[styles.actionBtnText, { color: C.primary }]}>Chat</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.warning + '18', borderColor: C.warning + '44', borderWidth: 1, flex: undefined, paddingHorizontal: Spacing.md, opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => { Haptic.tap(); onPayment?.(); }}
-              >
-                <MaterialIcons name="account-balance-wallet" size={14} color={C.warning} />
-                <Text style={[styles.actionBtnText, { color: C.warning }]}>Pay</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1 }]}

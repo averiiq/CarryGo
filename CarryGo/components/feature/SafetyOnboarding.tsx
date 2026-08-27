@@ -243,7 +243,7 @@ function StepWelcome({ C }: { C: any }) {
         Sender Safety Center
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        Before you send your first parcel, let's walk through our safety guidelines. This keeps you, travelers, and the community protected.
+        Before you send your first parcel, let’s walk through our safety guidelines. This keeps you, travelers, and the community protected.
       </Text>
 
       <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -284,7 +284,7 @@ function StepAllowedItems({ C }: { C: any }) {
         What You Can Send
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        These items are allowed on CarryGo. Make sure they're properly packed and clearly described.
+        These items are allowed on CarryGo. Make sure they’re properly packed and clearly described.
       </Text>
 
       <View style={styles.itemGrid}>
@@ -441,7 +441,7 @@ function StepTravelerResponsibilities({ C }: { C: any }) {
       </IllustrationArea>
 
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>
-        Traveler's Role
+        Traveler’s Role
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
         Travelers who carry your parcels commit to these standards. Know what to expect.
@@ -494,9 +494,9 @@ function StepLiability({ C }: { C: any }) {
 
       <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
         <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Maximum Claim Limits</Text>
-        <BulletPoint icon="currency-rupee" text="Standard parcels: up to ₹5,000" C={C} />
-        <BulletPoint icon="currency-rupee" text="Electronics: up to ₹15,000" C={C} />
-        <BulletPoint icon="currency-rupee" text="Documents: up to ₹2,000" C={C} />
+        <BulletPoint icon="currency-rupee" text="Standard parcels: up to Rs 5,000" C={C} />
+        <BulletPoint icon="currency-rupee" text="Electronics: up to Rs 15,000" C={C} />
+        <BulletPoint icon="currency-rupee" text="Documents: up to Rs 2,000" C={C} />
       </View>
     </View>
   );
@@ -565,7 +565,7 @@ function StepFinalAgreement({ C, checks, onToggle, onViewTerms }: {
         Almost There!
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        Confirm your understanding by checking each box below. Then you're ready to send your first parcel.
+        Confirm your understanding by checking each box below. Then you’re ready to send your first parcel.
       </Text>
 
       <View style={[styles.checkboxCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>

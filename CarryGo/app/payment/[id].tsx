@@ -1,36 +1,63 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FeatureFlags, disabledFeatureMessage } from '@/constants/featureFlags';
-import { BorderRadius, FontSize, FontWeight, Shadow, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useRequestQuery } from '@/features/requests/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useRazorpayCheckout } from '@/hooks/useRazorpayCheckout';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchPaymentByRequest } from '@/services/payments.service';
 
+type PaymentStatus = 'locked' | 'released' | 'refunded';
+
+function formatAmount(value?: number | null) {
+  const amount = typeof value === 'number' ? value : 0;
+  return `Rs ${amount.toLocaleString('en-IN')}`;
+}
+
 export default function PaymentScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { C } = useThemeColors();
+  const { C, S } = useThemeColors();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { user } = useAuth();
   const { data: request } = useRequestQuery(id);
-  const [paymentComplete, setPaymentComplete] = useState(false);
-  const [existingPayment, setExistingPayment] = useState<{ id: string; status: string } | null>(null);
 
-  React.useEffect(() => {
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  const [existingPayment, setExistingPayment] = useState<{ id: string; status: PaymentStatus } | null>(null);
+
+  useEffect(() => {
     if (!id) return;
     fetchPaymentByRequest(id).then(({ data }) => {
-      if (data) setExistingPayment({ id: data.id, status: data.status });
+      if (!data) return;
+      const status = data.status as PaymentStatus;
+      if (status === 'locked' || status === 'released' || status === 'refunded') {
+        setExistingPayment({ id: data.id, status });
+      }
     });
   }, [id]);
 
   const isSender = user?.id === request?.senderId;
 
-  const { isLoading, isCreatingOrder, isVerifying, error, startCheckout } = useRazorpayCheckout({
+  const {
+    isLoading,
+    isCreatingOrder,
+    isVerifying,
+    error,
+    startCheckout,
+  } = useRazorpayCheckout({
     requestId: id,
     senderId: user?.id ?? '',
     senderName: user?.name,
@@ -39,12 +66,44 @@ export default function PaymentScreen() {
     onSuccess: (paymentId) => {
       setPaymentComplete(true);
       setExistingPayment({ id: paymentId, status: 'locked' });
-      Alert.alert('Payment Successful', 'Your payment has been securely locked in escrow.');
+      Alert.alert('Payment Successful', 'Your payment is now securely held in escrow.');
     },
-    onFailure: (msg) => {
-      Alert.alert('Payment Failed', msg);
+    onFailure: (message) => {
+      Alert.alert('Payment Failed', message);
     },
   });
+
+  const statusMeta = useMemo(() => {
+    if (!existingPayment) return null;
+
+    if (existingPayment.status === 'released') {
+      return {
+        icon: 'verified' as const,
+        color: C.success,
+        bg: C.successSubtle,
+        title: 'Payment Released',
+        body: 'Funds are released to the traveller after delivery confirmation.',
+      };
+    }
+
+    if (existingPayment.status === 'refunded') {
+      return {
+        icon: 'replay' as const,
+        color: C.textMuted,
+        bg: C.surfaceElevated,
+        title: 'Payment Refunded',
+        body: 'The payment has been refunded to the sender account.',
+      };
+    }
+
+    return {
+      icon: 'lock' as const,
+      color: C.warning,
+      bg: C.warningSubtle,
+      title: 'Payment in Escrow',
+      body: 'Funds are safely locked and will be released after successful delivery.',
+    };
+  }, [C.success, C.successSubtle, C.surfaceElevated, C.textMuted, C.warning, C.warningSubtle, existingPayment]);
 
   if (!FeatureFlags.payments) {
     return (
@@ -52,28 +111,16 @@ export default function PaymentScreen() {
         style={[styles.container, { backgroundColor: C.background }]}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xl }]}
       >
-        <View style={[styles.hero, Shadow.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <View style={[styles.icon, { backgroundColor: C.warningSubtle, borderColor: C.warning + '55' }]}>
-            <MaterialIcons name="construction" size={34} color={C.warning} />
+        <View style={[styles.statusCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+          <View style={[styles.statusIconWrap, { backgroundColor: C.warningSubtle }]}>
+            <MaterialIcons name="construction" size={30} color={C.warning} />
           </View>
-          <Text style={[styles.title, { color: C.textPrimary }]}>Payment Integration Unavailable</Text>
-          <Text style={[styles.body, { color: C.textSecondary }]}>
-            {disabledFeatureMessage.payments}
-          </Text>
+          <Text style={[styles.statusTitle, { color: C.textPrimary }]}>Payments are disabled</Text>
+          <Text style={[styles.statusBody, { color: C.textSecondary }]}>{disabledFeatureMessage.payments}</Text>
         </View>
       </ScrollView>
     );
   }
-
-  const statusColor = existingPayment?.status === 'locked' ? C.warning
-    : existingPayment?.status === 'released' ? C.success
-    : existingPayment?.status === 'refunded' ? C.textMuted
-    : C.textSecondary;
-
-  const statusLabel = existingPayment?.status === 'locked' ? 'Held in Escrow'
-    : existingPayment?.status === 'released' ? 'Released to Traveller'
-    : existingPayment?.status === 'refunded' ? 'Refunded'
-    : '';
 
   return (
     <ScrollView
@@ -81,209 +128,267 @@ export default function PaymentScreen() {
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xl }]}
       showsVerticalScrollIndicator={false}
     >
-      {existingPayment ? (
-        <View style={[styles.hero, Shadow.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <View style={[styles.icon, { backgroundColor: statusColor + '18', borderColor: statusColor + '55' }]}>
-            <MaterialIcons
-              name={existingPayment.status === 'released' ? 'check-circle' : existingPayment.status === 'refunded' ? 'replay' : 'lock'}
-              size={34}
-              color={statusColor}
-            />
+      <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+        <Image source={require('@/assets/images/onboarding-hero.webp')} style={styles.heroImage} contentFit='cover' transition={180} />
+        <LinearGradient
+          colors={[C.primarySubtle, 'rgba(255,255,255,0.84)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Secure Escrow Payment</Text>
+        <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>
+          Sender locks funds, traveller delivers, and payment is released only after confirmation.
+        </Text>
+      </View>
+
+      {statusMeta ? (
+        <View style={[styles.statusCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+          <LinearGradient
+            colors={[statusMeta.bg, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={[styles.statusIconWrap, { backgroundColor: statusMeta.color + '15' }]}>
+            <MaterialIcons name={statusMeta.icon} size={30} color={statusMeta.color} />
           </View>
-          <Text style={[styles.title, { color: C.textPrimary }]}>{statusLabel}</Text>
-          <Text style={[styles.body, { color: C.textSecondary }]}>
-            {existingPayment.status === 'locked'
-              ? 'Payment is securely held. It will be released to the traveller upon delivery confirmation.'
-              : existingPayment.status === 'released'
-              ? 'Payment has been released to the traveller after successful delivery.'
-              : 'Payment has been refunded to your account.'}
-          </Text>
+          <Text style={[styles.statusTitle, { color: C.textPrimary }]}>{statusMeta.title}</Text>
+          <Text style={[styles.statusBody, { color: C.textSecondary }]}>{statusMeta.body}</Text>
         </View>
       ) : paymentComplete ? (
-        <View style={[styles.hero, Shadow.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <View style={[styles.icon, { backgroundColor: C.success + '18', borderColor: C.success + '55' }]}>
-            <MaterialIcons name="check-circle" size={34} color={C.success} />
+        <View style={[styles.statusCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+          <LinearGradient
+            colors={[C.successSubtle, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={[styles.statusIconWrap, { backgroundColor: C.successSubtle }]}>
+            <MaterialIcons name="check-circle" size={30} color={C.success} />
           </View>
-          <Text style={[styles.title, { color: C.textPrimary }]}>Payment Complete</Text>
-          <Text style={[styles.body, { color: C.textSecondary }]}>
-            Your payment is securely held in escrow.
-          </Text>
+          <Text style={[styles.statusTitle, { color: C.textPrimary }]}>Payment complete</Text>
+          <Text style={[styles.statusBody, { color: C.textSecondary }]}>Your payment has been securely locked for this delivery.</Text>
         </View>
       ) : (
-        <View style={[styles.hero, Shadow.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <View style={[styles.icon, { backgroundColor: C.accent + '18', borderColor: C.accent + '55' }]}>
-            <MaterialIcons name="payment" size={34} color={C.accent} />
+        <View style={[styles.statusCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+          <LinearGradient
+            colors={[C.primarySubtle, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={[styles.statusIconWrap, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name="shield" size={30} color={C.primary} />
           </View>
-          <Text style={[styles.title, { color: C.textPrimary }]}>Secure Payment</Text>
-          <Text style={[styles.body, { color: C.textSecondary }]}>
-            Pay securely via Razorpay. Your funds are held in escrow and released only after delivery confirmation.
-          </Text>
+          <Text style={[styles.statusTitle, { color: C.textPrimary }]}>Secure escrow checkout</Text>
+          <Text style={[styles.statusBody, { color: C.textSecondary }]}>Pay once, then funds release only after successful delivery confirmation.</Text>
         </View>
       )}
 
       {request ? (
-        <View style={[styles.details, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <Text style={[styles.detailsTitle, { color: C.textPrimary }]}>Delivery Details</Text>
-          <View style={[styles.row, { borderBottomColor: C.surfaceBorder }]}>
-            <Text style={[styles.label, { color: C.textMuted }]}>Sender</Text>
-            <Text style={[styles.value, { color: C.textPrimary }]}>{request.senderName}</Text>
+        <View style={[styles.detailsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.detailsHeader}>
+            <MaterialIcons name="receipt-long" size={16} color={C.primary} />
+            <Text style={[styles.detailsTitle, { color: C.textPrimary }]}>Payment Details</Text>
           </View>
-          <View style={[styles.row, { borderBottomColor: C.surfaceBorder }]}>
-            <Text style={[styles.label, { color: C.textMuted }]}>Traveller</Text>
-            <Text style={[styles.value, { color: C.textPrimary }]}>{request.travellerName}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={[styles.label, { color: C.textMuted }]}>Amount</Text>
-            <Text style={[styles.amount, { color: C.success }]}>₹{request.price}</Text>
+          <DetailRow label="Sender" value={request.senderName} C={C} />
+          <DetailRow label="Traveller" value={request.travellerName} C={C} />
+          <View style={[styles.detailRow, styles.detailRowLast]}>
+            <Text style={[styles.detailLabel, { color: C.textMuted }]}>Amount</Text>
+            <Text style={[styles.amountText, { color: C.success }]}>{formatAmount(request.price)}</Text>
           </View>
         </View>
       ) : null}
 
       {!existingPayment && !paymentComplete && isSender ? (
-        <View style={styles.actions}>
-          {error ? (
-            <Text style={[styles.errorText, { color: C.error }]}>{error}</Text>
-          ) : null}
-          <TouchableOpacity
-            style={[styles.payButton, { backgroundColor: C.accent, opacity: isLoading ? 0.6 : 1 }]}
+        <View style={[styles.actionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          {error ? <Text style={[styles.errorText, { color: C.error }]}>{error}</Text> : null}
+
+          <Pressable
             onPress={startCheckout}
             disabled={isLoading}
-            activeOpacity={0.8}
+            style={({ pressed }) => [styles.payButtonWrap, pressed && { opacity: 0.86 }, isLoading && { opacity: 0.64 }]}
           >
-            {isLoading ? (
-              <View style={styles.buttonContent}>
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={styles.payButtonText}>
-                  {isCreatingOrder ? 'Creating Order...' : isVerifying ? 'Verifying...' : 'Processing...'}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.buttonContent}>
-                <MaterialIcons name="lock" size={20} color="#fff" />
-                <Text style={styles.payButtonText}>Pay ₹{request?.price ?? '—'}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <Text style={[styles.securityNote, { color: C.textMuted }]}>
-            Protected by Razorpay. Funds released only on delivery.
-          </Text>
+            <LinearGradient
+              colors={[C.primary, C.primaryDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.payButton}
+            >
+              {isLoading ? (
+                <>
+                  <ActivityIndicator size="small" color={C.textInverse} />
+                  <Text style={styles.payButtonText}>
+                    {isCreatingOrder ? 'Creating order...' : isVerifying ? 'Verifying...' : 'Processing...'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <MaterialIcons name="lock" size={18} color={C.textInverse} />
+                  <Text style={styles.payButtonText}>Pay {formatAmount(request?.price)}</Text>
+                </>
+              )}
+            </LinearGradient>
+          </Pressable>
+
+          <View style={[styles.securityInfo, { backgroundColor: C.surfaceElevated }]}>
+            <MaterialIcons name="verified-user" size={16} color={C.textMuted} />
+            <Text style={[styles.securityText, { color: C.textMuted }]}>Protected by Razorpay escrow. Funds release only after delivery confirmation.</Text>
+          </View>
         </View>
       ) : null}
 
-      {!isSender && !existingPayment ? (
-        <View style={[styles.infoBox, { backgroundColor: C.surfaceElevated }]}>
-          <MaterialIcons name="info-outline" size={18} color={C.textMuted} />
-          <Text style={[styles.infoText, { color: C.textMuted }]}>
-            Only the sender can initiate payment for this delivery.
-          </Text>
+      {!isSender && !existingPayment && !paymentComplete ? (
+        <View style={[styles.securityInfo, { backgroundColor: C.surfaceElevated }]}>
+          <MaterialIcons name="info-outline" size={16} color={C.textMuted} />
+          <Text style={[styles.securityText, { color: C.textMuted }]}>Only the sender can initiate payment for this delivery.</Text>
         </View>
       ) : null}
     </ScrollView>
   );
 }
 
+function DetailRow({ label, value, C }: { label: string; value: string; C: ReturnType<typeof useThemeColors>['C'] }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={[styles.detailLabel, { color: C.textMuted }]}>{label}</Text>
+      <Text style={[styles.detailValue, { color: C.textPrimary }]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   content: {
     padding: Spacing.md,
     gap: Spacing.md,
   },
-  hero: {
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.xl,
-    borderWidth: 1,
+  heroCard: {
     borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    overflow: 'hidden',
+    minHeight: 128,
+    padding: Spacing.md,
+    justifyContent: 'flex-end',
+    position: 'relative',
   },
-  icon: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.6,
+  },
+  heroTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  heroSubtitle: {
+    marginTop: 4,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  statusCard: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    gap: Spacing.sm,
+    overflow: 'hidden',
+  },
+  statusIconWrap: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    marginBottom: Spacing.xs,
   },
-  title: {
+  statusTitle: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
     textAlign: 'center',
   },
-  body: {
+  statusBody: {
     fontSize: FontSize.sm,
     lineHeight: 22,
     textAlign: 'center',
   },
-  details: {
-    padding: Spacing.md,
-    borderWidth: 1,
+  detailsCard: {
     borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.xs,
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   detailsTitle: {
-    marginBottom: Spacing.sm,
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
   },
-  row: {
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    paddingVertical: Spacing.sm + 2,
   },
-  label: {
+  detailRowLast: {
+    marginTop: Spacing.xs,
+    paddingTop: Spacing.md,
+  },
+  detailLabel: {
     fontSize: FontSize.sm,
   },
-  value: {
-    flexShrink: 1,
+  detailValue: {
+    flex: 1,
+    textAlign: 'right',
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    textAlign: 'right',
   },
-  amount: {
+  amountText: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
   },
-  actions: {
+  actionCard: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
     gap: Spacing.sm,
-    paddingTop: Spacing.sm,
+  },
+  errorText: {
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+  },
+  payButtonWrap: {
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
   },
   payButton: {
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
+    paddingVertical: Spacing.md,
   },
   payButtonText: {
     color: '#fff',
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
   },
-  securityNote: {
-    fontSize: FontSize.xs,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: FontSize.sm,
-    textAlign: 'center',
-  },
-  infoBox: {
+  securityInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.sm,
-    padding: Spacing.md,
     borderRadius: BorderRadius.md,
+    padding: Spacing.md,
   },
-  infoText: {
+  securityText: {
     flex: 1,
-    fontSize: FontSize.sm,
-    lineHeight: 20,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
   },
 });

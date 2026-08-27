@@ -45,11 +45,18 @@ describe('monitoring', () => {
 
   describe('log buffer', () => {
     it('limits buffer to 100 entries', () => {
+      const originalDev = (global as any).__DEV__;
+      (global as any).__DEV__ = false;
+      initMonitoring({ enabled: false });
+
       for (let i = 0; i < 150; i++) {
         captureMessage(`msg ${i}`);
       }
       const buffer = getLogBuffer();
       expect(buffer.length).toBe(100);
+
+      (global as any).__DEV__ = originalDev;
+      initMonitoring({ enabled: true });
     });
 
     it('flushLogBuffer clears and returns entries', () => {

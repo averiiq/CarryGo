@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
   Users,
@@ -120,7 +120,6 @@ export default function CommandPalette({ onClose }: CommandPaletteProps) {
                   id={`cmd-${cmd.href}`}
                   onClick={() => { router.push(cmd.href); onClose() }}
                   onMouseEnter={() => setActiveIndex(i)}
-                  aria-selected={i === activeIndex}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-150 ${
                     i === activeIndex ? 'bg-primary-subtle text-primary' : 'text-muted hover:text-foreground'
                   }`}

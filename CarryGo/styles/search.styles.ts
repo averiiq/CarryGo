@@ -7,11 +7,11 @@ export const styles = StyleSheet.create({
 
   // Header
   header: {
-    paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.md, paddingBottom: Spacing.md + 2,
     borderBottomWidth: 1, gap: Spacing.sm, overflow: 'hidden',
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  backBtn: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   headerSub: { fontSize: FontSize.xs, marginTop: 2 },
   clearBtn: {
@@ -22,13 +22,13 @@ export const styles = StyleSheet.create({
 
   // Search card
   searchCard: {
-    borderRadius: BorderRadius.xl, borderWidth: 1,
+    borderRadius: BorderRadius.xxl, borderWidth: 1.2,
     marginHorizontal: Spacing.md, overflow: 'hidden', position: 'relative',
   },
   fieldRow: {
     flexDirection: 'row', alignItems: 'center',
-    gap: Spacing.md, paddingHorizontal: Spacing.md, paddingVertical: 14,
-    borderBottomWidth: 1,
+    gap: Spacing.md, paddingHorizontal: Spacing.md, paddingVertical: 16,
+    borderBottomWidth: 1.2,
   },
   fieldDot: {
     width: 30, height: 30, borderRadius: 15,
@@ -40,9 +40,9 @@ export const styles = StyleSheet.create({
   fieldInput: { fontSize: FontSize.md, fontWeight: FontWeight.medium, padding: 0, includeFontPadding: false },
   swapBtn: {
     position: 'absolute', right: Spacing.md, top: '50%',
-    marginTop: -18, width: 36, height: 36, borderRadius: 18,
+    marginTop: -20, width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, zIndex: 10,
+    borderWidth: 1.2, zIndex: 10,
   },
 
   // Vehicle filter
@@ -50,8 +50,8 @@ export const styles = StyleSheet.create({
   vehicleRow: { flexDirection: 'row', gap: Spacing.sm },
   vehicleChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: BorderRadius.full, borderWidth: 1,
+    paddingHorizontal: 13, paddingVertical: 9,
+    borderRadius: BorderRadius.full, borderWidth: 1.2,
   },
   vehicleChipText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
 
@@ -62,13 +62,13 @@ export const styles = StyleSheet.create({
   },
   searchBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1,
+    paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, borderWidth: 1.2,
   },
   searchBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
   subscribeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md, borderWidth: 1,
+    borderRadius: BorderRadius.lg, borderWidth: 1.2,
   },
   subscribeBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 
@@ -79,15 +79,15 @@ export const styles = StyleSheet.create({
   },
   resultTab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-    paddingVertical: 9, borderRadius: BorderRadius.full, borderWidth: 1,
+    paddingVertical: 10, borderRadius: BorderRadius.full, borderWidth: 1.2,
   },
   resultTabText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   subscribeCta: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: Spacing.md, marginTop: Spacing.sm,
-    paddingHorizontal: Spacing.md, paddingVertical: 10,
-    borderRadius: BorderRadius.md, borderWidth: 1,
+    paddingHorizontal: Spacing.md, paddingVertical: 11,
+    borderRadius: BorderRadius.lg, borderWidth: 1.2,
   },
   subscribeCtaText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.medium },
 
@@ -96,7 +96,7 @@ export const styles = StyleSheet.create({
 
   // Empty state
   emptyState: {
-    margin: Spacing.md, borderRadius: BorderRadius.xl, borderWidth: 1,
+    margin: Spacing.md, borderRadius: BorderRadius.xxl, borderWidth: 1.2,
     paddingVertical: 40, paddingHorizontal: Spacing.xl, alignItems: 'center', gap: Spacing.md,
   },
   emptyIcon: { width: 72, height: 72, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
@@ -120,7 +120,7 @@ export const styles = StyleSheet.create({
   popularSection: { gap: Spacing.sm },
   popularGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   popularChip: {
-    borderRadius: BorderRadius.lg, borderWidth: 1,
+    borderRadius: BorderRadius.xl, borderWidth: 1.2,
     paddingHorizontal: Spacing.md, paddingVertical: 10,
   },
   popularChipInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -130,7 +130,7 @@ export const styles = StyleSheet.create({
   hintCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     paddingHorizontal: Spacing.md, paddingVertical: 12,
-    borderRadius: BorderRadius.lg, borderWidth: 1,
+    borderRadius: BorderRadius.xl, borderWidth: 1.2,
   },
   hintText: { flex: 1, fontSize: FontSize.xs, lineHeight: 18 },
 });

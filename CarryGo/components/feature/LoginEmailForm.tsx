@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontSize, FontWeight, Spacing, BorderRadius, Gradients, ThemeColors } from '@/constants/theme';
@@ -28,16 +28,14 @@ export function LoginEmailForm({
   C,
 }: LoginEmailFormProps) {
   return (
-    <View style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+    <View style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
       <View style={styles.formHeaderRow}>
         <View style={[styles.stepIconBox, { backgroundColor: C.primarySubtle }]}>
           <MaterialIcons name="email" size={20} color={C.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.formTitle, { color: C.textPrimary }]}>Sign in or Register</Text>
-          <Text style={[styles.formSub, { color: C.textSecondary }]}>
-            Enter your email — we will send a {otpLength}-digit code
-          </Text>
+          <Text style={[styles.formSub, { color: C.textSecondary }]}>Enter your email and receive a {otpLength}-digit code.</Text>
         </View>
       </View>
 
@@ -85,22 +83,23 @@ export function LoginEmailForm({
         <LinearGradient
           colors={Gradients.primaryVibrant}
           style={StyleSheet.absoluteFillObject}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0.5 }}
         />
-        <Text style={styles.primaryBtnText}>
-          {operationLoading ? 'Sending code…' : `Send ${otpLength}-Digit Code`}
+        <Text style={[styles.primaryBtnText, { color: C.textInverse }]}>
+          {operationLoading ? 'Sending code...' : 'Send ' + otpLength + '-Digit Code'}
         </Text>
-        {!operationLoading ? <MaterialIcons name="arrow-forward" size={17} color="#fff" /> : null}
+        {!operationLoading ? <MaterialIcons name="arrow-forward" size={17} color={C.textInverse} /> : null}
       </Pressable>
 
       <View style={styles.trustRow}>
         {[
           { icon: 'lock' as const, text: 'No password needed' },
-          { icon: 'security' as const, text: 'Secure & private' },
-        ].map((t, i) => (
-          <View key={i} style={styles.trustItem}>
-            <MaterialIcons name={t.icon} size={11} color={C.textMuted} />
-            <Text style={[styles.trustText, { color: C.textMuted }]}>{t.text}</Text>
+          { icon: 'security' as const, text: 'Secure and private' },
+        ].map((item, index) => (
+          <View key={index} style={styles.trustItem}>
+            <MaterialIcons name={item.icon} size={11} color={C.textMuted} />
+            <Text style={[styles.trustText, { color: C.textMuted }]}>{item.text}</Text>
           </View>
         ))}
       </View>
@@ -127,7 +126,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: Spacing.sm, borderRadius: BorderRadius.md, paddingVertical: Spacing.md + 2,
   },
-  primaryBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+  primaryBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
 
   trustRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.xl },
   trustItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },

@@ -16,4 +16,13 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(),
 }));
 
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: {
+      version: '1.2.2',
+    },
+  },
+}));
+
 (global as Record<string, unknown>).__DEV__ = true;

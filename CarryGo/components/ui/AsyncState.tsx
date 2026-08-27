@@ -1,7 +1,9 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+﻿import React, { useEffect, useRef } from 'react';
+import { Pressable, StyleSheet, Text, View, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { BorderRadius, FontSize, FontWeight, Spacing, ThemeColors } from '@/constants/theme';
+import { Haptic } from '@/services/haptics.service';
 
 interface AsyncStateCardProps {
   C: ThemeColors;
@@ -24,24 +26,55 @@ export function AsyncStateCard({
   onAction,
   compact = false,
 }: AsyncStateCardProps) {
+  const iconScale = useRef(new Animated.Value(0.95)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(iconScale, { toValue: 1.05, duration: 1300, useNativeDriver: true }),
+        Animated.timing(iconScale, { toValue: 0.95, duration: 1300, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [iconScale]);
+
   return (
-    <View style={[
-      styles.card,
-      compact && styles.compactCard,
-      { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-    ]}>
-      <View style={[styles.iconBox, { backgroundColor: C.primarySubtle }]}>
+    <View
+      style={[
+        styles.card,
+        compact && styles.compactCard,
+        { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+      ]}
+    >
+      <Image
+        source={require('../../assets/images/onboarding-2.webp')}
+        style={styles.bgImage}
+        contentFit="cover"
+        transition={220}
+      />
+      <View style={[styles.bgOverlay, { backgroundColor: C.surface + 'E6' }]} />
+
+      <Animated.View style={[styles.iconBox, { backgroundColor: C.primarySubtle, transform: [{ scale: iconScale }] }]}>
         <MaterialIcons name={icon} size={compact ? 19 : 22} color={C.primary} />
-      </View>
+      </Animated.View>
       <Text style={[styles.title, { color: C.textSecondary }]}>{title}</Text>
       <Text style={[styles.message, { color: C.textMuted }]}>{message}</Text>
       {actionLabel && onAction ? (
         <Pressable
           style={({ pressed }) => [
             styles.action,
-            { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: pressed ? 0.78 : 1 },
+            {
+              backgroundColor: C.surfaceElevated,
+              borderColor: C.surfaceBorder,
+              opacity: pressed ? 0.78 : 1,
+              transform: [{ scale: pressed ? 0.985 : 1 }],
+            },
           ]}
-          onPress={onAction}
+          onPress={() => {
+            Haptic.tap();
+            onAction();
+          }}
         >
           <MaterialIcons name={actionIcon} size={15} color={C.textSecondary} />
           <Text style={[styles.actionText, { color: C.textSecondary }]}>{actionLabel}</Text>
@@ -55,9 +88,7 @@ export function OfflineBanner({ C }: { C: ThemeColors }) {
   return (
     <View style={[styles.banner, { backgroundColor: C.warningSubtle, borderColor: C.warning + '55' }]}>
       <MaterialIcons name="wifi-off" size={15} color={C.warning} />
-      <Text style={[styles.bannerText, { color: C.warning }]}>
-        Offline. Showing cached data until the connection returns.
-      </Text>
+      <Text style={[styles.bannerText, { color: C.warning }]}>Offline. Showing cached data until connection returns.</Text>
     </View>
   );
 }
@@ -70,9 +101,17 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
+    overflow: 'hidden',
   },
   compactCard: {
     paddingVertical: Spacing.lg,
+  },
+  bgImage: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.17,
+  },
+  bgOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   iconBox: {
     width: 52,

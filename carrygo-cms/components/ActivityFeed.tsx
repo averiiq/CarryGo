@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Package, Navigation, UserCheck, AlertTriangle, Shield, DollarSign, Radio } from 'lucide-react'
+import { Package, Navigation, AlertTriangle, Shield, DollarSign, Radio } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
 type ActivityType = 'trip_created' | 'parcel_posted' | 'delivery_completed' | 'kyc_submitted' | 'dispute_opened' | 'payment_released'

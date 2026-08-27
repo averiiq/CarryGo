@@ -5,6 +5,7 @@ export async function getSignedDocumentUrl(
   storagePath: string,
   _expiresInSeconds = 900
 ): Promise<string | null> {
+  void _expiresInSeconds
   return getPublicDocumentUrl(storagePath)
 }
 

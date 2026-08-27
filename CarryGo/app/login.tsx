@@ -33,7 +33,7 @@ const FEATURES = [
 export default function LoginScreen() {
   const { sendOTP, verifyOTP } = useAuth();
   const { showAlert } = useAlert();
-  const { C, isDark } = useThemeColors();
+  const { C } = useThemeColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [operationLoading, setOperationLoading] = useState(false);
@@ -220,7 +220,7 @@ export default function LoginScreen() {
 
   return (
     <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style={C.statusBarStyle} />
       <KeyboardAvoidingView style={[styles.root, { backgroundColor: C.background }]} behavior="padding">
         <ScrollView
           style={{ flex: 1 }}
@@ -231,7 +231,7 @@ export default function LoginScreen() {
           {/* Hero */}
           <Animated.View style={[styles.hero, { paddingTop: insets.top + Spacing.lg, opacity: heroFade.opacity, transform: heroFade.transform }]}>
             <LinearGradient
-              colors={isDark ? [C.primarySubtle, 'transparent'] : ['rgba(37,99,235,0.06)', 'transparent']}
+              colors={[C.primarySubtle, 'transparent']}
               style={StyleSheet.absoluteFillObject}
             />
             <View style={styles.brandRow}>

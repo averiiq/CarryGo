@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { FilterOptions, VehicleType } from '@/types';
-import { CITIES } from '@/constants/mockData';
+import { CitySearchField } from './CitySearchField';
 import { styles } from '@/styles/tabs/index.styles';
 
 const VEHICLE_TYPES = [
@@ -45,52 +45,57 @@ export function FilterPanel({ visible, filters, onClose, onApply, C }: FilterPan
             <Text style={[styles.resetPillText, { color: C.textSecondary }]}>Reset</Text>
           </Pressable>
         </View>
-        {[{ label: 'From City', key: 'fromCity' as const }, { label: 'To City', key: 'toCity' as const }].map(field => (
-          <View key={field.key} style={styles.filterSection}>
-            <Text style={[styles.filterLabel, { color: C.textMuted }]}>{field.label}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.chipRow}>
-                <Pressable
-                  style={[styles.chip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, !local[field.key] && { backgroundColor: C.primary, borderColor: C.primary }]}
-                  onPress={() => { Haptic.select(); update(field.key, ''); }}
-                >
-                  <Text style={[styles.chipText, { color: !local[field.key] ? '#fff' : C.textSecondary }]}>Any</Text>
-                </Pressable>
-                {CITIES.slice(0, 14).map(c => (
-                  <Pressable
-                    key={c}
-                    style={[styles.chip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, local[field.key] === c && { backgroundColor: C.primary, borderColor: C.primary }]}
-                    onPress={() => { Haptic.select(); update(field.key, c); }}
-                  >
-                    <Text style={[styles.chipText, { color: local[field.key] === c ? '#fff' : C.textSecondary }]}>{c}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
+
+        <ScrollView
+          style={{ maxHeight: 340 }}
+          contentContainerStyle={{ gap: 16, paddingBottom: 16 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.filterSection}>
+            <CitySearchField
+              label="From City"
+              value={local.fromCity}
+              onSelect={(city) => update('fromCity', city)}
+              dotColor="#10B981"
+              placeholder="Origin city"
+            />
           </View>
-        ))}
-        <View style={styles.filterSection}>
-          <Text style={[styles.filterLabel, { color: C.textMuted }]}>Vehicle Type</Text>
-          <View style={styles.vehicleRow}>
-            <Pressable
-              style={[styles.vehicleChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, !local.vehicleType && { backgroundColor: C.primary, borderColor: C.primary }]}
-              onPress={() => { Haptic.select(); update('vehicleType', ''); }}
-            >
-              <MaterialIcons name="all-inclusive" size={14} color={!local.vehicleType ? '#fff' : C.textMuted} />
-              <Text style={[styles.vehicleChipText, { color: !local.vehicleType ? '#fff' : C.textMuted }]}>Any</Text>
-            </Pressable>
-            {VEHICLE_TYPES.map(v => (
+
+          <View style={styles.filterSection}>
+            <CitySearchField
+              label="To City"
+              value={local.toCity}
+              onSelect={(city) => update('toCity', city)}
+              dotColor="#EF4444"
+              placeholder="Destination city"
+            />
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterLabel, { color: C.textMuted }]}>Vehicle Type</Text>
+            <View style={styles.vehicleRow}>
               <Pressable
-                key={v.type}
-                style={[styles.vehicleChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, local.vehicleType === v.type && { backgroundColor: C.primary, borderColor: C.primary }]}
-                onPress={() => { Haptic.select(); update('vehicleType', v.type); }}
+                style={[styles.vehicleChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, !local.vehicleType && { backgroundColor: C.primary, borderColor: C.primary }]}
+                onPress={() => { Haptic.select(); update('vehicleType', ''); }}
               >
-                <MaterialIcons name={v.icon as any} size={14} color={local.vehicleType === v.type ? '#fff' : C.textMuted} />
-                <Text style={[styles.vehicleChipText, { color: local.vehicleType === v.type ? '#fff' : C.textMuted }]}>{v.label}</Text>
+                <MaterialIcons name="all-inclusive" size={14} color={!local.vehicleType ? '#fff' : C.textMuted} />
+                <Text style={[styles.vehicleChipText, { color: !local.vehicleType ? '#fff' : C.textMuted }]}>Any</Text>
               </Pressable>
-            ))}
+              {VEHICLE_TYPES.map(v => (
+                <Pressable
+                  key={v.type}
+                  style={[styles.vehicleChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, local.vehicleType === v.type && { backgroundColor: C.primary, borderColor: C.primary }]}
+                  onPress={() => { Haptic.select(); update('vehicleType', v.type); }}
+                >
+                  <MaterialIcons name={v.icon as any} size={14} color={local.vehicleType === v.type ? '#fff' : C.textMuted} />
+                  <Text style={[styles.vehicleChipText, { color: local.vehicleType === v.type ? '#fff' : C.textMuted }]}>{v.label}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
-        </View>
+        </ScrollView>
+
         <Pressable
           style={({ pressed }) => [styles.applyBtn, { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1 }]}
           onPress={() => { Haptic.confirm(); onApply(local); onClose(); }}

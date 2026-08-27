@@ -97,6 +97,12 @@ export default function LandingPage() {
           <div className="text-lg font-heading font-bold tracking-tight text-foreground">
             CarryGo<span className="text-primary">.</span>
           </div>
+          <div className='flex flex-wrap justify-center gap-4 text-sm'>
+            <Link href='/privacy-policy' className='text-muted hover:text-primary transition-colors'>Privacy Policy</Link>
+            <Link href='/terms-and-conditions' className='text-muted hover:text-primary transition-colors'>Terms and Conditions</Link>
+            <Link href='/refund-cancellation' className='text-muted hover:text-primary transition-colors'>Refund and Cancellation</Link>
+            <Link href='/shipping-delivery' className='text-muted hover:text-primary transition-colors'>Shipping and Delivery</Link>
+          </div>
           <p className="text-sm text-muted">
             &copy; 2026 CarryGo Inc. All rights reserved.
           </p>
@@ -105,3 +111,4 @@ export default function LandingPage() {
     </div>
   )
 }
+

@@ -1,21 +1,10 @@
 import { getSupabaseClient } from '@/template';
 import { Conversation, ChatMessage } from '@/types';
+import type { Database } from '@/types/database';
 import { sanitizeMessageText } from '@/lib/sanitize';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 
-interface ConversationRow {
-  id: string;
-  request_id: string;
-  participant_ids?: string[];
-  participant_names?: Record<string, string>;
-  route?: string;
-  parcel_description?: string;
-  last_message_text?: string;
-  last_message_sender_id?: string;
-  last_message_at?: string;
-  last_message_read?: boolean;
-  created_at: string;
-}
+type ConversationRow = Database['public']['Tables']['conversations']['Row'];
 
 interface MessageRow {
   id: string;
@@ -32,7 +21,7 @@ function mapConvRow(row: ConversationRow): Conversation {
     id: row.id,
     requestId: row.request_id,
     participants: row.participant_ids || [],
-    participantNames: row.participant_names || {},
+    participantNames: (row.participant_names as Record<string, string>) || {},
     route: row.route || '',
     parcelDescription: row.parcel_description || '',
     lastMessage: row.last_message_text

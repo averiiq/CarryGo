@@ -95,12 +95,12 @@ function MessageBubble({
         style={({ pressed }) => [
           styles.bubble,
           isMine
-            ? [styles.bubbleMine, { backgroundColor: C.primary }]
+            ? [styles.bubbleMine, { backgroundColor: C.primaryDark }]
             : [styles.bubbleOther, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }],
           pressed && { opacity: 0.75, transform: [{ scale: 0.97 }] },
         ]}
       >
-        <Text style={[styles.bubbleText, isMine ? { color: '#fff' } : { color: C.textPrimary }]}>
+        <Text style={[styles.bubbleText, isMine ? { color: C.textInverse } : { color: C.textPrimary }]}>
           {item.text}
         </Text>
         <View style={styles.bubbleMeta}>
@@ -111,7 +111,7 @@ function MessageBubble({
             <MaterialIcons
               name={item.read ? 'done-all' : 'check'}
               size={12}
-              color={item.read ? '#93C5FD' : 'rgba(255,255,255,0.5)'}
+              color={item.read ? C.success : 'rgba(255,255,255,0.6)'}
               style={{ marginLeft: 2 }}
             />
           ) : null}
@@ -122,7 +122,8 @@ function MessageBubble({
 }
 
 export default function ChatScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id: rawId } = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const { user } = useAuth();
   const conversationsQuery = useConversationsQuery(user?.id);
   const messagesQuery = useConversationMessagesQuery(id);
@@ -165,7 +166,7 @@ export default function ChatScreen() {
   }, [chatMessages.length]);
 
   const handleSend = async () => {
-    if (!text.trim() || !user || isSending) return;
+    if (!text.trim() || !user || !id || isSending) return;
     const t = text.trim();
     setText('');
     Haptic.tap();
@@ -234,7 +235,7 @@ export default function ChatScreen() {
         item={msg}
         isMine={isMine}
         showAvatar={showAvatar}
-        senderInitial={msg.senderName.charAt(0).toUpperCase()}
+        senderInitial={msg.senderName?.charAt(0).toUpperCase() || 'U'}
         onLongPress={() => handleLongPress(msg)}
         C={C}
       />
@@ -252,6 +253,20 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       {/* Delivery CTA bar */}
+      {!id ? (
+        <View style={styles.invalidWrap}>
+          <AsyncStateCard
+            C={C}
+            icon="error-outline"
+            title="Invalid chat"
+            message="This conversation link is invalid. Open chat from Messages tab."
+            actionLabel="Go to Messages"
+            onAction={() => router.replace('/(tabs)/messages')}
+            compact
+          />
+        </View>
+      ) : null}
+
       {conversation ? (
         <Pressable
           style={[styles.deliveryCTA, { backgroundColor: C.primarySubtle, borderBottomColor: C.surfaceBorder }]}
@@ -384,13 +399,13 @@ export default function ChatScreen() {
           <Pressable
             style={[
               styles.sendBtn,
-              { backgroundColor: text.trim() && !isSending ? C.primary : C.surfaceElevated },
+              { backgroundColor: text.trim() && !isSending ? C.primaryDark : C.surfaceElevated },
             ]}
             onPress={handleSend}
             disabled={!text.trim() || isSending}
             hitSlop={8}
           >
-            <Ionicons name="send" size={18} color={text.trim() && !isSending ? '#fff' : C.textMuted} />
+            <Ionicons name="send" size={18} color={text.trim() && !isSending ? C.textInverse : C.textMuted} />
           </Pressable>
         </Animated.View>
       </View>
@@ -406,6 +421,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   deliveryCTAText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  invalidWrap: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
   messageList: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
   loadOlderBtn: {
@@ -460,7 +476,7 @@ const styles = StyleSheet.create({
     width: 38, height: 38, borderRadius: 19,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, elevation: 4,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4,
+    shadowColor: '#111827', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4,
   },
 
   inputRow: {

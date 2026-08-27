@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, Pressable,
+  View, Text, StyleSheet,
   Switch, ActivityIndicator, Animated, Platform, KeyboardAvoidingView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -43,38 +44,44 @@ export default function DeliveryScreen() {
 
   const request = requestQuery.data ?? null;
   const isTraveller = user?.id === request?.travellerId;
+  const isSender = user?.id === request?.senderId;
+  const isParticipant = Boolean(user?.id && (isTraveller || isSender));
+  const deliveryId = delivery?.id;
   const step: DeliveryStep = (delivery?.status as DeliveryStep) || 'awaiting_pickup';
 
   const initDelivery = useCallback(async () => {
-    if (!id) return;
+    if (!id || !request || !isParticipant) return;
     const { data } = await fetchDelivery(id);
-    if (data) { setDelivery(data); return; }
-    if (request && isTraveller) {
+    if (data) {
+      setDelivery(data);
+      return;
+    }
+    if (isTraveller) {
       const { data: created } = await createDelivery(id);
       if (created) setDelivery(created);
     }
-  }, [id, isTraveller, request]);
+  }, [id, isParticipant, isTraveller, request]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !request || !isParticipant) return;
     void initDelivery();
     Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
     return () => {
       if (locationInterval.current) clearInterval(locationInterval.current);
       if (pollInterval.current) clearInterval(pollInterval.current);
     };
-  }, [fadeAnim, id, initDelivery]);
+  }, [fadeAnim, id, initDelivery, isParticipant, request]);
 
   // Poll traveller location (sender side)
   useEffect(() => {
-    if (!FeatureFlags.preciseLocationSharing || !delivery || isTraveller || step === 'delivered') return;
+    if (!FeatureFlags.preciseLocationSharing || !deliveryId || !isSender || step === 'delivered') return;
     let consecutiveFailures = 0;
     const MAX_FAILURES = 3;
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const poll = async () => {
       try {
-        const { data } = await fetchDeliveryLocation(delivery.id);
+        const { data } = await fetchDeliveryLocation(deliveryId);
         if (data) { setTravellerLocation(data); consecutiveFailures = 0; }
       } catch {
         consecutiveFailures += 1;
@@ -85,29 +92,67 @@ export default function DeliveryScreen() {
     intervalId = setInterval(poll, 15000);
     pollInterval.current = intervalId;
     return () => { if (intervalId) clearInterval(intervalId); pollInterval.current = null; };
-  }, [delivery?.id, isTraveller, step]);
+  }, [deliveryId, isSender, step]);
 
   const handleToggleLocation = async (enabled: boolean) => {
+    if (!isTraveller || step !== 'in_transit') {
+      showAlert('Not Allowed', 'Only the assigned traveller can share live location during transit.');
+      return;
+    }
     if (!FeatureFlags.preciseLocationSharing) {
       showAlert('Location Sharing Unavailable', disabledFeatureMessage.location);
       return;
     }
     if (!delivery) return;
+
     setLocationSharing(enabled);
     Haptic.select();
-    if (enabled) {
-      const updateLoc = async () => {
-        const { data } = await getCurrentLocation();
-        if (data && user?.id) await updateDeliveryLocation(delivery.id, data.lat, data.lng, user.id);
-      };
-      await updateLoc();
-      locationInterval.current = setInterval(updateLoc, 30000);
-    } else {
+
+    if (!enabled) {
       if (locationInterval.current) clearInterval(locationInterval.current);
+      locationInterval.current = null;
+      return;
     }
+
+    const updateLoc = async () => {
+      const { data, error } = await getCurrentLocation();
+      if (!data || !user?.id) {
+        if (error) showAlert('Location Error', error);
+        setLocationSharing(false);
+        return false;
+      }
+
+      const update = await updateDeliveryLocation(delivery.id, data.lat, data.lng, user.id);
+      if (update.error) {
+        showAlert('Location Error', update.error);
+        setLocationSharing(false);
+        return false;
+      }
+
+      return true;
+    };
+
+    const started = await updateLoc();
+    if (!started) {
+      if (locationInterval.current) clearInterval(locationInterval.current);
+      locationInterval.current = null;
+      return;
+    }
+
+    locationInterval.current = setInterval(async () => {
+      const ok = await updateLoc();
+      if (!ok && locationInterval.current) {
+        clearInterval(locationInterval.current);
+        locationInterval.current = null;
+      }
+    }, 30000);
   };
 
   const handleConfirmPickup = () => {
+    if (!isTraveller || step !== 'awaiting_pickup') {
+      showAlert('Not Allowed', 'Only the assigned traveller can start this ride.');
+      return;
+    }
     Haptic.warning();
     showAlert('Confirm Pickup', 'Confirm you have collected the parcel from the sender?', [
       { text: 'Cancel', style: 'cancel' },
@@ -125,8 +170,12 @@ export default function DeliveryScreen() {
 
   const handleDeliveryOTP = async () => {
     if (!delivery || !request) return;
+    if (!isTraveller || step !== 'in_transit') {
+      showAlert('Not Allowed', 'Only the assigned traveller can confirm delivery OTP.');
+      return;
+    }
     setLoading(true); Haptic.tap();
-    const result = await confirmDelivery(delivery.id, enteredOtp);
+    const result = await confirmDelivery(delivery.id, enteredOtp, user?.id);
     if (!result.success || !result.data) {
       setLoading(false); Haptic.error();
       showAlert('Delivery Not Confirmed', result.error || 'The delivery code could not be verified.');
@@ -154,6 +203,34 @@ export default function DeliveryScreen() {
     }
   };
 
+  if (requestQuery.isLoading) {
+    return (
+      <View style={[styles.centerState, { backgroundColor: C.background }]}> 
+        <ActivityIndicator size="large" color={C.primary} />
+      </View>
+    );
+  }
+
+  if (!request) {
+    return (
+      <View style={[styles.centerState, { backgroundColor: C.background }]}> 
+        <MaterialIcons name="error-outline" size={28} color={C.warning} />
+        <Text style={[styles.emptyStateTitle, { color: C.textPrimary }]}>Delivery Not Found</Text>
+        <Text style={[styles.emptyStateSub, { color: C.textMuted }]}>This delivery is unavailable for your account.</Text>
+      </View>
+    );
+  }
+
+  if (!isParticipant) {
+    return (
+      <View style={[styles.centerState, { backgroundColor: C.background }]}> 
+        <MaterialIcons name="lock-outline" size={28} color={C.warning} />
+        <Text style={[styles.emptyStateTitle, { color: C.textPrimary }]}>Access Restricted</Text>
+        <Text style={[styles.emptyStateSub, { color: C.textMuted }]}>Only sender and traveller can access this delivery journey.</Text>
+      </View>
+    );
+  }
+
   return (
     <>
       {showRating && ratingTarget && request ? (
@@ -177,6 +254,17 @@ export default function DeliveryScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={[styles.heroCard, { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}> 
+            <Image source={require('@/assets/images/onboarding-hero.webp')} style={styles.heroImage} contentFit='cover' transition={180} />
+            <View style={[styles.heroOverlay, { backgroundColor: C.overlayLight }]} />
+            <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Delivery Journey</Text>
+            <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>
+              {isTraveller
+                ? 'Use OTP flow and keep live location on while in transit.'
+                : 'Track traveller progress live and confirm safe handover.'}
+            </Text>
+          </View>
+
           {/* Progress Timeline */}
           <DeliveryTimeline step={step} C={C} />
 
@@ -194,9 +282,9 @@ export default function DeliveryScreen() {
           ) : null}
 
           {/* Live Map (sender, when location shared) */}
-          {FeatureFlags.preciseLocationSharing && travellerLocation && !isTraveller ? (
+          {FeatureFlags.preciseLocationSharing && travellerLocation && isSender ? (
             <DeliveryMap
-              travellerName={request?.travellerName || 'Traveller'}
+              travellerName={request.travellerName}
               lat={travellerLocation.lat}
               lng={travellerLocation.lng}
               updatedAt={travellerLocation.updatedAt}
@@ -205,7 +293,7 @@ export default function DeliveryScreen() {
           ) : null}
 
           {/* Awaiting Location (sender) */}
-          {FeatureFlags.preciseLocationSharing && step === 'in_transit' && !isTraveller && !travellerLocation ? (
+          {FeatureFlags.preciseLocationSharing && step === 'in_transit' && isSender && !travellerLocation ? (
             <View style={[styles.locationCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <View style={[styles.locationIconBox, { backgroundColor: C.primarySubtle }]}>
                 <MaterialIcons name="location-searching" size={18} color={C.primary} />
@@ -259,7 +347,7 @@ export default function DeliveryScreen() {
           ) : null}
 
           {/* Sender Waiting Banner */}
-          {step === 'in_transit' && !isTraveller ? (
+          {step === 'in_transit' && isSender ? (
             <View style={[styles.waitCard, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
               <MaterialIcons name="local-shipping" size={36} color={C.primary} />
               <Text style={[styles.waitTitle, { color: C.textPrimary }]}>Parcel On The Way</Text>
@@ -291,7 +379,7 @@ export default function DeliveryScreen() {
               {[
                 { label: 'Sender', value: request.senderName, icon: 'person' as const, color: C.textSecondary },
                 { label: 'Traveller', value: request.travellerName, icon: 'directions-car' as const, color: C.textSecondary },
-                { label: 'Agreed Price', value: `₹${request.price}`, icon: 'payments' as const, color: C.success },
+                { label: 'Agreed Price', value: `Rs ${request.price}`, icon: 'payments' as const, color: C.success },
                 { label: 'Status', value: step.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: 'flag' as const, color: STEPS[stepIndex(step)]?.color || C.primary },
               ].map((row, idx) => (
                 <View key={idx} style={[styles.detailRow, { borderBottomColor: C.surfaceBorder }]}>
@@ -313,6 +401,35 @@ export default function DeliveryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, gap: Spacing.md },
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    minHeight: 124,
+    padding: Spacing.md,
+    justifyContent: 'flex-end',
+    position: 'relative',
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.66,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  heroSubtitle: {
+    marginTop: 4,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg },
+  emptyStateTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  emptyStateSub: { fontSize: FontSize.sm, textAlign: 'center' },
 
   locationCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,

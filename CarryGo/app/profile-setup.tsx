@@ -29,12 +29,15 @@ import {
   isUsernameTaken,
 } from '@/services/profile.service';
 import { UserRole } from '@/types';
+import { getCityNames } from '@/constants/indian-cities';
 
 const { width: W } = Dimensions.get('window');
 
-type Step = 'username' | 'name' | 'phone' | 'role';
+type Step = 'username' | 'name' | 'phone' | 'city' | 'role';
 
-const STEPS: Step[] = ['username', 'name', 'phone', 'role'];
+const STEPS: Step[] = ['username', 'name', 'phone', 'city', 'role'];
+
+const ALL_CITIES = getCityNames();
 
 const ROLES: { id: UserRole; icon: keyof typeof MaterialIcons.glyphMap; title: string; sub: string; color: string }[] = [
   {
@@ -69,7 +72,7 @@ function formatMobileInput(value?: string) {
 export default function ProfileSetupScreen() {
   const { user, updateUser, refreshUser } = useAuth();
   const { showAlert } = useAlert();
-  const { C, isDark } = useThemeColors();
+  const { C } = useThemeColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -77,6 +80,8 @@ export default function ProfileSetupScreen() {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const [citySearch, setCitySearch] = useState('');
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -94,6 +99,7 @@ export default function ProfileSetupScreen() {
     setUsername(user.username || '');
     setFullName(user.fullName || '');
     setPhone(formatMobileInput(user.phone));
+    setCity(user.city || '');
     setRole(user.role || null);
   }, [router, user]);
 
@@ -171,8 +177,21 @@ export default function ProfileSetupScreen() {
       return;
     }
     Haptic.confirm();
+    slideTo('city');
+  };
+
+  const handleCityNext = () => {
+    if (!city.trim()) {
+      fail('City Required', 'Please select the city you live in. This helps show you relevant trips and parcels.');
+      return;
+    }
+    Haptic.confirm();
     slideTo('role');
   };
+
+  const filteredCities = citySearch.trim()
+    ? ALL_CITIES.filter(c => c.toLowerCase().includes(citySearch.toLowerCase().trim())).slice(0, 8)
+    : ALL_CITIES.slice(0, 12);
 
   const handleBack = () => {
     const current = STEPS.indexOf(step);
@@ -194,6 +213,7 @@ export default function ProfileSetupScreen() {
       username,
       fullName,
       phone,
+      city,
       role,
     });
     setLoading(false);
@@ -219,7 +239,7 @@ export default function ProfileSetupScreen() {
 
   return (
     <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style={C.statusBarStyle} />
       <KeyboardAvoidingView
         style={[styles.root, { backgroundColor: C.background }]}
         behavior="padding"
@@ -400,6 +420,78 @@ export default function ProfileSetupScreen() {
               </View>
             ) : null}
 
+            {step === 'city' ? (
+              <View style={styles.stepContent}>
+                <Hero
+                  C={C}
+                  icon="location-city"
+                  color="#8B5CF6"
+                  title="Where are you based?"
+                  subtitle="We'll show you trips and parcels relevant to your city. Only users in your area see your listings."
+                />
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: C.textMuted }]}>Your City</Text>
+                  <View style={[styles.inputWrap, { backgroundColor: C.inputBg, borderColor: city ? '#8B5CF6' : C.surfaceBorder }]}>
+                    <MaterialIcons name="search" size={18} color={city ? '#8B5CF6' : C.textMuted} />
+                    <TextInput
+                      style={[styles.inputField, { color: C.textPrimary }]}
+                      placeholder="Search your city..."
+                      placeholderTextColor={C.textMuted}
+                      value={citySearch}
+                      onChangeText={(text) => {
+                        setCitySearch(text);
+                        if (city && !text.toLowerCase().includes(city.toLowerCase())) {
+                          setCity('');
+                        }
+                      }}
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                      returnKeyType="next"
+                    />
+                    {city ? <MaterialIcons name="check-circle" size={18} color="#8B5CF6" /> : null}
+                  </View>
+                </View>
+
+                <View style={styles.roleGrid}>
+                  {filteredCities.map(cityName => (
+                    <Pressable
+                      key={cityName}
+                      style={({ pressed }) => [
+                        styles.roleCard,
+                        {
+                          backgroundColor: city === cityName ? '#8B5CF614' : C.surface,
+                          borderColor: city === cityName ? '#8B5CF6' : C.surfaceBorder,
+                          borderWidth: city === cityName ? 2 : 1,
+                        },
+                        pressed && { transform: [{ scale: 0.97 }] },
+                      ]}
+                      onPress={() => {
+                        Haptic.select();
+                        setCity(cityName);
+                        setCitySearch(cityName);
+                      }}
+                    >
+                      <View style={[styles.roleIconWrap, { backgroundColor: '#8B5CF618', width: 36, height: 36, borderRadius: 10 }]}>
+                        <MaterialIcons name="location-on" size={18} color="#8B5CF6" />
+                      </View>
+                      <Text style={[styles.roleTitle, { color: C.textPrimary, fontSize: 14 }]}>{cityName}</Text>
+                      {city === cityName ? (
+                        <MaterialIcons name="check-circle" size={18} color="#8B5CF6" />
+                      ) : null}
+                    </Pressable>
+                  ))}
+                </View>
+
+                <PrimaryButton
+                  color="#8B5CF6"
+                  disabled={!city}
+                  label="Continue"
+                  onPress={handleCityNext}
+                />
+              </View>
+            ) : null}
+
             {step === 'role' ? (
               <View style={styles.stepContent}>
                 <Hero
@@ -452,7 +544,7 @@ export default function ProfileSetupScreen() {
                         @{usernameValue} - {fullName}
                       </Text>
                       <Text style={[styles.summaryLineSub, { color: C.textSecondary }]}>
-                        {normalizeIndianMobile(phone)} - {ROLES.find(item => item.id === role)?.title}
+                        {normalizeIndianMobile(phone)} · {city} · {ROLES.find(item => item.id === role)?.title}
                       </Text>
                     </View>
                     <MaterialIcons name="check-circle" size={18} color="#22C55E" />

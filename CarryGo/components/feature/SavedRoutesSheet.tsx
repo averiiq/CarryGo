@@ -14,7 +14,7 @@ interface SavedRoutesSheetProps {
 
 export function SavedRoutesSheet({ visible, onClose, onSelectRoute }: SavedRoutesSheetProps) {
   const { C } = useThemeColors();
-  const { savedRoutes, recentRoutes, removeRoute, isLoading } = useSavedRoutes();
+  const { savedRoutes, recentRoutes, removeRoute } = useSavedRoutes();
 
   const handleSelect = (route: SavedRoute) => {
     Haptic.select();

@@ -17,46 +17,45 @@ const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 };
 
 const categoryGradients: Record<string, [string, string]> = {
-  documents: ['#8B5CF6', '#7C3AED'],
-  electronics: ['#06B6D4', '#0891B2'],
-  clothing: ['#F59E0B', '#D97706'],
-  food: ['#10B981', '#059669'],
-  medicine: ['#EF4444', '#DC2626'],
-  other: ['#6B7280', '#4B5563'],
+  documents: ['#6B7280', '#4B5563'],
+  electronics: ['#0F766E', '#0D9488'],
+  clothing: ['#64748B', '#475569'],
+  food: ['#EA580C', '#C2410C'],
+  medicine: ['#16A34A', '#15803D'],
+  other: ['#4B5563', '#334155'],
 };
 
 interface ParcelCardProps {
   parcel: Parcel;
+  matchScore?: number;
+  onMatchPress?: () => void;
   onPress?: () => void;
   showCarryButton?: boolean;
   onCarry?: () => void;
 }
 
-export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, showCarryButton, onCarry }: ParcelCardProps) {
-  const { C, isDark } = useThemeColors();
-  const cGradient = categoryGradients[parcel.category] || ['#7C3AED', '#6D28D9'];
+export const ParcelCard = React.memo(function ParcelCard({ parcel, matchScore, onMatchPress, onPress, showCarryButton, onCarry }: ParcelCardProps) {
+  const { C } = useThemeColors();
+  const cGradient = categoryGradients[parcel.category] || ['#6B7280', '#4B5563'];
   const cColor = cGradient[0];
   const scale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, ...Motion.springFast }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
-  const statusColor = parcel.status === 'open' ? '#10B981' : parcel.status === 'in_transit' ? '#3B82F6' : C.textMuted;
+  const statusColor = parcel.status === 'open' ? C.success : parcel.status === 'in_transit' ? C.primary : C.textMuted;
   const statusLabel = parcel.status === 'in_transit' ? 'In Transit' : parcel.status.charAt(0).toUpperCase() + parcel.status.slice(1);
 
   return (
     <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}>
       <Animated.View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder, transform: [{ scale }] }]}>
         <View style={styles.inner}>
-          {/* Top section */}
           <View style={styles.topSection}>
-            {/* Category badge */}
             <View style={styles.catBadge}>
               <LinearGradient colors={cGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-              <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={20} color="#fff" />
+              <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={20} color={C.textInverse} />
             </View>
 
-            {/* Route + description */}
             <View style={styles.headerContent}>
               <View style={styles.routeRow}>
                 <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>{parcel.fromCity}</Text>
@@ -68,16 +67,30 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, show
               <Text style={[styles.description, { color: C.textSecondary }]} numberOfLines={1}>{parcel.description}</Text>
             </View>
 
-            {/* Status */}
             <View style={[styles.statusBadge, { backgroundColor: statusColor + '14' }]}>
               <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
               <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
             </View>
           </View>
 
-          {/* Middle - weight, category, date chips */}
           <View style={styles.metaRow}>
-            <View style={[styles.metaChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+            {typeof matchScore === 'number' && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.metaChip,
+                  styles.matchChip,
+                  { backgroundColor: C.primary + '14' },
+                  pressed && onMatchPress ? { opacity: 0.82 } : null,
+                ]}
+                onPress={onMatchPress}
+                disabled={!onMatchPress}
+              >
+                <MaterialIcons name={'auto-awesome'} size={12} color={C.primary} />
+                <Text style={[styles.metaLabel, { color: C.primary }]}>{matchScore}% match</Text>
+                <MaterialIcons name={'info-outline'} size={12} color={C.primary} />
+              </Pressable>
+            )}
+            <View style={[styles.metaChip, { backgroundColor: C.surfaceElevated }]}> 
               <MaterialIcons name="scale" size={12} color={C.textSecondary} />
               <Text style={[styles.metaLabel, { color: C.textSecondary }]}>{parcel.weight}kg</Text>
             </View>
@@ -88,14 +101,13 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, show
               </Text>
             </View>
             {parcel.deliveryDate && (
-              <View style={[styles.metaChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+              <View style={[styles.metaChip, { backgroundColor: C.surfaceElevated }]}> 
                 <Ionicons name="calendar" size={12} color={C.textSecondary} />
                 <Text style={[styles.metaLabel, { color: C.textSecondary }]}>By {formatScheduleDate(parcel.deliveryDate)}</Text>
               </View>
             )}
           </View>
 
-          {/* Bottom - sender + price */}
           <View style={styles.bottomRow}>
             <View style={styles.senderSection}>
               <LinearGradient colors={cGradient} style={styles.senderAvatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
@@ -111,9 +123,9 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, show
               </View>
             </View>
             <View style={styles.priceBox}>
-              <LinearGradient colors={['#10B98120', '#05966905']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-              <Text style={[styles.priceValue, { color: '#10B981' }]}>
-                <Text style={styles.priceCurrency}>₹</Text>{parcel.priceOffer}
+              <LinearGradient colors={[C.successSubtle, C.primarySubtle]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+              <Text style={[styles.priceValue, { color: C.success }]}> 
+                <Text style={styles.priceCurrency}>Rs </Text>{parcel.priceOffer}
               </Text>
             </View>
           </View>
@@ -123,8 +135,8 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, show
               style={({ pressed }) => [styles.carryBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
               onPress={onCarry}
             >
-              <LinearGradient colors={cGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-              <MaterialIcons name="local-shipping" size={15} color="#fff" />
+              <LinearGradient colors={[C.primary, C.primaryDark]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
+              <MaterialIcons name="local-shipping" size={15} color={C.textInverse} />
               <Text style={styles.carryBtnText}>Carry This Parcel</Text>
             </Pressable>
           )}
@@ -137,12 +149,16 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, onPress, show
 const styles = StyleSheet.create({
   card: {
     borderRadius: 24,
-    borderWidth: 1,
+    borderWidth: 1.2,
     overflow: 'hidden',
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 3,
   },
   inner: { padding: Spacing.lg, gap: Spacing.md },
 
-  // Top section
   topSection: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   catBadge: {
     width: 44, height: 44, borderRadius: 14,
@@ -160,16 +176,15 @@ const styles = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusLabel: { fontSize: 10, fontWeight: FontWeight.bold },
 
-  // Meta
   metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   metaChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 6,
     borderRadius: BorderRadius.full,
   },
+  matchChip: { borderWidth: 1, borderColor: 'transparent' },
   metaLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
-  // Bottom
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   senderSection: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   senderAvatar: {

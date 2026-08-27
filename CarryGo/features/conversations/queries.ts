@@ -135,8 +135,9 @@ export function useConversationsRealtime(userId?: string) {
 
     let mounted = true;
     const sb = getSupabaseClient();
-    const channel = sb
-      .channel(`realtime:conversations:${userId}`)
+
+    const convChannel = sb
+      .channel(`conversations:${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, payload => {
         const row = (payload.new || payload.old) as any;
         const participants = row?.participant_ids;
@@ -151,6 +152,14 @@ export function useConversationsRealtime(userId?: string) {
           });
         }
       })
+      .subscribe((status) => {
+        if (!mounted) {
+          void sb.removeChannel(convChannel);
+        }
+      });
+
+    const msgChannel = sb
+      .channel(`conv-messages:${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, payload => {
         const row = (payload.new || payload.old) as any;
         const conversationId = row?.conversation_id;
@@ -161,13 +170,14 @@ export function useConversationsRealtime(userId?: string) {
       })
       .subscribe((status) => {
         if (!mounted) {
-          void sb.removeChannel(channel);
+          void sb.removeChannel(msgChannel);
         }
       });
 
     return () => {
       mounted = false;
-      void sb.removeChannel(channel);
+      void sb.removeChannel(convChannel);
+      void sb.removeChannel(msgChannel);
     };
   }, [queryClient, userId]);
 }
@@ -204,7 +214,7 @@ export function useConversationMessagesRealtime(conversationId?: string, userId?
     let mounted = true;
     const sb = getSupabaseClient();
     const channel = sb
-      .channel(`realtime:messages:${conversationId}`)
+      .channel(`messages:${conversationId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },

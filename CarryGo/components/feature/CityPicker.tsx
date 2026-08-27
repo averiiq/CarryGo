@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Input } from '@/components/ui/Input';
-import { CITIES } from '@/constants/mockData';
+import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+
+const ALL_CITY_NAMES = INDIAN_CITIES.map(c => c.name);
 
 type CityPickerProps = {
   visible: boolean;
@@ -23,12 +25,18 @@ export function CityPicker({
   title,
   dotColor,
   C,
-  cities = CITIES,
+  cities = ALL_CITY_NAMES,
 }: CityPickerProps) {
   const [search, setSearch] = useState('');
-  const filteredCities = cities.filter(c =>
-    c.toLowerCase().includes(search.toLowerCase())
-  );
+
+  const filteredCities = useMemo(() => {
+    if (!search.trim()) return cities;
+    const lower = search.toLowerCase().trim();
+    return cities.filter(c => c.toLowerCase().includes(lower));
+  }, [cities, search]);
+
+  const showCustomOption = search.trim().length >= 2 &&
+    !filteredCities.some(c => c.toLowerCase() === search.toLowerCase().trim());
 
   const handleClose = () => {
     setSearch('');
@@ -36,7 +44,7 @@ export function CityPicker({
   };
 
   const handleSelect = (city: string) => {
-    onSelect(city);
+    onSelect(city.trim());
     setSearch('');
     Haptic.select();
   };
@@ -56,12 +64,30 @@ export function CityPicker({
         <View style={[styles.pickerHandle, { backgroundColor: C.surfaceBorderLight }]} />
         <Text style={[styles.pickerTitle, { color: C.textPrimary }]}>{title}</Text>
         <Input
-          placeholder="Search city..."
+          placeholder="Search or type any city..."
           value={search}
           onChangeText={setSearch}
           autoFocus
         />
-        <ScrollView style={{ maxHeight: 300 }}>
+        <ScrollView style={{ maxHeight: 300 }} keyboardShouldPersistTaps="handled">
+          {showCustomOption && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.cityOption,
+                styles.customCityOption,
+                {
+                  borderBottomColor: C.surfaceBorder,
+                  backgroundColor: pressed ? C.primarySubtle : C.surfaceElevated,
+                },
+              ]}
+              onPress={() => handleSelect(search.trim())}
+            >
+              <MaterialIcons name="add-location" size={18} color={dotColor} />
+              <Text style={[styles.cityOptionText, { color: C.textPrimary, fontWeight: FontWeight.semibold }]}>
+                Use &quot;{search.trim()}&quot;
+              </Text>
+            </Pressable>
+          )}
           {filteredCities.map(city => (
             <Pressable
               key={city}
@@ -78,6 +104,11 @@ export function CityPicker({
               <Text style={[styles.cityOptionText, { color: C.textPrimary }]}>{city}</Text>
             </Pressable>
           ))}
+          {filteredCities.length === 0 && !showCustomOption && (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, { color: C.textMuted }]}>No cities found</Text>
+            </View>
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -115,4 +146,7 @@ const styles = StyleSheet.create({
   },
   cityDotSmall: { width: 8, height: 8, borderRadius: 4 },
   cityOptionText: { fontSize: FontSize.md },
+  customCityOption: { borderRadius: BorderRadius.md, marginBottom: Spacing.xs },
+  emptyState: { paddingVertical: Spacing.xl, alignItems: 'center' as const },
+  emptyText: { fontSize: FontSize.sm },
 });

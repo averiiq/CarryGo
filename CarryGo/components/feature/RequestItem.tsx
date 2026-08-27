@@ -26,7 +26,7 @@ export function timelineStep(status: StatusKey): number {
 export interface RequestItemProps {
   request: Request;
   parcel?: Parcel;
-  isOwner: boolean;
+  viewerRole: 'traveller' | 'sender' | 'observer';
   onAccept: () => void;
   onReject: () => void;
   onChat: () => void;
@@ -34,10 +34,13 @@ export interface RequestItemProps {
   onPayment: () => void;
 }
 
-export function RequestItem({ request, parcel, isOwner, onAccept, onReject, onChat, onDelivery, onPayment }: RequestItemProps) {
+export function RequestItem({ request, parcel, viewerRole, onAccept, onReject, onChat, onDelivery, onPayment }: RequestItemProps) {
   const sc = STATUS_CONFIG[request.status] || STATUS_CONFIG.pending;
   const step = timelineStep(request.status);
   const isRejectedOrCancelled = request.status === 'rejected' || request.status === 'cancelled';
+  const isTraveller = viewerRole === 'traveller';
+  const isSender = viewerRole === 'sender';
+  const canOpenAcceptedActions = isTraveller || isSender;
 
   return (
     <View style={styles.requestItem}>
@@ -89,7 +92,7 @@ export function RequestItem({ request, parcel, isOwner, onAccept, onReject, onCh
         {/* Price */}
         <View style={styles.priceRow}>
           <Text style={styles.priceLabel}>Agreed price</Text>
-          <Text style={styles.priceValue}>₹{request.price}</Text>
+          <Text style={styles.priceValue}>Rs {request.price}</Text>
         </View>
 
         {/* Timeline progress bar */}
@@ -118,7 +121,7 @@ export function RequestItem({ request, parcel, isOwner, onAccept, onReject, onCh
         )}
 
         {/* Actions */}
-        {isOwner && request.status === 'pending' ? (
+        {isTraveller && request.status === 'pending' ? (
           <View style={styles.actions}>
             <Pressable
               style={({ pressed }) => [styles.rejectBtn, pressed && { opacity: 0.75 }]}
@@ -139,15 +142,17 @@ export function RequestItem({ request, parcel, isOwner, onAccept, onReject, onCh
           </View>
         ) : null}
 
-        {request.status === 'accepted' ? (
+        {request.status === 'accepted' && canOpenAcceptedActions ? (
           <View style={styles.actions}>
-            <Pressable
-              style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.75 }]}
-              onPress={onPayment}
-            >
-              <MaterialIcons name="account-balance-wallet" size={15} color={Colors.warning} />
-              <Text style={[styles.actionBtnText, { color: Colors.warning }]}>Payment</Text>
-            </Pressable>
+            {isSender ? (
+              <Pressable
+                style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.75 }]}
+                onPress={onPayment}
+              >
+                <MaterialIcons name="account-balance-wallet" size={15} color={Colors.warning} />
+                <Text style={[styles.actionBtnText, { color: Colors.warning }]}>Payment</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.75 }]}
               onPress={onChat}

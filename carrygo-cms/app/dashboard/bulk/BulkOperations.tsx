@@ -55,7 +55,6 @@ const tripColumns: Column<ExpiredTrip>[] = [
 export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOperationsProps) {
   const [activeTab, setActiveTab] = useState<'users' | 'trips'>('users')
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
-  const [selectedTripIds, setSelectedTripIds] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 

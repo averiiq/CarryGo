@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Animated } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
+import Reanimated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 type LoginOtpFormProps = {
   email: string;
@@ -38,27 +39,33 @@ export function LoginOtpForm({
   otpRefs,
   C,
 }: LoginOtpFormProps) {
+  const progressStyle = useAnimatedStyle(
+    () => ({
+      width: withSpring(`${(otpFilled / otpLength) * 100}%`, { damping: 18, stiffness: 150 }),
+    }),
+    [otpFilled, otpLength],
+  );
+
   return (
     <Animated.View style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, { transform: [{ scale: successScale }] }]}>
       <Pressable onPress={onBack} style={styles.backRow} hitSlop={10}>
-        <MaterialIcons name="arrow-back-ios" size={13} color={C.primary} />
+        <MaterialIcons name={'arrow-back-ios'} size={13} color={C.primary} />
         <Text style={[styles.backText, { color: C.primary }]}>Change email</Text>
       </Pressable>
 
       <View style={styles.formHeaderRow}>
         <View style={[styles.stepIconBox, { backgroundColor: C.successSubtle }]}>
-          <MaterialIcons name="mark-email-read" size={20} color={C.success} />
+          <MaterialIcons name={'mark-email-read'} size={20} color={C.success} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.formTitle, { color: C.textPrimary }]}>Check your inbox</Text>
           <Text style={[styles.formSub, { color: C.textSecondary }]} numberOfLines={2}>
-            We sent a {otpLength}-digit code to{'\n'}
+            We sent a {otpLength}-digit code to{`\n`}
             <Text style={{ color: C.primary, fontWeight: FontWeight.semibold }}>{email}</Text>
           </Text>
         </View>
       </View>
 
-      {/* OTP boxes */}
       <View style={styles.otpRow}>
         {otp.map((digit, idx) => (
           <Pressable
@@ -73,43 +80,42 @@ export function LoginOtpForm({
             ]}
           >
             <TextInput
-              ref={ref => { otpRefs.current[idx] = ref; }}
+              ref={(ref) => {
+                otpRefs.current[idx] = ref;
+              }}
               style={[styles.otpInput, { color: C.textPrimary }]}
               value={digit}
-              onChangeText={val => onOtpChange(val, idx)}
+              onChangeText={(value) => onOtpChange(value, idx)}
               onKeyPress={({ nativeEvent }) => onOtpKeyPress(nativeEvent.key, idx)}
-              keyboardType="number-pad"
+              keyboardType={'number-pad'}
               maxLength={otpLength}
               selectTextOnFocus
-              textAlign="center"
+              textAlign={'center'}
               caretHidden
             />
           </Pressable>
         ))}
       </View>
 
-      {/* Progress bar */}
       <View style={[styles.otpProgressTrack, { backgroundColor: C.surfaceBorder }]}>
-        <Animated.View style={[
-          styles.otpProgressFill,
-          {
-            width: `${(otpFilled / otpLength) * 100}%` as any,
-            backgroundColor: otpFilled === otpLength ? C.success : C.primary,
-          },
-        ]} />
+        <Reanimated.View
+          style={[
+            styles.otpProgressFill,
+            progressStyle,
+            { backgroundColor: otpFilled === otpLength ? C.success : C.primary },
+          ]}
+        />
       </View>
 
-      {/* Digit count */}
       <Text style={[styles.otpCount, { color: C.textMuted }]}>
         {otpFilled}/{otpLength} digits entered
-        {otpFilled === otpLength ? ' · Verifying…' : ''}
+        {otpFilled === otpLength ? ' - verifying...' : ''}
       </Text>
 
-      {/* Verify button */}
       <Pressable
         style={({ pressed }) => [
           styles.primaryBtn,
-          { overflow: 'hidden', backgroundColor: otpFilled === otpLength ? C.success : C.primary },
+          { backgroundColor: otpFilled === otpLength ? C.success : C.primary },
           otpFilled < otpLength && { opacity: 0.4 },
           pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
         ]}
@@ -117,23 +123,22 @@ export function LoginOtpForm({
         disabled={operationLoading || otpFilled < otpLength}
       >
         {operationLoading ? (
-          <Text style={styles.primaryBtnText}>Verifying…</Text>
+          <Text style={[styles.primaryBtnText, { color: C.textInverse }]}>Verifying...</Text>
         ) : (
           <>
-            <Ionicons name="checkmark-circle" size={18} color="#fff" />
-            <Text style={styles.primaryBtnText}>Verify & Continue</Text>
+            <Ionicons name={'checkmark-circle'} size={18} color={C.textInverse} />
+            <Text style={[styles.primaryBtnText, { color: C.textInverse }]}>Verify and Continue</Text>
           </>
         )}
       </Pressable>
 
-      {/* Paste & Resend row */}
       <View style={styles.actionsRow}>
         <Pressable
           style={[styles.actionPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
           onPress={onPaste}
           hitSlop={8}
         >
-          <MaterialIcons name="content-paste" size={13} color={C.textSecondary} />
+          <MaterialIcons name={'content-paste'} size={13} color={C.textSecondary} />
           <Text style={[styles.actionPillText, { color: C.textSecondary }]}>Paste code</Text>
         </Pressable>
 
@@ -150,23 +155,16 @@ export function LoginOtpForm({
           disabled={cooldown > 0 || operationLoading}
           hitSlop={8}
         >
-          <MaterialIcons
-            name={cooldown > 0 ? 'timer' : 'refresh'}
-            size={13}
-            color={cooldown > 0 ? C.textMuted : C.primary}
-          />
+          <MaterialIcons name={cooldown > 0 ? 'timer' : 'refresh'} size={13} color={cooldown > 0 ? C.textMuted : C.primary} />
           <Text style={[styles.actionPillText, { color: cooldown > 0 ? C.textMuted : C.primary }]}>
             {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
           </Text>
         </Pressable>
       </View>
 
-      {/* Expiry hint */}
       <View style={styles.expiryRow}>
-        <Ionicons name="time-outline" size={12} color={C.textMuted} />
-        <Text style={[styles.expiryText, { color: C.textMuted }]}>
-          Code expires in 60 minutes · Check spam folder if not received
-        </Text>
+        <Ionicons name={'time-outline'} size={12} color={C.textMuted} />
+        <Text style={[styles.expiryText, { color: C.textMuted }]}>Code expires in 60 minutes. Check spam if it does not arrive.</Text>
       </View>
     </Animated.View>
   );
@@ -184,12 +182,20 @@ const styles = StyleSheet.create({
 
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm },
   otpBox: {
-    width: 46, height: 58, borderRadius: BorderRadius.md, borderWidth: 2,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    width: 46,
+    height: 58,
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   otpInput: {
-    width: '100%', height: '100%', textAlign: 'center',
-    fontSize: 24, fontWeight: FontWeight.bold,
+    width: '100%',
+    height: '100%',
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
   },
 
   otpProgressTrack: { height: 3, borderRadius: 2, overflow: 'hidden', marginHorizontal: Spacing.sm },
@@ -197,22 +203,33 @@ const styles = StyleSheet.create({
   otpCount: { fontSize: FontSize.xs, textAlign: 'center', marginTop: -Spacing.xs },
 
   primaryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: Spacing.sm, borderRadius: BorderRadius.md, paddingVertical: Spacing.md + 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md + 2,
   },
-  primaryBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+  primaryBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
 
   actionsRow: { flexDirection: 'row', gap: Spacing.sm, justifyContent: 'center' },
   actionPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: BorderRadius.full, borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
   actionPillText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
 
   expiryRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, marginTop: -Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: -Spacing.xs,
   },
   expiryText: { fontSize: FontSize.xs, textAlign: 'center', flex: 1, lineHeight: 16 },
 });
