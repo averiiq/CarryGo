@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import { LegalPage } from '@/components/marketing/legal-page'
 
 const sections = [
   {
@@ -11,8 +11,8 @@ const sections = [
   {
     title: 'How We Use Information',
     paragraphs: [
-      'We use your information to create and manage accounts, match senders with travellers, process payments, resolve disputes, and provide support.',
-      'We may use aggregated analytics to improve product quality, pricing controls, and trust and safety operations.',
+      'We use your information to manage accounts, match senders with travelers, process payments, resolve disputes, and provide support.',
+      'Aggregated analytics may be used to improve product quality, pricing controls, and trust and safety operations.',
     ],
   },
   {
@@ -26,34 +26,23 @@ const sections = [
     title: 'Data Retention and Rights',
     paragraphs: [
       'We retain information only as long as needed for legal, security, and operational purposes.',
-      'You can request access, correction, or deletion of your personal data by emailing support@carrygo.in.',
+      'You can request access, correction, or deletion of personal data by emailing support@carrygo.in.',
     ],
   },
 ]
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className='min-h-screen bg-background px-6 py-12'>
-      <main className='max-w-4xl mx-auto space-y-8'>
-        <header className='space-y-3'>
-          <p className='text-sm text-primary font-semibold'>Legal</p>
-          <h1 className='text-3xl font-heading font-bold'>Privacy Policy</h1>
-          <p className='text-muted'>Last updated: August 27, 2026</p>
-          <div className='flex flex-wrap gap-4 text-sm'>
-            <Link href='/terms-and-conditions' className='text-primary hover:underline'>Terms</Link>
-            <Link href='/refund-cancellation' className='text-primary hover:underline'>Refunds</Link>
-            <Link href='/shipping-delivery' className='text-primary hover:underline'>Shipping</Link>
-          </div>
-        </header>
-        {sections.map((section) => (
-          <section key={section.title} className='space-y-2'>
-            <h2 className='text-xl font-semibold'>{section.title}</h2>
-            {section.paragraphs.map((paragraph) => (
-              <p key={paragraph} className='text-muted leading-relaxed'>{paragraph}</p>
-            ))}
-          </section>
-        ))}
-      </main>
-    </div>
+    <LegalPage
+      title='Privacy Policy'
+      summary='This policy explains how CarryGo collects, uses, and protects data while operating our peer-to-peer delivery platform.'
+      lastUpdated='August 27, 2026'
+      sections={sections}
+      relatedLinks={[
+        { label: 'Terms & Conditions', href: '/terms-and-conditions' },
+        { label: 'Refund & Cancellation', href: '/refund-cancellation' },
+        { label: 'Shipping & Delivery', href: '/shipping-delivery' },
+      ]}
+    />
   )
 }

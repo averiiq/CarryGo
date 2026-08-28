@@ -1,114 +1,191 @@
-import Link from 'next/link'
-import { ArrowRight, Box, PlaneTakeoff, ShieldCheck, Sparkles } from 'lucide-react'
+﻿import Link from 'next/link'
+import { ArrowRight, Box, Handshake, PlaneTakeoff, ShieldCheck, Sparkles, WalletCards } from 'lucide-react'
+import { MarketingShell } from '@/components/marketing/marketing-shell'
+import { PageHero } from '@/components/marketing/page-hero'
+import { SectionHeading } from '@/components/marketing/section-heading'
+import { quickStats, testimonials } from '@/components/marketing/site-data'
+
+const featurePillars = [
+  {
+    title: 'Smart Route Matching',
+    description:
+      'AI-assisted route intelligence finds the best traveler match across availability, reliability, and ETA confidence.',
+    icon: PlaneTakeoff,
+    tone: 'text-primary bg-primary-subtle',
+  },
+  {
+    title: 'Secure Handover Protocol',
+    description: 'OTP checkpoints and event logs reduce risk from pickup to final drop.',
+    icon: ShieldCheck,
+    tone: 'text-success bg-success-subtle',
+  },
+  {
+    title: 'Transparent Pricing',
+    description: 'See delivery fees, traveler payout, and protection costs before confirmation.',
+    icon: WalletCards,
+    tone: 'text-accent bg-accent-subtle',
+  },
+]
+
+const journeySteps = [
+  {
+    title: 'Create Request',
+    description: 'Add parcel details, route, and delivery window in less than two minutes.',
+  },
+  {
+    title: 'Pick Trusted Match',
+    description: 'Choose verified travelers using route confidence and reliability signals.',
+  },
+  {
+    title: 'Track & Confirm',
+    description: 'Use OTP-secured handovers and live milestone updates till delivery.',
+  },
+]
+
+const personaCards = [
+  {
+    title: 'For Senders',
+    description: 'Ship urgent parcels faster without premium courier overhead.',
+    href: '/for-senders',
+    icon: Box,
+  },
+  {
+    title: 'For Travelers',
+    description: 'Monetize planned routes with structured payouts and safety controls.',
+    href: '/for-travelers',
+    icon: Handshake,
+  },
+]
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background selection:bg-accent selection:text-white flex flex-col">
-      <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto w-full">
-        <div className="text-2xl font-heading font-bold tracking-tight text-foreground">
-          CarryGo<span className="text-primary">.</span>
-        </div>
-        <Link
-          href="/login"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm"
-        >
-          Admin Login
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </nav>
+    <MarketingShell>
+      <section className='px-6 pt-14 pb-20 md:pt-20'>
+        <PageHero
+          badge='Trusted Peer-to-Peer Delivery Network'
+          title='Move Parcels with Verified Travelers, Not Uncertainty'
+          description='CarryGo combines elegant UX, secure workflows, and route intelligence to deliver parcels quickly and safely.'
+          actions={[
+            { label: 'Explore Features', href: '/features' },
+            { label: 'See Pricing', href: '/pricing', variant: 'secondary' },
+          ]}
+        />
 
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-24 text-center max-w-5xl mx-auto w-full">
-        <div className="inline-flex items-center gap-2 rounded-full bg-primary-subtle border border-primary/10 px-4 py-1.5 text-sm font-medium text-primary mb-8">
-          <Sparkles className="h-3.5 w-3.5" />
-          Peer-to-peer delivery network
-        </div>
-
-        <h1 className="text-[clamp(2.5rem,7vw,5.5rem)] leading-[1.05] font-heading font-bold tracking-tight text-foreground mb-6 max-w-4xl">
-          Send parcels with
-          <span className="text-primary"> trusted travelers</span>
-        </h1>
-
-        <p className="text-lg md:text-xl text-muted max-w-2xl mb-12 leading-relaxed">
-          Connect with verified travelers heading your way. Faster delivery, lower costs, complete peace of mind.
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-          <Link
-            href="#download"
-            className="group flex items-center gap-3 bg-primary text-primary-foreground px-7 py-4 rounded-2xl text-base font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30"
-          >
-            Get the App
-            <ArrowRight className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
-          <Link
-            href="#travelers"
-            className="px-7 py-4 rounded-2xl text-base font-semibold text-foreground bg-surface border border-border hover:border-primary/30 hover:shadow-md transition-all"
-          >
-            I&apos;m a Traveler
-          </Link>
-        </div>
-      </main>
-
-      <section className="bg-surface border-t border-border py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-heading font-bold tracking-tight text-foreground">
-              How it works
-            </h2>
-            <p className="text-muted mt-3 text-lg">Three simple steps to send or carry parcels.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-2xl bg-background border border-border-subtle p-8 hover:shadow-lg hover:border-border transition-all duration-300">
-              <div className="w-12 h-12 bg-primary-subtle rounded-2xl flex items-center justify-center text-primary mb-5">
-                <Box className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-heading font-semibold text-foreground mb-3">Post a Parcel</h3>
-              <p className="text-muted leading-relaxed">
-                Enter your package details and destination. Get matched with verified travelers on that route instantly.
-              </p>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+          {quickStats.map((stat) => (
+            <div key={stat.label} className='glass-card p-6 text-center'>
+              <p className='text-3xl font-heading font-bold tracking-tight text-foreground'>{stat.value}</p>
+              <p className='mt-1 text-sm text-muted'>{stat.label}</p>
             </div>
-
-            <div className="rounded-2xl bg-background border border-border-subtle p-8 hover:shadow-lg hover:border-border transition-all duration-300">
-              <div className="w-12 h-12 bg-success-subtle rounded-2xl flex items-center justify-center text-success mb-5">
-                <PlaneTakeoff className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-heading font-semibold text-foreground mb-3">Match & Meet</h3>
-              <p className="text-muted leading-relaxed">
-                Chat securely, arrange a handover, and let the traveler carry your package on their journey.
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-background border border-border-subtle p-8 hover:shadow-lg hover:border-border transition-all duration-300">
-              <div className="w-12 h-12 bg-accent-subtle rounded-2xl flex items-center justify-center text-accent mb-5">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-heading font-semibold text-foreground mb-3">Safe Delivery</h3>
-              <p className="text-muted leading-relaxed">
-                Track status and verify delivery with secure OTP. Everyone is KYC verified for absolute safety.
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      <footer className="border-t border-border bg-background py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="text-lg font-heading font-bold tracking-tight text-foreground">
-            CarryGo<span className="text-primary">.</span>
-          </div>
-          <div className='flex flex-wrap justify-center gap-4 text-sm'>
-            <Link href='/privacy-policy' className='text-muted hover:text-primary transition-colors'>Privacy Policy</Link>
-            <Link href='/terms-and-conditions' className='text-muted hover:text-primary transition-colors'>Terms and Conditions</Link>
-            <Link href='/refund-cancellation' className='text-muted hover:text-primary transition-colors'>Refund and Cancellation</Link>
-            <Link href='/shipping-delivery' className='text-muted hover:text-primary transition-colors'>Shipping and Delivery</Link>
-          </div>
-          <p className="text-sm text-muted">
-            &copy; 2026 CarryGo Inc. All rights reserved.
-          </p>
+      <section className='px-6 py-16 md:py-20'>
+        <SectionHeading
+          label='Capability Stack'
+          title='Purpose-built for modern parcel movement'
+          description='From discovery and matching to secure handovers and audit-ready logs, each step is engineered for trust and speed.'
+        />
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+          {featurePillars.map((pillar) => (
+            <article key={pillar.title} className='glass-card space-y-4 p-7'>
+              <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${pillar.tone}`}>
+                <pillar.icon className='h-5 w-5' />
+              </div>
+              <h3 className='text-xl font-heading font-semibold text-foreground'>{pillar.title}</h3>
+              <p className='text-sm leading-relaxed text-muted'>{pillar.description}</p>
+            </article>
+          ))}
         </div>
-      </footer>
-    </div>
+      </section>
+
+      <section className='px-6 py-16 md:py-20'>
+        <SectionHeading
+          label='How It Works'
+          title='Three steps from booking to confirmation'
+          description='Simple experience for users, strong controls for secure operations.'
+        />
+
+        <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+          {journeySteps.map((step, index) => (
+            <article key={step.title} className='glass-card p-7'>
+              <div className='inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white'>
+                {index + 1}
+              </div>
+              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
+              <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className='px-6 py-16 md:py-20'>
+        <SectionHeading
+          label='Audience'
+          title='Designed for senders and travelers'
+          description='CarryGo aligns incentives and outcomes for both sides of every route.'
+        />
+
+        <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-2'>
+          {personaCards.map((card) => (
+            <article key={card.title} className='glass-card space-y-4 p-8'>
+              <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-surface-solid text-primary'>
+                <card.icon className='h-5 w-5' />
+              </div>
+              <h3 className='text-2xl font-heading font-semibold text-foreground'>{card.title}</h3>
+              <p className='text-base leading-relaxed text-muted'>{card.description}</p>
+              <Link href={card.href} className='inline-flex items-center gap-2 text-sm font-semibold text-primary transition-opacity hover:opacity-80'>
+                Explore {card.title}
+                <ArrowRight className='h-4 w-4' />
+              </Link>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className='px-6 py-16 md:py-20'>
+        <SectionHeading
+          label='Trusted by Users'
+          title='What people say after switching to CarryGo'
+          description='Teams and individual travelers value the speed, transparency, and safety.'
+        />
+
+        <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+          {testimonials.map((testimonial) => (
+            <article key={testimonial.name} className='glass-card space-y-4 p-7'>
+              <Sparkles className='h-5 w-5 text-primary' />
+              <p className='text-sm leading-relaxed text-muted'>{testimonial.quote}</p>
+              <div>
+                <p className='text-sm font-semibold text-foreground'>{testimonial.name}</p>
+                <p className='text-xs text-muted'>{testimonial.role}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className='px-6 pb-20 pt-16'>
+        <div className='mx-auto flex w-full max-w-6xl flex-col gap-6 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary-subtle via-surface to-accent-subtle p-9 md:flex-row md:items-center md:justify-between'>
+          <div className='max-w-3xl'>
+            <p className='text-sm font-semibold uppercase tracking-[0.2em] text-primary'>Get Started</p>
+            <h2 className='mt-3 text-3xl font-heading font-bold tracking-tight text-foreground'>Ready to deliver with confidence?</h2>
+            <p className='mt-3 text-base text-muted'>
+              Launch faster parcel operations with a professional experience for senders, travelers, and operations teams.
+            </p>
+          </div>
+          <div className='flex flex-wrap gap-3'>
+            <Link href='/contact' className='inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover'>
+              Talk to Team
+              <ArrowRight className='h-4 w-4' />
+            </Link>
+            <Link href='/how-it-works' className='inline-flex items-center rounded-2xl border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary'>
+              View Full Workflow
+            </Link>
+          </div>
+        </div>
+      </section>
+    </MarketingShell>
   )
 }
 

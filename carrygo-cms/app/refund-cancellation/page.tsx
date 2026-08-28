@@ -1,11 +1,11 @@
-import Link from 'next/link'
+﻿import { LegalPage } from '@/components/marketing/legal-page'
 
 const sections = [
   {
     title: 'Cancellation Before Pickup',
     paragraphs: [
       'If a sender cancels before parcel pickup is confirmed, CarryGo applies a full refund to the original payment method.',
-      'Processing times depend on payment gateway and bank timelines.',
+      'Processing time depends on payment gateway and bank timelines.',
     ],
   },
   {
@@ -33,27 +33,16 @@ const sections = [
 
 export default function RefundCancellationPage() {
   return (
-    <div className='min-h-screen bg-background px-6 py-12'>
-      <main className='max-w-4xl mx-auto space-y-8'>
-        <header className='space-y-3'>
-          <p className='text-sm text-primary font-semibold'>Legal</p>
-          <h1 className='text-3xl font-heading font-bold'>Refund & Cancellation Policy</h1>
-          <p className='text-muted'>Last updated: August 27, 2026</p>
-          <div className='flex flex-wrap gap-4 text-sm'>
-            <Link href='/privacy-policy' className='text-primary hover:underline'>Privacy</Link>
-            <Link href='/terms-and-conditions' className='text-primary hover:underline'>Terms</Link>
-            <Link href='/shipping-delivery' className='text-primary hover:underline'>Shipping</Link>
-          </div>
-        </header>
-        {sections.map((section) => (
-          <section key={section.title} className='space-y-2'>
-            <h2 className='text-xl font-semibold'>{section.title}</h2>
-            {section.paragraphs.map((paragraph) => (
-              <p key={paragraph} className='text-muted leading-relaxed'>{paragraph}</p>
-            ))}
-          </section>
-        ))}
-      </main>
-    </div>
+    <LegalPage
+      title='Refund & Cancellation Policy'
+      summary='This policy outlines how cancellations, refund eligibility, and dispute resolution are handled on CarryGo.'
+      lastUpdated='August 27, 2026'
+      sections={sections}
+      relatedLinks={[
+        { label: 'Privacy Policy', href: '/privacy-policy' },
+        { label: 'Terms & Conditions', href: '/terms-and-conditions' },
+        { label: 'Shipping & Delivery', href: '/shipping-delivery' },
+      ]}
+    />
   )
 }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Space_Grotesk, DM_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -13,8 +13,12 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "CarryGo Admin",
-  description: "CarryGo P2P delivery admin control center",
+  title: {
+    default: "CarryGo - Trusted Parcel Delivery Network",
+    template: "%s - CarryGo",
+  },
+  description:
+    "CarryGo connects senders with verified travelers for fast, secure, and affordable parcel delivery.",
 };
 
 export default function RootLayout({
