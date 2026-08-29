@@ -74,7 +74,7 @@ export default function FeaturesPage() {
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
           {featureCategories.map((category) => (
-            <article key={category.title} className='glass-card space-y-5 p-7'>
+            <article key={category.title} className='glass-card space-y-5 p-6 md:p-7'>
               <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-subtle text-primary'>
                 <category.icon className='h-5 w-5' />
               </div>
@@ -104,7 +104,7 @@ export default function FeaturesPage() {
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           {productHighlights.map((item) => (
-            <article key={item.title} className='glass-card p-7'>
+            <article key={item.title} className='glass-card p-6 md:p-7'>
               <div className='flex items-start gap-4'>
                 <div className='mt-1 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>
                   <item.icon className='h-5 w-5' />

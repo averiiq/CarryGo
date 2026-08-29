@@ -4,8 +4,8 @@ import { footerSections } from '@/components/marketing/site-data'
 
 export function SiteFooter() {
   return (
-    <footer className='border-t border-border bg-surface/75 px-6 py-16'>
-      <div className='mx-auto grid w-full max-w-7xl gap-10 lg:grid-cols-[1.3fr_1fr_1fr_1fr]'>
+    <footer className='border-t border-border bg-surface/75 px-4 py-12 sm:px-6 sm:py-16'>
+      <div className='mx-auto grid w-full max-w-7xl gap-8 sm:gap-10 lg:grid-cols-[1.3fr_1fr_1fr_1fr]'>
         <div className='space-y-4'>
           <div className='text-2xl font-heading font-bold tracking-tight'>
             CarryGo<span className='text-primary'>.</span>
@@ -14,7 +14,7 @@ export function SiteFooter() {
             Trusted parcel movement powered by verified travelers, intelligent matching, and secure delivery workflows.
           </p>
           <p className='text-sm font-medium text-foreground'>support@carrygo.in</p>
-          <div className='relative mt-4 max-w-[240px] overflow-hidden rounded-2xl border border-border/70 bg-background p-2'>
+          <div className='glass-card relative mt-4 max-w-[240px] overflow-hidden rounded-2xl p-2'>
             <Image
               src='/images/custom/team-collaboration.svg'
               alt='CarryGo team collaboration'
@@ -31,7 +31,7 @@ export function SiteFooter() {
             <ul className='space-y-2'>
               {section.links.map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className='text-sm text-muted transition-colors hover:text-primary'>
+                  <Link href={link.href} className='inline-link text-sm font-medium text-muted hover:text-primary'>
                     {link.label}
                   </Link>
                 </li>
@@ -41,7 +41,7 @@ export function SiteFooter() {
         ))}
       </div>
 
-      <div className='mx-auto mt-12 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 border-t border-border pt-6 text-sm text-muted'>
+      <div className='site-footer-bottom mx-auto mt-10 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 border-t border-border pt-5 text-xs text-muted sm:mt-12 sm:gap-3 sm:pt-6 sm:text-sm'>
         <p>&copy; 2026 CarryGo Technologies. All rights reserved.</p>
         <p>Custom in-house visuals by CarryGo design system.</p>
       </div>

@@ -6,5 +6,5 @@ type ScrollLinkedSectionProps = {
 }
 
 export function ScrollLinkedSection({ children, className }: ScrollLinkedSectionProps) {
-  return <section className={className}>{children}</section>
+  return <section className={['section-shell', className].filter(Boolean).join(' ')}>{children}</section>
 }

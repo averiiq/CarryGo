@@ -66,8 +66,8 @@ export default function HowItWorksPage() {
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
           {senderFlow.map((step, index) => (
-            <article key={step.title} className='glass-card p-7'>
-              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white'>
+            <article key={step.title} className='glass-card p-6 md:p-7'>
+              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/25 bg-primary-subtle text-xs font-semibold text-primary'>
                 {index + 1}
               </div>
               <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
@@ -88,8 +88,8 @@ export default function HowItWorksPage() {
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
           {deliveryFlow.map((step, index) => (
-            <article key={step.title} className='glass-card p-7'>
-              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white'>
+            <article key={step.title} className='glass-card p-6 md:p-7'>
+              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-accent/25 bg-accent-subtle text-xs font-semibold text-accent'>
                 {index + 4}
               </div>
               <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>

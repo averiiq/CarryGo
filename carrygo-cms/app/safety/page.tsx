@@ -67,7 +67,7 @@ export default function SafetyPage() {
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
           {safetyLayers.map((layer) => (
-            <article key={layer.title} className='glass-card p-7'>
+            <article key={layer.title} className='glass-card p-6 md:p-7'>
               <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
                 <layer.icon className='h-5 w-5' />
               </div>
@@ -87,8 +87,8 @@ export default function SafetyPage() {
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
           {incidentFlow.map((step, index) => (
-            <article key={step.title} className='glass-card p-7'>
-              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white'>
+            <article key={step.title} className='glass-card p-6 md:p-7'>
+              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-accent/25 bg-accent-subtle text-xs font-semibold text-accent'>
                 {index + 1}
               </div>
               <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>

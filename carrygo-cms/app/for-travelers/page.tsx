@@ -56,7 +56,7 @@ export default function ForTravelersPage() {
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
           {travelerBenefits.map((benefit) => (
-            <article key={benefit.title} className='glass-card p-7'>
+            <article key={benefit.title} className='glass-card p-6 md:p-7'>
               <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>
                 <benefit.icon className='h-5 w-5' />
               </div>
@@ -69,7 +69,7 @@ export default function ForTravelersPage() {
 
       <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
-          <article className='glass-card p-8'>
+          <article className='glass-card p-6 md:p-8'>
             <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-success-subtle text-success'>
               <BadgeCheck className='h-5 w-5' />
             </div>
@@ -84,7 +84,7 @@ export default function ForTravelersPage() {
             </ul>
           </article>
 
-          <article className='glass-card p-8'>
+          <article className='glass-card p-6 md:p-8'>
             <h3 className='text-2xl font-heading font-semibold text-foreground'>How earnings flow</h3>
             <ol className='mt-5 space-y-3 text-sm text-muted'>
               <li>1. Accept route-compatible parcel assignment.</li>

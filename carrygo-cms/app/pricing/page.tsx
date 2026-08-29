@@ -67,7 +67,7 @@ export default function PricingPage() {
           {plans.map((plan) => (
             <article
               key={plan.name}
-              className={`glass-card p-7 ${plan.highlight ? 'border-primary/40 shadow-xl shadow-primary/10' : ''}`}
+              className={`glass-card p-6 md:p-7 ${plan.highlight ? 'border-primary/40 shadow-xl shadow-primary/10' : ''}`}
             >
               {plan.highlight && (
                 <span className='inline-flex rounded-full bg-primary-subtle px-3 py-1 text-xs font-semibold text-primary'>
@@ -93,7 +93,7 @@ export default function PricingPage() {
 
       <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
-          <article className='glass-card p-8'>
+          <article className='glass-card p-6 md:p-8'>
             <h3 className='text-2xl font-heading font-semibold text-foreground'>Pricing notes</h3>
             <ul className='mt-5 space-y-3 text-sm text-muted'>
               {feeNotes.map((note) => (
@@ -105,14 +105,14 @@ export default function PricingPage() {
             </ul>
           </article>
 
-          <article className='glass-card p-8'>
+          <article className='glass-card p-6 md:p-8'>
             <h3 className='text-2xl font-heading font-semibold text-foreground'>Need a custom enterprise setup?</h3>
             <p className='mt-4 text-sm leading-relaxed text-muted'>
               We support custom route governance, team onboarding, and reporting requirements for larger operations.
             </p>
             <Link
               href='/contact'
-              className='mt-6 inline-flex items-center rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover'
+              className='button-primary mt-6'
             >
               Talk to Enterprise Team
             </Link>

@@ -31,21 +31,21 @@ export function PageHero({
   const isSvg = illustrationSrc?.endsWith('.svg')
 
   return (
-    <div className='mx-auto grid w-full max-w-7xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center'>
+    <div className='mx-auto grid w-full max-w-7xl gap-10 md:gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center'>
       <Reveal className='text-center lg:text-left'>
-        <div className='inline-flex items-center rounded-full border border-primary/20 bg-primary-subtle px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-primary'>
+        <div className='badge-pill'>
           {badge}
         </div>
 
-        <h1 className='mt-6 max-w-3xl text-[clamp(2.15rem,5.6vw,4.35rem)] font-heading font-bold leading-[1.08] tracking-tight text-foreground lg:mx-0'>
+        <h1 className='mt-6 max-w-3xl text-[clamp(2rem,5.4vw,4.35rem)] font-heading font-bold leading-[1.08] tracking-tight text-foreground lg:mx-0'>
           {title}
         </h1>
 
-        <p className='mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted md:text-lg lg:mx-0'>
+        <p className='mx-auto mt-5 max-w-2xl text-[1.02rem] leading-relaxed text-muted md:text-lg lg:mx-0'>
           {description}
         </p>
 
-        <div className='mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start'>
+        <div className='mt-8 flex flex-wrap items-stretch justify-center gap-3 sm:items-center lg:justify-start'>
           {actions.map((action) => {
             const isPrimary = action.variant !== 'secondary'
 
@@ -55,12 +55,12 @@ export function PageHero({
                 href={action.href}
                 className={
                   isPrimary
-                    ? 'inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover'
-                    : 'inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/35 hover:text-primary'
+                    ? 'button-primary group w-full justify-center sm:w-auto'
+                    : 'button-secondary group w-full justify-center sm:w-auto'
                 }
               >
                 {action.label}
-                {isPrimary && <ArrowRight className='h-4 w-4' />}
+                {isPrimary && <ArrowRight className='h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5' />}
               </Link>
             )
           })}
@@ -69,6 +69,7 @@ export function PageHero({
 
       {illustrationSrc && (
         <Reveal delay={0.08} className='relative'>
+          <div aria-hidden className='pointer-events-none absolute inset-6 rounded-[1.9rem] bg-primary-subtle blur-2xl' />
           <div className='relative overflow-hidden rounded-3xl border border-border/70 bg-surface p-3 shadow-sm md:p-4'>
             <Image
               src={illustrationSrc}

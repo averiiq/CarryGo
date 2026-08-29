@@ -101,7 +101,7 @@ export default function LandingPage() {
             <Reveal key={stat.label} delay={index * 0.05}>
               <div className='glass-card rounded-3xl p-6 text-center'>
                 <p className='text-3xl font-heading font-bold tracking-tight text-foreground'>{stat.value}</p>
-                <p className='mt-1 text-sm text-muted'>{stat.label}</p>
+                <p className='mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted'>{stat.label}</p>
               </div>
             </Reveal>
           ))}
@@ -118,8 +118,8 @@ export default function LandingPage() {
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
           {routeMoments.map((moment, index) => (
             <Reveal key={moment.title} delay={index * 0.08}>
-              <article className='glass-card overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm'>
-                <Image src={moment.image} alt={moment.title} width={960} height={680} className='aspect-[4/3] w-full object-cover' />
+              <article className='glass-card group overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm'>
+                <Image src={moment.image} alt={moment.title} width={960} height={680} className='aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]' />
                 <div className='border-t border-border/70 p-5'>
                   <p className='text-sm font-medium text-muted'>{moment.subtitle}</p>
                   <h3 className='mt-1 text-xl font-heading font-semibold text-foreground'>{moment.title}</h3>
@@ -141,7 +141,7 @@ export default function LandingPage() {
           <div className='grid gap-5 md:grid-cols-3 lg:grid-cols-1'>
             {featurePillars.map((pillar, index) => (
               <Reveal key={pillar.title} delay={index * 0.06}>
-                <article className='glass-card space-y-4 rounded-3xl p-7'>
+                <article className='glass-card space-y-4 rounded-3xl p-6 md:p-7'>
                   <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${pillar.tone}`}>
                     <pillar.icon className='h-5 w-5' />
                   </div>
@@ -181,8 +181,8 @@ export default function LandingPage() {
           <div className='grid gap-5 md:grid-cols-3 lg:grid-cols-1'>
             {journeySteps.map((step, index) => (
               <Reveal key={step.title} delay={index * 0.06}>
-                <article className='glass-card rounded-3xl p-7'>
-                  <div className='inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white'>
+                <article className='glass-card rounded-3xl p-6 md:p-7'>
+                  <div className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary/25 bg-primary-subtle text-sm font-semibold text-primary'>
                     {index + 1}
                   </div>
                   <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
@@ -204,18 +204,18 @@ export default function LandingPage() {
         <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           {personaCards.map((card, index) => (
             <Reveal key={card.title} delay={index * 0.06}>
-              <article className='glass-card space-y-4 rounded-3xl p-8'>
+              <article className='glass-card group space-y-4 rounded-3xl p-6 md:p-8'>
                 <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-surface-solid text-primary'>
                   <card.icon className='h-5 w-5' />
                 </div>
                 <h3 className='text-2xl font-heading font-semibold text-foreground'>{card.title}</h3>
                 <p className='text-base leading-relaxed text-muted'>{card.description}</p>
                 <div className='overflow-hidden rounded-2xl border border-border/70 bg-background/60 p-2'>
-                  <Image src={card.image} alt={`${card.title} visual`} width={900} height={560} className='aspect-[16/10] w-full rounded-xl object-cover' />
+                  <Image src={card.image} alt={`${card.title} visual`} width={900} height={560} className='aspect-[16/10] w-full rounded-xl object-cover transition-transform duration-500 group-hover:scale-[1.02]' />
                 </div>
-                <Link href={card.href} className='inline-flex items-center gap-2 text-sm font-semibold text-primary'>
+                <Link href={card.href} className='inline-link'>
                   Explore {card.title}
-                  <ArrowRight className='h-4 w-4' />
+                  <ArrowRight className='h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5' />
                 </Link>
               </article>
             </Reveal>
@@ -233,7 +233,7 @@ export default function LandingPage() {
         <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
           {testimonials.map((testimonial, index) => (
             <Reveal key={testimonial.name} delay={index * 0.05}>
-              <article className='glass-card space-y-4 rounded-3xl p-7'>
+              <article className='glass-card space-y-4 rounded-3xl p-6 md:p-7'>
                 <Sparkles className='h-5 w-5 text-primary' />
                 <p className='text-sm leading-relaxed text-muted'>{testimonial.quote}</p>
                 <div>
@@ -248,19 +248,19 @@ export default function LandingPage() {
 
       <ScrollLinkedSection className='px-6 pt-14 pb-24 md:pt-16 md:pb-24'>
         <Reveal>
-          <div className='glass-card mx-auto grid w-full max-w-6xl gap-6 rounded-3xl border border-primary/15 p-9 md:grid-cols-[1.1fr_0.9fr] md:items-center'>
+          <div className='glass-card mx-auto grid w-full max-w-6xl gap-6 rounded-3xl border border-primary/15 p-7 md:grid-cols-[1.1fr_0.9fr] md:items-center md:p-9'>
             <div className='max-w-3xl'>
-              <p className='text-sm font-semibold uppercase tracking-[0.2em] text-primary'>Get Started</p>
+              <p className='badge-pill'>Get Started</p>
               <h2 className='mt-3 text-3xl font-heading font-bold tracking-tight text-foreground'>Ready to deliver with confidence?</h2>
               <p className='mt-3 text-base text-muted'>
                 Launch faster parcel operations with a professional experience for senders, travelers, and operations teams.
               </p>
               <div className='mt-6 flex flex-wrap gap-3'>
-                <Link href='/contact' className='inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover'>
+                <Link href='/contact' className='button-primary group'>
                   Talk to Team
-                  <ArrowRight className='h-4 w-4' />
+                  <ArrowRight className='h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5' />
                 </Link>
-                <Link href='/how-it-works' className='inline-flex items-center rounded-2xl border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary'>
+                <Link href='/how-it-works' className='button-secondary'>
                   View Full Workflow
                 </Link>
               </div>
