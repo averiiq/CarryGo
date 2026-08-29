@@ -1,15 +1,19 @@
 ﻿import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
+import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { frequentlyAskedQuestions } from '@/components/marketing/site-data'
 
 export default function FaqPage() {
   return (
     <MarketingShell>
-      <section className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <PageHero
           badge='FAQ'
           title='Answers to Common CarryGo Questions'
           description='Everything you need to understand delivery flow, pricing behavior, safety, and support processes.'
+          illustrationSrc='/images/support-team.jpg'
+          illustrationAlt='Customer support team'
+          illustrationLabel='Answers for senders and travelers'
           actions={[
             { label: 'Contact Support', href: '/contact' },
             { label: 'Read Policies', href: '/terms-and-conditions', variant: 'secondary' },
@@ -26,7 +30,10 @@ export default function FaqPage() {
             </details>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
     </MarketingShell>
   )
 }
+
+
+

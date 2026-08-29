@@ -2,6 +2,7 @@
 import { CheckCheck, Sparkles } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
+import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
 
 const plans = [
@@ -40,19 +41,22 @@ const feeNotes = [
 export default function PricingPage() {
   return (
     <MarketingShell>
-      <section className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <PageHero
           badge='Pricing'
           title='Transparent Plans for Individuals and Growing Teams'
           description='Choose the structure that matches your shipment volume while keeping trust and delivery quality uncompromised.'
+          illustrationSrc='/images/sender-business.jpg'
+          illustrationAlt='Business parcel operations'
+          illustrationLabel='Clear pricing for every segment'
           actions={[
             { label: 'Contact for Business Plan', href: '/contact' },
             { label: 'Read Refund Policy', href: '/refund-cancellation', variant: 'secondary' },
           ]}
         />
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-9'>
         <SectionHeading
           label='Plans'
           title='Simple pricing, clear value'
@@ -85,9 +89,9 @@ export default function PricingPage() {
             </article>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           <article className='glass-card p-8'>
             <h3 className='text-2xl font-heading font-semibold text-foreground'>Pricing notes</h3>
@@ -114,7 +118,10 @@ export default function PricingPage() {
             </Link>
           </article>
         </div>
-      </section>
+      </ScrollLinkedSection>
     </MarketingShell>
   )
 }
+
+
+

@@ -2,6 +2,7 @@
 import { Mail, MessageSquareHeart, Phone, Sparkles } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
+import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 
 const channels = [
   {
@@ -30,11 +31,14 @@ const channels = [
 export default function ContactPage() {
   return (
     <MarketingShell>
-      <section className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <PageHero
           badge='Contact'
           title='Talk to the CarryGo Team'
           description='Whether you need support, sales guidance, or partnership planning, our team is ready to help.'
+          illustrationSrc='/images/support-team.jpg'
+          illustrationAlt='Customer support specialists'
+          illustrationLabel='Fast onboarding and support'
           actions={[
             { label: 'Email Support', href: 'mailto:support@carrygo.in' },
             { label: 'Browse FAQ', href: '/faq', variant: 'secondary' },
@@ -75,7 +79,10 @@ export default function ContactPage() {
             </Link>
           </div>
         </article>
-      </section>
+      </ScrollLinkedSection>
     </MarketingShell>
   )
 }
+
+
+

@@ -1,6 +1,7 @@
 ﻿import { BadgeCheck, Coins, Compass, ShieldCheck, UserCheck } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
+import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
 
 const travelerBenefits = [
@@ -31,19 +32,22 @@ const eligibility = [
 export default function ForTravelersPage() {
   return (
     <MarketingShell>
-      <section className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <PageHero
           badge='For Travelers'
           title='Turn Your Routes into Trusted Earning Opportunities'
           description='CarryGo helps verified travelers earn extra while maintaining strong safety controls and transparent expectations.'
+          illustrationSrc='/images/traveler.jpg'
+          illustrationAlt='Traveler in transit'
+          illustrationLabel='Earn better on existing routes'
           actions={[
             { label: 'Talk to Team', href: '/contact' },
             { label: 'Read Safety Standards', href: '/safety', variant: 'secondary' },
           ]}
         />
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-9'>
         <SectionHeading
           label='Traveler Value'
           title='A structured experience, not random parcel gigs'
@@ -61,9 +65,9 @@ export default function ForTravelersPage() {
             </article>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           <article className='glass-card p-8'>
             <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-success-subtle text-success'>
@@ -90,7 +94,10 @@ export default function ForTravelersPage() {
             </ol>
           </article>
         </div>
-      </section>
+      </ScrollLinkedSection>
     </MarketingShell>
   )
 }
+
+
+

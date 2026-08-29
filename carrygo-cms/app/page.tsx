@@ -1,27 +1,39 @@
-﻿import Link from 'next/link'
-import { ArrowRight, Box, Handshake, PlaneTakeoff, ShieldCheck, Sparkles, WalletCards } from 'lucide-react'
+﻿import Image from 'next/image'
+import Link from 'next/link'
+import {
+  ArrowRight,
+  BadgeCheck,
+  Box,
+  Handshake,
+  PlaneTakeoff,
+  ShieldCheck,
+  Sparkles,
+  WalletCards,
+} from 'lucide-react'
+import { Reveal } from '@/components/marketing/animated-reveal'
+import { HoverParallax } from '@/components/marketing/hover-parallax'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
+import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { quickStats, testimonials } from '@/components/marketing/site-data'
 
 const featurePillars = [
   {
     title: 'Smart Route Matching',
-    description:
-      'AI-assisted route intelligence finds the best traveler match across availability, reliability, and ETA confidence.',
+    description: 'AI-assisted route intelligence finds the best traveler match by reliability and ETA confidence.',
     icon: PlaneTakeoff,
     tone: 'text-primary bg-primary-subtle',
   },
   {
     title: 'Secure Handover Protocol',
-    description: 'OTP checkpoints and event logs reduce risk from pickup to final drop.',
+    description: 'OTP checkpoints and event logs reduce risk from pickup to final drop confirmation.',
     icon: ShieldCheck,
     tone: 'text-success bg-success-subtle',
   },
   {
     title: 'Transparent Pricing',
-    description: 'See delivery fees, traveler payout, and protection costs before confirmation.',
+    description: 'See delivery fees, traveler payout, and protection costs before confirming requests.',
     icon: WalletCards,
     tone: 'text-accent bg-accent-subtle',
   },
@@ -30,15 +42,15 @@ const featurePillars = [
 const journeySteps = [
   {
     title: 'Create Request',
-    description: 'Add parcel details, route, and delivery window in less than two minutes.',
+    description: 'Add parcel details, route, and timeline in less than two minutes.',
   },
   {
     title: 'Pick Trusted Match',
-    description: 'Choose verified travelers using route confidence and reliability signals.',
+    description: 'Choose verified travelers using route confidence and reputation signals.',
   },
   {
     title: 'Track & Confirm',
-    description: 'Use OTP-secured handovers and live milestone updates till delivery.',
+    description: 'Monitor milestones and close with OTP-secured delivery confirmation.',
   },
 ]
 
@@ -48,23 +60,46 @@ const personaCards = [
     description: 'Ship urgent parcels faster without premium courier overhead.',
     href: '/for-senders',
     icon: Box,
+    image: '/images/sender-business.jpg',
   },
   {
     title: 'For Travelers',
     description: 'Monetize planned routes with structured payouts and safety controls.',
     href: '/for-travelers',
     icon: Handshake,
+    image: '/images/traveler.jpg',
+  },
+]
+
+const routeMoments = [
+  {
+    title: 'Urban Route Readiness',
+    subtitle: 'Live city movement coverage',
+    image: '/images/city-route.jpg',
+  },
+  {
+    title: 'Secure Package Handover',
+    subtitle: 'Policy-backed delivery checkpoints',
+    image: '/images/handover.jpg',
+  },
+  {
+    title: 'Operational Backbone',
+    subtitle: 'Reliable warehousing and dispatch',
+    image: '/images/warehouse.jpg',
   },
 ]
 
 export default function LandingPage() {
   return (
     <MarketingShell>
-      <section className='px-6 pt-14 pb-20 md:pt-20'>
+      <ScrollLinkedSection className='px-6 pt-14 pb-20 md:pt-20'>
         <PageHero
           badge='Trusted Peer-to-Peer Delivery Network'
-          title='Move Parcels with Verified Travelers, Not Uncertainty'
-          description='CarryGo combines elegant UX, secure workflows, and route intelligence to deliver parcels quickly and safely.'
+          title='A More Elegant Way to Move Parcels'
+          description='CarryGo blends premium product design with real logistics workflows to deliver parcels quickly, safely, and transparently.'
+          illustrationSrc='/images/hero-logistics.jpg'
+          illustrationAlt='Logistics scene with package delivery'
+          illustrationLabel='Real-world logistics, beautifully orchestrated'
           actions={[
             { label: 'Explore Features', href: '/features' },
             { label: 'See Pricing', href: '/pricing', variant: 'secondary' },
@@ -72,55 +107,135 @@ export default function LandingPage() {
         />
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-          {quickStats.map((stat) => (
-            <div key={stat.label} className='glass-card p-6 text-center'>
-              <p className='text-3xl font-heading font-bold tracking-tight text-foreground'>{stat.value}</p>
-              <p className='mt-1 text-sm text-muted'>{stat.label}</p>
-            </div>
+          {quickStats.map((stat, index) => (
+            <Reveal key={stat.label} delay={index * 0.05}>
+              <HoverParallax className='relative rounded-3xl'>
+                <div className='premium-gradient-card glass-card rounded-3xl p-6 text-center'>
+                  <p className='text-3xl font-heading font-bold tracking-tight text-foreground'>{stat.value}</p>
+                  <p className='mt-1 text-sm text-muted'>{stat.label}</p>
+                </div>
+              </HoverParallax>
+            </Reveal>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 pb-8'>
+        <SectionHeading
+          label='Visual Story'
+          title='Grounded in real logistics moments'
+          description='A modern, image-forward experience that reflects how parcel movement actually happens.'
+        />
+
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+          {routeMoments.map((moment, index) => (
+            <Reveal key={moment.title} delay={index * 0.08}>
+              <HoverParallax className='group relative overflow-hidden rounded-3xl border border-border/70 bg-background/65 shadow-lg'>
+                <article>
+                  <Image
+                    src={moment.image}
+                    alt={moment.title}
+                    width={960}
+                    height={680}
+                    className='aspect-[4/3] w-full object-cover transition-transform duration-700 group-hover:scale-105'
+                  />
+                  <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent' />
+                  <div className='absolute bottom-0 p-5'>
+                    <p className='text-sm font-medium text-white/90'>{moment.subtitle}</p>
+                    <h3 className='mt-1 text-xl font-heading font-semibold text-white'>{moment.title}</h3>
+                  </div>
+                </article>
+              </HoverParallax>
+            </Reveal>
+          ))}
+        </div>
+      </ScrollLinkedSection>
+
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <SectionHeading
           label='Capability Stack'
           title='Purpose-built for modern parcel movement'
-          description='From discovery and matching to secure handovers and audit-ready logs, each step is engineered for trust and speed.'
+          description='From discovery and matching to secure handovers and audit-ready logs, each stage is engineered for confidence.'
         />
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
-          {featurePillars.map((pillar) => (
-            <article key={pillar.title} className='glass-card space-y-4 p-7'>
-              <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${pillar.tone}`}>
-                <pillar.icon className='h-5 w-5' />
-              </div>
-              <h3 className='text-xl font-heading font-semibold text-foreground'>{pillar.title}</h3>
-              <p className='text-sm leading-relaxed text-muted'>{pillar.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
 
-      <section className='px-6 py-16 md:py-20'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 lg:grid-cols-[1.2fr_0.8fr]'>
+          <div className='grid gap-5 md:grid-cols-3 lg:grid-cols-1'>
+            {featurePillars.map((pillar, index) => (
+              <Reveal key={pillar.title} delay={index * 0.06}>
+                <HoverParallax className='relative rounded-3xl'>
+                  <article className='premium-gradient-card glass-card space-y-4 rounded-3xl p-7'>
+                    <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${pillar.tone}`}>
+                      <pillar.icon className='h-5 w-5' />
+                    </div>
+                    <h3 className='text-xl font-heading font-semibold text-foreground'>{pillar.title}</h3>
+                    <p className='text-sm leading-relaxed text-muted'>{pillar.description}</p>
+                  </article>
+                </HoverParallax>
+              </Reveal>
+            ))}
+          </div>
+
+          <Reveal delay={0.15}>
+            <HoverParallax className='relative rounded-3xl'>
+              <article className='premium-gradient-card glass-card h-full rounded-3xl p-4'>
+                <Image
+                  src='/images/warehouse.jpg'
+                  alt='Warehouse operations'
+                  width={900}
+                  height={1100}
+                  className='aspect-[4/5] h-full w-full rounded-2xl object-cover'
+                />
+                <div className='mt-4 flex items-center gap-2 text-sm text-muted'>
+                  <BadgeCheck className='h-4 w-4 text-success' />
+                  Live operational visibility and delivery assurance
+                </div>
+              </article>
+            </HoverParallax>
+          </Reveal>
+        </div>
+      </ScrollLinkedSection>
+
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <SectionHeading
           label='How It Works'
-          title='Three steps from booking to confirmation'
-          description='Simple experience for users, strong controls for secure operations.'
+          title='Three polished steps from booking to confirmation'
+          description='Simple UX on the surface, strong operational controls underneath.'
         />
 
-        <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
-          {journeySteps.map((step, index) => (
-            <article key={step.title} className='glass-card p-7'>
-              <div className='inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white'>
-                {index + 1}
-              </div>
-              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
-              <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+        <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 lg:grid-cols-[0.9fr_1.1fr]'>
+          <Reveal>
+            <HoverParallax className='relative rounded-3xl'>
+              <article className='premium-gradient-card glass-card rounded-3xl p-4'>
+                <Image
+                  src='/images/handover.jpg'
+                  alt='Package handover'
+                  width={880}
+                  height={920}
+                  className='aspect-[4/5] w-full rounded-2xl object-cover'
+                />
+              </article>
+            </HoverParallax>
+          </Reveal>
 
-      <section className='px-6 py-16 md:py-20'>
+          <div className='grid gap-5 md:grid-cols-3 lg:grid-cols-1'>
+            {journeySteps.map((step, index) => (
+              <Reveal key={step.title} delay={index * 0.07}>
+                <HoverParallax className='relative rounded-3xl'>
+                  <article className='premium-gradient-card glass-card rounded-3xl p-7'>
+                    <div className='inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white'>
+                      {index + 1}
+                    </div>
+                    <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
+                    <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
+                  </article>
+                </HoverParallax>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </ScrollLinkedSection>
+
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <SectionHeading
           label='Audience'
           title='Designed for senders and travelers'
@@ -128,64 +243,86 @@ export default function LandingPage() {
         />
 
         <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-2'>
-          {personaCards.map((card) => (
-            <article key={card.title} className='glass-card space-y-4 p-8'>
-              <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-surface-solid text-primary'>
-                <card.icon className='h-5 w-5' />
-              </div>
-              <h3 className='text-2xl font-heading font-semibold text-foreground'>{card.title}</h3>
-              <p className='text-base leading-relaxed text-muted'>{card.description}</p>
-              <Link href={card.href} className='inline-flex items-center gap-2 text-sm font-semibold text-primary transition-opacity hover:opacity-80'>
-                Explore {card.title}
-                <ArrowRight className='h-4 w-4' />
-              </Link>
-            </article>
+          {personaCards.map((card, index) => (
+            <Reveal key={card.title} delay={index * 0.08}>
+              <HoverParallax className='relative rounded-3xl'>
+                <article className='premium-gradient-card glass-card space-y-4 rounded-3xl p-8'>
+                  <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-surface-solid text-primary'>
+                    <card.icon className='h-5 w-5' />
+                  </div>
+                  <h3 className='text-2xl font-heading font-semibold text-foreground'>{card.title}</h3>
+                  <p className='text-base leading-relaxed text-muted'>{card.description}</p>
+                  <div className='overflow-hidden rounded-2xl border border-border/70 bg-background/60 p-2'>
+                    <Image
+                      src={card.image}
+                      alt={`${card.title} visual`}
+                      width={900}
+                      height={560}
+                      className='aspect-[16/10] w-full rounded-xl object-cover transition-transform duration-700 group-hover:scale-[1.03]'
+                    />
+                  </div>
+                  <Link href={card.href} className='inline-flex items-center gap-2 text-sm font-semibold text-primary transition-opacity hover:opacity-80'>
+                    Explore {card.title}
+                    <ArrowRight className='h-4 w-4' />
+                  </Link>
+                </article>
+              </HoverParallax>
+            </Reveal>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <SectionHeading
           label='Trusted by Users'
           title='What people say after switching to CarryGo'
-          description='Teams and individual travelers value the speed, transparency, and safety.'
+          description='Teams and individual travelers value speed, transparency, and security.'
         />
 
         <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
-          {testimonials.map((testimonial) => (
-            <article key={testimonial.name} className='glass-card space-y-4 p-7'>
-              <Sparkles className='h-5 w-5 text-primary' />
-              <p className='text-sm leading-relaxed text-muted'>{testimonial.quote}</p>
-              <div>
-                <p className='text-sm font-semibold text-foreground'>{testimonial.name}</p>
-                <p className='text-xs text-muted'>{testimonial.role}</p>
-              </div>
-            </article>
+          {testimonials.map((testimonial, index) => (
+            <Reveal key={testimonial.name} delay={index * 0.07}>
+              <HoverParallax className='relative rounded-3xl'>
+                <article className='premium-gradient-card glass-card space-y-4 rounded-3xl p-7'>
+                  <Sparkles className='h-5 w-5 text-primary animate-pulse-glow' />
+                  <p className='text-sm leading-relaxed text-muted'>{testimonial.quote}</p>
+                  <div>
+                    <p className='text-sm font-semibold text-foreground'>{testimonial.name}</p>
+                    <p className='text-xs text-muted'>{testimonial.role}</p>
+                  </div>
+                </article>
+              </HoverParallax>
+            </Reveal>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-20 pt-16'>
-        <div className='mx-auto flex w-full max-w-6xl flex-col gap-6 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary-subtle via-surface to-accent-subtle p-9 md:flex-row md:items-center md:justify-between'>
-          <div className='max-w-3xl'>
-            <p className='text-sm font-semibold uppercase tracking-[0.2em] text-primary'>Get Started</p>
-            <h2 className='mt-3 text-3xl font-heading font-bold tracking-tight text-foreground'>Ready to deliver with confidence?</h2>
-            <p className='mt-3 text-base text-muted'>
-              Launch faster parcel operations with a professional experience for senders, travelers, and operations teams.
-            </p>
+      <ScrollLinkedSection className='px-6 pb-20 pt-16'>
+        <Reveal>
+          <div className='premium-gradient-surface mx-auto grid w-full max-w-6xl gap-6 rounded-3xl border border-primary/20 p-9 md:grid-cols-[1.1fr_0.9fr] md:items-center'>
+            <div className='max-w-3xl'>
+              <p className='text-sm font-semibold uppercase tracking-[0.2em] text-primary'>Get Started</p>
+              <h2 className='mt-3 text-3xl font-heading font-bold tracking-tight text-foreground'>Ready to deliver with confidence?</h2>
+              <p className='mt-3 text-base text-muted'>
+                Launch faster parcel operations with a professional experience for senders, travelers, and operations teams.
+              </p>
+              <div className='mt-6 flex flex-wrap gap-3'>
+                <Link href='/contact' className='premium-cta-gradient inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors'>
+                  Talk to Team
+                  <ArrowRight className='h-4 w-4' />
+                </Link>
+                <Link href='/how-it-works' className='inline-flex items-center rounded-2xl border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary'>
+                  View Full Workflow
+                </Link>
+              </div>
+            </div>
+
+            <HoverParallax className='relative overflow-hidden rounded-3xl border border-border/70 bg-background/70 p-3'>
+              <Image src='/images/support-team.jpg' alt='Support team' width={760} height={520} className='aspect-[4/3] w-full rounded-2xl object-cover' />
+            </HoverParallax>
           </div>
-          <div className='flex flex-wrap gap-3'>
-            <Link href='/contact' className='inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover'>
-              Talk to Team
-              <ArrowRight className='h-4 w-4' />
-            </Link>
-            <Link href='/how-it-works' className='inline-flex items-center rounded-2xl border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary'>
-              View Full Workflow
-            </Link>
-          </div>
-        </div>
-      </section>
+        </Reveal>
+      </ScrollLinkedSection>
     </MarketingShell>
   )
 }
-

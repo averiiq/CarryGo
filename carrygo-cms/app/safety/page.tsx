@@ -1,6 +1,7 @@
 ﻿import { AlertTriangle, ClipboardCheck, Fingerprint, ShieldCheck, Siren, UserRoundCheck } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
+import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
 
 const safetyLayers = [
@@ -42,19 +43,22 @@ const incidentFlow = [
 export default function SafetyPage() {
   return (
     <MarketingShell>
-      <section className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <PageHero
           badge='Safety and Trust'
           title='Protection Layers Built into Every Delivery'
           description='CarryGo combines identity checks, secure handovers, and incident-ready workflows to keep delivery dependable.'
+          illustrationSrc='/images/handover.jpg'
+          illustrationAlt='Secure parcel handover'
+          illustrationLabel='Policy-first protection layers'
           actions={[
             { label: 'View Legal Policies', href: '/terms-and-conditions' },
             { label: 'Contact Support', href: '/contact', variant: 'secondary' },
           ]}
         />
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-9'>
         <SectionHeading
           label='Safety Architecture'
           title='Designed for prevention, not just response'
@@ -72,9 +76,9 @@ export default function SafetyPage() {
             </article>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
         <SectionHeading
           label='Incident Handling'
           title='Fast and auditable escalation path'
@@ -95,7 +99,10 @@ export default function SafetyPage() {
             </article>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
     </MarketingShell>
   )
 }
+
+
+

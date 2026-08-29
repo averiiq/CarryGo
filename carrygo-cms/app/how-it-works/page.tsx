@@ -1,6 +1,7 @@
 ﻿import { CheckCheck, ClipboardList, Handshake, MessageSquare, Route, ShieldCheck } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
+import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
 
 const senderFlow = [
@@ -42,19 +43,22 @@ const deliveryFlow = [
 export default function HowItWorksPage() {
   return (
     <MarketingShell>
-      <section className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
         <PageHero
           badge='Workflow'
           title='A Clear Delivery Journey for Everyone Involved'
           description='CarryGo removes ambiguity with structured pickup, transit, and delivery operations designed around trust and speed.'
+          illustrationSrc='/images/handover.jpg'
+          illustrationAlt='Secure package handover'
+          illustrationLabel='Structured delivery journey'
           actions={[
             { label: 'View Sender Experience', href: '/for-senders' },
             { label: 'View Traveler Experience', href: '/for-travelers', variant: 'secondary' },
           ]}
         />
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-9'>
         <SectionHeading
           label='Phase One'
           title='Request to pickup'
@@ -74,9 +78,9 @@ export default function HowItWorksPage() {
             </article>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
 
-      <section className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
         <SectionHeading
           label='Phase Two'
           title='Transit to closure'
@@ -96,7 +100,10 @@ export default function HowItWorksPage() {
             </article>
           ))}
         </div>
-      </section>
+      </ScrollLinkedSection>
     </MarketingShell>
   )
 }
+
+
+
