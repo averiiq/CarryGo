@@ -122,7 +122,7 @@ export default function TabLayout() {
   ).length;
   const kycPending = FeatureFlags.kycProvider && (!user.kycStatus || user.kycStatus === 'pending');
 
-  const bottomPad = Platform.select({ ios: insets.bottom, android: Math.max(insets.bottom, 10), default: 10 });
+  const bottomPad = Platform.select({ ios: Math.max(insets.bottom, 8), android: Math.max(insets.bottom, 8), default: 8 });
 
   return (
     <Tabs
@@ -130,27 +130,31 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 76 + bottomPad,
+          bottom: 10,
+          left: 12,
+          right: 12,
+          height: 64 + bottomPad,
           paddingBottom: bottomPad,
           backgroundColor: 'transparent',
           borderTopWidth: 0,
-          elevation: 0,
-          shadowColor: 'transparent',
+          elevation: 10,
+          shadowColor: '#173A2A',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.12,
+          shadowRadius: 18,
+          borderRadius: 24,
         },
         tabBarBackground: () => (
           <View style={[StyleSheet.absoluteFill, styles.tabBarBg]}>
             <BlurView
-              intensity={48}
+              intensity={56}
               tint={'light'}
               style={StyleSheet.absoluteFill}
             />
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: 'rgba(255,255,255,0.94)' },
+                { backgroundColor: 'rgba(255,255,255,0.9)' },
               ]}
             />
             <View style={[styles.tabBarTopBorder, { backgroundColor: C.surfaceBorder + '88' }]} />
@@ -215,13 +219,16 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBarBg: {
     overflow: 'hidden',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(221,229,219,0.9)',
   },
   tabBarTopBorder: {
     position: 'absolute',
     top: 0,
-    left: Spacing.md,
-    right: Spacing.md,
-    height: 1,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    height: 0,
   },
   tabButton: {
     flex: 1,
@@ -231,17 +238,17 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 2,
     minWidth: 62,
-    borderRadius: 18,
+    borderRadius: 15,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
     position: 'relative',
     overflow: 'hidden',
   },
   focusPill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 18,
+    borderRadius: 15,
   },
   iconContainer: {
     position: 'relative',
@@ -251,7 +258,7 @@ const styles = StyleSheet.create({
     height: 28,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '500',
     letterSpacing: 0.2,
   },
@@ -259,7 +266,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   activeIndicator: {
-    height: 3,
+    height: 2,
     borderRadius: 2,
     marginTop: 1,
   },

@@ -99,6 +99,38 @@ export function DeliveryOtpActionCard({ enteredOtp, onOtpChange, onConfirmDelive
   );
 }
 
+type SenderOtpCardProps = {
+  code: string | null;
+  onGenerate: () => void;
+  loading: boolean;
+  C: ThemeColors;
+};
+
+export function SenderOtpCard({ code, onGenerate, loading, C }: SenderOtpCardProps) {
+  return (
+    <View style={[styles.actionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      <View style={styles.actionHeader}>
+        <View style={[styles.actionIconBox, { backgroundColor: C.primarySubtle }]}>
+          <MaterialIcons name="password" size={22} color={C.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.actionTitle, { color: C.textPrimary }]}>Delivery Code</Text>
+          <Text style={[styles.actionSub, { color: C.textSecondary }]}>Share this one-time code only after receiving your parcel.</Text>
+        </View>
+      </View>
+      {code ? <Text selectable style={[styles.senderCode, { color: C.primary }]}>{code}</Text> : null}
+      <Pressable
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.primaryBtn, { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1 }]}
+        onPress={onGenerate}
+        disabled={loading}
+      >
+        {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryBtnText}>{code ? 'Generate New Code' : 'Generate Delivery Code'}</Text>}
+      </Pressable>
+    </View>
+  );
+}
+
 type SuccessCardProps = {
   onRate: () => void;
   onViewPayment?: () => void;
@@ -156,6 +188,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md, borderRadius: BorderRadius.md,
   },
   primaryBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+  senderCode: { fontSize: 34, fontWeight: FontWeight.extrabold, letterSpacing: 10, textAlign: 'center' },
   outlineBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
     paddingVertical: Spacing.md - 2, borderRadius: BorderRadius.md, borderWidth: 1.5,

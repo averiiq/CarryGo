@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-n
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -15,6 +14,7 @@ import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { flattenInfiniteData, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { useFadeIn, useBreathing, useHeartbeat } from '@/hooks/useAnimations';
+import { ProductIllustration } from '@/components/illustrations';
 
 interface MenuItemProps {
   icon: React.ReactNode;
@@ -159,12 +159,9 @@ export default function ProfileScreen() {
         {/* ── Hero ──────────────────────────────────────── */}
         <Animated.View style={{ opacity: heroEntrance.opacity, transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }] }}>
           <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <Image
-              source={require('@/assets/images/onboarding-hero.webp')}
-              contentFit='cover'
-              style={styles.heroBackdropImage}
-              transition={200}
-            />
+            <View style={styles.heroBackdropImage}>
+              <ProductIllustration variant="profile" size={180} />
+            </View>
             <LinearGradient
               colors={[C.primaryGlow, C.primarySubtle, 'rgba(255,255,255,0.4)']}
               style={[StyleSheet.absoluteFillObject, { opacity: 0.8 }]}
@@ -358,8 +355,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   heroBackdropImage: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.24,
+    position: 'absolute',
+    right: -28,
+    top: -8,
+    opacity: 0.2,
   },
   heroTopRight: {
     position: 'absolute',

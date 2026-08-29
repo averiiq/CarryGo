@@ -8,6 +8,10 @@ const migrationPaths = [
   resolve('supabase/migrations/20260608010000_phase3_delivery_rating_outbox.sql'),
 ];
 const sql = migrationPaths.map(path => readFileSync(path, 'utf8')).join('\n\n');
+const hardeningSql = readFileSync(
+  resolve('supabase/migrations/20260829120000_release_security_and_integrity.sql'),
+  'utf8',
+);
 
 const protectedTables = [
   'user_profiles',
@@ -42,6 +46,31 @@ const forbiddenPatterns = [
 
 for (const item of forbiddenPatterns) {
   if (item.pattern.test(sql)) failures.push(`migration contains ${item.label}`);
+}
+
+const removedPolicies = [
+  'requests_insert_sender',
+  'requests_update_participant',
+  'deliveries_update_participant',
+  'payments_insert_sender',
+  'payments_update_participant',
+  'ratings_insert_from_user',
+  'conversations_insert_participant',
+  'conversations_update_participant',
+  'messages_insert_participant',
+  'messages_update_read_only',
+  'notifications_insert_own',
+];
+
+for (const policy of removedPolicies) {
+  const dropPattern = new RegExp(`drop\\s+policy\\s+if\\s+exists\\s+"${policy}"`, 'i');
+  if (!dropPattern.test(hardeningSql)) failures.push(`${policy}: missing hardening removal`);
+}
+
+for (const guard of ['guard_user_profile_write', 'guard_listing_insert', 'guard_kyc_session_insert']) {
+  if (!new RegExp(`function\\s+public\\.${guard}\\b`, 'i').test(hardeningSql)) {
+    failures.push(`${guard}: missing write guard`);
+  }
 }
 
 if (failures.length > 0) {

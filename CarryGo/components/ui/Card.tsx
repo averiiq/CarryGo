@@ -1,5 +1,5 @@
-﻿import React, { useRef } from 'react';
-import { View, StyleSheet, ViewStyle, Pressable, Animated } from 'react-native';
+import React, { useRef } from 'react';
+import { StyleSheet, ViewStyle, Pressable, Animated } from 'react-native';
 import { BorderRadius, Spacing, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';

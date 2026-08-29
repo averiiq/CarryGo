@@ -23,7 +23,7 @@ import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateParcelMutation } from '@/features/listings/queries';
 import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
-import { DocumentsIllustration, ElectronicsIllustration, ClothingIllustration, FoodIllustration, MedicineIllustration, OtherIllustration } from '@/components/illustrations';
+import { DocumentsIllustration, ElectronicsIllustration, ClothingIllustration, FoodIllustration, MedicineIllustration, OtherIllustration, ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
 
 const STEPS = [
   { label: 'Route' },
@@ -400,7 +400,7 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
       <StepHero
         title='Share a secure parcel route'
         subtitle='A clear origin, destination, and handover date helps trusted travellers match faster.'
-        image={require('@/assets/images/onboarding-1.webp')}
+        illustration="route"
         C={C}
       />
       <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
@@ -476,7 +476,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
       <StepHero
         title='Add parcel essentials'
         subtitle='Category, weight, and photos reduce confusion and improve acceptance quality.'
-        image={require('@/assets/images/onboarding-2.webp')}
+        illustration="parcel"
         C={C}
       />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Parcel details</Text>
@@ -600,7 +600,7 @@ function StepReview({ form, C, onEdit }: {
       <StepHero
         title='Review and send confidently'
         subtitle='Your summary sets expectations before you connect with travellers on your route.'
-        image={require('@/assets/images/onboarding-3.webp')}
+        illustration="requests"
         C={C}
       />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Review your parcel</Text>
@@ -695,18 +695,18 @@ function StepReview({ form, C, onEdit }: {
 function StepHero({
   title,
   subtitle,
-  image,
+  illustration,
   C,
 }: {
   title: string;
   subtitle: string;
-  image: number;
+  illustration: ProductIllustrationVariant;
   C: any;
 }) {
   return (
     <View style={[styles.heroCard, { borderColor: C.surfaceBorder }]}>
-      <Image source={image} style={styles.heroImage} contentFit='cover' transition={180} />
-      <View style={[styles.heroOverlay, { backgroundColor: C.overlayLight }]} />
+      <View style={styles.heroImage}><ProductIllustration variant={illustration} size={130} /></View>
+      <View style={[styles.heroOverlay, { backgroundColor: C.primarySubtle }]} />
       <View style={[styles.heroGlow, { backgroundColor: C.primarySubtle }]} />
       <Text style={[styles.heroTitle, { color: C.textPrimary }]}>{title}</Text>
       <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>{subtitle}</Text>
@@ -727,7 +727,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   heroImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    right: -4,
+    bottom: -18,
+    opacity: 0.42,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
-  TextInput, Animated, Dimensions, Clipboard,
+  TextInput, Animated, Dimensions, Clipboard, Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +18,7 @@ import { DELAYS } from '@/constants/timing';
 import { useBreathing, useFadeIn } from '@/hooks/useAnimations';
 import { LoginEmailForm } from '@/components/feature/LoginEmailForm';
 import { LoginOtpForm } from '@/components/feature/LoginOtpForm';
+import { ProductIllustration } from '@/components/illustrations';
 
 type Step = 'email' | 'otp';
 const OTP_LENGTH = AUTH_OTP_LENGTH;
@@ -256,21 +257,12 @@ export default function LoginScreen() {
                 </View>
               ))}
             </View>
-            <View style={[styles.statsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              {[
-                { val: '2K+', label: 'Deliveries', icon: 'local-shipping' as const },
-                { val: '500+', label: 'Travellers', icon: 'directions-car' as const },
-                { val: '4.8★', label: 'Avg Rating', icon: 'star' as const },
-              ].map((s, i) => (
-                <React.Fragment key={i}>
-                  <View style={styles.statItem}>
-                    <MaterialIcons name={s.icon} size={14} color={C.primary} />
-                    <Text style={[styles.statVal, { color: C.textPrimary }]}>{s.val}</Text>
-                    <Text style={[styles.statLabel, { color: C.textMuted }]}>{s.label}</Text>
-                  </View>
-                  {i < 2 ? <View style={[styles.statDivider, { backgroundColor: C.surfaceBorder }]} /> : null}
-                </React.Fragment>
-              ))}
+            <View style={[styles.loginArtwork, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <ProductIllustration variant="delivery" size={164} />
+              <View style={styles.artworkCopy}>
+                <Text style={[styles.artworkTitle, { color: C.textPrimary }]}>A simpler way to move things</Text>
+                <Text style={[styles.artworkSubtitle, { color: C.textMuted }]}>Match by route, coordinate safely, and track every handoff.</Text>
+              </View>
             </View>
           </Animated.View>
 
@@ -310,9 +302,18 @@ export default function LoginScreen() {
             </Animated.View>
           </Animated.View>
 
-          <Text style={[styles.terms, { color: C.textMuted, marginTop: Spacing.md }]}>
-            By continuing you agree to CarryGo&apos;s{'\n'}Terms of Service and Privacy Policy
-          </Text>
+          <View style={[styles.terms, { marginTop: Spacing.md }]}>
+            <Text style={{ color: C.textMuted, fontSize: FontSize.xs }}>By continuing you agree to CarryGo&apos;s</Text>
+            <View style={styles.legalLinks}>
+              <Pressable accessibilityRole="link" onPress={() => router.push('/legal/terms')}>
+                <Text style={[styles.legalLink, { color: C.primary }]}>Terms of Service</Text>
+              </Pressable>
+              <Text style={{ color: C.textMuted, fontSize: FontSize.xs }}>and</Text>
+              <Pressable accessibilityRole="link" onPress={() => router.push('/legal/privacy' as never)}>
+                <Text style={[styles.legalLink, { color: C.primary }]}>Privacy Policy</Text>
+              </Pressable>
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </>
@@ -336,16 +337,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.full, borderWidth: 1,
   },
   featurePillText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  statsCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1,
+  loginArtwork: {
+    minHeight: 142,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm,
+    overflow: 'hidden',
   },
-  statItem: { alignItems: 'center', gap: 3 },
-  statVal: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  statLabel: { fontSize: FontSize.xs },
-  statDivider: { width: 1, height: 36 },
+  artworkCopy: { flex: 1, gap: 5, marginLeft: -8, paddingRight: Spacing.sm },
+  artworkTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, lineHeight: 20 },
+  artworkSubtitle: { fontSize: FontSize.xs, lineHeight: 17 },
   formOuter: { overflow: 'hidden', paddingHorizontal: Spacing.md, minHeight: 500 },
   formSlide: { width: '100%' },
   formSlideAbs: { position: 'absolute', top: 0, left: Spacing.md, right: Spacing.md },
-  terms: { fontSize: FontSize.xs, textAlign: 'center', lineHeight: 18, paddingHorizontal: Spacing.xl },
+  terms: { alignItems: 'center', gap: 3, paddingHorizontal: Spacing.xl },
+  legalLinks: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legalLink: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, textDecorationLine: 'underline' },
 });

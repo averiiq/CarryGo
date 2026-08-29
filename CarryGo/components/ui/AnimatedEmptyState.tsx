@@ -32,8 +32,8 @@ export function AnimatedEmptyState({ icon, title, subtitle, actionLabel, onActio
 
     const float = Animated.loop(
       Animated.sequence([
-        Animated.timing(iconFloat, { toValue: -8, duration: 1500, useNativeDriver: true }),
-        Animated.timing(iconFloat, { toValue: 8, duration: 1500, useNativeDriver: true }),
+        Animated.timing(iconFloat, { toValue: -3, duration: 1900, useNativeDriver: true }),
+        Animated.timing(iconFloat, { toValue: 3, duration: 1900, useNativeDriver: true }),
       ])
     );
     float.start();

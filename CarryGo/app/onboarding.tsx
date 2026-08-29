@@ -18,6 +18,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Haptic } from '@/services/haptics.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
 
 const { width: W } = Dimensions.get('window');
 const ONBOARDING_KEY = 'carrygo_onboarding_seen';
@@ -29,6 +30,7 @@ const SLIDES = [
     title: 'Send parcels with people already on that route.',
     body: 'Choose a trip, lock price up front, and follow each handoff in real time.',
     icon: 'route' as const,
+    illustration: 'route' as ProductIllustrationVariant,
     details: ['Match in seconds', 'Transparent pricing', 'Live updates'],
   },
   {
@@ -37,6 +39,7 @@ const SLIDES = [
     title: 'Turn spare luggage space into extra income.',
     body: 'Post your trip once, accept what you can carry, and get paid after delivery proof.',
     icon: 'payments' as const,
+    illustration: 'payment' as ProductIllustrationVariant,
     details: ['You control capacity', 'No hidden fees', 'Fast payouts'],
   },
   {
@@ -45,37 +48,10 @@ const SLIDES = [
     title: 'Every delivery is identity checked and trackable.',
     body: 'CarryGo combines profile verification, delivery proof, and clear ratings.',
     icon: 'verified-user' as const,
+    illustration: 'profile' as ProductIllustrationVariant,
     details: ['Identity checks', 'Photo confirmation', 'Real ratings'],
   },
 ];
-
-function SlideIllustration({ icon, accent }: { icon: keyof typeof MaterialIcons.glyphMap; accent: string }) {
-  const breathe = useRef(new Animated.Value(1)).current;
-
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathe, { toValue: 1.04, duration: 2200, useNativeDriver: true }),
-        Animated.timing(breathe, { toValue: 1, duration: 2200, useNativeDriver: true }),
-      ]),
-    ).start();
-  }, [breathe]);
-
-  return (
-    <View style={illustrationStyles.wrap}>
-      <View style={[illustrationStyles.ringOuter, { borderColor: 'rgba(17,24,39,0.08)' }]} />
-      <View style={[illustrationStyles.ringInner, { borderColor: 'rgba(17,24,39,0.12)' }]} />
-      <Animated.View
-        style={[
-          illustrationStyles.iconCircle,
-          { backgroundColor: 'rgba(22,163,74,0.14)', borderColor: accent + '66', transform: [{ scale: breathe }] },
-        ]}
-      >
-        <MaterialIcons name={icon} size={48} color={accent} />
-      </Animated.View>
-    </View>
-  );
-}
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -136,7 +112,9 @@ export default function OnboardingScreen() {
       >
         {SLIDES.map((slide) => (
           <View key={slide.key} style={styles.slide}>
-            <SlideIllustration icon={slide.icon} accent={C.primary} />
+            <View style={styles.illustrationWrap}>
+              <ProductIllustration variant={slide.illustration} size={230} />
+            </View>
 
             <View style={styles.textBlock}>
               <Text style={[styles.eyebrow, { color: C.primary }]}>{slide.eyebrow}</Text>
@@ -186,38 +164,6 @@ export default function OnboardingScreen() {
   );
 }
 
-const illustrationStyles = StyleSheet.create({
-  wrap: {
-    width: 200,
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xl,
-  },
-  ringOuter: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 1,
-  },
-  ringInner: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    borderWidth: 1,
-  },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: {
@@ -251,6 +197,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl + 4,
+  },
+  illustrationWrap: {
+    minHeight: 190,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
   },
   textBlock: { alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xl },
   eyebrow: {

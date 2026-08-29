@@ -105,18 +105,12 @@ export async function createConversation(conv: {
   parcelDescription: string;
 }) {
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('conversations').upsert({
-    request_id: conv.requestId,
-    participant_ids: conv.participantIds,
-    participant_names: conv.participantNames,
-    route: conv.route,
-    parcel_description: conv.parcelDescription,
-  }, {
-    onConflict: 'request_id',
-    ignoreDuplicates: false,
-  }).select().single();
+  const { data, error } = await sb.rpc('create_conversation_for_request', {
+    p_request_id: conv.requestId,
+  });
   if (error) return { data: null, error: error.message };
-  return { data: mapConvRow(data), error: null };
+  const row = Array.isArray(data) ? data[0] : data;
+  return { data: row ? mapConvRow(row as ConversationRow) : null, error: null };
 }
 
 export async function sendMessage(msg: {
@@ -146,17 +140,7 @@ export async function sendMessage(msg: {
 export async function markMessagesRead(conversationId: string, userId: string) {
   const sb = getSupabaseClient();
 
-  // Verify user is a participant in this conversation
-  const { data: conv, error: convError } = await sb
-    .from('conversations')
-    .select('participant_ids')
-    .eq('id', conversationId)
-    .single();
-  if (convError) return;
-  if (!conv.participant_ids || !conv.participant_ids.includes(userId)) return;
-
-  await sb.from('messages').update({ read: true })
-    .eq('conversation_id', conversationId)
-    .neq('sender_id', userId);
-  await sb.from('conversations').update({ last_message_read: true }).eq('id', conversationId);
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user || user.id !== userId) return;
+  await sb.rpc('mark_conversation_read', { p_conversation_id: conversationId });
 }

@@ -1,8 +1,15 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import 'react-native-url-polyfill/auto';
 import { Database } from '@/types/database';
+
+const secureAuthStorage = {
+  getItem: (key: string) => SecureStore.getItemAsync(key),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+};
 
 class SupabaseManager {
   private static instance: SupabaseClient<Database> | null = null;
@@ -32,7 +39,7 @@ class SupabaseManager {
 
       this.instance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
         auth: {
-          storage: AsyncStorage,
+          storage: Platform.OS === 'web' ? AsyncStorage : secureAuthStorage,
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: Platform.OS === 'web',

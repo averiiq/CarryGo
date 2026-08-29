@@ -58,25 +58,25 @@ export const DarkColors = {
 
 // Light palette (current production theme)
 export const LightColors: ThemeColors = {
-  background: '#F4F8F1',
+  background: '#F7F8F3',
   surface: '#FFFFFF',
-  surfaceElevated: '#F8FBF6',
-  surfaceHigh: '#F1F6EC',
-  surfaceBorder: '#DFE8D8',
-  surfaceBorderLight: '#EAF1E3',
+  surfaceElevated: '#F2F5EF',
+  surfaceHigh: '#EAF0E8',
+  surfaceBorder: '#DDE5DB',
+  surfaceBorderLight: '#E9EEE7',
 
-  primary: '#58B86F',
-  primaryDark: '#2D8A45',
-  primaryLight: '#82D198',
-  primarySubtle: 'rgba(88, 184, 111, 0.14)',
-  primaryGlow: 'rgba(88, 184, 111, 0.26)',
+  primary: '#2F8F63',
+  primaryDark: '#1D6847',
+  primaryLight: '#70BC91',
+  primarySubtle: 'rgba(47, 143, 99, 0.11)',
+  primaryGlow: 'rgba(47, 143, 99, 0.2)',
 
   accent: '#4D9BFF',
   accentSubtle: 'rgba(77, 155, 255, 0.14)',
 
-  textPrimary: '#131A1E',
-  textSecondary: '#334155',
-  textMuted: '#6B7280',
+  textPrimary: '#17201C',
+  textSecondary: '#425149',
+  textMuted: '#718078',
   textInverse: '#FFFFFF',
 
   success: '#2F9E44',
@@ -104,7 +104,7 @@ export const LightColors: ThemeColors = {
   overlayMedium: 'rgba(15, 23, 42, 0.36)',
 
   tabBarBg: '#FFFFFF',
-  inputBg: '#F7FAF5',
+  inputBg: '#F4F6F2',
   statusBarStyle: 'dark' as const,
 };
 
@@ -140,29 +140,29 @@ export const FontWeight = {
 };
 
 export const BorderRadius = {
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 22,
-  xl: 28,
-  xxl: 36,
+  xs: 7,
+  sm: 11,
+  md: 15,
+  lg: 19,
+  xl: 24,
+  xxl: 30,
   full: 9999,
 };
 
 export const Shadow = {
   card: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 4,
+    shadowColor: '#173A2A',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
   glow: {
-    shadowColor: '#58B86F',
+    shadowColor: '#2F8F63',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 7,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 5,
   },
   sm: {
     shadowColor: '#0F172A',
@@ -185,10 +185,10 @@ export const LightShadow = {
 };
 
 export const Gradients = {
-  primary: ['#7CDB91', '#58B86F'] as [string, string],
-  primaryVibrant: ['#7CD98F', '#3EA25A'] as [string, string],
+  primary: ['#4DA979', '#277C56'] as [string, string],
+  primaryVibrant: ['#48A576', '#226F4D'] as [string, string],
   accent: ['#8CC8FF', '#5AA8FF'] as [string, string],
-  hero: ['#F8FCF5', '#F2F8EE', '#ECF4E7'] as [string, string, string],
+  hero: ['#FBFCF8', '#F4F7F1', '#EAF2EA'] as [string, string, string],
   card: ['rgba(88,184,111,0.09)', 'rgba(88,184,111,0.0)'] as [string, string],
   success: ['#63CC7A', '#2F9E44'] as [string, string],
   warm: ['#FFD98A', '#F4AF2F'] as [string, string],

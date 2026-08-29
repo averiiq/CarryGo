@@ -3,7 +3,6 @@ import {
   View, Text, StyleSheet,
   Switch, ActivityIndicator, Animated, Platform, KeyboardAvoidingView,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -14,13 +13,14 @@ import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { RatingModal } from '@/components/feature/RatingModal';
 import { DeliveryTimeline, DeliveryStep, STEPS, stepIndex } from '@/components/feature/DeliveryTimeline';
-import { PickupActionCard, DeliveryOtpActionCard, DeliverySuccessCard } from '@/components/feature/DeliveryActionCards';
+import { PickupActionCard, DeliveryOtpActionCard, DeliverySuccessCard, SenderOtpCard } from '@/components/feature/DeliveryActionCards';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
-import { fetchDelivery, createDelivery, confirmPickup, confirmDelivery } from '@/services/deliveries.service';
+import { fetchDelivery, createDelivery, confirmPickup, confirmDelivery, issueDeliveryOtp } from '@/services/deliveries.service';
 import { getCurrentLocation, updateDeliveryLocation, fetchDeliveryLocation } from '@/services/location.service';
 import { Delivery } from '@/types';
 import { Haptic } from '@/services/haptics.service';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
+import { ProductIllustration } from '@/components/illustrations';
 
 export default function DeliveryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,6 +33,7 @@ export default function DeliveryScreen() {
 
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [enteredOtp, setEnteredOtp] = useState('');
+  const [deliveryOtp, setDeliveryOtp] = useState<string | null>(null);
   const [showRating, setShowRating] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<{ userId: string; name: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -193,6 +194,19 @@ export default function DeliveryScreen() {
     setTimeout(() => setShowRating(true), 800);
   };
 
+  const handleIssueDeliveryOtp = async () => {
+    if (!delivery || !isSender || step !== 'in_transit') return;
+    setLoading(true);
+    const result = await issueDeliveryOtp(delivery.id);
+    setLoading(false);
+    if (result.error || !result.data) {
+      showAlert('Code Unavailable', result.error || 'Could not generate a delivery code.');
+      return;
+    }
+    setDeliveryOtp(result.data);
+    Haptic.success();
+  };
+
   const handleRateFromSuccess = () => {
     if (request) {
       const target = isTraveller
@@ -255,8 +269,8 @@ export default function DeliveryScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.heroCard, { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}> 
-            <Image source={require('@/assets/images/onboarding-hero.webp')} style={styles.heroImage} contentFit='cover' transition={180} />
-            <View style={[styles.heroOverlay, { backgroundColor: C.overlayLight }]} />
+            <View style={styles.heroImage}><ProductIllustration variant="delivery" size={132} /></View>
+            <View style={[styles.heroOverlay, { backgroundColor: C.primarySubtle }]} />
             <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Delivery Journey</Text>
             <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>
               {isTraveller
@@ -346,6 +360,10 @@ export default function DeliveryScreen() {
             />
           ) : null}
 
+          {FeatureFlags.secureDeliveryConfirmation && step === 'in_transit' && isSender ? (
+            <SenderOtpCard code={deliveryOtp} onGenerate={handleIssueDeliveryOtp} loading={loading} C={C} />
+          ) : null}
+
           {/* Sender Waiting Banner */}
           {step === 'in_transit' && isSender ? (
             <View style={[styles.waitCard, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
@@ -411,8 +429,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   heroImage: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.66,
+    position: 'absolute',
+    right: -8,
+    bottom: -18,
+    opacity: 0.38,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,

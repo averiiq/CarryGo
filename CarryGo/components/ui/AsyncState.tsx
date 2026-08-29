@@ -1,9 +1,9 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { BorderRadius, FontSize, FontWeight, Spacing, ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import { ProductIllustration } from '@/components/illustrations';
 
 interface AsyncStateCardProps {
   C: ThemeColors;
@@ -47,16 +47,9 @@ export function AsyncStateCard({
         { backgroundColor: C.surface, borderColor: C.surfaceBorder },
       ]}
     >
-      <Image
-        source={require('../../assets/images/onboarding-2.webp')}
-        style={styles.bgImage}
-        contentFit="cover"
-        transition={220}
-      />
-      <View style={[styles.bgOverlay, { backgroundColor: C.surface + 'E6' }]} />
-
+      {!compact ? <ProductIllustration variant="route" size={112} /> : null}
       <Animated.View style={[styles.iconBox, { backgroundColor: C.primarySubtle, transform: [{ scale: iconScale }] }]}>
-        <MaterialIcons name={icon} size={compact ? 19 : 22} color={C.primary} />
+        <MaterialIcons name={icon} size={compact ? 19 : 21} color={C.primary} />
       </Animated.View>
       <Text style={[styles.title, { color: C.textSecondary }]}>{title}</Text>
       <Text style={[styles.message, { color: C.textMuted }]}>{message}</Text>
@@ -99,19 +92,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
   compactCard: {
     paddingVertical: Spacing.lg,
-  },
-  bgImage: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.17,
-  },
-  bgOverlay: {
-    ...StyleSheet.absoluteFillObject,
   },
   iconBox: {
     width: 52,

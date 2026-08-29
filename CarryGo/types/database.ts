@@ -1207,6 +1207,10 @@ export type Database = {
           status: Database["public"]["Enums"]["delivery_status"]
         }[]
       }
+      create_conversation_for_request: {
+        Args: { p_request_id: string }
+        Returns: Database["public"]["Tables"]["conversations"]["Row"][]
+      }
       create_kyc_session: {
         Args: { p_full_name: string; p_id_type: string; p_user_id: string }
         Returns: undefined
@@ -1273,6 +1277,10 @@ export type Database = {
         Args: { p_column: string; p_user_id: string }
         Returns: undefined
       }
+      issue_delivery_otp: {
+        Args: { p_delivery_id: string }
+        Returns: string
+      }
       notify_route_subscribers: {
         Args: {
           p_body: string
@@ -1312,6 +1320,22 @@ export type Database = {
           sender_name: string
           text: string
         }[]
+      }
+      mark_conversation_read: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
+      set_parcel_status: {
+        Args: { p_parcel_id: string; p_status: Database["public"]["Enums"]["parcel_status"] }
+        Returns: undefined
+      }
+      set_trip_status: {
+        Args: { p_status: Database["public"]["Enums"]["trip_status"]; p_trip_id: string }
+        Returns: undefined
+      }
+      submit_kyc_session: {
+        Args: { p_session_id: string }
+        Returns: undefined
       }
       submit_manual_kyc: {
         Args: { p_document_url: string; p_full_name: string; p_id_type: string }
@@ -1387,13 +1411,13 @@ export type Database = {
         }
         Returns: string
       }
+      update_delivery_location: {
+        Args: { p_delivery_id: string; p_lat: number; p_lng: number }
+        Returns: undefined
+      }
       verify_delivery_otp: {
         Args: { p_delivery_id: string; p_otp: string }
-        Returns: {
-          delivery: Json
-          message: string
-          success: boolean
-        }[]
+        Returns: undefined
       }
     }
     Enums: {
@@ -1421,7 +1445,7 @@ export type Database = {
         | "food"
         | "medicine"
         | "other"
-      parcel_status: "open" | "matched" | "in_transit" | "delivered" | "failed"
+      parcel_status: "open" | "matched" | "in_transit" | "delivered" | "failed" | "cancelled"
       payment_status: "locked" | "released" | "refunded"
       request_status:
         | "pending"
@@ -2041,7 +2065,7 @@ export const Constants = {
         "medicine",
         "other",
       ],
-      parcel_status: ["open", "matched", "in_transit", "delivered", "failed"],
+      parcel_status: ["open", "matched", "in_transit", "delivered", "failed", "cancelled"],
       payment_status: ["locked", "released", "refunded"],
       request_status: [
         "pending",

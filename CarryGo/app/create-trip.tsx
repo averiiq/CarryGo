@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,7 +18,7 @@ import { detectCurrentCity } from '@/services/location.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateTripMutation } from '@/features/listings/queries';
-import { BikeIllustration, CarIllustration, BusIllustration, TrainIllustration, FlightIllustration } from '@/components/illustrations';
+import { BikeIllustration, CarIllustration, BusIllustration, TrainIllustration, FlightIllustration, ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
 
 const STEPS = [
   { label: 'Route' },
@@ -364,7 +363,7 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
       <StepHero
         title="Plan a smooth journey"
         subtitle="Pick your route and make it easy for senders to trust you quickly."
-        image={require('@/assets/images/onboarding-1.webp')}
+        illustration="route"
         C={C}
       />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where are you going?</Text>
@@ -441,7 +440,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
       <StepHero
         title="Set your carrying details"
         subtitle="Clear capacity and price build confidence and better route matches."
-        image={require('@/assets/images/onboarding-2.webp')}
+        illustration="delivery"
         C={C}
       />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Trip details</Text>
@@ -560,7 +559,7 @@ function StepReview({ form, C, onEdit }: {
       <StepHero
         title="Review before publishing"
         subtitle="One final check keeps pickup, timing, and expectations perfectly aligned."
-        image={require('@/assets/images/onboarding-3.webp')}
+        illustration="requests"
         C={C}
       />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Review your trip</Text>
@@ -639,18 +638,18 @@ function StepReview({ form, C, onEdit }: {
 function StepHero({
   title,
   subtitle,
-  image,
+  illustration,
   C,
 }: {
   title: string;
   subtitle: string;
-  image: number;
+  illustration: ProductIllustrationVariant;
   C: any;
 }) {
   return (
     <View style={[styles.heroCard, { borderColor: C.surfaceBorder }]}> 
-      <Image source={image} style={styles.heroImage} contentFit="cover" transition={180} />
-      <View style={[styles.heroOverlay, { backgroundColor: C.overlayLight }]} />
+      <View style={styles.heroImage}><ProductIllustration variant={illustration} size={130} /></View>
+      <View style={[styles.heroOverlay, { backgroundColor: C.primarySubtle }]} />
       <View style={[styles.heroGlow, { backgroundColor: C.primarySubtle }]} />
       <Text style={[styles.heroTitle, { color: C.textPrimary }]}>{title}</Text>
       <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>{subtitle}</Text>
@@ -671,7 +670,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   heroImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    right: -4,
+    bottom: -18,
+    opacity: 0.42,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,

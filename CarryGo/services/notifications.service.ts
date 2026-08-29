@@ -4,6 +4,7 @@ import type { Database } from '@/types/database';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 import { FeatureFlags } from '@/constants/featureFlags';
 
 try {
@@ -69,7 +70,9 @@ export async function registerForPushNotifications(): Promise<string | null> {
     }
     if (finalStatus !== 'granted') return null;
 
-    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId: 'carrygo' });
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) return null;
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     return tokenData.data;
   } catch {
     return null;

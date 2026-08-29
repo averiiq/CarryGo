@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Pressable, Animated, RefreshControl } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
@@ -15,6 +14,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useFadeIn, useHeartbeat } from '@/hooks/useAnimations';
 import { formatRelative } from '@/lib/dateFormat';
 import { Conversation } from '@/types';
+import { ProductIllustration } from '@/components/illustrations';
 
 type ConversationFilter = 'all' | 'unread';
 
@@ -288,16 +288,13 @@ export default function MessagesScreen() {
             },
           ]}
         >
-          <Image
-            source={require('../../assets/images/messages-hero-reference.png')}
-            style={styles.heroImage}
-            contentFit="cover"
-            transition={300}
-          />
           <LinearGradient
-            colors={[C.surface + 'F0', C.surface + 'B8', C.surface + 'EE']}
+            colors={[C.primarySubtle, C.surface, C.surface]}
             style={StyleSheet.absoluteFillObject}
           />
+          <View style={styles.heroArtwork}>
+            <ProductIllustration variant="chat" size={126} />
+          </View>
 
           <View style={styles.heroTopRow}>
             <View>
@@ -403,12 +400,7 @@ export default function MessagesScreen() {
         ) : visibleRows.length === 0 ? (
           <View style={[styles.emptyWrap, { paddingBottom: insets.bottom + 100 }]}>
             <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <Image
-                source={require('../../assets/images/empty-messages.webp')}
-                style={styles.emptyImage}
-                contentFit="contain"
-                transition={250}
-              />
+              <ProductIllustration variant="chat" size={184} />
               <Text style={[styles.emptyTitle, { color: C.textSecondary }]}> 
                 {conversationRows.length > 0 && activeFilter === 'unread' ? 'No unread messages' : 'No conversations yet'}
               </Text>
@@ -527,10 +519,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     gap: Spacing.sm,
   },
-  heroImage: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.24,
-  },
+  heroArtwork: { position: 'absolute', right: -4, bottom: -12, opacity: 0.42 },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
   heroGreeting: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
   heroTitle: { marginTop: 2, fontSize: FontSize.lg, fontWeight: FontWeight.bold, maxWidth: 230 },
@@ -635,7 +624,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  emptyImage: { width: 210, height: 160 },
   emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold },
   emptySubtext: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
   emptyCTA: {

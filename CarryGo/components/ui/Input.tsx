@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ViewStyle, TextInputProps, Animated } from 'react-native';
 import { BorderRadius, FontSize, FontWeight, Spacing, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -37,7 +37,7 @@ export function Input({ label, error, containerStyle, leftIcon, rightIcon, style
     ? C.error
     : borderAnim.interpolate({ inputRange: [0, 1], outputRange: [C.surfaceBorder, C.primary] });
 
-  const shadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.14] });
+  const shadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.07] });
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -53,9 +53,9 @@ export function Input({ label, error, containerStyle, leftIcon, rightIcon, style
             borderColor,
             shadowColor: C.primary,
             shadowOpacity,
-            shadowOffset: { width: 0, height: 6 },
-            shadowRadius: 14,
-            elevation: focused ? 4 : 0,
+            shadowOffset: { width: 0, height: 4 },
+            shadowRadius: 10,
+            elevation: focused ? 2 : 0,
           },
         ]}
       >

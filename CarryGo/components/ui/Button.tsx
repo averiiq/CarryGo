@@ -1,4 +1,4 @@
-﻿import React, { useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   Pressable,
   Text,
@@ -109,7 +109,7 @@ export function Button({
             borderColor: variantBorder,
             borderWidth: variant === 'ghost' ? 0 : 1.2,
           },
-          variant === 'primary' ? S.glow : null,
+          variant === 'primary' ? S.sm : null,
           isDisabled && styles.disabled,
         ]}
       >
@@ -120,12 +120,6 @@ export function Button({
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[StyleSheet.absoluteFillObject, { borderRadius: BorderRadius.md }]}
-            />
-            <LinearGradient
-              colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0.0)']}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.highlightLayer}
             />
           </>
         ) : null}
@@ -154,10 +148,6 @@ const styles = StyleSheet.create({
   },
   fullWidth: { width: '100%' },
   disabled: { opacity: 0.5 },
-  highlightLayer: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: BorderRadius.md,
-  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',

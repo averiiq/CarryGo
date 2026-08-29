@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRazorpayCheckout } from '@/hooks/useRazorpayCheckout';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchPaymentByRequest } from '@/services/payments.service';
+import { ProductIllustration } from '@/components/illustrations';
 
 type PaymentStatus = 'locked' | 'released' | 'refunded';
 
@@ -129,13 +129,13 @@ export default function PaymentScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
-        <Image source={require('@/assets/images/onboarding-hero.webp')} style={styles.heroImage} contentFit='cover' transition={180} />
         <LinearGradient
-          colors={[C.primarySubtle, 'rgba(255,255,255,0.84)']}
+          colors={[C.primarySubtle, C.surface]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
+        <View style={styles.heroImage}><ProductIllustration variant="payment" size={128} /></View>
         <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Secure Escrow Payment</Text>
         <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>
           Sender locks funds, traveller delivers, and payment is released only after confirmation.
@@ -274,8 +274,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   heroImage: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.6,
+    position: 'absolute',
+    right: -6,
+    bottom: -18,
+    opacity: 0.38,
   },
   heroTitle: {
     fontSize: FontSize.lg,

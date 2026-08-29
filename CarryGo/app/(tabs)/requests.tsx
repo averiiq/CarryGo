@@ -5,7 +5,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
@@ -21,6 +20,7 @@ import { flattenInfiniteData, useParcelsQuery } from '@/features/listings/querie
 import { useRequestsQuery, useUpdateRequestStatusMutation } from '@/features/requests/queries';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useFadeIn, useStaggeredList } from '@/hooks/useAnimations';
+import { ProductIllustration } from '@/components/illustrations';
 
 type TabType = 'incoming' | 'outgoing';
 type StatusFilterKey = 'all' | 'pending' | 'accepted' | 'completed';
@@ -271,18 +271,15 @@ export default function RequestsScreen() {
           },
         ]}
       >
-        <Image
-          source={require('@/assets/images/messages-hero-reference.png')}
-          contentFit="cover"
-          style={styles.heroImage}
-          transition={180}
-        />
         <LinearGradient
-          colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.74)', 'rgba(255,255,255,0.9)']}
+          colors={[C.primarySubtle, C.surface, C.surface]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroScrim}
         />
+        <View style={styles.heroArtwork}>
+          <ProductIllustration variant="requests" size={138} />
+        </View>
 
         <View style={styles.heroTopRow}>
           <View style={[styles.liveBadge, { backgroundColor: pendingCount > 0 ? C.warningSubtle : C.successSubtle }]}> 
@@ -595,9 +592,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  heroImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
+  heroArtwork: { position: 'absolute', right: -12, top: 30, opacity: 0.32 },
   heroScrim: {
     ...StyleSheet.absoluteFillObject,
   },

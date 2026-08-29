@@ -11,7 +11,8 @@ const productionReady = {
 
 export const FeatureFlags = {
   isDemoMode: process.env.EXPO_PUBLIC_APP_MODE !== 'production',
-  kycProvider: productionReady.kycProvider,
+  reviewerLogin: enabled(process.env.EXPO_PUBLIC_ENABLE_REVIEWER_LOGIN),
+  kycProvider: productionReady.kycProvider && enabled(process.env.EXPO_PUBLIC_ENABLE_KYC_PROVIDER),
   payments: productionReady.payments && enabled(process.env.EXPO_PUBLIC_ENABLE_PAYMENTS),
   secureDeliveryConfirmation: productionReady.secureDeliveryConfirmation && enabled(process.env.EXPO_PUBLIC_ENABLE_SECURE_DELIVERY),
   preciseLocationSharing: productionReady.preciseLocationSharing && enabled(process.env.EXPO_PUBLIC_ENABLE_PRECISE_LOCATION),

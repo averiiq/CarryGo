@@ -1,4 +1,4 @@
-﻿import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback } from 'react';
 import { Animated, Pressable, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { Image } from 'expo-image';
 import { useThemeColors } from '@/hooks/useThemeColors';

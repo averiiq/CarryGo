@@ -6,7 +6,8 @@ import { ensureProfile, fetchProfile, isProfileComplete } from '@/services/profi
 import { registerForPushNotifications, savePushToken } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { AUTH_TIMEOUTS } from '@/constants/timing';
-import { storageGet, storageSet, storageDelete } from '@/lib/secure-storage';
+import { FeatureFlags } from '@/constants/featureFlags';
+import { secureGet, secureSet, secureDelete } from '@/lib/secure-storage';
 
 const CACHED_USER_KEY = 'cached_user_profile';
 
@@ -63,9 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const persistUser = useCallback(async (u: User | null) => {
     if (u) {
-      await storageSet(CACHED_USER_KEY, u).catch(() => {});
+      await secureSet(CACHED_USER_KEY, u).catch(() => {});
     } else {
-      await storageDelete(CACHED_USER_KEY).catch(() => {});
+      await secureDelete(CACHED_USER_KEY).catch(() => {});
     }
   }, []);
 
@@ -92,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Instantly restore cached user on mount — no network needed
   useEffect(() => {
     let active = true;
-    storageGet<User>(CACHED_USER_KEY).then(cached => {
+    secureGet<User>(CACHED_USER_KEY).then(cached => {
       if (active && cached && !cachedUserRestoredRef.current) {
         cachedUserRestoredRef.current = true;
         setUser(cached);
@@ -158,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const sendOTP = useCallback(async (email: string): Promise<{ error: string | null }> => {
     try {
-      if (email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com') {
+      if (FeatureFlags.reviewerLogin && email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com') {
         return { error: null };
       }
 
@@ -190,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let authUser: any = null;
       let authError: any = null;
 
-      if (email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com' && otp === '202611') {
+      if (FeatureFlags.reviewerLogin && email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com' && otp === '202611') {
         const { data, error } = await sb.auth.signInWithPassword({
           email: 'carrygo.reviewer@gmail.com',
           password: 'CarryGo@Review2026!',

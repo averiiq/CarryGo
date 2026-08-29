@@ -9,6 +9,10 @@ const notificationTypeMigration = readFileSync(
   resolve('supabase/migrations/20260609000000_phase4_realtime_notifications.sql'),
   'utf8',
 );
+const hardeningMigration = readFileSync(
+  resolve('supabase/migrations/20260829120000_release_security_and_integrity.sql'),
+  'utf8',
+);
 
 const requiredTables = [
   'user_devices',
@@ -51,9 +55,13 @@ for (const fn of requiredFunctions) {
 }
 
 for (const topic of requiredTopics) {
-  if (!phase4Migration.includes(topic)) {
+  if (!phase4Migration.includes(topic) && !hardeningMigration.includes(topic)) {
     failures.push(`${topic}: missing outbox handler`);
   }
+}
+
+if (!/revoke\s+all\s+on\s+function/i.test(hardeningMigration)) {
+  failures.push('security definer functions are not explicitly revoked from client roles');
 }
 
 for (const filePath of requiredFiles) {

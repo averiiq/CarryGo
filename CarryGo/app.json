@@ -2,7 +2,7 @@
   "expo": {
     "name": "CarryGo",
     "slug": "carrygo",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "carrygo",
@@ -17,13 +17,26 @@
     },
     "android": {
       "package": "in.averiq.carrygo",
+      "versionCode": 12,
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_CALENDAR",
+        "android.permission.READ_CONTACTS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "newArchEnabled": true,
-      "enableProguardInReleaseBuilds": true,
-      "enableShrinkResourcesInReleaseBuilds": true
+      "newArchEnabled": true
     },
     "web": {
       "bundler": "metro",
@@ -48,7 +61,16 @@
       "@react-native-community/datetimepicker",
       "expo-font",
       "expo-secure-store",
-      "react-native-edge-to-edge"
+      "react-native-edge-to-edge",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

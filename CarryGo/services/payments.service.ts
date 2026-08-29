@@ -23,9 +23,6 @@ function mapRow(row: PaymentRow): Payment {
 export async function createRazorpayOrder(requestId: string, senderId: string): Promise<{ data: RazorpayOrder | null; error: string | null }> {
   if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
 
-  const rateCheck = await enforceRateLimit(senderId, 'create_payment');
-  if (!rateCheck.allowed) return { data: null, error: rateCheck.error ?? 'Rate limit exceeded' };
-
   const sb = getSupabaseClient();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return { data: null, error: 'Authentication required' };

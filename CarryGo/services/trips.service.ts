@@ -140,12 +140,9 @@ export async function updateTripStatus(tripId: string, status: Trip['status'], u
 
   const sb = getSupabaseClient();
 
-  // Verify ownership before updating
-  const { data: trip, error: fetchError } = await sb.from('trips').select('user_id').eq('id', tripId).single();
-  if (fetchError) return { error: fetchError.message };
-  if (trip.user_id !== userId) return { error: 'Unauthorized' };
-
-  const { error } = await sb.from('trips').update({ status }).eq('id', tripId);
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user || user.id !== userId) return { error: 'Unauthorized' };
+  const { error } = await sb.rpc('set_trip_status', { p_trip_id: tripId, p_status: status });
   if (error) return { error: error.message };
   return { error: null };
 }

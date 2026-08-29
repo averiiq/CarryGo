@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 const migrationPaths = [
   resolve('supabase/migrations/20260608000000_phase3_domain_commands.sql'),
   resolve('supabase/migrations/20260608010000_phase3_delivery_rating_outbox.sql'),
+  resolve('supabase/migrations/20260829120000_release_security_and_integrity.sql'),
 ];
 
 const sql = migrationPaths.map(path => readFileSync(path, 'utf8')).join('\n\n');
@@ -20,6 +21,8 @@ const requiredFunctions = [
   'complete_delivery_command',
   'submit_rating_command',
   'process_outbox_events',
+  'finalize_razorpay_payment',
+  'issue_delivery_otp',
 ];
 
 const requiredColumns = [

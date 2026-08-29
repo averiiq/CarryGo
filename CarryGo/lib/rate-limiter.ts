@@ -104,6 +104,7 @@ export class RateLimiter {
         }
       }
     }, this.windowMs * 2);
+    (this.cleanupTimer as ReturnType<typeof setInterval> & { unref?: () => void }).unref?.();
   }
 
   destroy(): void {

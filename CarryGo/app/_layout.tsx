@@ -1,4 +1,4 @@
-﻿import { AlertProvider } from '@/template';
+import { AlertProvider } from '@/template';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -23,7 +23,7 @@ LogBox.ignoreLogs([
   '[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.',
 ]);
 
-const PUBLIC_ROUTE_ROOTS = new Set(['index', 'login', 'onboarding', 'profile-setup']);
+const PUBLIC_ROUTE_ROOTS = new Set(['index', 'login', 'onboarding', 'profile-setup', 'legal']);
 
 function AppShell() {
   const { user, isLoading, requiresProfileSetup, sessionError, refreshUser } = useAuth();
@@ -135,6 +135,7 @@ function AppStack() {
         <Stack.Screen name="my-activity" options={{ headerShown: false }} />
         <Stack.Screen name="kyc" options={{ headerShown: false }} />
         <Stack.Screen name="legal/terms" options={{ headerShown: false }} />
+        <Stack.Screen name="legal/privacy" options={{ headerShown: false }} />
       </Stack>
     </>
   );

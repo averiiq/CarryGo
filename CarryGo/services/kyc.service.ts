@@ -135,6 +135,8 @@ export async function uploadKycDocument(
 
 export async function submitKycSession(sessionId: string, userId: string) {
   const sb = getSupabaseClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user || user.id !== userId) return { error: 'Unauthorized' };
 
   const { data: docs } = await sb
     .from('kyc_documents')
@@ -149,20 +151,11 @@ export async function submitKycSession(sessionId: string, userId: string) {
     return { error: `Missing documents: ${missing.join(', ')}` };
   }
 
-  const { error: sessionError } = await sb
-    .from('kyc_sessions')
-    .update({ status: 'submitted' })
-    .eq('id', sessionId)
-    .eq('user_id', userId);
+  const { error: sessionError } = await sb.rpc('submit_kyc_session', {
+    p_session_id: sessionId,
+  });
 
   if (sessionError) return { error: sessionError.message };
-
-  const { error: profileError } = await sb
-    .from('user_profiles')
-    .update({ kyc_status: 'submitted' })
-    .eq('id', userId);
-
-  if (profileError) return { error: profileError.message };
   return { error: null };
 }
 

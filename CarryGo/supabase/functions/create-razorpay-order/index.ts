@@ -26,6 +26,10 @@ Deno.serve(async (req) => {
   }
 
   try {
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+      return jsonResponse({ error: 'Payment provider is not configured' }, 503);
+    }
+
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return jsonResponse({ error: 'Missing authorization' }, 401);
@@ -33,13 +37,25 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
     if (authError || !user) {
       return jsonResponse({ error: 'Unauthorized' }, 401);
+    }
+
+    const { error: rateLimitError } = await userClient.rpc('enforce_rate_limit', {
+      p_user_id: user.id,
+      p_action: 'create_payment',
+    });
+    if (rateLimitError) {
+      return jsonResponse({ error: 'Too many payment attempts. Please wait.' }, 429);
     }
 
     const { requestId } = await req.json();
@@ -107,6 +123,27 @@ Deno.serve(async (req) => {
     }
 
     const order = await razorpayResponse.json();
+
+    if (
+      typeof order?.id !== 'string'
+      || Number(order?.amount) !== amountInPaise
+      || order?.currency !== 'INR'
+    ) {
+      return jsonResponse({ error: 'Payment provider returned an invalid order' }, 502);
+    }
+
+    const { error: orderStoreError } = await supabase.from('razorpay_orders').insert({
+      order_id: order.id,
+      request_id: request.id,
+      sender_id: user.id,
+      amount_paise: amountInPaise,
+      currency: 'INR',
+    });
+
+    if (orderStoreError) {
+      console.error('[create-razorpay-order] Failed to persist order:', orderStoreError.message);
+      return jsonResponse({ error: 'Failed to initialize payment verification' }, 500);
+    }
 
     return jsonResponse({
       orderId: order.id,

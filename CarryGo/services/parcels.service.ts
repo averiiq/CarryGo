@@ -173,12 +173,9 @@ export async function updateParcelStatus(parcelId: string, status: Parcel['statu
 
   const sb = getSupabaseClient();
 
-  // Verify ownership before updating
-  const { data: parcel, error: fetchError } = await sb.from('parcels').select('user_id').eq('id', parcelId).single();
-  if (fetchError) return { error: fetchError.message };
-  if (parcel.user_id !== userId) return { error: 'Unauthorized' };
-
-  const { error } = await sb.from('parcels').update({ status: status as any }).eq('id', parcelId);
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user || user.id !== userId) return { error: 'Unauthorized' };
+  const { error } = await sb.rpc('set_parcel_status', { p_parcel_id: parcelId, p_status: status });
   if (error) return { error: error.message };
   return { error: null };
 }

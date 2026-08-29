@@ -5,20 +5,6 @@ const CLOUDINARY_API_KEY = Deno.env.get('CLOUDINARY_API_KEY') ?? '';
 
 const ALLOWED_PREFIXES = ['avatars/', 'parcels/', 'kyc-documents/', 'delivery-proofs/'];
 
-const rateLimits = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimits.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimits.set(userId, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 15) return false;
-  entry.count++;
-  return true;
-}
-
 async function sha1Hex(message: string): Promise<string> {
   const data = new TextEncoder().encode(message);
   const hash = await crypto.subtle.digest('SHA-1', data);
@@ -51,7 +37,8 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
     );
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(
@@ -62,12 +49,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers });
     }
 
-    if (!checkRateLimit(user.id)) {
-      return new Response(
-        JSON.stringify({ error: 'Too many uploads. Please wait.' }),
-        { status: 429, headers }
-      );
-    }
+    const { error: rateLimitError } = await supabase.rpc('enforce_rate_limit', {
+      p_user_id: user.id,
+      p_action: 'upload_image',
+    });
+    if (rateLimitError) return new Response(JSON.stringify({ error: 'Too many uploads. Please wait.' }), { status: 429, headers });
 
     const body = await req.json();
     // Support both old format {folder, publicId} and new format {publicId}
@@ -97,18 +83,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const hasValidPrefix = ALLOWED_PREFIXES.some(p => publicId.startsWith(p));
+    const hasValidPrefix = ALLOWED_PREFIXES.some(p => publicId.startsWith(`${p}${user.id}/`));
     if (!hasValidPrefix) {
       return new Response(
         JSON.stringify({ error: 'Invalid upload path prefix.' }),
         { status: 400, headers }
-      );
-    }
-
-    if (!publicId.includes(user.id)) {
-      return new Response(
-        JSON.stringify({ error: 'Upload path must include your user ID.' }),
-        { status: 403, headers }
       );
     }
 

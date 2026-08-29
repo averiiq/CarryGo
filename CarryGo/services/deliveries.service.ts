@@ -69,7 +69,18 @@ export async function confirmDelivery(deliveryId: string, enteredOtp: string, us
   const { data, error } = await sb.rpc('complete_delivery_command', {
     p_delivery_id: deliveryId,
     p_otp: enteredOtp,
-  }).single();
+  }).maybeSingle();
   if (error) return { success: false, data: null, error: error.message };
+  if (!data) return { success: false, data: null, error: 'Invalid delivery code.' };
   return { success: true, data: mapRow(data as unknown as DeliveryRow), error: null };
+}
+
+export async function issueDeliveryOtp(deliveryId: string) {
+  if (!FeatureFlags.secureDeliveryConfirmation) {
+    return { data: null, error: disabledFeatureMessage.delivery };
+  }
+  const sb = getSupabaseClient();
+  const { data, error } = await sb.rpc('issue_delivery_otp', { p_delivery_id: deliveryId });
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
 }
