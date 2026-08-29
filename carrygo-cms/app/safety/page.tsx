@@ -43,13 +43,13 @@ const incidentFlow = [
 export default function SafetyPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='Safety and Trust'
           title='Protection Layers Built into Every Delivery'
           description='CarryGo combines identity checks, secure handovers, and incident-ready workflows to keep delivery dependable.'
-          illustrationSrc='/images/handover.jpg'
-          illustrationAlt='Secure parcel handover'
+          illustrationSrc='/images/custom/secure-handover.svg'
+          illustrationAlt='Custom parcel safety illustration'
           illustrationLabel='Policy-first protection layers'
           actions={[
             { label: 'View Legal Policies', href: '/terms-and-conditions' },
@@ -58,7 +58,7 @@ export default function SafetyPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-12'>
         <SectionHeading
           label='Safety Architecture'
           title='Designed for prevention, not just response'
@@ -78,7 +78,7 @@ export default function SafetyPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <SectionHeading
           label='Incident Handling'
           title='Fast and auditable escalation path'
@@ -103,6 +103,10 @@ export default function SafetyPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 

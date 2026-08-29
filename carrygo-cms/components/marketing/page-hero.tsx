@@ -1,7 +1,6 @@
 ﻿import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { HoverParallax } from '@/components/marketing/hover-parallax'
 import { Reveal } from '@/components/marketing/animated-reveal'
 
 type HeroAction = {
@@ -32,17 +31,21 @@ export function PageHero({
   const isSvg = illustrationSrc?.endsWith('.svg')
 
   return (
-    <div className='mx-auto grid w-full max-w-7xl gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center'>
+    <div className='mx-auto grid w-full max-w-7xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center'>
       <Reveal className='text-center lg:text-left'>
-        <div className='premium-gradient-pill inline-flex items-center rounded-full border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary'>
+        <div className='inline-flex items-center rounded-full border border-primary/20 bg-primary-subtle px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-primary'>
           {badge}
         </div>
-        <h1 className='mt-6 text-[clamp(2.2rem,6vw,4.5rem)] font-heading font-bold leading-tight tracking-tight text-foreground'>
+
+        <h1 className='mt-6 max-w-3xl text-[clamp(2.15rem,5.6vw,4.35rem)] font-heading font-bold leading-[1.08] tracking-tight text-foreground lg:mx-0'>
           {title}
         </h1>
-        <p className='mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted md:text-xl lg:mx-0'>{description}</p>
 
-        <div className='mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start'>
+        <p className='mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted md:text-lg lg:mx-0'>
+          {description}
+        </p>
+
+        <div className='mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start'>
           {actions.map((action) => {
             const isPrimary = action.variant !== 'secondary'
 
@@ -52,12 +55,12 @@ export function PageHero({
                 href={action.href}
                 className={
                   isPrimary
-                    ? 'premium-cta-gradient group inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-xl'
-                    : 'inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-6 py-3.5 text-sm font-semibold text-foreground transition-all hover:-translate-y-0.5 hover:border-primary/35 hover:text-primary'
+                    ? 'inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover'
+                    : 'inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/35 hover:text-primary'
                 }
               >
                 {action.label}
-                {isPrimary && <ArrowRight className='h-4 w-4 transition-transform group-hover:translate-x-0.5' />}
+                {isPrimary && <ArrowRight className='h-4 w-4' />}
               </Link>
             )
           })}
@@ -65,25 +68,19 @@ export function PageHero({
       </Reveal>
 
       {illustrationSrc && (
-        <Reveal delay={0.12} className='relative'>
-          <HoverParallax className='relative'>
-            <div className='premium-gradient-card relative overflow-hidden rounded-3xl border border-border/70 p-3 shadow-2xl shadow-primary/10 md:p-4'>
-              <div className='absolute inset-x-14 -top-24 h-40 rounded-full bg-primary/20 blur-3xl' />
-              <Image
-                src={illustrationSrc}
-                alt={illustrationAlt}
-                width={960}
-                height={720}
-                className={
-                  isSvg
-                    ? 'relative z-10 h-auto w-full animate-float rounded-2xl'
-                    : 'relative z-10 aspect-[4/3] w-full rounded-2xl object-cover transition-transform duration-700 group-hover:scale-[1.025]'
-                }
-              />
-            </div>
-          </HoverParallax>
+        <Reveal delay={0.08} className='relative'>
+          <div className='relative overflow-hidden rounded-3xl border border-border/70 bg-surface p-3 shadow-sm md:p-4'>
+            <Image
+              src={illustrationSrc}
+              alt={illustrationAlt}
+              width={960}
+              height={720}
+              className={isSvg ? 'relative z-10 h-auto w-full rounded-2xl' : 'relative z-10 aspect-[4/3] w-full rounded-2xl object-cover'}
+            />
+          </div>
+
           {illustrationLabel && (
-            <div className='absolute -bottom-4 left-6 rounded-full border border-border bg-background/95 px-4 py-2 text-xs font-medium text-muted shadow-md backdrop-blur'>
+            <div className='mt-3 inline-flex rounded-full border border-border bg-background px-4 py-2 text-xs font-medium text-muted shadow-xs'>
               {illustrationLabel}
             </div>
           )}

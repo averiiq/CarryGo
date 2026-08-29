@@ -31,13 +31,13 @@ const channels = [
 export default function ContactPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='Contact'
           title='Talk to the CarryGo Team'
           description='Whether you need support, sales guidance, or partnership planning, our team is ready to help.'
-          illustrationSrc='/images/support-team.jpg'
-          illustrationAlt='Customer support specialists'
+          illustrationSrc='/images/custom/support-center.svg'
+          illustrationAlt='Custom support center illustration'
           illustrationLabel='Fast onboarding and support'
           actions={[
             { label: 'Email Support', href: 'mailto:support@carrygo.in' },
@@ -83,6 +83,10 @@ export default function ContactPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 

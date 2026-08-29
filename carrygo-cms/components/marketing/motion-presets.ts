@@ -49,6 +49,7 @@ const presetFromEnv = process.env.NEXT_PUBLIC_MARKETING_MOTION_PRESET as MotionP
 
 export const activeMotionPreset: MotionPresetName = allowedPresets.includes(presetFromEnv as MotionPresetName)
   ? (presetFromEnv as MotionPresetName)
-  : 'balanced'
+  : 'subtle'
 
 export const activeMotionPresetConfig = motionPresets[activeMotionPreset]
+

@@ -32,12 +32,12 @@ const senderUseCases = [
 export default function ForSendersPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='For Senders'
           title='Ship Better with Speed, Visibility, and Trust'
           description='CarryGo gives senders a premium logistics experience without the complexity of running fleet operations.'
-          illustrationSrc='/images/sender-business.jpg'
+          illustrationSrc='/images/custom/sender-operations.svg'
           illustrationAlt='Business shipping operations'
           illustrationLabel='Transparent sender pricing'
           actions={[
@@ -47,7 +47,7 @@ export default function ForSendersPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-12'>
         <SectionHeading
           label='Why Senders Choose CarryGo'
           title='Operational confidence at every shipment'
@@ -67,7 +67,7 @@ export default function ForSendersPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           <article className='glass-card p-8'>
             <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-success-subtle text-success'>
@@ -98,6 +98,10 @@ export default function ForSendersPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 

@@ -6,13 +6,13 @@ import { frequentlyAskedQuestions } from '@/components/marketing/site-data'
 export default function FaqPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='FAQ'
           title='Answers to Common CarryGo Questions'
           description='Everything you need to understand delivery flow, pricing behavior, safety, and support processes.'
-          illustrationSrc='/images/support-team.jpg'
-          illustrationAlt='Customer support team'
+          illustrationSrc='/images/custom/support-center.svg'
+          illustrationAlt='Custom support center illustration'
           illustrationLabel='Answers for senders and travelers'
           actions={[
             { label: 'Contact Support', href: '/contact' },
@@ -34,6 +34,10 @@ export default function FaqPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 

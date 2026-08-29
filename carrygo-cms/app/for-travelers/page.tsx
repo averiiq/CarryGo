@@ -32,13 +32,13 @@ const eligibility = [
 export default function ForTravelersPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='For Travelers'
           title='Turn Your Routes into Trusted Earning Opportunities'
           description='CarryGo helps verified travelers earn extra while maintaining strong safety controls and transparent expectations.'
-          illustrationSrc='/images/traveler.jpg'
-          illustrationAlt='Traveler in transit'
+          illustrationSrc='/images/custom/traveler-earnings.svg'
+          illustrationAlt='Custom traveler earnings illustration'
           illustrationLabel='Earn better on existing routes'
           actions={[
             { label: 'Talk to Team', href: '/contact' },
@@ -47,7 +47,7 @@ export default function ForTravelersPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-12'>
         <SectionHeading
           label='Traveler Value'
           title='A structured experience, not random parcel gigs'
@@ -67,7 +67,7 @@ export default function ForTravelersPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           <article className='glass-card p-8'>
             <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-success-subtle text-success'>
@@ -98,6 +98,10 @@ export default function ForTravelersPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 

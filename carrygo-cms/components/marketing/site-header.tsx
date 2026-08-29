@@ -4,14 +4,14 @@ import { publicNavLinks } from '@/components/marketing/site-data'
 
 export function SiteHeader() {
   return (
-    <header className='sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-2xl'>
+    <header className='sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-sm'>
       <div className='mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4'>
-        <Link href='/' className='group inline-flex items-center gap-2'>
-          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-subtle to-accent-subtle text-primary transition-transform duration-300 group-hover:scale-105'>
+        <Link href='/' className='inline-flex items-center gap-2'>
+          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
             <ShieldCheck className='h-4 w-4' />
           </div>
           <div className='text-lg font-heading font-bold tracking-tight text-foreground'>
-            <span className='premium-text-gradient'>CarryGo</span><span className='text-primary'>.</span>
+            CarryGo<span className='text-primary'>.</span>
           </div>
         </Link>
 
@@ -20,7 +20,7 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className='rounded-xl px-3 py-2 text-sm font-medium text-muted transition-all hover:bg-surface hover:text-foreground'
+              className='rounded-xl px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-surface hover:text-foreground'
             >
               {item.label}
             </Link>
@@ -29,7 +29,7 @@ export function SiteHeader() {
 
         <Link
           href='/contact'
-          className='premium-cta-gradient inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md'
+          className='inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover'
         >
           Get Started
           <ArrowRight className='h-4 w-4' />
@@ -52,4 +52,3 @@ export function SiteHeader() {
     </header>
   )
 }
-

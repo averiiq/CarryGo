@@ -51,13 +51,13 @@ const productHighlights = [
 export default function FeaturesPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='Product Features'
           title='Everything Needed for a Premium Delivery Experience'
           description='CarryGo combines elegant UX with enterprise-grade controls for reliable parcel movement at scale.'
-          illustrationSrc='/images/warehouse.jpg'
-          illustrationAlt='Warehouse and dispatch operations'
+          illustrationSrc='/images/custom/warehouse-ops.svg'
+          illustrationAlt='Custom warehouse operations illustration'
           illustrationLabel='Live operational intelligence'
           actions={[
             { label: 'Explore Workflow', href: '/how-it-works' },
@@ -66,7 +66,7 @@ export default function FeaturesPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-8'>
+      <ScrollLinkedSection className='px-6 pb-12'>
         <SectionHeading
           label='Core Modules'
           title='Built to optimize every delivery stage'
@@ -95,7 +95,7 @@ export default function FeaturesPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <SectionHeading
           label='Professional Workflows'
           title='Designed for teams that need consistency'
@@ -121,6 +121,10 @@ export default function FeaturesPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 

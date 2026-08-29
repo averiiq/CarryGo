@@ -32,13 +32,13 @@ const milestones = [
 export default function AboutPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='About CarryGo'
           title='Building the Most Trusted Peer Logistics Experience'
           description='CarryGo is focused on making parcel movement faster, safer, and more transparent through verified traveler networks.'
-          illustrationSrc='/images/team-office.jpg'
-          illustrationAlt='CarryGo team collaboration'
+          illustrationSrc='/images/custom/team-collaboration.svg'
+          illustrationAlt='Custom team collaboration illustration'
           illustrationLabel='Human-first logistics platform'
           actions={[
             { label: 'Contact Us', href: '/contact' },
@@ -47,7 +47,7 @@ export default function AboutPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-12'>
         <SectionHeading
           label='Our Principles'
           title='What guides product and operations'
@@ -67,7 +67,7 @@ export default function AboutPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           <article className='glass-card p-8'>
             <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>
@@ -95,6 +95,10 @@ export default function AboutPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 

@@ -41,13 +41,13 @@ const feeNotes = [
 export default function PricingPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='Pricing'
           title='Transparent Plans for Individuals and Growing Teams'
           description='Choose the structure that matches your shipment volume while keeping trust and delivery quality uncompromised.'
-          illustrationSrc='/images/sender-business.jpg'
-          illustrationAlt='Business parcel operations'
+          illustrationSrc='/images/custom/sender-operations.svg'
+          illustrationAlt='Custom pricing operations illustration'
           illustrationLabel='Clear pricing for every segment'
           actions={[
             { label: 'Contact for Business Plan', href: '/contact' },
@@ -56,7 +56,7 @@ export default function PricingPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-12'>
         <SectionHeading
           label='Plans'
           title='Simple pricing, clear value'
@@ -91,7 +91,7 @@ export default function PricingPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           <article className='glass-card p-8'>
             <h3 className='text-2xl font-heading font-semibold text-foreground'>Pricing notes</h3>
@@ -122,6 +122,10 @@ export default function PricingPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 

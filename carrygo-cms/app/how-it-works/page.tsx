@@ -43,13 +43,13 @@ const deliveryFlow = [
 export default function HowItWorksPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-20'>
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
           badge='Workflow'
           title='A Clear Delivery Journey for Everyone Involved'
           description='CarryGo removes ambiguity with structured pickup, transit, and delivery operations designed around trust and speed.'
-          illustrationSrc='/images/handover.jpg'
-          illustrationAlt='Secure package handover'
+          illustrationSrc='/images/custom/secure-handover.svg'
+          illustrationAlt='Custom secure handover illustration'
           illustrationLabel='Structured delivery journey'
           actions={[
             { label: 'View Sender Experience', href: '/for-senders' },
@@ -58,7 +58,7 @@ export default function HowItWorksPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-9'>
+      <ScrollLinkedSection className='px-6 pb-12'>
         <SectionHeading
           label='Phase One'
           title='Request to pickup'
@@ -80,7 +80,7 @@ export default function HowItWorksPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-20 pt-14'>
+      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <SectionHeading
           label='Phase Two'
           title='Transit to closure'
@@ -104,6 +104,10 @@ export default function HowItWorksPage() {
     </MarketingShell>
   )
 }
+
+
+
+
 
 
 
