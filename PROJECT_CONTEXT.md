@@ -832,6 +832,38 @@ All data access is via Supabase client (no custom REST API). Key operations:
 - Updated delivery, parcels, trips, payments services
 - Improved matching and smart search hooks
 
+### 2026-08-30 (Fresh Full-Repo Audit)
+
+#### Scope Audited
+- Root monorepo surfaces reviewed: `CarryGo/`, `carrygo-cms/`, `backend/`, and Supabase SQL migrations under `CarryGo/supabase/migrations/`.
+- Validation run on live tree (not prior reports): mobile typecheck/domain checks, mobile web export, CMS build/tests, backend typecheck, dependency audits.
+
+#### Current Validation Results
+- `CarryGo`: `pnpm -C CarryGo run typecheck` passes.
+- `CarryGo`: `pnpm run test:verify` passes (`verify-rls`, `verify-domain-commands`, `verify-phase4-realtime`).
+- `CarryGo`: `pnpm -C CarryGo run build:web` fails before export with `Error: Cannot find module 'minipass'` from Expo CLI dependency chain.
+- `CarryGo`: `npx -C CarryGo expo-doctor@latest` is currently blocked because `expo config --json --full` exits non-zero in this environment.
+- `CarryGo`: `android/local.properties` exists and points to `C:\\Users\\somve\\AppData\\Local\\Android\\Sdk`.
+- `carrygo-cms`: `pnpm -C carrygo-cms run build` fails in offline/blocked network with `next/font` Google Fonts fetch errors (`DM Sans`, `Space Grotesk`).
+- `carrygo-cms`: `pnpm -C carrygo-cms run test:run` passes (34/34 tests) when run outside sandbox restrictions.
+- `backend`: `pnpm -C backend run typecheck` passes.
+
+#### Security and Integrity Snapshot (Current State)
+- Payment SQL hardening is present: `release_payment_atomic` / `refund_payment_atomic` derive actor from `auth.uid()` and explicitly ignore client `p_actor_id`.
+- CMS bulk actions now call `requireAdmin()` before every mutation/export path in `carrygo-cms/app/dashboard/bulk/actions.ts`.
+- CMS short-lived role cookie remains configured at 30 seconds (`x-cms-role`) in middleware.
+
+#### Dependency Audit Snapshot (2026-08-30)
+- `CarryGo` (`pnpm audit --audit-level moderate`): **3 vulnerabilities** (`2 high`, `1 moderate`) currently reported.
+  - High: `image-size` DoS advisories via React Native/Metro chain.
+  - Moderate: `ajv` ReDoS via ESLint chain.
+- `carrygo-cms` (`npm audit --audit-level=moderate`): **0 vulnerabilities** reported.
+
+#### Highest-Priority Follow-ups
+1. Reinstall/fix mobile dependency graph to resolve missing `minipass` in Expo CLI path, then rerun `build:web` and `expo-doctor`.
+2. Decide CMS font strategy for deterministic builds (self-host via `next/font/local` or ensure CI/prod network/proxy access to Google Fonts).
+3. Patch/override `image-size` and `ajv` transitive vulnerabilities in `CarryGo`, then re-run audit.
+
 #### Updated
 - CMS dashboard and project config
 - Route intelligence service

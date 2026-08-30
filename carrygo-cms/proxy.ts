@@ -29,10 +29,12 @@ async function consumeLoginAttempt(ip: string): Promise<boolean> {
       body: JSON.stringify({ p_key: ip }),
       cache: 'no-store',
     })
-    if (!response.ok) return false
+    if (!response.ok) {
+      return loginLimiter(ip).allowed
+    }
     return (await response.json()) === true
   } catch {
-    return false
+    return loginLimiter(ip).allowed
   }
 }
 

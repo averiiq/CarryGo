@@ -4,7 +4,7 @@ import AuditLog from '@/components/AuditLog'
 
 export default async function AuditPage() {
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
   const supabase = auth.supabase
 
   const { data: auditEntries, error } = await supabase

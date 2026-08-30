@@ -4,7 +4,7 @@ import BulkOperations from './BulkOperations'
 
 export default async function BulkPage() {
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
   const supabase = auth.supabase
 
   const { data: unverifiedUsers } = await supabase

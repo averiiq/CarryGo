@@ -4,6 +4,7 @@ import TripsTable from './TripsTable'
 import { isAwsCmsBackendEnabled } from '@/utils/backend/provider'
 import { awsCmsRequest } from '@/utils/aws/api'
 import Pagination from '@/components/Pagination'
+import { parsePositiveInt } from '@/lib/validation'
 
 const PAGE_SIZE = 100
 
@@ -19,10 +20,10 @@ type AwsTrip = {
 
 export default async function TripsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
 
   const params = await searchParams
-  const page = Math.max(1, parseInt(params.page || '1', 10))
+  const page = parsePositiveInt(params.page, 1)
   const from = (page - 1) * PAGE_SIZE
 
   if (isAwsCmsBackendEnabled()) {

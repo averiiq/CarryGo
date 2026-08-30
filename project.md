@@ -334,3 +334,28 @@
   12. Integrate server rate limiting in all write services
   13. Add audit logging for payment operations
   14. Add unit tests for matching/pricing algorithms
+
+## 2026-08-30 Live Audit Refresh
+
+### Validation Commands and Outcomes
+- `pnpm -C CarryGo run typecheck` ✅ pass
+- `pnpm -C CarryGo run test:verify` ✅ pass (RLS/domain/phase4 checks)
+- `pnpm -C CarryGo run build:web` ❌ fail (`Cannot find module 'minipass'` from Expo CLI dependency chain)
+- `npx -C CarryGo expo-doctor@latest` ❌ blocked (`expo config --json --full` exits non-zero)
+- `pnpm -C carrygo-cms run build` ❌ fail in this environment due `next/font` Google Fonts fetch errors
+- `pnpm -C carrygo-cms run test:run` ✅ pass (34/34 tests)
+- `pnpm -C backend run typecheck` ✅ pass
+
+### Security/Integrity Recheck
+- `release_payment_atomic` and `refund_payment_atomic` now derive identity from `auth.uid()` and ignore client `p_actor_id`.
+- `carrygo-cms/app/dashboard/bulk/actions.ts` now consistently gates actions through `requireAdmin()`.
+- `x-cms-role` short TTL cookie (30 seconds) remains in `carrygo-cms/utils/supabase/middleware.ts`.
+
+### Dependency Audit Recheck
+- `CarryGo` (`pnpm audit --audit-level moderate`): 3 vulnerabilities (`2 high`, `1 moderate`), primarily transitive `image-size` and `ajv`.
+- `carrygo-cms` (`npm audit --audit-level=moderate`): 0 vulnerabilities.
+
+### Immediate Next Actions
+1. Repair/reinstall mobile dependencies (fix missing `minipass`) and rerun `build:web` + `expo-doctor`.
+2. Make CMS font loading deterministic for builds (self-host or configure network/proxy).
+3. Apply/verify transitive dependency remediations for `image-size` and `ajv`.

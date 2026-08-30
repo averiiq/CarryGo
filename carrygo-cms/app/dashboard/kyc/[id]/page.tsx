@@ -18,7 +18,7 @@ export default async function KycReviewPage({ params }: PageProps) {
   }
 
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
 
   const { supabase } = auth
 

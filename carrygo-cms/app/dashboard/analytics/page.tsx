@@ -8,10 +8,13 @@ import DeliveryFunnel from '@/components/DeliveryFunnel'
 import RouteMap from '@/components/RouteMap'
 
 const PLATFORM_COMMISSION_RATE = 0.18
+const MAX_ANALYTICS_PAYMENTS = 2000
+const MAX_ANALYTICS_ACTIVE_TRIPS = 1000
+const MAX_ANALYTICS_RECENT_REQUESTS = 2000
 
 export default async function AnalyticsPage() {
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
   const supabase = auth.supabase
 
   const sixMonthsAgo = new Date()
@@ -28,9 +31,18 @@ export default async function AnalyticsPage() {
     supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
     supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
     supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
-    supabase.from('payments').select('amount, created_at, status').eq('status', 'released').gte('created_at', sixMonthsAgo.toISOString()).limit(10000),
+    supabase
+      .from('payments')
+      .select('amount, created_at, status')
+      .eq('status', 'released')
+      .gte('created_at', sixMonthsAgo.toISOString())
+      .limit(MAX_ANALYTICS_PAYMENTS),
     supabase.from('user_profiles').select('id, full_name, rating, total_deliveries').order('rating', { ascending: false }).limit(5),
-    supabase.from('trips').select('from_city, to_city, status').eq('status', 'active').limit(5000),
+    supabase
+      .from('trips')
+      .select('from_city, to_city, status')
+      .eq('status', 'active')
+      .limit(MAX_ANALYTICS_ACTIVE_TRIPS),
   ])
 
   const initialError = [totalUsersResult, completedDeliveriesResult, failedDeliveriesResult, paymentsResult, topTravellersResult, tripRoutesResult]
@@ -128,7 +140,7 @@ export default async function AnalyticsPage() {
     .from('requests')
     .select('status')
     .gte('created_at', ninetyDaysAgo.toISOString())
-    .limit(10000)
+    .limit(MAX_ANALYTICS_RECENT_REQUESTS)
 
   if (recentRequestsError) throw new Error(`Unable to load delivery funnel: ${recentRequestsError.message}`)
 

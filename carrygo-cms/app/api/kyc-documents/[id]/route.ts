@@ -47,7 +47,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const sourceUrl = storagePath ? getPrivateDocumentSourceUrl(storagePath) : null
   if (!sourceUrl) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
 
-  const upstream = await fetch(sourceUrl, { cache: 'no-store', redirect: 'error' })
+  let upstream: Response
+  try {
+    upstream = await fetch(sourceUrl, {
+      cache: 'no-store',
+      redirect: 'error',
+      signal: AbortSignal.timeout(10_000),
+    })
+  } catch {
+    return NextResponse.json({ error: 'Document fetch timed out' }, { status: 504 })
+  }
   if (!upstream.ok || !upstream.body) {
     return NextResponse.json({ error: 'Document unavailable' }, { status: 502 })
   }

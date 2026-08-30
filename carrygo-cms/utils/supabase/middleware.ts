@@ -1,8 +1,8 @@
-import { createServerClient } from '@supabase/ssr'
+﻿import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const ROLE_COOKIE_NAME = 'x-cms-role'
-const ROLE_COOKIE_MAX_AGE = 30 // 30 seconds — minimizes privilege escalation window
+const ROLE_COOKIE_MAX_AGE = 300 // 5 minutes balances security with reduced DB lookups
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -43,12 +43,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && isAuthRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
-
   if (user) {
     let systemRole: string = request.cookies.get(ROLE_COOKIE_NAME)?.value ?? ''
 
@@ -75,9 +69,17 @@ export async function updateSession(request: NextRequest) {
       url.pathname = '/unauthorized'
       return NextResponse.redirect(url)
     }
+
+    if (systemRole === 'admin' && isAuthRoute) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
   } else {
     supabaseResponse.cookies.delete(ROLE_COOKIE_NAME)
   }
 
   return supabaseResponse
 }
+
+

@@ -32,9 +32,12 @@ const normalizePath = (path: string): string => {
   return `/api${path}`
 }
 
-const getAuthHeader = (): string | undefined => {
+const getAuthHeader = (required: boolean): string | undefined => {
   const token = process.env.CARRYGO_AWS_API_BEARER_TOKEN
   if (!token) {
+    if (required) {
+      throw new AwsCmsApiError('CARRYGO_AWS_API_BEARER_TOKEN is missing', 500)
+    }
     return undefined
   }
 
@@ -46,7 +49,7 @@ export async function awsCmsRequest<T>(
   options: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown } = {}
 ): Promise<T> {
   const normalizedPath = normalizePath(path)
-  const auth = getAuthHeader()
+  const auth = getAuthHeader(normalizedPath !== '/health')
   const response = await fetch(`${getApiBaseUrl()}${normalizedPath}`, {
     method: options.method ?? 'GET',
     headers: {

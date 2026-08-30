@@ -11,7 +11,7 @@ import { awsCmsRequest } from '@/utils/aws/api'
 
 export default async function DashboardOverview() {
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
   const supabase = auth.supabase
 
   const awsMode = isAwsCmsBackendEnabled()

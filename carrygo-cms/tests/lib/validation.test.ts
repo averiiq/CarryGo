@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidUuid, sanitizeText } from '@/lib/validation';
+import { isValidUuid, parsePositiveInt, sanitizeText } from '@/lib/validation';
 
 describe('isValidUuid', () => {
   it('returns true for a valid lowercase UUID', () => {
@@ -90,5 +90,22 @@ describe('sanitizeText', () => {
   it('handles unicode characters', () => {
     const text = 'Hello \u{1F600} World';
     expect(sanitizeText(text)).toBe('Hello \u{1F600} World');
+  });
+});
+
+describe('parsePositiveInt', () => {
+  it('returns parsed positive integer for valid numeric string', () => {
+    expect(parsePositiveInt('7')).toBe(7);
+  });
+
+  it('returns fallback for zero, negative, or invalid values', () => {
+    expect(parsePositiveInt('0')).toBe(1);
+    expect(parsePositiveInt('-5')).toBe(1);
+    expect(parsePositiveInt('abc')).toBe(1);
+    expect(parsePositiveInt(undefined)).toBe(1);
+  });
+
+  it('supports custom fallback value', () => {
+    expect(parsePositiveInt('invalid', 3)).toBe(3);
   });
 });

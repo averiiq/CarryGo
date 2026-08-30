@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# CarryGo CMS
 
-## Getting Started
+Internal admin dashboard for CarryGo, built with Next.js App Router and Supabase.
 
-First, run the development server:
+## What this app does
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Authenticated admin dashboard (`/dashboard/*`)
+- KYC review and document moderation
+- Dispute handling and support ticket management
+- Trips, parcels, users, payments, analytics, and audit views
+- Optional AWS backend provider mode for selected dashboard paths
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tech stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Next.js 16 (App Router)
+- React 19 + TypeScript
+- Supabase (`@supabase/ssr`, `@supabase/supabase-js`)
+- Tailwind CSS 4
+- Vitest + Testing Library
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment variables
 
-## Learn More
+Create `.env.local` from `.env.example`.
 
-To learn more about Next.js, take a look at the following resources:
+Required for Supabase mode:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Optional AWS mode:
 
-## Deploy on Vercel
+- `CARRYGO_BACKEND_PROVIDER=aws`
+- `CARRYGO_AWS_API_BASE_URL`
+- `CARRYGO_AWS_API_BEARER_TOKEN`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Cloudinary document delivery:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `CLOUDINARY_CLOUD_NAME`
+
+## Scripts
+
+- `pnpm run dev` - start local dev server
+- `pnpm run lint` - run ESLint
+- `pnpm run test:run` - run test suite once
+- `pnpm run build` - production build validation
+
+## Security model
+
+- Route protection and session refresh are enforced in `proxy.ts` + `utils/supabase/middleware.ts`.
+- Admin authorization is enforced server-side via `requireAdmin()`.
+- Dashboard mutations are implemented as server actions and use service-role client checks.
+- Security headers and CSP are set in `next.config.ts`.
+
+## Notes
+
+- This is an internal CMS; public indexing is disabled on admin pages.
+- If running AWS mode, keep `CARRYGO_AWS_API_BEARER_TOKEN` configured to avoid unauthenticated upstream requests.

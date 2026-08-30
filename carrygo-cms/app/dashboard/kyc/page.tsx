@@ -2,6 +2,7 @@ import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
 import KycQueue from './KycQueue'
 import Pagination from '@/components/Pagination'
+import { parsePositiveInt } from '@/lib/validation'
 
 const PAGE_SIZE = 100
 
@@ -9,11 +10,11 @@ type TabKey = 'all' | 'submitted' | 'under_review' | 'approved' | 'rejected'
 
 export default async function KYCPage({ searchParams }: { searchParams: Promise<{ page?: string; status?: string }> }) {
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
   const supabase = auth.supabase
 
   const params = await searchParams
-  const page = Math.max(1, parseInt(params.page || '1', 10))
+  const page = parsePositiveInt(params.page, 1)
   const activeTab: TabKey = ['submitted', 'under_review', 'approved', 'rejected'].includes(params.status || '')
     ? params.status as TabKey
     : 'all'

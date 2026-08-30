@@ -4,7 +4,7 @@ import SettingsTabs from '@/components/SettingsTabs'
 
 export default async function SettingsPage() {
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
   const supabase = auth.supabase
 
   const { data: profile } = await supabase

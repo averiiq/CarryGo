@@ -2,16 +2,17 @@ import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
 import PaymentsTable from '@/components/PaymentsTable'
 import Pagination from '@/components/Pagination'
+import { parsePositiveInt } from '@/lib/validation'
 
 const PAGE_SIZE = 100
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const auth = await requireAdmin()
-  if ('error' in auth) redirect('/login')
+  if ('error' in auth) redirect(auth.error === 'Authentication required' ? '/login' : '/unauthorized')
   const supabase = auth.supabase
 
   const params = await searchParams
-  const page = Math.max(1, Number.parseInt(params.page || '1', 10) || 1)
+  const page = parsePositiveInt(params.page, 1)
   const from = (page - 1) * PAGE_SIZE
 
   const [{ data: payments, count, error }, { data: totals, error: totalsError }] = await Promise.all([
