@@ -1,5 +1,9 @@
 ﻿import { LegalPage } from '@/components/marketing/legal-page'
 
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('Refund and Cancellation Policy', 'Review CarryGo cancellation eligibility and refund processing terms.', '/refund-cancellation')
+
 const sections = [
   {
     title: 'Cancellation Before Pickup',

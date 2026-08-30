@@ -266,13 +266,13 @@ export default function RequestsScreen() {
         style={[
           styles.heroCard,
           {
-            backgroundColor: C.surface,
-            borderColor: C.surfaceBorder,
+            backgroundColor: C.primaryDark,
+            borderColor: C.primaryDark,
           },
         ]}
       >
         <LinearGradient
-          colors={[C.primarySubtle, C.surface, C.surface]}
+          colors={[C.primaryDark, C.primary, C.primaryDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroScrim}
@@ -282,7 +282,7 @@ export default function RequestsScreen() {
         </View>
 
         <View style={styles.heroTopRow}>
-          <View style={[styles.liveBadge, { backgroundColor: pendingCount > 0 ? C.warningSubtle : C.successSubtle }]}> 
+          <View style={[styles.liveBadge, { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
             <Animated.View
               style={[
                 styles.liveDot,
@@ -292,7 +292,7 @@ export default function RequestsScreen() {
                 },
               ]}
             />
-            <Text style={[styles.liveText, { color: pendingCount > 0 ? C.warning : C.primaryDark }]}>
+            <Text style={[styles.liveText, { color: '#FFFFFF' }]}>
               {pendingCount > 0
                 ? `${pendingCount} pending action${pendingCount > 1 ? 's' : ''}`
                 : 'Everything is up to date'}
@@ -302,46 +302,46 @@ export default function RequestsScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.refreshBtn,
-              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: pressed ? 0.75 : 1 },
+              { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.2)', opacity: pressed ? 0.75 : 1 },
             ]}
             onPress={handleRefresh}
             hitSlop={8}
           >
-            <MaterialIcons name="refresh" size={18} color={C.textSecondary} />
+            <MaterialIcons name="refresh" size={18} color="#FFFFFF" />
           </Pressable>
         </View>
 
-        <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Requests Hub</Text>
-        <Text style={[styles.pageSubtitle, { color: C.textMuted }]}>Delivery, travel, and earnings managed in one focused workflow.</Text>
+        <Text style={[styles.pageTitle, { color: '#FFFFFF' }]}>Requests</Text>
+        <Text style={[styles.pageSubtitle, { color: 'rgba(255,255,255,0.72)' }]}>Review decisions, continue deliveries, and follow every handoff.</Text>
 
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}> 
+          <View style={[styles.statCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
             <View style={[styles.statIcon, { backgroundColor: C.primarySubtle }]}> 
               <MaterialIcons name="inbox" size={14} color={C.primaryDark} />
             </View>
-            <Text style={[styles.statValue, { color: C.textPrimary }]}>{base.length}</Text>
-            <Text style={[styles.statLabel, { color: C.textMuted }]}>Total</Text>
+            <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{base.length}</Text>
+            <Text style={[styles.statLabel, { color: 'rgba(255,255,255,0.68)' }]}>Total</Text>
           </View>
 
           <Animated.View
             style={[
               styles.statCard,
-              { backgroundColor: C.warningSubtle, borderColor: C.warning + '33', transform: [{ scale: pendingPulse }] },
+              { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)', transform: [{ scale: pendingPulse }] },
             ]}
           >
             <View style={[styles.statIcon, { backgroundColor: C.warning + '24' }]}> 
               <MaterialIcons name="hourglass-empty" size={14} color={C.warning} />
             </View>
-            <Text style={[styles.statValue, { color: C.textPrimary }]}>{statusCounts.pending}</Text>
-            <Text style={[styles.statLabel, { color: C.textMuted }]}>Pending</Text>
+            <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{statusCounts.pending}</Text>
+            <Text style={[styles.statLabel, { color: 'rgba(255,255,255,0.68)' }]}>Pending</Text>
           </Animated.View>
 
-          <View style={[styles.statCard, { backgroundColor: C.successSubtle, borderColor: C.success + '33' }]}> 
+          <View style={[styles.statCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
             <View style={[styles.statIcon, { backgroundColor: C.success + '24' }]}> 
               <MaterialIcons name="savings" size={14} color={C.success} />
             </View>
-            <Text style={[styles.statValue, { color: C.textPrimary }]}>{statusCounts.accepted + statusCounts.completed}</Text>
-            <Text style={[styles.statLabel, { color: C.textMuted }]}>Earning</Text>
+            <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{statusCounts.accepted + statusCounts.completed}</Text>
+            <Text style={[styles.statLabel, { color: 'rgba(255,255,255,0.68)' }]}>Active</Text>
           </View>
         </View>
       </View>

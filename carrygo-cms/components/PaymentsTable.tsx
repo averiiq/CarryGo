@@ -63,6 +63,33 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
     else { setSortBy(field); setSortDir('desc') }
   }
 
+  const exportPayments = () => {
+    const escapeCell = (value: unknown) => {
+      let text = String(value ?? '')
+      if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`
+      return `"${text.replace(/"/g, '""')}"`
+    }
+    const rows = [
+      ['ID', 'Sender', 'Traveller', 'Amount', 'Status', 'Gateway ID', 'Date'],
+      ...filtered.map((payment) => [
+        payment.id,
+        payment.sender_name,
+        payment.traveller_name,
+        payment.amount,
+        payment.status,
+        payment.razorpay_order_id,
+        payment.locked_at,
+      ]),
+    ]
+    const blob = new Blob([rows.map((row) => row.map(escapeCell).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `payments-${new Date().toISOString().slice(0, 10)}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-5">
       {/* Summary Cards */}
@@ -99,6 +126,7 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
             placeholder="Search by name, order ID..."
             value={search}
             onChange={e => setSearch(e.target.value)}
+            aria-label="Search payments"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl glass border border-border text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
           />
         </div>
@@ -106,6 +134,7 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
+            aria-label="Filter payments by status"
             className="px-3 py-2.5 rounded-xl border border-border text-sm bg-surface-solid text-foreground focus:ring-2 focus:ring-primary/20 transition-all"
           >
             <option value="all">All Status</option>
@@ -113,7 +142,7 @@ export default function PaymentsTable({ payments, totalRevenue, totalLocked, tot
             <option value="released">Released</option>
             <option value="refunded">Refunded</option>
           </select>
-          <button className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-border text-sm text-muted hover:text-foreground hover:border-border-strong transition-all">
+          <button type="button" onClick={exportPayments} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-border text-sm text-muted hover:text-foreground hover:border-border-strong transition-all">
             <Download className="h-3.5 w-3.5" />
             Export
           </button>

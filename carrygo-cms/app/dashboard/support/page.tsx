@@ -1,6 +1,7 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
 import SupportTable from './SupportTable'
+import Pagination from '@/components/Pagination'
 
 const PAGE_SIZE = 100
 
@@ -14,7 +15,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
-  const { data: ticketsData, count } = await supabase
+  const { data: ticketsData, count, error } = await supabase
     .from('support_tickets')
     .select(`
       id,
@@ -26,6 +27,8 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
+
+  if (error) throw new Error(`Unable to load support tickets: ${error.message}`)
 
   const mappedTickets = ticketsData?.map(ticket => ({
     id: ticket.id,
@@ -43,21 +46,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-6">
       <SupportTable initialTickets={mappedTickets} />
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-border pt-4">
-          <p className="text-sm text-muted">
-            Showing {from + 1}–{Math.min(to + 1, count || 0)} of {count} tickets
-          </p>
-          <div className="flex gap-2">
-            {page > 1 && (
-              <a href={`?page=${page - 1}`} className="px-4 py-2 text-sm rounded-xl bg-surface border border-border text-foreground hover:bg-surface-elevated transition-colors font-medium">Previous</a>
-            )}
-            {page < totalPages && (
-              <a href={`?page=${page + 1}`} className="px-4 py-2 text-sm rounded-xl bg-surface border border-border text-foreground hover:bg-surface-elevated transition-colors font-medium">Next</a>
-            )}
-          </div>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} totalItems={count ?? 0} pageSize={PAGE_SIZE} itemLabel="tickets" />
     </div>
   )
 }

@@ -1,5 +1,9 @@
 ﻿import { LegalPage } from '@/components/marketing/legal-page'
 
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('Privacy Policy', 'Read how CarryGo collects, uses, and protects personal information.', '/privacy-policy')
+
 const sections = [
   {
     title: 'Information We Collect',

@@ -61,30 +61,30 @@ export const footerSections: FooterSection[] = [
 ]
 
 export const quickStats = [
-  { label: 'Cities Connected', value: '120+' },
-  { label: 'Average Delivery Time', value: '< 36h' },
-  { label: 'Verified Travelers', value: '15k+' },
-  { label: 'Successful Deliveries', value: '98.7%' },
+  { label: 'Route Coverage', value: 'Flexible' },
+  { label: 'Handover', value: 'OTP' },
+  { label: 'Traveler Checks', value: 'KYC' },
+  { label: 'Payment Flow', value: 'Protected' },
 ]
 
 export const testimonials: Testimonial[] = [
   {
     quote:
-      'CarryGo helped us ship urgent medical documents overnight without premium courier rates.',
-    name: 'Nisha Kapoor',
-    role: 'Operations Lead, HealthBridge Labs',
+      'Coordinate time-sensitive document deliveries with clear milestones and handover confirmation.',
+    name: 'Operations teams',
+    role: 'Workflow example',
   },
   {
     quote:
-      'The traveler matching and OTP handover flow is smooth. We now use CarryGo for intercity parts delivery.',
-    name: 'Raghav Mehta',
-    role: 'Founder, UrbanWrench',
+      'Match parcel requests with relevant routes and keep both participants informed throughout delivery.',
+    name: 'Growing businesses',
+    role: 'Workflow example',
   },
   {
     quote:
-      'I travel weekly for work, and CarryGo gives me safe, structured ways to earn extra from routes I already take.',
-    name: 'Aman Verma',
-    role: 'Verified Traveler, Bengaluru',
+      'Use planned journeys to carry suitable parcels through a structured, verification-led process.',
+    name: 'Frequent travelers',
+    role: 'Workflow example',
   },
 ]
 

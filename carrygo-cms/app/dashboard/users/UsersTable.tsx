@@ -32,7 +32,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: UserRow[] }
     const newStatus = currentStatus === 'active' ? 'banned' : 'active'
     setUsers(users.map((u) => (u.id === id ? { ...u, status: newStatus } : u)))
 
-    const res = await toggleUserStatus(id, currentStatus)
+    const res = await toggleUserStatus(id)
     if (!res.success) {
       setUsers(users.map((u) => (u.id === id ? { ...u, status: currentStatus } : u)))
     }

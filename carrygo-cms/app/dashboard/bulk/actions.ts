@@ -29,64 +29,16 @@ export async function bulkVerifyUsers(userIds: string[]) {
   const auth = await requireAdmin()
   if ('error' in auth) return { error: auth.error, count: 0 }
 
-  // Verify each user has required KYC documents before bulk-approving
-  const { data: sessions } = await auth.supabase
-    .from('kyc_sessions')
-    .select('user_id, id')
-    .in('user_id', userIds)
-    .eq('status', 'submitted')
-
-  if (!sessions || sessions.length === 0) {
-    return { error: 'No submitted KYC sessions found for selected users', count: 0 }
-  }
-
-  const sessionIds = sessions.map(s => s.id)
-  const { data: documents } = await auth.supabase
-    .from('kyc_documents')
-    .select('session_id, document_type')
-    .in('session_id', sessionIds)
-
-  const sessionDocs = new Map<string, Set<string>>()
-  documents?.forEach(d => {
-    if (!sessionDocs.has(d.session_id)) sessionDocs.set(d.session_id, new Set())
-    sessionDocs.get(d.session_id)!.add(d.document_type)
+  const { data, error } = await auth.supabase.rpc('cms_bulk_approve_kyc', {
+    p_actor_id: auth.userId,
+    p_user_ids: userIds,
   })
-
-  const eligibleUserIds: string[] = []
-  for (const session of sessions) {
-    const docs = sessionDocs.get(session.id)
-    if (docs && docs.has('id_front') && docs.has('selfie')) {
-      eligibleUserIds.push(session.user_id)
-    }
-  }
-
-  if (eligibleUserIds.length === 0) {
-    return { error: 'No users have the required documents (id_front + selfie)', count: 0 }
-  }
-
-  const { error } = await auth.supabase
-    .from('user_profiles')
-    .update({ kyc_status: 'approved', verified: true })
-    .in('id', eligibleUserIds)
 
   if (error) return { error: error.message, count: 0 }
 
-  // Also update the KYC sessions
-  await auth.supabase
-    .from('kyc_sessions')
-    .update({ status: 'approved', reviewed_by: auth.userId, reviewed_at: new Date().toISOString() })
-    .in('user_id', eligibleUserIds)
-    .eq('status', 'submitted')
-
-  await logAdminAction(auth.supabase, auth.userId, 'bulk_verify_users', {
-    user_ids: eligibleUserIds,
-    total_requested: userIds.length,
-    total_eligible: eligibleUserIds.length,
-  })
-
   revalidatePath('/dashboard/bulk')
   revalidatePath('/dashboard/users')
-  return { error: null, count: eligibleUserIds.length }
+  return { error: null, count: Number(data ?? 0) }
 }
 
 export async function bulkCancelExpiredTrips() {

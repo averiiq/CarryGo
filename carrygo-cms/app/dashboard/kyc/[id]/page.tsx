@@ -1,7 +1,6 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect, notFound } from 'next/navigation'
 import { isValidUuid } from '@/lib/validation'
-import { getSignedDocumentUrl, getPublicDocumentUrl, isSignedUrlsEnabled } from '@/lib/cdn-url'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import DocumentViewer from './DocumentViewer'
@@ -35,58 +34,47 @@ export default async function KycReviewPage({ params }: PageProps) {
   }
 
   // Fetch all documents for this session
-  const { data: documents } = await supabase
+  const { data: documents, error: documentsError } = await supabase
     .from('kyc_documents')
     .select('*')
     .eq('session_id', id)
 
   // Fetch user profile
-  const { data: userProfile } = await supabase
+  const { data: userProfile, error: profileError } = await supabase
     .from('user_profiles')
     .select('id, full_name, email, created_at')
     .eq('id', session.user_id)
     .single()
 
   // Fetch review history
-  const { data: reviewHistory } = await supabase
+  const { data: reviewHistory, error: historyError } = await supabase
     .from('kyc_review_history')
     .select('*')
     .eq('session_id', id)
     .order('created_at', { ascending: false })
 
-  // Generate document URLs (signed if CloudFront keys configured, public otherwise)
+  if (documentsError || profileError || historyError) {
+    throw new Error('Unable to load the complete KYC review record')
+  }
+
+  // Keep provider paths server-side and stream documents through an authenticated route.
   const documentTypes = ['id_front', 'id_back', 'selfie', 'address_proof'] as const
 
   const signedDocuments = await Promise.all(
     documentTypes.map(async (docType) => {
       const doc = documents?.find((d) => d.document_type === docType)
-      let url: string | null = null
-
-      if (doc?.storage_path) {
-        url = isSignedUrlsEnabled()
-          ? await getSignedDocumentUrl(doc.storage_path, 60 * 120)
-          : getPublicDocumentUrl(doc.storage_path)
-      } else {
-        const sessionUrlField =
-          docType === 'id_front'
-            ? 'document_url'
-            : docType === 'id_back'
-              ? 'id_back_url'
-              : docType === 'selfie'
-                ? 'selfie_url'
-                : 'address_proof_url'
-
-        const storagePath = session[sessionUrlField]
-        if (storagePath) {
-          url = isSignedUrlsEnabled()
-            ? await getSignedDocumentUrl(storagePath, 60 * 120)
-            : getPublicDocumentUrl(storagePath)
-        }
-      }
+      const sessionUrlField = docType === 'id_front'
+        ? 'document_url'
+        : docType === 'id_back'
+          ? 'id_back_url'
+          : docType === 'selfie'
+            ? 'selfie_url'
+            : 'address_proof_url'
+      const hasDocument = Boolean(doc?.storage_path || session[sessionUrlField])
 
       return {
         type: docType,
-        url,
+        url: hasDocument ? `/api/kyc-documents/${id}?type=${docType}` : null,
         label: docType,
       }
     })

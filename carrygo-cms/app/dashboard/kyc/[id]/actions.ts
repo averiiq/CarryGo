@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
+import { requireAdmin } from '@/utils/admin-guard'
 import { isValidUuid, sanitizeText } from '@/lib/validation'
 
 type ActionResult = { success: true } | { success: false; error: string }
@@ -14,73 +14,15 @@ export async function approveKycSession(sessionId: string): Promise<ActionResult
   const auth = await requireAdmin()
   if ('error' in auth) return { success: false, error: auth.error }
 
-  const { supabase, userId } = auth
-
-  // Fetch the session to get user_id
-  const { data: session, error: fetchError } = await supabase
-    .from('kyc_sessions')
-    .select('user_id, status')
-    .eq('id', sessionId)
-    .single()
-
-  if (fetchError || !session) {
-    return { success: false, error: 'KYC session not found' }
-  }
-
-  if (session.status === 'approved') {
-    return { success: false, error: 'Session is already approved' }
-  }
-
-  const { data: documents } = await supabase
-    .from('kyc_documents')
-    .select('document_type')
-    .eq('session_id', sessionId)
-
-  const requiredTypes = ['id_front', 'selfie']
-  const uploadedTypes = documents?.map(d => d.document_type) || []
-  const missingTypes = requiredTypes.filter(t => !uploadedTypes.includes(t))
-
-  if (missingTypes.length > 0) {
-    return { success: false, error: `Missing required documents: ${missingTypes.join(', ')}` }
-  }
-
-  // Update kyc_sessions status
-  const { error: sessionError } = await supabase
-    .from('kyc_sessions')
-    .update({
-      status: 'approved',
-      reviewed_by: userId,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', sessionId)
-
-  if (sessionError) {
-    return { success: false, error: 'Failed to approve KYC session' }
-  }
-
-  // Update user_profiles kyc_status
-  const { error: profileError } = await supabase
-    .from('user_profiles')
-    .update({ kyc_status: 'approved' })
-    .eq('id', session.user_id)
-
-  if (profileError) {
-    return { success: false, error: 'Failed to update user profile' }
-  }
-
-  // Insert review history
-  await supabase.from('kyc_review_history').insert({
-    session_id: sessionId,
-    reviewer_id: userId,
-    action: 'approved',
-    reason: null,
-    notes: null,
+  const { error } = await auth.supabase.rpc('cms_review_kyc', {
+    p_actor_id: auth.userId,
+    p_session_id: sessionId,
+    p_action: 'approved',
+    p_reason: null,
+    p_note: null,
   })
 
-  await logAdminAction(supabase, userId, 'approve_kyc', {
-    session_id: sessionId,
-    user_id: session.user_id,
-  })
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/dashboard/kyc')
   revalidatePath(`/dashboard/kyc/${sessionId}`)
@@ -100,62 +42,15 @@ export async function rejectKycSession(sessionId: string, reason: string): Promi
   const auth = await requireAdmin()
   if ('error' in auth) return { success: false, error: auth.error }
 
-  const { supabase, userId } = auth
-
-  // Fetch the session to get user_id
-  const { data: session, error: fetchError } = await supabase
-    .from('kyc_sessions')
-    .select('user_id, status')
-    .eq('id', sessionId)
-    .single()
-
-  if (fetchError || !session) {
-    return { success: false, error: 'KYC session not found' }
-  }
-
-  if (session.status === 'rejected') {
-    return { success: false, error: 'Session is already rejected' }
-  }
-
-  // Update kyc_sessions status
-  const { error: sessionError } = await supabase
-    .from('kyc_sessions')
-    .update({
-      status: 'rejected',
-      rejection_reason: sanitizedReason,
-      reviewed_by: userId,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', sessionId)
-
-  if (sessionError) {
-    return { success: false, error: 'Failed to reject KYC session' }
-  }
-
-  // Update user_profiles kyc_status
-  const { error: profileError } = await supabase
-    .from('user_profiles')
-    .update({ kyc_status: 'rejected' })
-    .eq('id', session.user_id)
-
-  if (profileError) {
-    return { success: false, error: 'Failed to update user profile' }
-  }
-
-  // Insert review history
-  await supabase.from('kyc_review_history').insert({
-    session_id: sessionId,
-    reviewer_id: userId,
-    action: 'rejected',
-    reason: sanitizedReason,
-    notes: null,
+  const { error } = await auth.supabase.rpc('cms_review_kyc', {
+    p_actor_id: auth.userId,
+    p_session_id: sessionId,
+    p_action: 'rejected',
+    p_reason: sanitizedReason,
+    p_note: null,
   })
 
-  await logAdminAction(supabase, userId, 'reject_kyc', {
-    session_id: sessionId,
-    user_id: session.user_id,
-    reason: sanitizedReason,
-  })
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/dashboard/kyc')
   revalidatePath(`/dashboard/kyc/${sessionId}`)
@@ -175,49 +70,15 @@ export async function requestResubmission(sessionId: string, reason: string): Pr
   const auth = await requireAdmin()
   if ('error' in auth) return { success: false, error: auth.error }
 
-  const { supabase, userId } = auth
-
-  // Fetch the session
-  const { data: session, error: fetchError } = await supabase
-    .from('kyc_sessions')
-    .select('user_id, submission_attempt')
-    .eq('id', sessionId)
-    .single()
-
-  if (fetchError || !session) {
-    return { success: false, error: 'KYC session not found' }
-  }
-
-  // Update kyc_sessions: reset status, increment attempt
-  const { error: sessionError } = await supabase
-    .from('kyc_sessions')
-    .update({
-      status: 'pending',
-      rejection_reason: sanitizedReason,
-      submission_attempt: (session.submission_attempt || 1) + 1,
-      reviewed_by: userId,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', sessionId)
-
-  if (sessionError) {
-    return { success: false, error: 'Failed to request resubmission' }
-  }
-
-  // Update user_profiles kyc_status
-  await supabase
-    .from('user_profiles')
-    .update({ kyc_status: 'pending' })
-    .eq('id', session.user_id)
-
-  // Insert review history
-  await supabase.from('kyc_review_history').insert({
-    session_id: sessionId,
-    reviewer_id: userId,
-    action: 'resubmission_requested',
-    reason: sanitizedReason,
-    notes: null,
+  const { error } = await auth.supabase.rpc('cms_review_kyc', {
+    p_actor_id: auth.userId,
+    p_session_id: sessionId,
+    p_action: 'requested_resubmission',
+    p_reason: sanitizedReason,
+    p_note: null,
   })
+
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/dashboard/kyc')
   revalidatePath(`/dashboard/kyc/${sessionId}`)
@@ -237,37 +98,15 @@ export async function addReviewerNote(sessionId: string, note: string): Promise<
   const auth = await requireAdmin()
   if ('error' in auth) return { success: false, error: auth.error }
 
-  const { supabase, userId } = auth
-
-  // Verify session exists
-  const { data: session, error: fetchError } = await supabase
-    .from('kyc_sessions')
-    .select('id')
-    .eq('id', sessionId)
-    .single()
-
-  if (fetchError || !session) {
-    return { success: false, error: 'KYC session not found' }
-  }
-
-  // Update reviewer_notes on the session
-  const { error: updateError } = await supabase
-    .from('kyc_sessions')
-    .update({ reviewer_notes: sanitizedNote })
-    .eq('id', sessionId)
-
-  if (updateError) {
-    return { success: false, error: 'Failed to save note' }
-  }
-
-  // Insert into review history
-  await supabase.from('kyc_review_history').insert({
-    session_id: sessionId,
-    reviewer_id: userId,
-    action: 'note_added',
-    reason: null,
-    notes: sanitizedNote,
+  const { error } = await auth.supabase.rpc('cms_review_kyc', {
+    p_actor_id: auth.userId,
+    p_session_id: sessionId,
+    p_action: 'note_added',
+    p_reason: null,
+    p_note: sanitizedNote,
   })
+
+  if (error) return { success: false, error: error.message }
 
   revalidatePath(`/dashboard/kyc/${sessionId}`)
   return { success: true }

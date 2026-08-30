@@ -1,13 +1,21 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
 import PaymentsTable from '@/components/PaymentsTable'
+import Pagination from '@/components/Pagination'
 
-export default async function PaymentsPage() {
+const PAGE_SIZE = 100
+
+export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const auth = await requireAdmin()
   if ('error' in auth) redirect('/login')
   const supabase = auth.supabase
 
-  const { data: payments } = await supabase
+  const params = await searchParams
+  const page = Math.max(1, Number.parseInt(params.page || '1', 10) || 1)
+  const from = (page - 1) * PAGE_SIZE
+
+  const [{ data: payments, count, error }, { data: totals, error: totalsError }] = await Promise.all([
+    supabase
     .from('payments')
     .select(`
       id,
@@ -17,11 +25,17 @@ export default async function PaymentsPage() {
       razorpay_payment_id,
       locked_at,
       released_at,
+      created_at,
+      request_id,
       sender:sender_id(full_name),
       traveller:traveller_id(full_name)
-    `)
+    `, { count: 'exact' })
     .order('locked_at', { ascending: false })
-    .limit(200)
+    .range(from, from + PAGE_SIZE - 1),
+    supabase.rpc('cms_payment_totals', { p_actor_id: auth.userId }),
+  ])
+
+  if (error || totalsError) throw new Error(`Unable to load payments: ${(error || totalsError)?.message}`)
 
   type PaymentRow = Record<string, unknown>
   const formattedPayments = (payments || []).map((p: PaymentRow) => {
@@ -41,19 +55,11 @@ export default async function PaymentsPage() {
     }
   })
 
-  type FormattedPayment = (typeof formattedPayments)[number]
-
-  const totalRevenue = formattedPayments
-    .filter((p: FormattedPayment) => p.status === 'released')
-    .reduce((sum: number, p: FormattedPayment) => sum + p.amount, 0)
-
-  const totalLocked = formattedPayments
-    .filter((p: FormattedPayment) => p.status === 'locked')
-    .reduce((sum: number, p: FormattedPayment) => sum + p.amount, 0)
-
-  const totalRefunded = formattedPayments
-    .filter((p: FormattedPayment) => p.status === 'refunded')
-    .reduce((sum: number, p: FormattedPayment) => sum + p.amount, 0)
+  const summary = (totals?.[0] ?? {}) as { released?: number; locked?: number; refunded?: number }
+  const totalRevenue = Number(summary.released ?? 0)
+  const totalLocked = Number(summary.locked ?? 0)
+  const totalRefunded = Number(summary.refunded ?? 0)
+  const total = count ?? 0
 
   return (
     <div className="space-y-6">
@@ -64,6 +70,7 @@ export default async function PaymentsPage() {
         totalLocked={totalLocked}
         totalRefunded={totalRefunded}
       />
+      <Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} totalItems={total} pageSize={PAGE_SIZE} itemLabel="payments" />
     </div>
   )
 }

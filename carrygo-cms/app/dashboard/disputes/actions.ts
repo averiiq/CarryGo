@@ -8,7 +8,7 @@ import { awsCmsRequest } from '@/utils/aws/api'
 
 export async function resolveDispute(
   requestId: string,
-  resolution: 'refund_sender' | 'pay_traveller' | 'split',
+  resolution: 'refund_sender' | 'pay_traveller',
   note?: string
 ) {
   if (!isValidUuid(requestId)) return { error: 'Invalid request ID' }
@@ -42,47 +42,14 @@ export async function resolveDispute(
     }
   }
 
-  const { error } = await auth.supabase
-    .from('requests')
-    .update({
-      status: newStatus,
-      message: sanitizedNote ? `[RESOLVED: ${resolution}] ${sanitizedNote}` : `[RESOLVED: ${resolution}]`,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', requestId)
+  const { error } = await auth.supabase.rpc('cms_resolve_dispute', {
+    p_actor_id: auth.userId,
+    p_request_id: requestId,
+    p_resolution: resolution,
+    p_note: sanitizedNote ?? null,
+  })
 
   if (error) return { error: error.message }
-
-  if (resolution === 'refund_sender') {
-    const { error: payErr } = await auth.supabase
-      .from('payments')
-      .update({ status: 'refunded' })
-      .eq('request_id', requestId)
-      .eq('status', 'locked')
-    if (payErr) return { error: `Request resolved but payment refund failed: ${payErr.message}` }
-  } else if (resolution === 'pay_traveller') {
-    const { error: payErr } = await auth.supabase
-      .from('payments')
-      .update({ status: 'released', released_at: new Date().toISOString() })
-      .eq('request_id', requestId)
-      .eq('status', 'locked')
-    if (payErr) return { error: `Request resolved but payment release failed: ${payErr.message}` }
-  } else if (resolution === 'split') {
-    // For split: refund the sender (partial refund logic would go here in production).
-    // Currently marks as refunded since split payment isn't implemented at the DB level.
-    const { error: payErr } = await auth.supabase
-      .from('payments')
-      .update({ status: 'refunded' })
-      .eq('request_id', requestId)
-      .eq('status', 'locked')
-    if (payErr) return { error: `Request resolved but split payment failed: ${payErr.message}` }
-  }
-
-  await logAdminAction(auth.supabase, auth.userId, 'resolve_dispute', {
-    request_id: requestId,
-    resolution,
-    note: sanitizedNote,
-  })
 
   revalidatePath('/dashboard/disputes')
   return { error: null }

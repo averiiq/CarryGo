@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import ParcelsTable from './ParcelsTable'
 import { isAwsCmsBackendEnabled } from '@/utils/backend/provider'
 import { awsCmsRequest } from '@/utils/aws/api'
+import Pagination from '@/components/Pagination'
 
 const PAGE_SIZE = 100
 
@@ -27,7 +28,7 @@ export default async function ParcelsPage({ searchParams }: { searchParams: Prom
 
   if (isAwsCmsBackendEnabled()) {
     const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(from) })
-    const response = (await awsCmsRequest(`/parcels?${query.toString()}`)) as { data: AwsParcel[] }
+    const response = (await awsCmsRequest(`/parcels?${query.toString()}`)) as { data: AwsParcel[]; total?: number }
 
     const mappedParcels = response.data.map((parcel) => ({
       id: parcel.id,
@@ -38,15 +39,18 @@ export default async function ParcelsPage({ searchParams }: { searchParams: Prom
       createdAt: new Date(parcel.createdAt).toLocaleDateString(),
     }))
 
-    return <ParcelsTable initialParcels={mappedParcels} />
+    const total = response.total ?? mappedParcels.length
+    return <div className="space-y-6"><ParcelsTable initialParcels={mappedParcels} /><Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} totalItems={total} pageSize={PAGE_SIZE} itemLabel="parcels" /></div>
   }
 
   const supabase = auth.supabase
-  const { data: parcelsData } = await supabase
+  const { data: parcelsData, count, error } = await supabase
     .from('parcels')
-    .select('id, user_name, from_city, to_city, category, weight, status, created_at')
+    .select('id, user_name, from_city, to_city, category, weight, status, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, from + PAGE_SIZE - 1)
+
+  if (error) throw new Error(`Unable to load parcels: ${error.message}`)
 
   const mappedParcels =
     parcelsData?.map((parcel) => ({
@@ -58,5 +62,6 @@ export default async function ParcelsPage({ searchParams }: { searchParams: Prom
       createdAt: new Date(parcel.created_at).toLocaleDateString(),
     })) || []
 
-  return <ParcelsTable initialParcels={mappedParcels} />
+  const total = count ?? 0
+  return <div className="space-y-6"><ParcelsTable initialParcels={mappedParcels} /><Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} totalItems={total} pageSize={PAGE_SIZE} itemLabel="parcels" /></div>
 }

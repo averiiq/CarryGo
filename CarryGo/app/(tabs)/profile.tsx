@@ -158,17 +158,17 @@ export default function ProfileScreen() {
       >
         {/* ── Hero ──────────────────────────────────────── */}
         <Animated.View style={{ opacity: heroEntrance.opacity, transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }] }}>
-          <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={[styles.heroCard, { backgroundColor: C.primaryDark, borderColor: C.primaryDark }]}>
             <View style={styles.heroBackdropImage}>
               <ProductIllustration variant="profile" size={180} />
             </View>
             <LinearGradient
-              colors={[C.primaryGlow, C.primarySubtle, 'rgba(255,255,255,0.4)']}
+              colors={[C.primaryDark, C.primary, C.primaryDark]}
               style={[StyleSheet.absoluteFillObject, { opacity: 0.8 }]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             />
             <LinearGradient
-              colors={['transparent', C.surface]}
+              colors={['transparent', 'rgba(17,69,47,0.72)']}
               style={[StyleSheet.absoluteFillObject]}
               start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.85 }}
             />
@@ -176,11 +176,11 @@ export default function ProfileScreen() {
             {/* Edit button — top right */}
             <View style={styles.heroTopRight}>
               <Pressable
-                style={({ pressed }) => [styles.editBtn, { backgroundColor: C.surface + 'CC', borderColor: C.surfaceBorder }, pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }]}
+                style={({ pressed }) => [styles.editBtn, { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' }, pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }]}
                 onPress={() => { Haptic.tap(); router.push('/edit-profile'); }}
               >
-                <Ionicons name="pencil" size={12} color={C.textSecondary} />
-                <Text style={[styles.editBtnText, { color: C.textSecondary }]}>Edit</Text>
+                <Ionicons name="pencil" size={12} color="#FFFFFF" />
+                <Text style={[styles.editBtnText, { color: '#FFFFFF' }]}>Edit</Text>
               </Pressable>
             </View>
 
@@ -204,13 +204,13 @@ export default function ProfileScreen() {
             </Animated.View>
 
             {/* Name + Email */}
-            <Text style={[styles.profileName, { color: C.textPrimary }]}>{displayName}</Text>
-            <Text style={[styles.profileEmail, { color: C.textMuted }]}>{user.email}</Text>
+            <Text style={[styles.profileName, { color: '#FFFFFF' }]}>{displayName}</Text>
+            <Text style={[styles.profileEmail, { color: 'rgba(255,255,255,0.7)' }]}>{user.email}</Text>
 
             {/* Member badge */}
-            <View style={[styles.memberChip, { backgroundColor: C.surfaceElevated + '88', borderColor: C.surfaceBorder }]}>
-              <MaterialIcons name="auto-awesome" size={10} color={C.primaryLight} />
-              <Text style={[styles.memberText, { color: C.textSecondary }]}>
+            <View style={[styles.memberChip, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
+              <MaterialIcons name="auto-awesome" size={10} color="#FFFFFF" />
+              <Text style={[styles.memberText, { color: 'rgba(255,255,255,0.8)' }]}>
                 Member since {new Date(user.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
               </Text>
             </View>

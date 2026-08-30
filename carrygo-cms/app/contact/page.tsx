@@ -3,6 +3,9 @@ import { Mail, MessageSquareHeart, Phone, Sparkles } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('Contact', 'Contact CarryGo for support, partnerships, and onboarding assistance.', '/contact')
 
 const channels = [
   {

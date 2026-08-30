@@ -1,24 +1,42 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
 import KycQueue from './KycQueue'
+import Pagination from '@/components/Pagination'
 
 const PAGE_SIZE = 100
 
-export default async function KYCPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+type TabKey = 'all' | 'submitted' | 'under_review' | 'approved' | 'rejected'
+
+export default async function KYCPage({ searchParams }: { searchParams: Promise<{ page?: string; status?: string }> }) {
   const auth = await requireAdmin()
   if ('error' in auth) redirect('/login')
   const supabase = auth.supabase
 
   const params = await searchParams
   const page = Math.max(1, parseInt(params.page || '1', 10))
+  const activeTab: TabKey = ['submitted', 'under_review', 'approved', 'rejected'].includes(params.status || '')
+    ? params.status as TabKey
+    : 'all'
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
-  const { data: sessions } = await supabase
+  let sessionsQuery = supabase
     .from('kyc_sessions')
-    .select('id, user_id, full_name, id_type, status, submission_attempt, created_at')
+    .select('id, user_id, full_name, id_type, status, submission_attempt, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .range(from, to)
+
+  if (activeTab !== 'all') sessionsQuery = sessionsQuery.eq('status', activeTab)
+  const [{ data: sessions, count, error }, ...countResults] = await Promise.all([
+    sessionsQuery.range(from, to),
+    supabase.from('kyc_sessions').select('*', { count: 'exact', head: true }),
+    supabase.from('kyc_sessions').select('*', { count: 'exact', head: true }).eq('status', 'submitted'),
+    supabase.from('kyc_sessions').select('*', { count: 'exact', head: true }).eq('status', 'under_review'),
+    supabase.from('kyc_sessions').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+    supabase.from('kyc_sessions').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
+  ])
+
+  const queryError = [error, ...countResults.map((result) => result.error)].find(Boolean)
+  if (queryError) throw new Error(`Unable to load KYC queue: ${queryError.message}`)
 
   const sessionIds = (sessions || []).map((s) => s.id)
   let documentCountsMap: Record<string, number> = {}
@@ -49,11 +67,11 @@ export default async function KYCPage({ searchParams }: { searchParams: Promise<
   }))
 
   const counts = {
-    all: mappedSessions.length,
-    submitted: mappedSessions.filter((s) => s.status === 'submitted').length,
-    under_review: mappedSessions.filter((s) => s.status === 'under_review').length,
-    approved: mappedSessions.filter((s) => s.status === 'approved').length,
-    rejected: mappedSessions.filter((s) => s.status === 'rejected').length,
+    all: countResults[0].count ?? 0,
+    submitted: countResults[1].count ?? 0,
+    under_review: countResults[2].count ?? 0,
+    approved: countResults[3].count ?? 0,
+    rejected: countResults[4].count ?? 0,
   }
 
   return (
@@ -65,7 +83,8 @@ export default async function KYCPage({ searchParams }: { searchParams: Promise<
         </p>
       </div>
 
-      <KycQueue sessions={mappedSessions} counts={counts} activeTab="submitted" />
+      <KycQueue sessions={mappedSessions} counts={counts} activeTab={activeTab} />
+      <Pagination page={page} totalPages={Math.ceil((count ?? 0) / PAGE_SIZE)} totalItems={count ?? 0} pageSize={PAGE_SIZE} itemLabel="submissions" query={activeTab === 'all' ? {} : { status: activeTab }} />
     </div>
   )
 }

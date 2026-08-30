@@ -3,6 +3,9 @@ import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('Safety', 'Review CarryGo identity, handover, payment, and support safeguards.', '/safety')
 
 const safetyLayers = [
   {

@@ -55,7 +55,22 @@ describe('requireAdmin', () => {
 
     const mockAdmin = createMockAdminClient({
       system_role: 'user',
-      account_status: 'active',
+      status: 'active',
+    });
+    mockCreateAdminClient.mockReturnValue(mockAdmin as never);
+
+    const result = await requireAdmin();
+
+    expect(result).toEqual({ error: 'Admin access required' });
+  });
+
+  it('returns error when user is a support agent', async () => {
+    const mockAuth = createMockAuthClient({ id: 'support-123' });
+    mockCreateClient.mockResolvedValue(mockAuth as never);
+
+    const mockAdmin = createMockAdminClient({
+      system_role: 'support_agent',
+      status: 'active',
     });
     mockCreateAdminClient.mockReturnValue(mockAdmin as never);
 
@@ -82,7 +97,7 @@ describe('requireAdmin', () => {
 
     const mockAdmin = createMockAdminClient({
       system_role: 'admin',
-      account_status: 'banned',
+      status: 'banned',
     });
     mockCreateAdminClient.mockReturnValue(mockAdmin as never);
 
@@ -97,7 +112,7 @@ describe('requireAdmin', () => {
 
     const mockAdmin = createMockAdminClient({
       system_role: 'admin',
-      account_status: 'suspended',
+      status: 'suspended',
     });
     mockCreateAdminClient.mockReturnValue(mockAdmin as never);
 
@@ -112,7 +127,7 @@ describe('requireAdmin', () => {
 
     const mockAdmin = createMockAdminClient({
       system_role: 'admin',
-      account_status: 'active',
+      status: 'active',
     });
     mockCreateAdminClient.mockReturnValue(mockAdmin as never);
 
@@ -123,20 +138,18 @@ describe('requireAdmin', () => {
     expect(result).toHaveProperty('userId', 'admin-200');
   });
 
-  it('returns supabase client when account_status is null (legacy accounts)', async () => {
+  it('returns error for an unknown elevated role', async () => {
     const mockAuth = createMockAuthClient({ id: 'admin-300' });
     mockCreateClient.mockResolvedValue(mockAuth as never);
 
     const mockAdmin = createMockAdminClient({
       system_role: 'super_admin',
-      account_status: null,
+      status: 'active',
     });
     mockCreateAdminClient.mockReturnValue(mockAdmin as never);
 
     const result = await requireAdmin();
 
-    expect(result).not.toHaveProperty('error');
-    expect(result).toHaveProperty('supabase');
-    expect(result).toHaveProperty('userId', 'admin-300');
+    expect(result).toEqual({ error: 'Admin access required' });
   });
 });

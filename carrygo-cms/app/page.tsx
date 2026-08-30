@@ -7,11 +7,14 @@ import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { quickStats, testimonials } from '@/components/marketing/site-data'
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('Trusted Parcel Delivery Network', 'Connect with verified travelers for secure, route-based parcel delivery.', '/')
 
 const featurePillars = [
   {
     title: 'Smart Route Matching',
-    description: 'AI-assisted route intelligence finds the best traveler match by reliability and ETA confidence.',
+    description: 'Route-aware matching helps identify suitable travelers by destination, timing, and availability.',
     icon: PlaneTakeoff,
     tone: 'text-primary bg-primary-subtle',
   },
@@ -225,9 +228,9 @@ export default function LandingPage() {
 
       <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <SectionHeading
-          label='Trusted by Users'
-          title='What people say after switching to CarryGo'
-          description='Teams and individual travelers value speed, transparency, and security.'
+          label='Designed for real workflows'
+          title='Built around the needs of every participant'
+          description='Explore how CarryGo supports common delivery and travel scenarios.'
         />
 
         <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 md:grid-cols-3'>

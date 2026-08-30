@@ -92,14 +92,14 @@ function AppShell() {
 
 function AppStack() {
   const { C } = useThemeColors();
-  const headerStyle = { backgroundColor: C.background };
+  const headerStyle = { backgroundColor: C.surface };
   const headerOpts = {
     headerStyle,
-    headerTintColor: C.textPrimary,
+    headerTintColor: C.primaryDark,
     headerShadowVisible: false,
     headerTitleStyle: {
-      fontWeight: FontWeight.semibold,
-      fontSize: FontSize.md,
+      fontWeight: FontWeight.bold,
+      fontSize: FontSize.lg,
     },
     headerBackTitleVisible: false,
   } as const;

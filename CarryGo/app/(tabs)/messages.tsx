@@ -283,13 +283,13 @@ export default function MessagesScreen() {
             styles.heroCard,
             {
               transform: [{ scale: heroScale }],
-              borderColor: C.surfaceBorder,
-              backgroundColor: C.surface,
+              borderColor: C.primaryDark,
+              backgroundColor: C.primaryDark,
             },
           ]}
         >
           <LinearGradient
-            colors={[C.primarySubtle, C.surface, C.surface]}
+            colors={[C.primaryDark, C.primary, C.primaryDark]}
             style={StyleSheet.absoluteFillObject}
           />
           <View style={styles.heroArtwork}>
@@ -298,33 +298,33 @@ export default function MessagesScreen() {
 
           <View style={styles.heroTopRow}>
             <View>
-              <Text style={[styles.heroGreeting, { color: C.textMuted }]}>Welcome back</Text>
-              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Let’s keep delivery stress-free</Text>
+              <Text style={[styles.heroGreeting, { color: 'rgba(255,255,255,0.68)' }]}>DELIVERY CONVERSATIONS</Text>
+              <Text style={[styles.heroTitle, { color: '#FFFFFF' }]}>Everything coordinated in one place</Text>
             </View>
-            <View style={[styles.heroAvatar, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
-              <Text style={[styles.heroAvatarText, { color: C.primary }]}>{(user?.name?.charAt(0) || 'U').toUpperCase()}</Text>
+            <View style={[styles.heroAvatar, { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' }]}>
+              <Text style={[styles.heroAvatarText, { color: '#FFFFFF' }]}>{(user?.name?.charAt(0) || 'U').toUpperCase()}</Text>
             </View>
           </View>
 
           <Pressable
             style={({ pressed }) => [
               styles.heroAction,
-              { backgroundColor: C.primaryDark, opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+              { backgroundColor: '#FFFFFF', opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
             ]}
             onPress={handleHeroAction}
           >
-            <MaterialIcons name={firstUnread ? 'mark-chat-unread' : 'add-circle-outline'} size={16} color="#fff" />
-            <Text style={styles.heroActionText}>{firstUnread ? 'Open Unread Chat' : 'Start New Conversation'}</Text>
+            <MaterialIcons name={firstUnread ? 'mark-chat-unread' : 'add-circle-outline'} size={16} color={C.primaryDark} />
+            <Text style={[styles.heroActionText, { color: C.primaryDark }]}>{firstUnread ? 'Open Unread Chat' : 'Send a Parcel'}</Text>
           </Pressable>
 
           <View style={styles.heroStatsRow}>
-            <View style={[styles.heroStatCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}> 
-              <Text style={[styles.heroStatLabel, { color: C.textMuted }]}>Unread</Text>
-              <Text style={[styles.heroStatValue, { color: unreadCount > 0 ? C.error : C.textPrimary }]}>{unreadCount}</Text>
+            <View style={[styles.heroStatCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
+              <Text style={[styles.heroStatLabel, { color: 'rgba(255,255,255,0.68)' }]}>Unread</Text>
+              <Text style={[styles.heroStatValue, { color: '#FFFFFF' }]}>{unreadCount}</Text>
             </View>
-            <View style={[styles.heroStatCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}> 
-              <Text style={[styles.heroStatLabel, { color: C.textMuted }]}>Active chats</Text>
-              <Text style={[styles.heroStatValue, { color: C.textPrimary }]}>{conversationRows.length}</Text>
+            <View style={[styles.heroStatCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
+              <Text style={[styles.heroStatLabel, { color: 'rgba(255,255,255,0.68)' }]}>Active chats</Text>
+              <Text style={[styles.heroStatValue, { color: '#FFFFFF' }]}>{conversationRows.length}</Text>
             </View>
           </View>
         </Animated.View>

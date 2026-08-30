@@ -1,5 +1,9 @@
 ﻿import { LegalPage } from '@/components/marketing/legal-page'
 
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('Terms and Conditions', 'Read the terms governing use of CarryGo services.', '/terms-and-conditions')
+
 const sections = [
   {
     title: 'Acceptance of Terms',

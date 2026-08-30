@@ -1,5 +1,12 @@
 import { login } from './actions'
 import { ArrowRight, Package } from 'lucide-react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Admin Sign In',
+  description: 'Authorized CarryGo operations access.',
+  robots: { index: false, follow: false },
+}
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams
@@ -35,16 +42,16 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
           <div className="flex gap-8 pt-4">
             <div className="space-y-1">
-              <p className="text-3xl font-heading font-bold text-foreground">10K+</p>
-              <p className="text-xs text-muted uppercase tracking-wider">Users</p>
+              <p className="text-xl font-heading font-bold text-foreground">Role-based</p>
+              <p className="text-xs text-muted uppercase tracking-wider">Access</p>
             </div>
             <div className="space-y-1">
-              <p className="text-3xl font-heading font-bold text-foreground">50+</p>
-              <p className="text-xs text-muted uppercase tracking-wider">Cities</p>
+              <p className="text-xl font-heading font-bold text-foreground">Audited</p>
+              <p className="text-xs text-muted uppercase tracking-wider">Actions</p>
             </div>
             <div className="space-y-1">
-              <p className="text-3xl font-heading font-bold text-foreground">99.9%</p>
-              <p className="text-xs text-muted uppercase tracking-wider">Uptime</p>
+              <p className="text-xl font-heading font-bold text-foreground">Protected</p>
+              <p className="text-xs text-muted uppercase tracking-wider">Data</p>
             </div>
           </div>
         </div>

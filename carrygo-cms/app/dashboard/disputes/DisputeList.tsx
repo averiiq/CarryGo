@@ -15,10 +15,17 @@ export default function DisputeList({ disputes }: DisputeListProps) {
   const [resolving, setResolving] = useState<string | null>(null)
   const [note, setNote] = useState('')
 
-  const handleResolve = async (disputeId: string, resolution: 'refund_sender' | 'pay_traveller' | 'split') => {
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const handleResolve = async (disputeId: string, resolution: 'refund_sender' | 'pay_traveller') => {
     setResolving(disputeId)
-    await resolveDispute(disputeId, resolution, note)
+    setActionError(null)
+    const result = await resolveDispute(disputeId, resolution, note)
     setResolving(null)
+    if (result.error) {
+      setActionError(result.error)
+      return
+    }
     setNote('')
     setExpandedId(null)
   }
@@ -113,6 +120,12 @@ export default function DisputeList({ disputes }: DisputeListProps) {
                     />
                   </div>
 
+                  {actionError && (
+                    <p role="alert" className="rounded-xl bg-danger-subtle px-3 py-2 text-xs font-medium text-danger">
+                      {actionError}
+                    </p>
+                  )}
+
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleResolve(dispute.id, 'refund_sender')}
@@ -127,13 +140,6 @@ export default function DisputeList({ disputes }: DisputeListProps) {
                       className="px-4 py-2 text-xs font-semibold bg-success text-white rounded-xl hover:bg-success/90 disabled:opacity-50 transition-colors"
                     >
                       Pay Traveller
-                    </button>
-                    <button
-                      onClick={() => handleResolve(dispute.id, 'split')}
-                      disabled={resolving === dispute.id}
-                      className="px-4 py-2 text-xs font-semibold bg-warning text-white rounded-xl hover:bg-warning/90 disabled:opacity-50 transition-colors"
-                    >
-                      Split 50/50
                     </button>
                   </div>
                 </div>

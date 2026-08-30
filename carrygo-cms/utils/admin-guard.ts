@@ -6,7 +6,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 /**
  * Logs an admin action for audit trail purposes.
  * Callers should invoke this after performing sensitive operations.
- * Falls back to audit_events table if admin_audit_log doesn't exist.
+ * Throws when the event cannot be persisted so failures are never silent.
  */
 export async function logAdminAction(
   supabase: ReturnType<typeof createAdminClient>,
@@ -25,9 +25,7 @@ export async function logAdminAction(
       created_at: new Date().toISOString(),
     })
 
-  if (error) {
-    console.error(`[AUDIT] Failed to log admin action "${action}":`, error.message)
-  }
+  if (error) throw new Error(`Failed to record admin audit event: ${error.message}`)
 }
 
 export async function requireAdmin(): Promise<
@@ -45,7 +43,7 @@ export async function requireAdmin(): Promise<
 
   const { data: profile, error: profileError } = await adminClient
     .from('user_profiles')
-    .select('system_role, account_status')
+    .select('system_role, status')
     .eq('id', user.id)
     .single()
 
@@ -53,11 +51,11 @@ export async function requireAdmin(): Promise<
     return { error: 'Admin access required' }
   }
 
-  if (profile.system_role === 'user') {
+  if (profile.system_role !== 'admin') {
     return { error: 'Admin access required' }
   }
 
-  if (profile.account_status && profile.account_status !== 'active') {
+  if (profile.status !== 'active') {
     return { error: 'Account is not active. Access denied.' }
   }
 

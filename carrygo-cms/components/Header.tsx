@@ -1,11 +1,13 @@
 'use client'
 
-import { LogOut, Bell, Search, Command } from 'lucide-react'
+import { LogOut, Search, Command, Menu, X } from 'lucide-react'
+import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import CommandPalette from './CommandPalette'
 import ThemeToggle from './ThemeToggle'
+import { NAV_ITEMS } from './Sidebar'
 
 const routeTitles: Record<string, string> = {
   '/dashboard': 'Overview',
@@ -27,6 +29,7 @@ export default function Header() {
   const pathname = usePathname()
   const [showPalette, setShowPalette] = useState(false)
   const [currentTime, setCurrentTime] = useState('')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     const update = () => {
@@ -59,11 +62,22 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-30 glass border-b border-border-subtle">
-        <div className="flex items-center justify-between h-16 px-6">
+        <div className="flex items-center justify-between h-16 px-4 sm:px-6">
           {/* Left: Page title */}
-          <div>
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileNavOpen}
+              onClick={() => setMobileNavOpen((open) => !open)}
+              className="rounded-xl border border-border bg-surface-solid p-2 text-muted transition-colors hover:text-foreground md:hidden"
+            >
+              {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
+            <div className="min-w-0">
             <h1 className="text-lg font-heading font-semibold text-foreground">{pageTitle}</h1>
             <p className="text-xs text-muted">{currentTime}</p>
+            </div>
           </div>
 
           {/* Right: Actions */}
@@ -71,6 +85,7 @@ export default function Header() {
             {/* Search trigger */}
             <button
               onClick={() => setShowPalette(true)}
+              aria-label="Search dashboard"
               className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-solid border border-border text-muted text-sm hover:border-border-strong hover:text-foreground transition-all duration-200"
             >
               <Search className="w-3.5 h-3.5" />
@@ -82,14 +97,10 @@ export default function Header() {
 
             <ThemeToggle />
 
-            {/* Notifications */}
-            <button className="relative p-2 rounded-xl bg-surface-solid border border-border hover:border-border-strong transition-all duration-200 hover:shadow-sm">
-              <Bell className="w-4 h-4 text-muted" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger" />
-            </button>
-
             {/* Logout */}
             <button
+              type="button"
+              aria-label="Sign out"
               onClick={handleLogout}
               className="p-2 rounded-xl bg-surface-solid border border-border hover:border-danger/30 hover:bg-danger-subtle transition-all duration-200 group"
             >
@@ -97,6 +108,21 @@ export default function Header() {
             </button>
           </div>
         </div>
+        {mobileNavOpen && (
+          <nav aria-label="Dashboard navigation" className="grid max-h-[calc(100vh-4rem)] grid-cols-2 gap-2 overflow-y-auto border-t border-border-subtle bg-surface-solid p-3 md:hidden">
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileNavOpen(false)}
+                aria-current={pathname === item.href ? 'page' : undefined}
+                className="rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface-elevated hover:text-foreground"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        )}
       </header>
 
       {showPalette && <CommandPalette onClose={() => setShowPalette(false)} />}

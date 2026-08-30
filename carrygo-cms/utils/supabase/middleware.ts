@@ -70,7 +70,7 @@ export async function updateSession(request: NextRequest) {
       })
     }
 
-    if (systemRole === 'user' && isDashboardRoute) {
+    if (systemRole !== 'admin' && isDashboardRoute) {
       const url = request.nextUrl.clone()
       url.pathname = '/unauthorized'
       return NextResponse.redirect(url)

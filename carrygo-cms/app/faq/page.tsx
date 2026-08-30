@@ -2,6 +2,9 @@
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { frequentlyAskedQuestions } from '@/components/marketing/site-data'
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('Frequently Asked Questions', 'Answers about CarryGo delivery, payments, safety, and traveler matching.', '/faq')
 
 export default function FaqPage() {
   return (

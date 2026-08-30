@@ -3,6 +3,9 @@ import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('For Senders', 'Discover a simpler way to send parcels with verified travelers and clear handovers.', '/for-senders')
 
 const senderBenefits = [
   {

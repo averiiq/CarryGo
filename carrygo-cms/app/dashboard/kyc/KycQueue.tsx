@@ -124,7 +124,10 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              setActiveTab(tab.key)
+              router.push(tab.key === 'all' ? '/dashboard/kyc' : `/dashboard/kyc?status=${tab.key}`)
+            }}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
               activeTab === tab.key
                 ? 'bg-surface text-foreground shadow-sm'

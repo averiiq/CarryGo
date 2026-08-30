@@ -51,7 +51,7 @@ function getActionLabel(action: string): string {
       return 'Approved'
     case 'rejected':
       return 'Rejected'
-    case 'resubmission_requested':
+    case 'requested_resubmission':
       return 'Resubmission Requested'
     case 'note_added':
       return 'Note Added'
@@ -66,7 +66,7 @@ function getActionColor(action: string): string {
       return 'text-green-700 bg-green-50 border-green-200'
     case 'rejected':
       return 'text-danger bg-danger-subtle border-danger/20'
-    case 'resubmission_requested':
+    case 'requested_resubmission':
       return 'text-amber-700 bg-amber-50 border-amber-200'
     case 'note_added':
       return 'text-primary bg-primary-subtle border-primary/20'

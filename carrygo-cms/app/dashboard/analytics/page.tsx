@@ -18,12 +18,12 @@ export default async function AnalyticsPage() {
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
   const [
-    { count: totalUsers },
-    { count: completedDeliveries },
-    { count: failedDeliveries },
-    { data: payments },
-    { data: topTravellers },
-    { data: tripRoutes },
+    totalUsersResult,
+    completedDeliveriesResult,
+    failedDeliveriesResult,
+    paymentsResult,
+    topTravellersResult,
+    tripRoutesResult,
   ] = await Promise.all([
     supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
     supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
@@ -32,6 +32,17 @@ export default async function AnalyticsPage() {
     supabase.from('user_profiles').select('id, full_name, rating, total_deliveries').order('rating', { ascending: false }).limit(5),
     supabase.from('trips').select('from_city, to_city, status').eq('status', 'active').limit(5000),
   ])
+
+  const initialError = [totalUsersResult, completedDeliveriesResult, failedDeliveriesResult, paymentsResult, topTravellersResult, tripRoutesResult]
+    .find((result) => result.error)?.error
+  if (initialError) throw new Error(`Unable to load analytics: ${initialError.message}`)
+
+  const totalUsers = totalUsersResult.count
+  const completedDeliveries = completedDeliveriesResult.count
+  const failedDeliveries = failedDeliveriesResult.count
+  const payments = paymentsResult.data
+  const topTravellers = topTravellersResult.data
+  const tripRoutes = tripRoutesResult.data
 
   const totalDeliveries = (completedDeliveries ?? 0) + (failedDeliveries ?? 0)
   const successRate = totalDeliveries > 0
@@ -63,10 +74,12 @@ export default async function AnalyticsPage() {
   const twelveWeeksAgo = new Date()
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84)
 
-  const { data: recentUsers } = await supabase
+  const { data: recentUsers, error: recentUsersError } = await supabase
     .from('user_profiles')
     .select('created_at')
     .gte('created_at', twelveWeeksAgo.toISOString())
+
+  if (recentUsersError) throw new Error(`Unable to load user growth: ${recentUsersError.message}`)
 
   const weeklyGrowth: Record<string, number> = {}
   for (let i = 11; i >= 0; i--) {
@@ -111,11 +124,13 @@ export default async function AnalyticsPage() {
   // Delivery funnel from recent requests (last 90 days)
   const ninetyDaysAgo = new Date()
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
-  const { data: recentRequests } = await supabase
+  const { data: recentRequests, error: recentRequestsError } = await supabase
     .from('requests')
     .select('status')
     .gte('created_at', ninetyDaysAgo.toISOString())
     .limit(10000)
+
+  if (recentRequestsError) throw new Error(`Unable to load delivery funnel: ${recentRequestsError.message}`)
 
   const requestStatuses = recentRequests || []
   const funnelSteps = [
@@ -136,8 +151,6 @@ export default async function AnalyticsPage() {
         <AnalyticsCard
           title="Total Users"
           value={totalUsers ?? 0}
-          trend="up"
-          change={12}
           iconName="Users"
           color="text-primary"
           bgColor="bg-primary-subtle"
@@ -145,8 +158,6 @@ export default async function AnalyticsPage() {
         <AnalyticsCard
           title="Total Revenue"
           value={`₹${totalRevenue.toLocaleString()}`}
-          trend="up"
-          change={8}
           iconName="TrendingUp"
           color="text-success"
           bgColor="bg-success-subtle"
@@ -154,8 +165,6 @@ export default async function AnalyticsPage() {
         <AnalyticsCard
           title="Success Rate"
           value={`${successRate}%`}
-          trend={successRate >= 80 ? 'up' : 'down'}
-          change={successRate >= 80 ? 3 : -2}
           iconName="BarChart3"
           color="text-primary"
           bgColor="bg-primary-subtle"
@@ -163,8 +172,6 @@ export default async function AnalyticsPage() {
         <AnalyticsCard
           title="Completed"
           value={completedDeliveries ?? 0}
-          trend="up"
-          change={15}
           iconName="Clock"
           color="text-warning"
           bgColor="bg-warning-subtle"

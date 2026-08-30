@@ -29,12 +29,43 @@ const ALLOWED_KEYS = new Set([
   'sms_notifications',
 ])
 
+const NUMBER_RANGES: Record<string, [number, number]> = {
+  platform_commission_percent: [0, 100],
+  min_commission_amount: [0, 100000],
+  max_commission_amount: [0, 1000000],
+  gst_percent: [0, 100],
+  auto_release_hours: [1, 720],
+  max_weight_kg: [0.1, 10000],
+  max_price_per_kg: [0, 100000],
+  min_price_per_kg: [0, 100000],
+  otp_expiry_minutes: [1, 60],
+  max_otp_attempts: [1, 20],
+  rating_threshold: [0, 5],
+  auto_suspend_disputes: [0, 100],
+}
+
+const BOOLEAN_KEYS = new Set(['maintenance_mode', 'new_user_signups', 'kyc_required', 'push_notifications', 'email_notifications', 'sms_notifications'])
+
+function isValidSetting(key: string, value: string | number | boolean): boolean {
+  if (key in NUMBER_RANGES) {
+    const number = Number(value)
+    const [minimum, maximum] = NUMBER_RANGES[key]
+    return Number.isFinite(number) && number >= minimum && number <= maximum
+  }
+  if (BOOLEAN_KEYS.has(key)) return typeof value === 'boolean'
+  if (key === 'support_email') return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254
+  return typeof value === 'string' && value.trim().length > 0 && value.length <= 100
+}
+
 export async function saveSettings(config: AppConfigUpdate) {
   const auth = await requireAdmin()
   if ('error' in auth) return { success: false, error: auth.error }
 
   const entries = Object.entries(config).filter(([key]) => ALLOWED_KEYS.has(key))
   if (entries.length === 0) return { success: false, error: 'No valid settings to save' }
+  if (entries.some(([key, value]) => !isValidSetting(key, value))) {
+    return { success: false, error: 'One or more settings contain invalid values' }
+  }
 
   const rows = entries.map(([key, value]) => ({
     key,

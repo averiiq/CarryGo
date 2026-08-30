@@ -69,12 +69,12 @@ function AnimatedTabIcon({
 
   return (
     <Animated.View style={[styles.tabItem, { transform: [{ scale }, { translateY }] }]}> 
-      <Animated.View style={[styles.focusPill, { backgroundColor: C.primarySubtle, opacity: pillOpacity }]} />
+      <Animated.View style={[styles.focusPill, { backgroundColor: C.primaryDark, opacity: pillOpacity }]} />
       <View style={styles.iconContainer}>
         <Ionicons
           name={focused ? icon : outlineIcon}
           size={23}
-          color={focused ? C.primary : color}
+          color={focused ? C.textInverse : color}
         />
         {badge > 0 && <TabBadge count={badge} C={C} />}
         {dotAlert && badge === 0 && (
@@ -84,7 +84,7 @@ function AnimatedTabIcon({
       <Text
         style={[
           styles.tabLabel,
-          { color: focused ? C.primary : C.textMuted },
+          { color: focused ? C.textInverse : C.textMuted },
           focused && styles.tabLabelActive,
         ]}
         numberOfLines={1}
@@ -94,7 +94,7 @@ function AnimatedTabIcon({
       <Animated.View
         style={[
           styles.activeIndicator,
-          { backgroundColor: C.primary, width: indicatorWidth },
+          { backgroundColor: focused ? C.primaryLight : C.primary, width: indicatorWidth },
         ]}
       />
     </Animated.View>

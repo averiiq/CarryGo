@@ -27,6 +27,10 @@ export default async function DashboardOverview() {
     supabase.from('kyc_sessions').select('*', { count: 'exact', head: true }).eq('status', 'submitted'),
   ])
 
+  if (usersCountResult.error || kycCountResult.error) {
+    throw new Error('Unable to load dashboard totals')
+  }
+
   totalUsers = usersCountResult.count ?? 0
   pendingKyc = kycCountResult.count ?? 0
 
@@ -93,6 +97,10 @@ export default async function DashboardOverview() {
       ]),
     ])
 
+    const queryError = [tripsResult, parcelsResult, requestsResult, activityResult, ...countsResult]
+      .find((result) => result.error)?.error
+    if (queryError) throw new Error(`Unable to load dashboard data: ${queryError.message}`)
+
     recentTrips = tripsResult.data ?? []
     recentParcels = parcelsResult.data ?? []
     recentRequests = requestsResult.data ?? []
@@ -129,8 +137,6 @@ export default async function DashboardOverview() {
     {
       title: 'Total Users',
       value: totalUsers || 0,
-      change: 12,
-      trend: 'up' as const,
       iconName: 'Users' as const,
       color: 'text-primary',
       bgColor: 'bg-primary-subtle',
@@ -139,8 +145,6 @@ export default async function DashboardOverview() {
     {
       title: 'Active Trips',
       value: activeTrips || 0,
-      change: 8,
-      trend: 'up' as const,
       iconName: 'Navigation' as const,
       color: 'text-success',
       bgColor: 'bg-success-subtle',
@@ -149,8 +153,6 @@ export default async function DashboardOverview() {
     {
       title: 'Pending Parcels',
       value: pendingParcels || 0,
-      change: -3,
-      trend: 'down' as const,
       iconName: 'Package' as const,
       color: 'text-warning',
       bgColor: 'bg-warning-subtle',
@@ -159,22 +161,16 @@ export default async function DashboardOverview() {
     {
       title: 'KYC Queue',
       value: pendingKyc || 0,
-      change: 5,
-      trend: 'up' as const,
       iconName: 'FileCheck' as const,
       color: 'text-accent',
       bgColor: 'bg-accent-subtle',
-      sparkline: [3, 5, 2, 8, 4, 6, pendingKyc || 0],
     },
     {
       title: 'Open Disputes',
       value: openDisputes || 0,
-      change: -15,
-      trend: 'down' as const,
       iconName: 'AlertTriangle' as const,
       color: 'text-danger',
       bgColor: 'bg-danger-subtle',
-      sparkline: [7, 4, 6, 3, 5, 2, openDisputes || 0],
     },
   ]
 
@@ -256,12 +252,9 @@ export default async function DashboardOverview() {
   }
 
   const systemMetrics = [
-    { name: 'API', status: 'healthy' as const, latency: 42, uptime: '99.9%' },
-    { name: 'Database', status: 'healthy' as const, latency: 12, uptime: '99.99%' },
-    { name: 'Supabase', status: 'healthy' as const, latency: 28, uptime: '99.95%' },
-    { name: 'Realtime', status: 'healthy' as const, latency: 8, uptime: '99.8%' },
+    { name: 'Database', status: 'healthy' as const },
     ...(awsApiStatus
-      ? [{ name: 'AWS API', status: awsApiStatus, latency: awsApiStatus === 'healthy' ? 45 : 0, uptime: awsApiStatus === 'healthy' ? '99.9%' : 'degraded' }]
+      ? [{ name: 'AWS API', status: awsApiStatus }]
       : []),
   ]
 

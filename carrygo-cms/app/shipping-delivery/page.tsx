@@ -1,5 +1,9 @@
 ﻿import { LegalPage } from '@/components/marketing/legal-page'
 
+import { createMarketingMetadata } from '@/lib/marketing-metadata'
+
+export const metadata = createMarketingMetadata('Shipping and Delivery Policy', 'Review CarryGo delivery scope, timelines, and handover responsibilities.', '/shipping-delivery')
+
 const sections = [
   {
     title: 'Service Scope',
