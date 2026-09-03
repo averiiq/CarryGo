@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+﻿import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -26,9 +26,9 @@ import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
 import { DocumentsIllustration, ElectronicsIllustration, ClothingIllustration, FoodIllustration, MedicineIllustration, OtherIllustration, ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
 
 const STEPS = [
-  { label: 'Route' },
-  { label: 'Details' },
-  { label: 'Review' },
+  { label: 'Route & Date' },
+  { label: 'Parcel Details' },
+  { label: 'Review & Send' },
 ];
 
 const CATEGORY_ILLUSTRATIONS: Record<ParcelCategory, React.FC<{ size?: number; color?: string; active?: boolean }>> = {
@@ -92,7 +92,8 @@ export default function CreateParcelScreen() {
   const { hasAgreed: hasSafetyAgreed, markAgreed: markSafetyAgreed } = useSafetyAgreement(user?.id);
 
   const setFormValues = useCallback((values: ParcelDraft) => setForm(values), []);
-  const { clearDraft } = useFormDraft('create_parcel', form, setFormValues);
+  const { clearDraft, isDraftRestored } = useFormDraft('create_parcel', form, setFormValues);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
 
   const updateField = <K extends keyof ParcelDraft>(key: K, value: ParcelDraft[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -162,6 +163,58 @@ export default function CreateParcelScreen() {
     return true;
   };
 
+
+  useEffect(() => {
+    if (isDraftRestored) {
+      setShowDraftBanner(true);
+    }
+  }, [isDraftRestored]);
+
+  const routeChecks = useMemo(() => ([
+    { label: 'Pickup city selected', done: Boolean(form.fromCity.trim()) },
+    { label: 'Delivery city selected', done: Boolean(form.toCity.trim()) },
+    { label: 'Route is valid', done: Boolean(form.fromCity && form.toCity && form.fromCity.toLowerCase() !== form.toCity.toLowerCase()) },
+    { label: 'Send-by date selected', done: Boolean(form.deliveryDate) },
+  ]), [form.fromCity, form.toCity, form.deliveryDate]);
+
+  const detailChecks = useMemo(() => {
+    const parcelWeight = Number(form.weight);
+    const offerAmount = Number(form.priceOffer);
+    return [
+      { label: 'At least one photo added', done: form.images.length > 0 },
+      { label: 'Weight set (0.1-100 kg)', done: Number.isFinite(parcelWeight) && parcelWeight > 0 && parcelWeight <= 100 },
+      { label: 'Offer set (Rs 1-1,00,000)', done: Number.isFinite(offerAmount) && offerAmount >= 1 && offerAmount <= 100000 },
+    ];
+  }, [form.images.length, form.weight, form.priceOffer]);
+
+  const currentChecks = step === 0 ? routeChecks : step === 1 ? detailChecks : [];
+  const pendingChecks = currentChecks.filter((item) => !item.done);
+  const nextHintAnim = useRef(new Animated.Value(1)).current;
+  const wasStepCompleteRef = useRef(pendingChecks.length === 0);
+
+
+  useEffect(() => {
+    const isStepComplete = pendingChecks.length === 0;
+    if (isStepComplete && !wasStepCompleteRef.current) {
+      Haptic.success();
+    }
+    wasStepCompleteRef.current = isStepComplete;
+
+    nextHintAnim.setValue(0.86);
+    Animated.spring(nextHintAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 170,
+      friction: 12,
+    }).start();
+  }, [pendingChecks.length, nextHintAnim]);
+  const undoDraftRestore = () => {
+    setForm(EMPTY_DRAFT);
+    setFieldErrors({});
+    setShowDraftBanner(false);
+    clearDraft();
+    Haptic.select();
+  };
   const canMoveToStep = (targetStep: number) => {
     const prepared = prepareDraft();
     for (let checkStep = step; checkStep < targetStep; checkStep++) {
@@ -180,7 +233,15 @@ export default function CreateParcelScreen() {
   };
 
   const goNext = () => {
-    if (!canMoveToStep(Math.min(step + 1, 2))) return;
+    if (!canMoveToStep(Math.min(step + 1, 2))) {
+      const pending = (step === 0 ? routeChecks : detailChecks)
+        .filter((item) => !item.done)
+        .map((item) => item.label);
+      if (pending.length > 0) {
+        showAlert('Complete this step', pending.join(' - '));
+      }
+      return;
+    }
     setFieldErrors({});
     setDirection('forward');
     Haptic.tap();
@@ -347,6 +408,28 @@ export default function CreateParcelScreen() {
         onStepPress={handleStepPress}
         direction={direction}
       >
+        {showDraftBanner ? (
+          <View style={[styles.draftBanner, { backgroundColor: C.warningSubtle, borderColor: C.warning + '55' }]}>
+            <MaterialIcons name="restore" size={16} color={C.warning} />
+            <Text style={[styles.draftBannerText, { color: C.textSecondary }]}>Draft restored from your last session.</Text>
+            <Pressable onPress={undoDraftRestore} hitSlop={6}>
+              <Text style={[styles.draftBannerAction, { color: C.warning }]}>Start fresh</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {step < 2 ? (
+          <View style={[styles.checklistCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <Text style={[styles.checklistTitle, { color: C.textPrimary }]}>Step checklist</Text>
+            {currentChecks.map((item) => (
+              <View key={item.label} style={styles.checklistRow}>
+                <MaterialIcons name={item.done ? 'check-circle' : 'radio-button-unchecked'} size={16} color={item.done ? C.success : C.textMuted} />
+                <Text style={[styles.checklistText, { color: item.done ? C.textPrimary : C.textSecondary }]}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         {step === 0 && (
           <StepRoute
             form={form}
@@ -363,6 +446,16 @@ export default function CreateParcelScreen() {
         {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} />}
 
         <View style={styles.footer}>
+          {step < 2 ? (
+            <Animated.View style={[styles.nextHintBar, { backgroundColor: pendingChecks.length > 0 ? C.warningSubtle : C.successSubtle, borderColor: pendingChecks.length > 0 ? C.warning + '55' : C.success + '55', opacity: nextHintAnim, transform: [{ translateY: nextHintAnim.interpolate({ inputRange: [0.86, 1], outputRange: [4, 0] }) }, { scale: nextHintAnim }] }]}>
+              <MaterialIcons name={pendingChecks.length > 0 ? 'info-outline' : 'check-circle'} size={15} color={pendingChecks.length > 0 ? C.warning : C.success} />
+              <Text style={[styles.nextHintText, { color: C.textSecondary }]} numberOfLines={1}>
+                {pendingChecks.length > 0
+                  ? `Before next: ${pendingChecks.slice(0, 2).map((item) => item.label).join(' Ã¢â‚¬Â¢ ')}`
+                  : 'Looks good - you can continue to the next step.'}
+              </Text>
+            </Animated.View>
+          ) : null}
           {step > 0 && (
             <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
           )}
@@ -399,12 +492,12 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where&apos;s it going?</Text>
       <StepHero
         title='Share a secure parcel route'
-        subtitle='A clear origin, destination, and handover date helps trusted travellers match faster.'
+        subtitle='A clear route and handover date helps trusted travellers match with confidence.'
         illustration="route"
         C={C}
       />
       <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-        Set the pickup and delivery cities
+        Choose route and preferred handover day clearly
       </Text>
 
       <View style={styles.fieldGroup}>
@@ -475,13 +568,13 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false}>
       <StepHero
         title='Add parcel essentials'
-        subtitle='Category, weight, and photos reduce confusion and improve acceptance quality.'
+        subtitle='Category, weight, and photos reduce confusion and improve match quality.'
         illustration="parcel"
         C={C}
       />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Parcel details</Text>
       <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-        What are you sending and how much will you pay?
+        Add parcel details so travellers can trust quickly
       </Text>
 
       <View style={styles.fieldGroup}>
@@ -599,13 +692,13 @@ function StepReview({ form, C, onEdit }: {
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false}>
       <StepHero
         title='Review and send confidently'
-        subtitle='Your summary sets expectations before you connect with travellers on your route.'
+        subtitle='Your summary sets expectations before you connect with verified travellers.'
         illustration="requests"
         C={C}
       />
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Review your parcel</Text>
       <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-        Confirm the details before listing
+        Review and publish with complete clarity
       </Text>
 
       <View style={[styles.reviewCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -716,13 +809,13 @@ function StepHero({
 
 const styles = StyleSheet.create({
   stepContent: { flex: 1 },
-  stepInner: { gap: Spacing.lg, paddingBottom: 124 },
+  stepInner: { gap: Spacing.xl, paddingBottom: 132 },
   heroCard: {
     borderWidth: 1,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     padding: Spacing.md,
-    minHeight: 136,
+    minHeight: 148,
     justifyContent: 'flex-end',
     position: 'relative',
   },
@@ -730,32 +823,32 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -4,
     bottom: -18,
-    opacity: 0.42,
+    opacity: 0.5,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
   heroGlow: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    top: 14,
+    right: 14,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     opacity: 0.55,
   },
   heroTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
+    letterSpacing: -0.35,
   },
   heroSubtitle: {
     marginTop: 4,
     fontSize: FontSize.sm,
-    lineHeight: 19,
+    lineHeight: 21,
   },
-  stepTitle: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold },
-  stepSubtitle: { fontSize: FontSize.md, marginTop: -Spacing.sm },
+  stepTitle: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, letterSpacing: -0.6 },
+  stepSubtitle: { fontSize: FontSize.md, marginTop: -Spacing.xs, lineHeight: 23 },
 
   fieldGroup: { gap: Spacing.sm },
   fieldLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },
@@ -773,7 +866,7 @@ const styles = StyleSheet.create({
 
   scheduleBtn: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    borderRadius: BorderRadius.xl, borderWidth: 1.2, padding: Spacing.md, minHeight: 72,
+    borderRadius: BorderRadius.xl, borderWidth: 1.2, padding: Spacing.mdl, minHeight: 76,
   },
   scheduleIconBox: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   scheduleDateText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
@@ -783,7 +876,7 @@ const styles = StyleSheet.create({
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   categoryCard: {
     alignItems: 'center', gap: 8,
-    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.md + 2,
+    paddingHorizontal: Spacing.smd, paddingVertical: Spacing.mdl,
     borderRadius: BorderRadius.xl, borderWidth: 1.2,
     width: '31%', flexGrow: 1,
   },
@@ -791,7 +884,7 @@ const styles = StyleSheet.create({
   categoryLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
 
   reviewCard: {
-    borderRadius: BorderRadius.xl, borderWidth: 1.2, padding: Spacing.lg, gap: Spacing.sm,
+    borderRadius: BorderRadius.xl, borderWidth: 1.2, padding: Spacing.xl, gap: Spacing.md,
   },
   reviewHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
@@ -799,7 +892,7 @@ const styles = StyleSheet.create({
   reviewLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, letterSpacing: 0.8 },
   reviewRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   reviewDot: { width: 12, height: 12, borderRadius: 6 },
-  reviewValue: { fontSize: FontSize.lg, fontWeight: FontWeight.semibold },
+  reviewValue: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold },
   reviewConnector: { paddingLeft: 4, height: 16, justifyContent: 'center' },
   reviewLine: { width: 2, flex: 1, marginLeft: 4, borderRadius: 1 },
   reviewMeta: {
@@ -824,14 +917,50 @@ const styles = StyleSheet.create({
   descriptionBox: {
     borderRadius: BorderRadius.md, padding: Spacing.sm + 2, marginTop: 4,
   },
-  descriptionText: { fontSize: FontSize.sm, lineHeight: 20 },
+  descriptionText: { fontSize: FontSize.sm, lineHeight: 22 },
 
   infoBox: {
     flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start',
     borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1.2,
   },
-  infoText: { flex: 1, fontSize: FontSize.sm, lineHeight: 20 },
+  infoText: { flex: 1, fontSize: FontSize.sm, lineHeight: 22 },
 
+  draftBanner: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.smd,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  draftBannerText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+  draftBannerAction: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  checklistCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  checklistTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  checklistRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  checklistText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+  nextHintBar: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    minHeight: 40,
+    paddingHorizontal: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    position: 'absolute',
+    left: Spacing.md,
+    right: Spacing.md,
+    top: -48,
+  },
+  nextHintText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.medium },
   footer: {
     flexDirection: 'row', gap: Spacing.md,
     position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -839,3 +968,5 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
 });
+
+

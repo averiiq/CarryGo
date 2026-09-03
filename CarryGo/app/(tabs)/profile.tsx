@@ -136,7 +136,7 @@ export default function ProfileScreen() {
     ? 'You can send and carry parcels freely.'
     : isKycSubmitted
     ? 'Usually approved within 24 hours.'
-    : 'Needed to send or carry parcels — 2 min process.';
+    : 'Needed to send or carry parcels - 2 min process.';
 
   return (
     <>
@@ -156,7 +156,7 @@ export default function ProfileScreen() {
         )}
         scrollEventThrottle={16}
       >
-        {/* ── Hero ──────────────────────────────────────── */}
+        {/* Hero */}
         <Animated.View style={{ opacity: heroEntrance.opacity, transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }] }}>
           <View style={[styles.heroCard, { backgroundColor: C.primaryDark, borderColor: C.primaryDark }]}>
             <View style={styles.heroBackdropImage}>
@@ -173,7 +173,7 @@ export default function ProfileScreen() {
               start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.85 }}
             />
 
-            {/* Edit button — top right */}
+            {/* Edit button */}
             <View style={styles.heroTopRight}>
               <Pressable
                 style={({ pressed }) => [styles.editBtn, { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' }, pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }]}
@@ -217,7 +217,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* ── Stats ─────────────────────────────────────── */}
+        {/* Stats */}
         <Animated.View style={{ opacity: statsEntrance.opacity, transform: statsEntrance.transform }}>
           <View style={styles.statsGrid}>
             <StatPill label="Rating" value={(user.rating || 4.5).toFixed(1)} icon="star" color={C.warning} C={C} iconAnim={starHeartbeat} />
@@ -227,7 +227,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* ── KYC Banner ────────────────────────────────── */}
+        {/* KYC Banner */}
         <Pressable
           style={[styles.kycBanner, { backgroundColor: kycBg, borderColor: kycColor + '30' }]}
           onPress={canOpenKycBanner ? () => setShowKyc(true) : undefined}
@@ -258,7 +258,7 @@ export default function ProfileScreen() {
           )}
         </Pressable>
 
-        {/* ── Sections ─────────────────────────────────── */}
+        {/* Sections */}
         <Animated.View style={[styles.sectionsWrap, { opacity: sectionsEntrance.opacity, transform: sectionsEntrance.transform }]}>
 
           {/* Activity */}
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm + 2,
-    padding: Spacing.md,
+    padding: Spacing.mdl,
     borderRadius: BorderRadius.lg + 2,
     borderWidth: 1,
   },

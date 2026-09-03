@@ -1,4 +1,4 @@
-﻿// CarryGo design tokens for a trust-first, calm logistics UI
+// CarryGo design tokens for a trust-first, calm logistics UI
 
 export type ThemeColors = Omit<typeof DarkColors, 'statusBarStyle'> & {
   statusBarStyle: 'light' | 'dark';
@@ -58,25 +58,25 @@ export const DarkColors = {
 
 // Light palette (current production theme)
 export const LightColors: ThemeColors = {
-  background: '#F7F8F3',
+  background: '#F4F6F2',
   surface: '#FFFFFF',
-  surfaceElevated: '#F2F5EF',
-  surfaceHigh: '#EAF0E8',
-  surfaceBorder: '#DDE5DB',
-  surfaceBorderLight: '#E9EEE7',
+  surfaceElevated: '#EEF2EC',
+  surfaceHigh: '#E7EEE6',
+  surfaceBorder: '#D7E1D6',
+  surfaceBorderLight: '#E5EBE3',
 
-  primary: '#2F8F63',
-  primaryDark: '#1D6847',
-  primaryLight: '#70BC91',
-  primarySubtle: 'rgba(47, 143, 99, 0.11)',
-  primaryGlow: 'rgba(47, 143, 99, 0.2)',
+  primary: '#1E8D5A',
+  primaryDark: '#146643',
+  primaryLight: '#6BC093',
+  primarySubtle: 'rgba(30, 141, 90, 0.1)',
+  primaryGlow: 'rgba(30, 141, 90, 0.22)',
 
-  accent: '#4D9BFF',
-  accentSubtle: 'rgba(77, 155, 255, 0.14)',
+  accent: '#2B7FFF',
+  accentSubtle: 'rgba(43, 127, 255, 0.14)',
 
-  textPrimary: '#17201C',
-  textSecondary: '#425149',
-  textMuted: '#718078',
+  textPrimary: '#132019',
+  textSecondary: '#3B4B43',
+  textMuted: '#6C7D74',
   textInverse: '#FFFFFF',
 
   success: '#2F9E44',
@@ -99,12 +99,12 @@ export const LightColors: ThemeColors = {
   inTransit: '#3B82F6',
   delivered: '#2F9E44',
 
-  overlay: 'rgba(15, 23, 42, 0.58)',
-  overlayLight: 'rgba(15, 23, 42, 0.2)',
-  overlayMedium: 'rgba(15, 23, 42, 0.36)',
+  overlay: 'rgba(9, 18, 14, 0.58)',
+  overlayLight: 'rgba(9, 18, 14, 0.2)',
+  overlayMedium: 'rgba(9, 18, 14, 0.36)',
 
   tabBarBg: '#FFFFFF',
-  inputBg: '#F4F6F2',
+  inputBg: '#F1F5F0',
   statusBarStyle: 'dark' as const,
 };
 
@@ -114,7 +114,9 @@ export const Colors = LightColors;
 export const Spacing = {
   xs: 4,
   sm: 8,
+  smd: 12,
   md: 16,
+  mdl: 20,
   lg: 24,
   xl: 32,
   xxl: 48,
@@ -123,9 +125,9 @@ export const Spacing = {
 export const FontSize = {
   xs: 11,
   sm: 13,
-  md: 15,
+  md: 16,
   lg: 18,
-  xl: 22,
+  xl: 24,
   xxl: 28,
   xxxl: 34,
   display: 42,
@@ -140,21 +142,21 @@ export const FontWeight = {
 };
 
 export const BorderRadius = {
-  xs: 7,
-  sm: 11,
-  md: 15,
-  lg: 19,
-  xl: 24,
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 22,
+  xl: 28,
   xxl: 30,
   full: 9999,
 };
 
 export const Shadow = {
   card: {
-    shadowColor: '#173A2A',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
+    shadowColor: '#0E1D15',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
     elevation: 3,
   },
   glow: {
@@ -165,10 +167,10 @@ export const Shadow = {
     elevation: 5,
   },
   sm: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowColor: '#101A14',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
     elevation: 2,
   },
   float: {
@@ -185,11 +187,11 @@ export const LightShadow = {
 };
 
 export const Gradients = {
-  primary: ['#4DA979', '#277C56'] as [string, string],
-  primaryVibrant: ['#48A576', '#226F4D'] as [string, string],
-  accent: ['#8CC8FF', '#5AA8FF'] as [string, string],
-  hero: ['#FBFCF8', '#F4F7F1', '#EAF2EA'] as [string, string, string],
-  card: ['rgba(88,184,111,0.09)', 'rgba(88,184,111,0.0)'] as [string, string],
+  primary: ['#2FA872', '#146643'] as [string, string],
+  primaryVibrant: ['#25A06A', '#115A3A'] as [string, string],
+  accent: ['#79ADFF', '#3E88FF'] as [string, string],
+  hero: ['#F8FAF6', '#F1F5F0', '#E8EFE7'] as [string, string, string],
+  card: ['rgba(46,168,114,0.1)', 'rgba(46,168,114,0.0)'] as [string, string],
   success: ['#63CC7A', '#2F9E44'] as [string, string],
   warm: ['#FFD98A', '#F4AF2F'] as [string, string],
 };

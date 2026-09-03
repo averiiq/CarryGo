@@ -41,8 +41,8 @@ function AnimatedTabIcon({
   dotAlert?: boolean;
   C: ThemeColors;
 }) {
-  const scale = useRef(new Animated.Value(focused ? 1 : 0.94)).current;
-  const translateY = useRef(new Animated.Value(focused ? -1 : 0)).current;
+  const scale = useRef(new Animated.Value(focused ? 1 : 0.95)).current;
+  const translateY = useRef(new Animated.Value(focused ? -2 : 0)).current;
   const pillWidth = useRef(new Animated.Value(focused ? 1 : 0)).current;
   const pillOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
@@ -50,7 +50,7 @@ function AnimatedTabIcon({
     if (focused) {
       Animated.parallel([
         Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springFast }),
-        Animated.spring(translateY, { toValue: -1, useNativeDriver: true, ...Motion.springFast }),
+        Animated.spring(translateY, { toValue: -2, useNativeDriver: true, ...Motion.springFast }),
         Animated.timing(pillWidth, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
         Animated.timing(pillOpacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: false }),
       ]).start();
@@ -58,14 +58,14 @@ function AnimatedTabIcon({
     }
 
     Animated.parallel([
-      Animated.spring(scale, { toValue: 0.94, useNativeDriver: true, ...Motion.springDefault }),
+      Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, ...Motion.springDefault }),
       Animated.spring(translateY, { toValue: 0, useNativeDriver: true, ...Motion.springDefault }),
       Animated.timing(pillWidth, { toValue: 0, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: false }),
       Animated.timing(pillOpacity, { toValue: 0, duration: 180, easing: Easing.in(Easing.quad), useNativeDriver: false }),
     ]).start();
   }, [focused, scale, translateY, pillWidth, pillOpacity]);
 
-  const indicatorWidth = pillWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 22] });
+  const indicatorWidth = pillWidth.interpolate({ inputRange: [0, 1], outputRange: [0, 24] });
 
   return (
     <Animated.View style={[styles.tabItem, { transform: [{ scale }, { translateY }] }]}> 
@@ -73,7 +73,7 @@ function AnimatedTabIcon({
       <View style={styles.iconContainer}>
         <Ionicons
           name={focused ? icon : outlineIcon}
-          size={23}
+          size={22}
           color={focused ? C.textInverse : color}
         />
         {badge > 0 && <TabBadge count={badge} C={C} />}
@@ -122,7 +122,7 @@ export default function TabLayout() {
   ).length;
   const kycPending = FeatureFlags.kycProvider && (!user.kycStatus || user.kycStatus === 'pending');
 
-  const bottomPad = Platform.select({ ios: Math.max(insets.bottom, 8), android: Math.max(insets.bottom, 8), default: 8 });
+  const bottomPad = Platform.select({ ios: Math.max(insets.bottom, 10), android: Math.max(insets.bottom, 10), default: 10 });
 
   return (
     <Tabs
@@ -130,34 +130,35 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 10,
+          bottom: 12,
           left: 12,
           right: 12,
-          height: 64 + bottomPad,
+          height: 70 + bottomPad,
           paddingBottom: bottomPad,
+          paddingTop: 6,
           backgroundColor: 'transparent',
           borderTopWidth: 0,
-          elevation: 10,
-          shadowColor: '#173A2A',
-          shadowOffset: { width: 0, height: 8 },
+          elevation: 12,
+          shadowColor: '#0A1912',
+          shadowOffset: { width: 0, height: 10 },
           shadowOpacity: 0.12,
-          shadowRadius: 18,
-          borderRadius: 24,
+          shadowRadius: 22,
+          borderRadius: 28,
         },
         tabBarBackground: () => (
           <View style={[StyleSheet.absoluteFill, styles.tabBarBg]}>
             <BlurView
-              intensity={56}
+              intensity={62}
               tint={'light'}
               style={StyleSheet.absoluteFill}
             />
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: 'rgba(255,255,255,0.9)' },
+                { backgroundColor: 'rgba(255,255,255,0.92)' },
               ]}
             />
-            <View style={[styles.tabBarTopBorder, { backgroundColor: C.surfaceBorder + '88' }]} />
+            <View style={[styles.tabBarTopBorder, { backgroundColor: C.surfaceBorder + '99' }]} />
           </View>
         ),
         tabBarActiveTintColor: C.primary,
@@ -219,16 +220,16 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBarBg: {
     overflow: 'hidden',
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(221,229,219,0.9)',
+    borderColor: 'rgba(215,225,214,0.95)',
   },
   tabBarTopBorder: {
     position: 'absolute',
     top: 0,
     left: Spacing.lg,
     right: Spacing.lg,
-    height: 0,
+    height: 1,
   },
   tabButton: {
     flex: 1,
@@ -239,27 +240,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    minWidth: 62,
-    borderRadius: 15,
+    minWidth: 66,
+    borderRadius: 16,
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: 4,
     position: 'relative',
     overflow: 'hidden',
   },
   focusPill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 15,
+    borderRadius: 16,
   },
   iconContainer: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 28,
+    width: 30,
     height: 28,
   },
   tabLabel: {
     fontSize: 10.5,
-    fontWeight: '500',
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   tabLabelActive: {
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
   activeIndicator: {
     height: 2,
     borderRadius: 2,
-    marginTop: 1,
+    marginTop: 2,
   },
   badge: {
     position: 'absolute',

@@ -94,7 +94,7 @@ function RequestRow({ request, viewerRole, onCancel, onChat, onTrack, onPayment,
           <Text style={[styles.tName, { color: C.textPrimary }]}>{request.travellerName}</Text>
           <Text style={[styles.tTime, { color: C.textMuted }]}>
             {new Date(request.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-            {' · '}
+            {' Ã‚Â· '}
             {new Date(request.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
@@ -230,7 +230,7 @@ export default function ParcelDetailScreen() {
 
   const handleChat = (req: Request) => {
     const conv = conversations.find(c => c.requestId === req.id);
-    if (conv) router.push({ pathname: '/chat/[id]', params: { id: conv.id } });
+    if (conv?.id) router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
     else showAlert('No Chat', 'Chat opens once the request is accepted.');
   };
 
@@ -284,7 +284,7 @@ export default function ParcelDetailScreen() {
           <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{parcel.fromCity} → {parcel.toCity}</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{parcel.fromCity} Ã¢â€ â€™ {parcel.toCity}</Text>
           <Text style={[styles.headerSub, { color: C.textMuted }]}>{parcel.description}</Text>
         </View>
         {isSender && parcel.status === 'open' ? (
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
 
   // Hero card
   parcelCard: {
-    borderRadius: 24, borderWidth: 1,
+    borderRadius: 28, borderWidth: 1,
     padding: Spacing.lg, gap: Spacing.lg, overflow: 'hidden',
   },
   cardGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 100 },
@@ -534,11 +534,11 @@ const styles = StyleSheet.create({
 
   descBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
-    borderRadius: 12, padding: Spacing.md,
+    borderRadius: 12, padding: Spacing.mdl,
   },
   descText: { flex: 1, fontSize: FontSize.sm, lineHeight: 22 },
 
-  statsRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: Spacing.md },
+  statsRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: Spacing.md },
   statItem: { flex: 1, alignItems: 'center', gap: 4 },
   statVal: { fontSize: 18, fontWeight: FontWeight.extrabold, letterSpacing: -0.3 },
   statLbl: { fontSize: 10, fontWeight: FontWeight.semibold, letterSpacing: 0.3, textTransform: 'uppercase' },
@@ -554,9 +554,9 @@ const styles = StyleSheet.create({
   // CTA
   findBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    borderRadius: 16, paddingVertical: Spacing.md + 4, overflow: 'hidden',
+    borderRadius: 18, paddingVertical: Spacing.md + 4, overflow: 'hidden',
   },
-  findBtnText: { flex: 1, textAlign: 'center', fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+  findBtnText: { flex: 1, textAlign: 'center', fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff', letterSpacing: 0.2 },
 
   // Summary chips
   chips: { flexDirection: 'row', gap: Spacing.sm },
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 5, paddingVertical: 10, borderRadius: 14, borderWidth: 1,
   },
-  chipCount: { fontSize: 18, fontWeight: FontWeight.extrabold },
+  chipCount: { fontSize: 20, fontWeight: FontWeight.extrabold, letterSpacing: -0.25 },
   chipLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   // Sections
@@ -574,10 +574,10 @@ const styles = StyleSheet.create({
   sectionTitle: { flex: 1, fontSize: FontSize.md, fontWeight: FontWeight.bold },
   sectionBadge: { minWidth: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   sectionBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-  sectionCard: { borderRadius: 20, borderWidth: 1, borderLeftWidth: 3, overflow: 'hidden' },
+  sectionCard: { borderRadius: 22, borderWidth: 1, borderLeftWidth: 3, overflow: 'hidden' },
 
   // Request row
-  reqRow: { padding: Spacing.md, gap: Spacing.sm, borderBottomWidth: 1 },
+  reqRow: { padding: Spacing.mdl, gap: Spacing.sm, borderBottomWidth: 1 },
   reqHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   tAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   tAvatarText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.full },
   statusBadgeText: { fontSize: 10, fontWeight: FontWeight.bold },
   msgBox: { flexDirection: 'row', gap: Spacing.sm, borderRadius: 10, padding: Spacing.sm, borderLeftWidth: 3 },
-  msgText: { flex: 1, fontSize: FontSize.xs, lineHeight: 18 },
+  msgText: { flex: 1, fontSize: FontSize.xs, lineHeight: 19 },
   priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 2 },
   priceLabel: { fontSize: FontSize.xs },
   priceTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, overflow: 'hidden' },
@@ -596,10 +596,10 @@ const styles = StyleSheet.create({
   pDot: { width: 6, height: 6, borderRadius: 3 },
   pLine: { flex: 1, height: 2 },
   pLabel: { marginLeft: Spacing.sm, fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: Spacing.sm + 2, borderRadius: 12, borderWidth: 1 },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: Spacing.smd, borderRadius: 12, borderWidth: 1 },
   cancelBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   actionRow: { flexDirection: 'row', gap: Spacing.sm },
-  aBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: Spacing.sm + 2, borderRadius: 12, borderWidth: 1 },
+  aBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: Spacing.smd, borderRadius: 12, borderWidth: 1 },
   aBtnText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   doneRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: Spacing.sm },
   doneText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
   // Empty / Loading
   loadingState: { paddingVertical: Spacing.xxl, alignItems: 'center', gap: Spacing.md },
   loadingText: { fontSize: FontSize.sm },
-  emptyState: { borderRadius: 24, borderWidth: 1, padding: Spacing.xl, alignItems: 'center', gap: Spacing.md },
+  emptyState: { borderRadius: 28, borderWidth: 1, padding: Spacing.xl, alignItems: 'center', gap: Spacing.md },
   emptyTitle: { fontSize: 20, fontWeight: FontWeight.bold },
   emptySub: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
 });

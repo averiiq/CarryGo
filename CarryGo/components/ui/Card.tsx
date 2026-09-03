@@ -28,7 +28,7 @@ export function Card({ children, style, elevated = false, padded = true, interac
       style={[
         styles.card,
         baseStyle,
-        elevated ? S.card : null,
+        elevated ? S.card : S.sm,
         padded ? styles.padded : styles.compact,
         shouldInteractive ? { transform: [{ scale }] } : null,
         style,
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   padded: {
-    padding: Spacing.md,
+    padding: Spacing.mdl,
   },
   compact: {
     padding: 0,

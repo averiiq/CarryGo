@@ -1,10 +1,7 @@
-import React from 'react';
+﻿import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, {
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
 
@@ -18,9 +15,20 @@ type StepIndicatorProps = {
   onStepPress?: (index: number) => void;
 };
 
+function getStepHint(label: string) {
+  const normalized = label.toLowerCase();
+  if (normalized.includes('route')) return 'Choose cities and schedule with confidence.';
+  if (normalized.includes('capacity') || normalized.includes('parcel') || normalized.includes('detail')) return 'Add the essentials so matching is accurate.';
+  if (normalized.includes('review') || normalized.includes('publish') || normalized.includes('send')) return 'Do a final check before you publish.';
+  return 'Complete this step to continue smoothly.';
+}
+
 export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicatorProps) {
   const { C } = useThemeColors();
   const progress = (currentStep + 1) / steps.length;
+  const percent = Math.round(progress * 100);
+
+  const hint = useMemo(() => getStepHint(steps[currentStep]?.label ?? ''), [currentStep, steps]);
 
   const progressStyle = useAnimatedStyle(() => {
     return {
@@ -30,21 +38,27 @@ export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicator
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={[styles.stepText, { color: C.textMuted }]}>
-          Step {currentStep + 1} of {steps.length}
-        </Text>
-        <Text style={[styles.label, { color: C.textPrimary }]}>
-          {steps[currentStep].label}
-        </Text>
+      <View style={[styles.heroStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
+        <View style={styles.heroTopRow}>
+          <Text style={[styles.stepText, { color: C.textMuted }]}>Step {currentStep + 1} of {steps.length}</Text>
+          <View style={[styles.percentPill, { backgroundColor: C.primarySubtle }]}> 
+            <Text style={[styles.percentText, { color: C.primaryDark }]}>{percent}%</Text>
+          </View>
+        </View>
+
+        <Text style={[styles.label, { color: C.textPrimary }]}>{steps[currentStep]?.label}</Text>
+        <Text style={[styles.hintText, { color: C.textSecondary }]}>{hint}</Text>
+
+        <View style={[styles.progressBarBg, { backgroundColor: C.surfaceBorderLight }]}> 
+          <Animated.View style={[styles.progressBarFill, progressStyle, { backgroundColor: C.primary }]} />
+        </View>
       </View>
-      <View style={[styles.progressBarBg, { backgroundColor: C.surfaceBorderLight }]}>
-        <Animated.View style={[styles.progressBarFill, progressStyle, { backgroundColor: C.primary }]} />
-      </View>
+
       <View style={styles.stepsRow}>
         {steps.map((step, index) => {
           const isComplete = index < currentStep;
           const isActive = index === currentStep;
+
           return (
             <Pressable
               key={step.label}
@@ -62,7 +76,7 @@ export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicator
                 },
               ]}
             >
-              <View style={[styles.stepNumber, { backgroundColor: isActive || isComplete ? C.primary : C.surfaceElevated }]}>
+              <View style={[styles.stepNumber, { backgroundColor: isActive || isComplete ? C.primary : C.surfaceElevated }]}> 
                 {isComplete ? (
                   <MaterialIcons name="check" size={11} color={C.textInverse} />
                 ) : (
@@ -85,11 +99,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
-    gap: 8,
+    gap: 10,
   },
-  headerRow: {
+  heroStrip: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.mdl,
+    paddingVertical: Spacing.smd,
+    gap: 6,
+  },
+  heroTopRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
   stepText: {
@@ -98,24 +119,42 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  label: {
-    fontSize: FontSize.md,
+  percentPill: {
+    minWidth: 44,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  percentText: {
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
   },
+  label: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.35,
+  },
+  hintText: {
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
   progressBarBg: {
-    height: 4,
-    borderRadius: 2,
+    height: 5,
+    borderRadius: 3,
     overflow: 'hidden',
     width: '100%',
+    marginTop: 3,
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 3,
   },
   stepsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: 2 },
   stepChip: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 40,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
     paddingHorizontal: Spacing.sm,

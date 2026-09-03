@@ -153,9 +153,10 @@ export default function MessagesScreen() {
 
   const openConversation = useCallback(
     (conversationId: string) => {
-      if (!conversationId) return;
+      const normalizedId = String(conversationId ?? '').trim();
+      if (!normalizedId) return;
       Haptic.tap();
-      router.push({ pathname: '/chat/[id]', params: { id: conversationId } });
+      router.push(`/chat/${encodeURIComponent(normalizedId)}` as never);
     },
     [router]
   );
@@ -259,7 +260,7 @@ export default function MessagesScreen() {
             <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Messages</Text>
             <Text style={[styles.pageSubtitle, { color: unreadCount > 0 ? C.error : C.textMuted }]}> 
               {unreadCount > 0
-                ? `${unreadCount} unread · ${conversationRows.length} total`
+                ? ` unread Ã‚Â·  total total`
                 : conversationRows.length > 0
                   ? `${conversationRows.length} conversations`
                   : 'Stay connected with your delivery partner'}
@@ -515,14 +516,14 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
-    padding: Spacing.md,
+    padding: Spacing.mdl,
     overflow: 'hidden',
     gap: Spacing.sm,
   },
   heroArtwork: { position: 'absolute', right: -4, bottom: -12, opacity: 0.42 },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
   heroGreeting: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  heroTitle: { marginTop: 2, fontSize: FontSize.lg, fontWeight: FontWeight.bold, maxWidth: 230 },
+  heroTitle: { marginTop: 2, fontSize: FontSize.xl, fontWeight: FontWeight.bold, maxWidth: 240, letterSpacing: -0.35 },
   heroAvatar: {
     width: 44,
     height: 44,
@@ -541,7 +542,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     paddingVertical: Spacing.sm,
   },
-  heroActionText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  heroActionText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold, letterSpacing: 0.2 },
   heroStatsRow: { flexDirection: 'row', gap: Spacing.sm },
   heroStatCard: {
     flex: 1,
@@ -551,7 +552,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   heroStatLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  heroStatValue: { marginTop: 1, fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  heroStatValue: { marginTop: 1, fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.25 },
 
   filterRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm + 2 },
   filterChip: {
@@ -569,7 +570,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    padding: Spacing.md,
+    padding: Spacing.mdl,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
   },
@@ -594,7 +595,7 @@ const styles = StyleSheet.create({
   },
   convInfo: { flex: 1, gap: 3 },
   convTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
-  convName: { flex: 1, fontSize: FontSize.md, fontWeight: FontWeight.semibold },
+  convName: { flex: 1, fontSize: FontSize.md, fontWeight: FontWeight.semibold, letterSpacing: -0.2 },
   convTime: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
   routePill: {
     flexDirection: 'row',
@@ -606,7 +607,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   routeText: { fontSize: 10, fontWeight: FontWeight.semibold, maxWidth: 170 },
-  lastMsg: { fontSize: FontSize.sm, lineHeight: 18 },
+  lastMsg: { fontSize: FontSize.sm, lineHeight: 20 },
   unreadBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   unreadText: { fontSize: 9, color: '#fff', fontWeight: '800', letterSpacing: 0.5 },
 
@@ -625,7 +626,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold },
-  emptySubtext: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+  emptySubtext: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 22, maxWidth: 260 },
   emptyCTA: {
     flexDirection: 'row',
     alignItems: 'center',

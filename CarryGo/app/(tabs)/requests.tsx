@@ -238,7 +238,7 @@ export default function RequestsScreen() {
   const handleChat = (req: typeof requests[0]) => {
     Haptic.tap();
     const conv = conversations.find(c => c.requestId === req.id);
-    if (conv) router.push({ pathname: '/chat/[id]', params: { id: conv.id } });
+    if (conv?.id) router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
     else showAlert('No Chat Yet', 'Chat opens automatically once the request is accepted.');
   };
 
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   heroCard: {
     borderWidth: 1,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
+    padding: Spacing.mdl,
     gap: Spacing.sm,
     marginBottom: Spacing.sm,
     overflow: 'hidden',
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   },
   pageSubtitle: {
     fontSize: FontSize.sm,
-    lineHeight: 19,
+    lineHeight: 21,
   },
   statsRow: {
     flexDirection: 'row',
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderRadius: BorderRadius.md,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     gap: 2,
   },
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
   statValue: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
   },
   statLabel: {
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   quickActionIcon: {
     width: 25,
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   contextText: {
-    marginTop: 9,
+    marginTop: 10,
     marginBottom: Spacing.sm,
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
@@ -777,7 +777,7 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    paddingVertical: 7,
+    paddingVertical: 8,
     paddingLeft: 12,
     paddingRight: 7,
   },
@@ -823,14 +823,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   emptyTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.semibold,
     marginTop: Spacing.xs,
   },
   emptySubtext: {
     fontSize: FontSize.sm,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
     maxWidth: 286,
   },
   emptyCTA: {
@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
+    paddingVertical: Spacing.smd,
     borderRadius: BorderRadius.full,
     marginTop: Spacing.sm,
   },

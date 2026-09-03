@@ -314,6 +314,9 @@ export async function updateRequestStatus(requestId: string, status: Request['st
     return { data: null, error: existingRequest.error ?? 'Request not found.' };
   }
 
+  if (existingRequest.data.senderId !== userId && existingRequest.data.travellerId !== userId) {
+    return { data: null, error: 'Only the sender or assigned traveller can update this request.' };
+  }
   const transitionError = validateStatusTransition(existingRequest.data, status, userId);
   if (transitionError) {
     return { data: null, error: transitionError };

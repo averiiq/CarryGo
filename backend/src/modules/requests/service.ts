@@ -386,6 +386,9 @@ export const updateRequestStatus = async (
     return { updated: false, error: 'Request not found' };
   }
 
+  if (current.senderId !== userId && current.travellerId !== userId) {
+    return { updated: false, error: 'Only the sender or assigned traveller can update this request' };
+  }
   const transitionError = validateRequestTransition(current, status, userId);
   if (transitionError) {
     return { updated: false, error: transitionError };

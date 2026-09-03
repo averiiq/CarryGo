@@ -122,8 +122,10 @@ function MessageBubble({
 }
 
 export default function ChatScreen() {
-  const { id: rawId } = useLocalSearchParams<{ id?: string | string[] }>();
-  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const { id: rawId, conversationId: rawConversationId } = useLocalSearchParams<{ id?: string | string[]; conversationId?: string | string[] }>();
+  const resolvedId = Array.isArray(rawId) ? rawId[0] : rawId;
+  const fallbackConversationId = Array.isArray(rawConversationId) ? rawConversationId[0] : rawConversationId;
+  const id = decodeURIComponent((resolvedId || fallbackConversationId || '').trim());
   const { user } = useAuth();
   const conversationsQuery = useConversationsQuery(user?.id);
   const messagesQuery = useConversationMessagesQuery(id);
@@ -420,10 +422,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
     borderBottomWidth: 1,
   },
-  deliveryCTAText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  deliveryCTAText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   invalidWrap: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
-  messageList: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+  messageList: { paddingHorizontal: Spacing.md, paddingTop: Spacing.mdl },
   loadOlderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -450,30 +452,30 @@ const styles = StyleSheet.create({
   },
   avatarSmallText: { fontSize: 12, fontWeight: FontWeight.bold },
   bubble: {
-    maxWidth: '75%', paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm, paddingBottom: 6, borderRadius: 18,
+    maxWidth: '78%', paddingHorizontal: Spacing.mdl,
+    paddingTop: Spacing.smd, paddingBottom: 8, borderRadius: 20,
   },
-  bubbleMine: { borderBottomRightRadius: 4 },
-  bubbleOther: { borderBottomLeftRadius: 4, borderWidth: 1 },
-  bubbleText: { fontSize: FontSize.md, lineHeight: 22 },
+  bubbleMine: { borderBottomRightRadius: 6 },
+  bubbleOther: { borderBottomLeftRadius: 6, borderWidth: 1 },
+  bubbleText: { fontSize: FontSize.md, lineHeight: 23 },
   bubbleMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 3, gap: 2 },
   bubbleTime: { fontSize: 10 },
 
   emptyChat: { flex: 1, alignItems: 'center', paddingHorizontal: Spacing.xl, paddingTop: 80, gap: Spacing.md },
-  emptyIconBox: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  emptyIconBox: { width: 88, height: 88, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   emptyChatText: { fontSize: FontSize.lg, fontWeight: FontWeight.semibold },
   emptyChatSubtext: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20 },
   copyHint: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: BorderRadius.full, marginTop: 4,
   },
-  copyHintText: { fontSize: FontSize.xs },
+  copyHintText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
 
   scrollBtnWrap: {
     position: 'absolute', right: Spacing.md, bottom: 90, zIndex: 10,
   },
   scrollBtn: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 42, height: 42, borderRadius: 21,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, elevation: 4,
     shadowColor: '#111827', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4,
@@ -485,11 +487,11 @@ const styles = StyleSheet.create({
   },
   inputWrap: {
     flex: 1, borderRadius: BorderRadius.full,
-    borderWidth: 1.5, paddingHorizontal: Spacing.md, paddingVertical: 10,
+    borderWidth: 1.2, paddingHorizontal: Spacing.mdl, paddingVertical: 11,
   },
   input: { fontSize: FontSize.md, maxHeight: 120, includeFontPadding: false },
   sendBtn: {
-    width: 46, height: 46, borderRadius: 23,
+    width: 48, height: 48, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center',
   },
 });

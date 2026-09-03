@@ -242,12 +242,12 @@ export default function LoginScreen() {
               </Animated.View>
               <View>
                 <Text style={[styles.brandName, { color: C.textPrimary }]}>CarryGo</Text>
-                <Text style={[styles.brandTag, { color: C.textMuted }]}>Peer-to-peer delivery</Text>
+                <Text style={[styles.brandTag, { color: C.textMuted }]}>Trusted community logistics</Text>
               </View>
             </View>
             <View style={styles.heroText}>
-              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Ship smarter,{'\n'}earn while travelling</Text>
-              <Text style={[styles.heroSub, { color: C.textSecondary }]}>Connect with real travellers on your route. No courier fees, just trust.</Text>
+              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Deliver with confidence,{'\n'}earn on every route</Text>
+              <Text style={[styles.heroSub, { color: C.textSecondary }]}>A premium parcel marketplace built for safe handoffs, transparent matching, and verified travellers.</Text>
             </View>
             <View style={styles.featurePills}>
               {FEATURES.map((f, i) => (
@@ -260,7 +260,7 @@ export default function LoginScreen() {
             <View style={[styles.loginArtwork, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <ProductIllustration variant="delivery" size={164} />
               <View style={styles.artworkCopy}>
-                <Text style={[styles.artworkTitle, { color: C.textPrimary }]}>A simpler way to move things</Text>
+                <Text style={[styles.artworkTitle, { color: C.textPrimary }]}>Designed for modern delivery</Text>
                 <Text style={[styles.artworkSubtitle, { color: C.textMuted }]}>Match by route, coordinate safely, and track every handoff.</Text>
               </View>
             </View>

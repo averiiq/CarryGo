@@ -217,9 +217,9 @@ export default function SearchScreen() {
     setSubscribing(false);
     if (data) {
       Haptic.success();
-      showAlert('Route Alert Created!', `You'll be notified when trips or parcels appear on ${fromCity} → ${toCity}.`);
+      showAlert('Route Alert Created!', `You'll be notified when trips or parcels appear on  → .`);
     } else {
-      showAlert('Already Subscribed', `You already have an alert for ${fromCity} → ${toCity}.`);
+      showAlert('Already Subscribed', `You already have an alert for  → .`);
     }
   };
 
@@ -678,7 +678,7 @@ const localStyles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1.2,
   },
   sortBtnText: {
@@ -697,7 +697,7 @@ const localStyles = StyleSheet.create({
   sortChip: {
     paddingHorizontal: 13,
     paddingVertical: 7,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1.2,
   },
   sortChipText: {
@@ -716,7 +716,7 @@ const localStyles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1.2,
   },
   refreshText: {

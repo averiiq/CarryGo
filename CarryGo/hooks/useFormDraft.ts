@@ -1,16 +1,22 @@
-import { useEffect, useRef, useCallback } from 'react';
+﻿import { useEffect, useRef, useCallback, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DRAFT_PREFIX = 'CARRYGO_DRAFT_';
+
+type DraftOptions<T> = {
+  onRestore?: (values: T) => void;
+};
 
 export function useFormDraft<T extends Record<string, unknown>>(
   key: string,
   currentValues: T,
   setValues: (values: T) => void,
+  options?: DraftOptions<T>,
 ) {
   const storageKey = `${DRAFT_PREFIX}${key}`;
   const hasRestoredRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
 
   useEffect(() => {
     if (hasRestoredRef.current) return;
@@ -21,11 +27,13 @@ export function useFormDraft<T extends Record<string, unknown>>(
       try {
         const parsed = JSON.parse(raw) as T;
         setValues(parsed);
+        setIsDraftRestored(true);
+        options?.onRestore?.(parsed);
       } catch {
         AsyncStorage.removeItem(storageKey);
       }
     });
-  }, [storageKey, setValues]);
+  }, [storageKey, setValues, options]);
 
   useEffect(() => {
     if (!hasRestoredRef.current) return;
@@ -52,6 +60,7 @@ export function useFormDraft<T extends Record<string, unknown>>(
 
   const clearDraft = useCallback(() => {
     AsyncStorage.removeItem(storageKey);
+    setIsDraftRestored(false);
   }, [storageKey]);
 
   const hasDraft = useCallback(async () => {
@@ -59,5 +68,5 @@ export function useFormDraft<T extends Record<string, unknown>>(
     return raw !== null;
   }, [storageKey]);
 
-  return { clearDraft, hasDraft };
+  return { clearDraft, hasDraft, isDraftRestored };
 }

@@ -72,7 +72,7 @@ export function Button({
 
   const variantBg = {
     primary: 'transparent',
-    secondary: C.surfaceElevated,
+    secondary: C.surface,
     outline: 'transparent',
     ghost: 'transparent',
     danger: C.error,
@@ -90,7 +90,7 @@ export function Button({
     primary: C.textInverse,
     secondary: C.textPrimary,
     outline: C.primary,
-    ghost: C.primary,
+    ghost: C.primaryDark,
     danger: C.textInverse,
   }[variant];
 
@@ -110,18 +110,17 @@ export function Button({
             borderWidth: variant === 'ghost' ? 0 : 1.2,
           },
           variant === 'primary' ? S.sm : null,
+          variant === 'secondary' ? S.card : null,
           isDisabled && styles.disabled,
         ]}
       >
         {variant === 'primary' ? (
-          <>
-            <LinearGradient
-              colors={Gradients.primaryVibrant}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[StyleSheet.absoluteFillObject, { borderRadius: BorderRadius.md }]}
-            />
-          </>
+          <LinearGradient
+            colors={Gradients.primaryVibrant}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFillObject, { borderRadius: BorderRadius.md }]}
+          />
         ) : null}
 
         {loading ? (
@@ -147,16 +146,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fullWidth: { width: '100%' },
-  disabled: { opacity: 0.5 },
+  disabled: { opacity: 0.55 },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
 
-  sizeSm: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, minHeight: 40 },
-  sizeMd: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm + 4, minHeight: 52 },
-  sizeLg: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, minHeight: 60 },
+  sizeSm: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.smd, minHeight: 42 },
+  sizeMd: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.smd, minHeight: 54 },
+  sizeLg: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, minHeight: 62 },
 
   text: { fontWeight: FontWeight.semibold, letterSpacing: 0.2 },
   textSizeSm: { fontSize: FontSize.sm },

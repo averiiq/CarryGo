@@ -94,7 +94,7 @@ export default function TripDetailScreen() {
         text: 'Accept', onPress: async () => {
           await updateRequestStatusAsync({ requestId: req.id, status: 'accepted' });
           const parcel = parcels.find(p => p.id === req.parcelId);
-          const route = parcel ? `${parcel.fromCity} → ${parcel.toCity}` : trip ? `${trip.fromCity} → ${trip.toCity}` : 'Route';
+          const route = parcel ? ` Ã¢â€ â€™ ` : trip ? ` Ã¢â€ â€™ ` : 'Route';
           const existingConversation = conversations.find(conversation => conversation.requestId === req.id);
           if (!existingConversation) {
             await createConversationAsync({
@@ -137,7 +137,7 @@ export default function TripDetailScreen() {
 
   const handleChat = (req: Request) => {
     const conv = conversations.find(c => c.requestId === req.id);
-    if (conv) router.push({ pathname: '/chat/[id]', params: { id: conv.id } });
+    if (conv?.id) router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
     else showAlert('No Chat', 'Chat opens once the request is accepted.');
   };
 
@@ -199,8 +199,8 @@ export default function TripDetailScreen() {
           <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{trip.fromCity} → {trip.toCity}</Text>
-          <Text style={[styles.headerSub, { color: C.textMuted }]}>{trip.date} · {trip.time}</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{trip.fromCity} Ã¢â€ â€™ {trip.toCity}</Text>
+          <Text style={[styles.headerSub, { color: C.textMuted }]}>{trip.date} Ã‚Â· {trip.time}</Text>
         </View>
         {isOwner && trip.status === 'active' ? (
           <Pressable

@@ -37,7 +37,7 @@ export function Input({ label, error, containerStyle, leftIcon, rightIcon, style
     ? C.error
     : borderAnim.interpolate({ inputRange: [0, 1], outputRange: [C.surfaceBorder, C.primary] });
 
-  const shadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.07] });
+  const shadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.08] });
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -53,8 +53,8 @@ export function Input({ label, error, containerStyle, leftIcon, rightIcon, style
             borderColor,
             shadowColor: C.primary,
             shadowOpacity,
-            shadowOffset: { width: 0, height: 4 },
-            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 5 },
+            shadowRadius: 12,
             elevation: focused ? 2 : 0,
           },
         ]}
@@ -77,7 +77,7 @@ export function Input({ label, error, containerStyle, leftIcon, rightIcon, style
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 7 },
+  container: { gap: 8 },
   label: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
@@ -87,13 +87,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: BorderRadius.md,
-    borderWidth: 1.4,
-    minHeight: 54,
+    borderWidth: 1.2,
+    minHeight: 56,
   },
   input: {
     flex: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 5,
+    paddingVertical: Spacing.smd,
     fontSize: FontSize.md,
     fontWeight: FontWeight.medium,
   },

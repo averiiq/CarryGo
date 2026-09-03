@@ -315,7 +315,7 @@ export default function DeliveryScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.locationTitle, { color: C.textPrimary }]}>Awaiting Location</Text>
                 <Text style={[styles.locationSub, { color: C.textMuted }]}>
-                  Traveller has not enabled location sharing · Auto-checks every 15s
+                  Traveller has not enabled location sharing - auto-checks every 15s
                 </Text>
               </View>
               <ActivityIndicator size="small" color={C.primary} />
@@ -418,13 +418,13 @@ export default function DeliveryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, gap: Spacing.md },
+  content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.mdl, gap: Spacing.mdl },
   heroCard: {
     borderWidth: 1,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    minHeight: 124,
-    padding: Spacing.md,
+    minHeight: 138,
+    padding: Spacing.mdl,
     justifyContent: 'flex-end',
     position: 'relative',
   },
@@ -432,20 +432,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -8,
     bottom: -18,
-    opacity: 0.38,
+    opacity: 0.48,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
   heroTitle: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.xxl,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
+    letterSpacing: -0.45,
   },
   heroSubtitle: {
     marginTop: 4,
     fontSize: FontSize.sm,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg },
   emptyStateTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
@@ -453,11 +453,11 @@ const styles = StyleSheet.create({
 
   locationCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    borderRadius: BorderRadius.lg, borderWidth: 1, padding: Spacing.md,
+    borderRadius: BorderRadius.lg, borderWidth: 1, padding: Spacing.mdl,
   },
   locationIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  locationTitle: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-  locationSub: { fontSize: FontSize.xs, marginTop: 2 },
+  locationTitle: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, letterSpacing: -0.2 },
+  locationSub: { fontSize: FontSize.xs, marginTop: 3, lineHeight: 18 },
 
   waitCard: {
     borderRadius: BorderRadius.xl, borderWidth: 1,
@@ -468,11 +468,11 @@ const styles = StyleSheet.create({
 
   detailCard: {
     borderRadius: BorderRadius.xl, borderWidth: 1,
-    padding: Spacing.md, gap: Spacing.sm, overflow: 'hidden',
+    padding: Spacing.mdl, gap: Spacing.sm, overflow: 'hidden',
   },
   detailCardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 4 },
   detailCardIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  detailCardTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
+  detailCardTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, letterSpacing: -0.2 },
   detailRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: Spacing.sm, borderBottomWidth: 1,
