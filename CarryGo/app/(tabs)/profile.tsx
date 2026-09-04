@@ -68,7 +68,7 @@ function StatPill({ label, value, icon, color, C, iconAnim }: { label: string; v
 }
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const { showAlert } = useAlert();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -106,7 +106,35 @@ export default function ProfileScreen() {
       },
     ]);
   };
-
+  const handleDeleteAccount = () => {
+    Haptic.warning();
+    showAlert('Delete account?', 'This permanently removes your CarryGo account and signs you out. This action cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete Account',
+        style: 'destructive',
+        onPress: () => {
+          Haptic.warning();
+          showAlert('Final confirmation', 'Please confirm you want to permanently delete this account.', [
+            { text: 'Keep Account', style: 'cancel' },
+            {
+              text: 'Delete Permanently',
+              style: 'destructive',
+              onPress: async () => {
+                const result = await deleteAccount();
+                if (result.error) {
+                  showAlert('Deletion failed', result.error);
+                  return;
+                }
+                showAlert('Account deleted', 'Your account has been deleted successfully.');
+                router.replace('/login');
+              },
+            },
+          ]);
+        },
+      },
+    ]);
+  };
   if (!user) return null;
 
   const displayName = user.fullName || user.name || user.email?.split('@')[0] || 'User';
@@ -276,7 +304,7 @@ export default function ProfileScreen() {
               <MenuItem C={C}
                 icon={<MaterialIcons name="bar-chart" size={17} color={C.primary} />}
                 label="My Activity"
-                subtitle={`${myTrips.length} trips � ${myParcels.length} parcels`}
+                subtitle={`${myTrips.length} trips ? ${myParcels.length} parcels`}
                 onPress={() => router.push('/my-activity')}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
@@ -318,6 +346,14 @@ export default function ProfileScreen() {
                 label="KYC Verification"
                 subtitle={!isKycAvailable ? 'Provider required' : isKycApproved ? 'Approved' : isKycSubmitted ? 'Under Review' : 'Not started'}
                 onPress={!isKycAvailable || isKycApproved ? undefined : () => setShowKyc(true)}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
+              <MenuItem C={C}
+                icon={<MaterialIcons name="delete-outline" size={17} color={C.error} />}
+                label="Delete Account"
+                subtitle="Permanently remove your profile and data"
+                onPress={handleDeleteAccount}
+                danger
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
               <MenuItem C={C}
@@ -556,3 +592,9 @@ const styles = StyleSheet.create({
   footerText: { fontSize: 10, fontWeight: FontWeight.medium, letterSpacing: 0.3 },
   footerDot: { width: 3, height: 3, borderRadius: 1.5 },
 });
+
+
+
+
+
+

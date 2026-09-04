@@ -13,7 +13,25 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "in.averiq.carrygo",
-      "newArchEnabled": true
+      "newArchEnabled": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "CarryGo uses the camera to capture parcel photos, delivery proof, and KYC verification documents.",
+        "NSPhotoLibraryUsageDescription": "CarryGo lets you upload parcel and verification images from your photo library.",
+        "NSLocationWhenInUseUsageDescription": "CarryGo uses your location to match routes and support live trip and parcel tracking when enabled."
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "package": "in.averiq.carrygo",

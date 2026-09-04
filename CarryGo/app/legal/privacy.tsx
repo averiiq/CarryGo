@@ -12,7 +12,7 @@ const SECTIONS = [
   ['Sharing and processors', 'Information is shared only with delivery participants where necessary and with contracted providers such as Supabase, Expo, Cloudinary, and payment or identity-verification providers. We do not sell personal information.'],
   ['Location and permissions', 'Precise location is requested only for enabled delivery tracking. Camera access is used for parcel and verification images. You can revoke permissions in device settings.'],
   ['Retention and security', 'We retain records only as required for operations, disputes, fraud prevention, and applicable law. Sensitive credentials are stored using platform-protected storage and server access is restricted by authorization policies.'],
-  ['Your choices', 'You may request access, correction, or deletion of your personal information, subject to legal retention requirements. You may also disable notifications and location access in device settings.'],
+  ['Your choices', 'You may request access or correction of your personal information. You can permanently delete your account in the app from Profile > Delete Account, subject to legal retention requirements.'],
 ] as const;
 
 export default function PrivacyScreen() {
@@ -56,7 +56,7 @@ export default function PrivacyScreen() {
           </View>
         ))}
         <Text style={[styles.contact, { color: C.textMuted }]}>
-          Privacy questions or deletion requests can be submitted through CarryGo support.
+          For privacy questions, contact CarryGo support from the in-app help channel.
         </Text>
       </ScrollView>
     </View>

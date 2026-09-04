@@ -8,6 +8,7 @@ import { Haptic } from '@/services/haptics.service';
 import { AUTH_TIMEOUTS } from '@/constants/timing';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { secureGet, secureSet, secureDelete } from '@/lib/secure-storage';
+import { requestAccountDeletion } from '@/services/account.service';
 
 const CACHED_USER_KEY = 'cached_user_profile';
 
@@ -20,6 +21,7 @@ interface AuthContextType {
   sendOTP: (email: string) => Promise<{ error: string | null }>;
   verifyOTP: (email: string, otp: string) => Promise<{ error: string | null; requiresProfileSetup?: boolean }>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: string | null }>;
   updateUser: (updates: Partial<User>) => void;
   refreshUser: () => Promise<void>;
 }
@@ -250,6 +252,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient, persistUser]);
 
+  const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
+    const { error } = await requestAccountDeletion();
+    if (error) return { error };
+
+    try {
+      const sb = getSupabaseClient();
+      await sb.auth.signOut();
+    } finally {
+      setUser(null);
+      persistUser(null);
+      queryClient.clear();
+    }
+
+    return { error: null };
+  }, [persistUser, queryClient]);
+
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser(prev => prev ? { ...prev, ...updates } : null);
   }, []);
@@ -267,9 +285,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sendOTP,
     verifyOTP,
     logout,
+    deleteAccount,
     updateUser,
     refreshUser,
-  }), [user, isLoading, sessionError, sendOTP, verifyOTP, logout, updateUser, refreshUser]);
+  }), [user, isLoading, sessionError, sendOTP, verifyOTP, logout, deleteAccount, updateUser, refreshUser]);
 
   return (
     <AuthContext.Provider value={contextValue}>
