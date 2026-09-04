@@ -1,6 +1,25 @@
-import { type NextRequest, NextResponse } from 'next/server'
+﻿import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './utils/supabase/middleware'
 import { loginLimiter } from './lib/rate-limit'
+
+function buildCsp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self'",
+    "connect-src 'self' https://*.supabase.co",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ')
+}
+
+function createNonce(): string {
+  return btoa(crypto.randomUUID())
+}
 
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for')
@@ -49,6 +68,9 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const nonce = createNonce()
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
 
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
     if (request.method === 'POST') {
@@ -59,12 +81,15 @@ export async function proxy(request: NextRequest) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         url.searchParams.set('error', 'rate_limited')
-        return addSecurityHeaders(NextResponse.redirect(url))
+        const redirectResponse = addSecurityHeaders(NextResponse.redirect(url))
+        redirectResponse.headers.set('Content-Security-Policy', buildCsp(nonce))
+        return redirectResponse
       }
     }
   }
 
-  const response = await updateSession(request)
+  const response = await updateSession(request, requestHeaders)
+  response.headers.set('Content-Security-Policy', buildCsp(nonce))
   return addSecurityHeaders(response as NextResponse)
 }
 

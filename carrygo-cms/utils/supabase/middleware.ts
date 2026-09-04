@@ -4,9 +4,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 const ROLE_COOKIE_NAME = 'x-cms-role'
 const ROLE_COOKIE_MAX_AGE = 300 // 5 minutes balances security with reduced DB lookups
 
-export async function updateSession(request: NextRequest) {
+export async function updateSession(request: NextRequest, requestHeaders?: Headers) {
   let supabaseResponse = NextResponse.next({
-    request,
+    request: {
+      headers: requestHeaders ?? request.headers,
+    },
   })
 
   const supabase = createServerClient(
@@ -20,7 +22,9 @@ export async function updateSession(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
-            request,
+            request: {
+              headers: requestHeaders ?? request.headers,
+            },
           })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -81,5 +85,3 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse
 }
-
-
