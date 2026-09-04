@@ -1,6 +1,20 @@
 ﻿import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, BadgeCheck, Box, Handshake, PlaneTakeoff, ShieldCheck, Sparkles, WalletCards } from 'lucide-react'
+import {
+  ArrowRight,
+  BadgeCheck,
+  BellRing,
+  Box,
+  CircleDollarSign,
+  Handshake,
+  MessagesSquare,
+  PlaneTakeoff,
+  Route,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  WalletCards,
+} from 'lucide-react'
 import { Reveal } from '@/components/marketing/animated-reveal'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
@@ -14,7 +28,7 @@ export const metadata = createMarketingMetadata('Trusted Parcel Delivery Network
 const featurePillars = [
   {
     title: 'Smart Route Matching',
-    description: 'Route-aware matching helps identify suitable travelers by destination, timing, and availability.',
+    description: 'Route-aware matching identifies suitable travelers by destination, timing, and available capacity.',
     icon: PlaneTakeoff,
     tone: 'text-primary bg-primary-subtle',
   },
@@ -26,10 +40,19 @@ const featurePillars = [
   },
   {
     title: 'Transparent Pricing',
-    description: 'See delivery fees, traveler payout, and protection costs before confirming requests.',
+    description: 'See delivery fee, traveler payout, and protection costs before confirming requests.',
     icon: WalletCards,
     tone: 'text-accent bg-accent-subtle',
   },
+]
+
+const appParityFeatures = [
+  { title: 'Create Trip & Parcel', description: 'Post travel plans or delivery requests with route, date, and capacity details.', icon: Route },
+  { title: 'Smart Search Feed', description: 'Discover relevant trips/parcels using filters and confidence-based matching.', icon: Search },
+  { title: 'Requests Workflow', description: 'Send, accept, reject, and track request states in one flow.', icon: BadgeCheck },
+  { title: 'Real-time Chat', description: 'Coordinate handover and updates in conversation threads.', icon: MessagesSquare },
+  { title: 'Payments & Wallet', description: 'Track escrow, release, refunds, and payout signals clearly.', icon: CircleDollarSign },
+  { title: 'Alerts & Updates', description: 'Stay informed at every milestone with in-app style notifications.', icon: BellRing },
 ]
 
 const journeySteps = [
@@ -64,38 +87,20 @@ const personaCards = [
   },
 ]
 
-const routeMoments = [
-  {
-    title: 'Urban Route Readiness',
-    subtitle: 'Live city movement coverage',
-    image: '/images/custom/route-network.svg',
-  },
-  {
-    title: 'Secure Package Handover',
-    subtitle: 'Policy-backed delivery checkpoints',
-    image: '/images/custom/secure-handover.svg',
-  },
-  {
-    title: 'Operational Backbone',
-    subtitle: 'Reliable warehousing and dispatch',
-    image: '/images/custom/warehouse-ops.svg',
-  },
-]
-
 export default function LandingPage() {
   return (
     <MarketingShell>
       <ScrollLinkedSection className='px-6 pt-16 pb-16 md:pt-24 md:pb-24'>
         <PageHero
-          badge='Trusted Peer-to-Peer Delivery Network'
-          title='A More Elegant Way to Move Parcels'
-          description='CarryGo blends premium product design with reliable logistics workflows to deliver parcels quickly, safely, and transparently.'
+          badge='CarryGo App Experience, Recreated for Web'
+          title='Website UI with the Same Feel as Your Mobile App'
+          description='CarryGo web now follows the same trust-first visual language and product workflows used in the app: matching, requests, tracking, chat, and payout visibility.'
           illustrationSrc='/images/custom/hero-logistics.svg'
-          illustrationAlt='Custom logistics dashboard illustration'
-          illustrationLabel='Custom in-house visual system'
+          illustrationAlt='CarryGo logistics illustration'
+          illustrationLabel='Design system aligned to the mobile app'
           actions={[
-            { label: 'Explore Features', href: '/features' },
-            { label: 'See Pricing', href: '/pricing', variant: 'secondary' },
+            { label: 'Explore App Features', href: '/features' },
+            { label: 'Open Dashboard', href: '/dashboard', variant: 'secondary' },
           ]}
         />
 
@@ -113,20 +118,20 @@ export default function LandingPage() {
 
       <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <SectionHeading
-          label='Visual Story'
-          title='Grounded in real logistics moments'
-          description='A modern, image-forward experience that reflects how parcel movement actually happens.'
+          label='App Feature Parity'
+          title='Core mobile product capabilities now reflected on website'
+          description='These surfaces mirror the same functional experience users already trust in the app.'
         />
 
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
-          {routeMoments.map((moment, index) => (
-            <Reveal key={moment.title} delay={index * 0.08}>
-              <article className='glass-card group overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm'>
-                <Image src={moment.image} alt={moment.title} width={960} height={680} className='aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]' />
-                <div className='border-t border-border/70 p-5'>
-                  <p className='text-sm font-medium text-muted'>{moment.subtitle}</p>
-                  <h3 className='mt-1 text-xl font-heading font-semibold text-foreground'>{moment.title}</h3>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-2 lg:grid-cols-3'>
+          {appParityFeatures.map((feature, index) => (
+            <Reveal key={feature.title} delay={index * 0.05}>
+              <article className='glass-card rounded-3xl p-6 md:p-7'>
+                <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-subtle text-primary'>
+                  <feature.icon className='h-5 w-5' />
                 </div>
+                <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{feature.title}</h3>
+                <p className='mt-2 text-sm leading-relaxed text-muted'>{feature.description}</p>
               </article>
             </Reveal>
           ))}
@@ -135,71 +140,29 @@ export default function LandingPage() {
 
       <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <SectionHeading
-          label='Capability Stack'
-          title='Purpose-built for modern parcel movement'
-          description='From discovery and matching to secure handovers and audit-ready logs, each stage is engineered for confidence.'
+          label='Core Pillars'
+          title='Trust-first design language from the app'
+          description='Visual hierarchy, cards, actions, and state colors now follow the same mobile design intent.'
         />
 
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 lg:grid-cols-[1.2fr_0.8fr]'>
-          <div className='grid gap-5 md:grid-cols-3 lg:grid-cols-1'>
-            {featurePillars.map((pillar, index) => (
-              <Reveal key={pillar.title} delay={index * 0.06}>
-                <article className='glass-card space-y-4 rounded-3xl p-6 md:p-7'>
-                  <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${pillar.tone}`}>
-                    <pillar.icon className='h-5 w-5' />
-                  </div>
-                  <h3 className='text-xl font-heading font-semibold text-foreground'>{pillar.title}</h3>
-                  <p className='text-sm leading-relaxed text-muted'>{pillar.description}</p>
-                </article>
-              </Reveal>
-            ))}
-          </div>
-
-          <Reveal delay={0.12}>
-            <article className='glass-card h-full rounded-3xl p-4'>
-              <Image src='/images/custom/warehouse-ops.svg' alt='Custom warehouse operations illustration' width={900} height={1100} className='aspect-[4/5] h-full w-full rounded-2xl object-cover' />
-              <div className='mt-4 flex items-center gap-2 text-sm text-muted'>
-                <BadgeCheck className='h-4 w-4 text-success' />
-                Live operational visibility and delivery assurance
-              </div>
-            </article>
-          </Reveal>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+          {featurePillars.map((pillar, index) => (
+            <Reveal key={pillar.title} delay={index * 0.08}>
+              <article className='glass-card rounded-3xl p-6 md:p-7'>
+                <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${pillar.tone}`}>
+                  <pillar.icon className='h-5 w-5' />
+                </div>
+                <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{pillar.title}</h3>
+                <p className='mt-2 text-sm leading-relaxed text-muted'>{pillar.description}</p>
+              </article>
+            </Reveal>
+          ))}
         </div>
       </ScrollLinkedSection>
 
       <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <SectionHeading
-          label='How It Works'
-          title='Three polished steps from booking to confirmation'
-          description='Simple UX on the surface, strong operational controls underneath.'
-        />
-
-        <div className='mx-auto mt-11 grid w-full max-w-6xl gap-5 lg:grid-cols-[0.9fr_1.1fr]'>
-          <Reveal>
-            <article className='glass-card rounded-3xl p-4'>
-              <Image src='/images/custom/secure-handover.svg' alt='Custom secure handover illustration' width={880} height={920} className='aspect-[4/5] w-full rounded-2xl object-cover' />
-            </article>
-          </Reveal>
-
-          <div className='grid gap-5 md:grid-cols-3 lg:grid-cols-1'>
-            {journeySteps.map((step, index) => (
-              <Reveal key={step.title} delay={index * 0.06}>
-                <article className='glass-card rounded-3xl p-6 md:p-7'>
-                  <div className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary/25 bg-primary-subtle text-sm font-semibold text-primary'>
-                    {index + 1}
-                  </div>
-                  <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
-                  <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
-                </article>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </ScrollLinkedSection>
-
-      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
-        <SectionHeading
-          label='Audience'
+          label='Workflow'
           title='Designed for senders and travelers'
           description='CarryGo aligns incentives and outcomes for both sides of every route.'
         />
@@ -223,6 +186,30 @@ export default function LandingPage() {
               </article>
             </Reveal>
           ))}
+        </div>
+      </ScrollLinkedSection>
+
+      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
+        <SectionHeading
+          label='Delivery Flow'
+          title='Simple 3-step operational journey'
+          description='The same creation to completion journey used in the app is now clearly represented on web.'
+        />
+
+        <div className='mx-auto mt-12 max-w-6xl'>
+          <div className='grid gap-5 md:grid-cols-3'>
+            {journeySteps.map((step, index) => (
+              <Reveal key={step.title} delay={index * 0.06}>
+                <article className='glass-card rounded-3xl p-6 md:p-7'>
+                  <div className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary/25 bg-primary-subtle text-sm font-semibold text-primary'>
+                    {index + 1}
+                  </div>
+                  <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
+                  <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
+                </article>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </ScrollLinkedSection>
 
@@ -253,24 +240,24 @@ export default function LandingPage() {
         <Reveal>
           <div className='glass-card mx-auto grid w-full max-w-6xl gap-6 rounded-3xl border border-primary/15 p-7 md:grid-cols-[1.1fr_0.9fr] md:items-center md:p-9'>
             <div className='max-w-3xl'>
-              <p className='badge-pill'>Get Started</p>
-              <h2 className='mt-3 text-3xl font-heading font-bold tracking-tight text-foreground'>Ready to deliver with confidence?</h2>
+              <p className='badge-pill'>Go Live</p>
+              <h2 className='mt-3 text-3xl font-heading font-bold tracking-tight text-foreground'>Ready for full app-to-web parity?</h2>
               <p className='mt-3 text-base text-muted'>
-                Launch faster parcel operations with a professional experience for senders, travelers, and operations teams.
+                We can now continue with advanced parity features like role-based onboarding flows, richer chat UI, and route intelligence previews.
               </p>
               <div className='mt-6 flex flex-wrap gap-3'>
-                <Link href='/contact' className='button-primary group'>
-                  Talk to Team
+                <Link href='/features' className='button-primary group'>
+                  View All Features
                   <ArrowRight className='h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5' />
                 </Link>
-                <Link href='/how-it-works' className='button-secondary'>
-                  View Full Workflow
+                <Link href='/contact' className='button-secondary'>
+                  Plan Implementation
                 </Link>
               </div>
             </div>
 
             <div className='overflow-hidden rounded-3xl border border-border/70 bg-background/70 p-3'>
-              <Image src='/images/custom/support-center.svg' alt='Custom support center illustration' width={760} height={520} className='aspect-[4/3] w-full rounded-2xl object-cover' />
+              <Image src='/images/custom/support-center.svg' alt='Support center illustration' width={760} height={520} className='aspect-[4/3] w-full rounded-2xl object-cover' />
             </div>
           </div>
         </Reveal>
@@ -278,4 +265,3 @@ export default function LandingPage() {
     </MarketingShell>
   )
 }
-
