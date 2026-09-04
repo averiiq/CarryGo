@@ -180,7 +180,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { C } = useThemeColors();
   const { isOnline } = useNetworkStatus();
-  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markNotificationsAsRead, openNotification } = useNotifications();
 
   const [showFilters, setShowFilters] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -263,6 +263,13 @@ export default function HomeScreen() {
         notifications={notifications}
         markAllRead={() => {
           void markAllRead();
+        }}
+        onPressNotification={(notification) => {
+          void openNotification(notification);
+          setShowNotifications(false);
+        }}
+        onMarkRead={(groupNotifications) => {
+          void markNotificationsAsRead(groupNotifications);
         }}
         C={C}
       />
@@ -560,3 +567,5 @@ const styles = StyleSheet.create({
   stateWrap: { marginHorizontal: Spacing.md, marginTop: Spacing.md },
   footerLoader: { paddingVertical: Spacing.lg },
 });
+
+

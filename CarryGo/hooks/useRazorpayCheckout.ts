@@ -12,7 +12,6 @@ interface CheckoutState {
 
 interface UseRazorpayCheckoutOptions {
   requestId: string;
-  senderId: string;
   senderName?: string;
   senderEmail?: string;
   senderPhone?: string;
@@ -20,9 +19,36 @@ interface UseRazorpayCheckoutOptions {
   onFailure?: (error: string) => void;
 }
 
+let razorpayScriptPromise: Promise<void> | null = null;
+
+function ensureRazorpayWebSdkLoaded(): Promise<void> {
+  const win = window as unknown as { Razorpay?: new (opts: unknown) => { open: () => void } };
+  if (win.Razorpay) return Promise.resolve();
+
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-carrygo-razorpay="1"]') as HTMLScriptElement | null;
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error('Failed to load Razorpay SDK')), { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.dataset.carrygoRazorpay = '1';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+      document.head.appendChild(script);
+    });
+  }
+
+  return razorpayScriptPromise;
+}
+
 export function useRazorpayCheckout({
   requestId,
-  senderId,
   senderName,
   senderEmail,
   senderPhone,
@@ -35,91 +61,6 @@ export function useRazorpayCheckout({
     isVerifying: false,
     error: null,
   });
-
-  const startCheckout = useCallback(async () => {
-    setState({ isCreatingOrder: true, isProcessing: false, isVerifying: false, error: null });
-
-    const { data: order, error: orderError } = await createRazorpayOrder(requestId, senderId);
-    if (orderError || !order) {
-      const msg = orderError ?? 'Failed to create order';
-      setState(s => ({ ...s, isCreatingOrder: false, error: msg }));
-      onFailure?.(msg);
-      return;
-    }
-
-    setState(s => ({ ...s, isCreatingOrder: false, isProcessing: true }));
-
-    if (Platform.OS === 'web') {
-      openRazorpayWeb(order);
-    } else {
-      openRazorpayNative(order);
-    }
-  }, [requestId, senderId, senderEmail, onSuccess, onFailure]);
-
-  const openRazorpayWeb = useCallback((order: RazorpayOrder) => {
-    const options = {
-      key: order.keyId,
-      amount: order.amount,
-      currency: order.currency,
-      name: 'CarryGo',
-      description: 'Delivery Payment',
-      order_id: order.orderId,
-      prefill: {
-        name: senderName ?? '',
-        email: senderEmail ?? '',
-        contact: senderPhone ?? '',
-      },
-      handler: (response: RazorpayPaymentResult) => {
-        handlePaymentSuccess(response);
-      },
-      modal: {
-        ondismiss: () => {
-          setState(s => ({ ...s, isProcessing: false, error: 'Payment cancelled' }));
-          onFailure?.('Payment cancelled');
-        },
-      },
-    };
-
-    const win = window as unknown as { Razorpay?: new (opts: unknown) => { open: () => void } };
-    if (!win.Razorpay) {
-      setState(s => ({ ...s, isProcessing: false, error: 'Razorpay SDK not loaded' }));
-      onFailure?.('Razorpay SDK not loaded');
-      return;
-    }
-    const rzp = new win.Razorpay(options);
-    rzp.open();
-  }, [senderName, senderEmail, senderPhone]);
-
-  const openRazorpayNative = useCallback(async (order: RazorpayOrder) => {
-    try {
-      const RazorpayCheckout = (await import('react-native-razorpay')).default;
-      const options = {
-        key: order.keyId,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'CarryGo',
-        description: 'Delivery Payment',
-        order_id: order.orderId,
-        prefill: {
-          name: senderName ?? '',
-          email: senderEmail ?? '',
-          contact: senderPhone ?? '',
-        },
-        theme: { color: '#6366f1' },
-      };
-
-      const result = await RazorpayCheckout.open(options);
-      handlePaymentSuccess({
-        razorpay_order_id: result.razorpay_order_id,
-        razorpay_payment_id: result.razorpay_payment_id,
-        razorpay_signature: result.razorpay_signature,
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Payment failed';
-      setState(s => ({ ...s, isProcessing: false, error: message }));
-      onFailure?.(message);
-    }
-  }, [senderName, senderEmail, senderPhone]);
 
   const handlePaymentSuccess = useCallback(async (result: RazorpayPaymentResult) => {
     setState(s => ({ ...s, isProcessing: false, isVerifying: true }));
@@ -142,6 +83,101 @@ export function useRazorpayCheckout({
     setState({ isCreatingOrder: false, isProcessing: false, isVerifying: false, error: null });
     onSuccess(data.paymentId);
   }, [requestId, onSuccess, onFailure]);
+
+  const openRazorpayWeb = useCallback(async (order: RazorpayOrder) => {
+    try {
+      await ensureRazorpayWebSdkLoaded();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Razorpay SDK not loaded';
+      setState(s => ({ ...s, isProcessing: false, error: message }));
+      onFailure?.(message);
+      return;
+    }
+
+    const options = {
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'CarryGo',
+      description: 'Delivery Payment',
+      order_id: order.orderId,
+      prefill: {
+        name: senderName ?? '',
+        email: senderEmail ?? '',
+        contact: senderPhone ?? '',
+      },
+      handler: (response: RazorpayPaymentResult) => {
+        void handlePaymentSuccess(response);
+      },
+      modal: {
+        ondismiss: () => {
+          setState(s => ({ ...s, isProcessing: false, error: 'Payment cancelled' }));
+          onFailure?.('Payment cancelled');
+        },
+      },
+    };
+
+    const win = window as unknown as { Razorpay?: new (opts: unknown) => { open: () => void } };
+    if (!win.Razorpay) {
+      setState(s => ({ ...s, isProcessing: false, error: 'Razorpay SDK not loaded' }));
+      onFailure?.('Razorpay SDK not loaded');
+      return;
+    }
+
+    const rzp = new win.Razorpay(options);
+    rzp.open();
+  }, [senderName, senderEmail, senderPhone, onFailure, handlePaymentSuccess]);
+
+  const openRazorpayNative = useCallback(async (order: RazorpayOrder) => {
+    try {
+      const RazorpayCheckout = (await import('react-native-razorpay')).default;
+      const options = {
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'CarryGo',
+        description: 'Delivery Payment',
+        order_id: order.orderId,
+        prefill: {
+          name: senderName ?? '',
+          email: senderEmail ?? '',
+          contact: senderPhone ?? '',
+        },
+        theme: { color: '#6366f1' },
+      };
+
+      const result = await RazorpayCheckout.open(options);
+      await handlePaymentSuccess({
+        razorpay_order_id: result.razorpay_order_id,
+        razorpay_payment_id: result.razorpay_payment_id,
+        razorpay_signature: result.razorpay_signature,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Payment failed';
+      setState(s => ({ ...s, isProcessing: false, error: message }));
+      onFailure?.(message);
+    }
+  }, [senderName, senderEmail, senderPhone, handlePaymentSuccess, onFailure]);
+
+  const startCheckout = useCallback(async () => {
+    setState({ isCreatingOrder: true, isProcessing: false, isVerifying: false, error: null });
+
+    const { data: order, error: orderError } = await createRazorpayOrder(requestId);
+    if (orderError || !order) {
+      const msg = orderError ?? 'Failed to create order';
+      setState(s => ({ ...s, isCreatingOrder: false, error: msg }));
+      onFailure?.(msg);
+      return;
+    }
+
+    setState(s => ({ ...s, isCreatingOrder: false, isProcessing: true }));
+
+    if (Platform.OS === 'web') {
+      await openRazorpayWeb(order);
+    } else {
+      await openRazorpayNative(order);
+    }
+  }, [requestId, onFailure, openRazorpayWeb, openRazorpayNative]);
 
   const isLoading = state.isCreatingOrder || state.isProcessing || state.isVerifying;
 

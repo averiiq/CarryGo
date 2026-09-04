@@ -448,19 +448,6 @@ DECLARE
   v_delivery public.deliveries%rowtype;
   v_request public.requests%rowtype;
   v_is_reviewer boolean := false;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.verify_delivery_otp(p_delivery_id uuid, p_otp text)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, extensions
-AS $$
-DECLARE
-  v_delivery public.deliveries%rowtype;
-  v_request public.requests%rowtype;
-  v_is_reviewer boolean := false;
 BEGIN
   SELECT * INTO v_delivery FROM public.deliveries WHERE deliveries.id = p_delivery_id;
   IF NOT FOUND THEN
@@ -496,3 +483,4 @@ BEGIN
   WHERE deliveries.id = p_delivery_id;
 END;
 $$;
+

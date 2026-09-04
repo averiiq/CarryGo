@@ -257,6 +257,32 @@ export async function markAllNotificationsRead(userId: string) {
   await sb.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);
 }
 
+export async function markNotificationRead(notificationId: string, userId: string) {
+  const sb = getSupabaseClient();
+  const { error } = await sb
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', notificationId)
+    .eq('user_id', userId)
+    .eq('read', false);
+
+  return { error: error?.message || null };
+}
+
+export async function markNotificationsRead(notificationIds: string[], userId: string) {
+  if (notificationIds.length === 0) return { error: null };
+
+  const sb = getSupabaseClient();
+  const { error } = await sb
+    .from('notifications')
+    .update({ read: true })
+    .in('id', notificationIds)
+    .eq('user_id', userId)
+    .eq('read', false);
+
+  return { error: error?.message || null };
+}
+
 export async function getUnreadCount(userId: string): Promise<number> {
   const sb = getSupabaseClient();
   const { count } = await sb.from('notifications').select('*', { count: 'exact', head: true })
@@ -264,9 +290,12 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return count || 0;
 }
 
-export function getDeepLinkRoute(type: AppNotification['type'], relatedId?: string): string | null {
-  switch (type) {
+export function getDeepLinkRoute(type: string, relatedId?: string): string | null {
+  const normalizedType = type.toLowerCase();
+
+  switch (normalizedType) {
     case 'new_request':
+    case 'request_received':
     case 'request_accepted':
     case 'request_rejected':
       return '/(tabs)/requests';
@@ -276,9 +305,9 @@ export function getDeepLinkRoute(type: AppNotification['type'], relatedId?: stri
     case 'route_match':
       return '/subscriptions';
     case 'general':
-      if (relatedId) return `/delivery/${relatedId}`;
-      return null;
     case 'delivery_otp':
+    case 'delivery_pickup':
+    case 'delivery_completed':
       if (relatedId) return `/delivery/${relatedId}`;
       return null;
     case 'rating':
@@ -287,3 +316,4 @@ export function getDeepLinkRoute(type: AppNotification['type'], relatedId?: stri
       return null;
   }
 }
+

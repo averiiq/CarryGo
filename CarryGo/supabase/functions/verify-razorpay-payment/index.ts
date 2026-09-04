@@ -87,6 +87,7 @@ Deno.serve(async (req) => {
 
     const isValid = await verifySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
     if (!isValid) {
+      await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
       return jsonResponse({ error: 'Invalid payment signature' }, 400);
     }
 
@@ -102,6 +103,10 @@ Deno.serve(async (req) => {
 
     if (orderRecord.sender_id !== user.id || orderRecord.request_id !== requestId) {
       return jsonResponse({ error: 'Only the sender can verify payment' }, 403);
+    }
+
+    if (orderRecord.status === 'failed') {
+      return jsonResponse({ error: 'This payment order is no longer valid. Please retry checkout.' }, 409);
     }
 
     const providerResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(razorpayPaymentId)}`, {
@@ -121,6 +126,7 @@ Deno.serve(async (req) => {
       || providerPayment?.currency !== orderRecord.currency
       || !['authorized', 'captured'].includes(providerPayment?.status)
     ) {
+      await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
       return jsonResponse({ error: 'Payment does not match the original order' }, 400);
     }
 
@@ -130,6 +136,7 @@ Deno.serve(async (req) => {
     });
 
     if (insertError) {
+      await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
       console.error('[verify-razorpay-payment] Finalize error:', insertError.message);
       return jsonResponse({ error: 'Failed to record payment' }, 500);
     }
@@ -145,3 +152,5 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: message }, 500);
   }
 });
+
+

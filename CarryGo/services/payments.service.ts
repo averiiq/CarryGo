@@ -16,11 +16,13 @@ function mapRow(row: PaymentRow): Payment {
     status: row.status as Payment['status'],
     lockedAt: row.locked_at,
     releasedAt: row.released_at ?? undefined,
+    razorpayOrderId: row.razorpay_order_id ?? undefined,
+    razorpayPaymentId: row.razorpay_payment_id ?? undefined,
     createdAt: row.created_at,
   };
 }
 
-export async function createRazorpayOrder(requestId: string, senderId: string): Promise<{ data: RazorpayOrder | null; error: string | null }> {
+export async function createRazorpayOrder(requestId: string): Promise<{ data: RazorpayOrder | null; error: string | null }> {
   if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
 
   const sb = getSupabaseClient();
@@ -65,8 +67,17 @@ export async function verifyRazorpayPayment(params: {
 export async function fetchPaymentByRequest(requestId: string) {
   if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('payments').select('*').eq('request_id', requestId).single();
+  const { data, error } = await sb
+    .from('payments')
+    .select('*')
+    .eq('request_id', requestId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: null };
+
   return { data: mapRow(data), error: null };
 }
 

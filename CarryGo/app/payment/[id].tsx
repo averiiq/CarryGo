@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRazorpayCheckout } from '@/hooks/useRazorpayCheckout';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchPaymentByRequest } from '@/services/payments.service';
+import { getSupabaseClient } from '@/template';
 import { ProductIllustration } from '@/components/illustrations';
 
 type PaymentStatus = 'locked' | 'released' | 'refunded';
@@ -40,13 +41,40 @@ export default function PaymentScreen() {
 
   useEffect(() => {
     if (!id) return;
-    fetchPaymentByRequest(id).then(({ data }) => {
-      if (!data) return;
+
+    let isMounted = true;
+    const loadPayment = async () => {
+      const { data } = await fetchPaymentByRequest(id);
+      if (!isMounted) return;
+
+      if (!data) {
+        setExistingPayment(null);
+        return;
+      }
+
       const status = data.status as PaymentStatus;
       if (status === 'locked' || status === 'released' || status === 'refunded') {
         setExistingPayment({ id: data.id, status });
+        if (status === 'locked' || status === 'released') {
+          setPaymentComplete(true);
+        }
       }
-    });
+    };
+
+    void loadPayment();
+
+    const sb = getSupabaseClient();
+    const channel = sb
+      .channel(`payment:${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments', filter: `request_id=eq.${id}` }, () => {
+        void loadPayment();
+      })
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      void sb.removeChannel(channel);
+    };
   }, [id]);
 
   const isSender = user?.id === request?.senderId;
@@ -59,7 +87,6 @@ export default function PaymentScreen() {
     startCheckout,
   } = useRazorpayCheckout({
     requestId: id,
-    senderId: user?.id ?? '',
     senderName: user?.name,
     senderEmail: user?.email,
     senderPhone: user?.phone,
@@ -394,3 +421,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+
+
+

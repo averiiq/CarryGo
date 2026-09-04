@@ -81,19 +81,69 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Payment can only be created for accepted requests' }, 400);
     }
 
-    const { data: existingPayment } = await supabase
+    const { data: existingPayment, error: paymentCheckError } = await supabase
       .from('payments')
       .select('id, status')
       .eq('request_id', requestId)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (existingPayment && existingPayment.status === 'locked') {
+    if (paymentCheckError) {
+      console.error('[create-razorpay-order] Payment lookup error:', paymentCheckError.message);
+      return jsonResponse({ error: 'Unable to validate existing payment state' }, 500);
+    }
+
+    if (existingPayment?.status === 'locked') {
       return jsonResponse({ error: 'Payment already exists for this request' }, 409);
+    }
+
+    if (existingPayment?.status === 'released') {
+      return jsonResponse({ error: 'Payment has already been completed for this request' }, 409);
+    }
+
+    if (existingPayment?.status === 'refunded') {
+      return jsonResponse({ error: 'This request payment has already been refunded' }, 409);
     }
 
     const amountInPaise = Math.round(Number(request.price) * 100);
     if (amountInPaise <= 0 || amountInPaise > 99999999999) {
       return jsonResponse({ error: 'Invalid amount' }, 400);
+    }
+
+    const { data: pendingOrder, error: pendingOrderError } = await supabase
+      .from('razorpay_orders')
+      .select('order_id, amount_paise, currency, status, created_at')
+      .eq('request_id', requestId)
+      .eq('sender_id', user.id)
+      .eq('status', 'created')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingOrderError) {
+      console.error('[create-razorpay-order] Pending order lookup error:', pendingOrderError.message);
+      return jsonResponse({ error: 'Unable to validate pending payment order' }, 500);
+    }
+
+    if (pendingOrder) {
+      const pendingCreatedAt = new Date(pendingOrder.created_at).getTime();
+      const staleThresholdMs = 30 * 60 * 1000;
+
+      if (Number.isFinite(pendingCreatedAt) && Date.now() - pendingCreatedAt <= staleThresholdMs) {
+        return jsonResponse({
+          orderId: pendingOrder.order_id,
+          amount: Number(pendingOrder.amount_paise),
+          currency: pendingOrder.currency,
+          keyId: RAZORPAY_KEY_ID,
+        });
+      }
+
+      await supabase
+        .from('razorpay_orders')
+        .update({ status: 'failed' })
+        .eq('order_id', pendingOrder.order_id)
+        .eq('status', 'created');
     }
 
     const orderPayload = {
@@ -157,3 +207,4 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: message }, 500);
   }
 });
+

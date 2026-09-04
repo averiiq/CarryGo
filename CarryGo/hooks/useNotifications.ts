@@ -1,19 +1,44 @@
 import { useEffect, useCallback, useRef, useMemo } from 'react';
+import { AppState } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { getSupabaseClient } from '@/template';
-import { AppNotification, NotificationType } from '@/types';
+import { AppNotification } from '@/types';
 import { captureException } from '@/lib/monitoring';
 import {
   fetchNotifications,
   getDeepLinkRoute,
   markAllNotificationsRead,
+  markNotificationRead,
+  markNotificationsRead,
   registerForPushNotifications,
   savePushToken,
 } from '@/services/notifications.service';
 import { useAuth } from './useAuth';
 import type { Href } from 'expo-router';
+
+type NotificationPayload = Record<string, unknown> | undefined;
+
+function normalizeNotificationPayload(data: NotificationPayload): { type: string | null; relatedId?: string } {
+  if (!data) return { type: null };
+
+  const rawType = data.type ?? data.notification_type;
+  const rawRelatedId =
+    data.relatedId
+    ?? data.related_id
+    ?? data.requestId
+    ?? data.request_id
+    ?? data.deliveryId
+    ?? data.delivery_id
+    ?? data.conversationId
+    ?? data.conversation_id;
+
+  return {
+    type: typeof rawType === 'string' ? rawType : null,
+    relatedId: typeof rawRelatedId === 'string' ? rawRelatedId : undefined,
+  };
+}
 
 export function useNotifications() {
   const { user } = useAuth();
@@ -44,12 +69,42 @@ export function useNotifications() {
     void refetch();
   }, [refetch]);
 
-  const handleNotificationRoute = useCallback((data: Record<string, unknown> | undefined) => {
-    if (!data?.type) return;
-    const route = getDeepLinkRoute(data.type as NotificationType, data.relatedId as string | undefined);
+  const handleNotificationRoute = useCallback((data: NotificationPayload) => {
+    const { type, relatedId } = normalizeNotificationPayload(data);
+    if (!type) return;
+
+    const route = getDeepLinkRoute(type, relatedId);
     if (!route) return;
     setTimeout(() => router.push(route as Href), 400);
   }, [router]);
+
+  const markOneRead = useCallback(async (notification: AppNotification) => {
+    if (!user || notification.read) return;
+
+    const { error } = await markNotificationRead(notification.id, user.id);
+    if (!error) {
+      queryClient.setQueryData<AppNotification[]>(
+        ['notifications', user.id],
+        (prev) => prev?.map(n => (n.id === notification.id ? { ...n, read: true } : n)) ?? []
+      );
+    }
+  }, [queryClient, user]);
+
+  const markManyRead = useCallback(async (groupItems: AppNotification[]) => {
+    if (!user) return;
+
+    const unreadIds = groupItems.filter((notification) => !notification.read).map((notification) => notification.id);
+    if (unreadIds.length === 0) return;
+
+    const { error } = await markNotificationsRead(unreadIds, user.id);
+    if (!error) {
+      const unreadIdSet = new Set(unreadIds);
+      queryClient.setQueryData<AppNotification[]>(
+        ['notifications', user.id],
+        (prev) => prev?.map(n => (unreadIdSet.has(n.id) ? { ...n, read: true } : n)) ?? []
+      );
+    }
+  }, [queryClient, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -98,8 +153,15 @@ export function useNotifications() {
       handleNotificationRoute(response.notification.request.content.data as Record<string, unknown>);
     });
 
+    const appStateSubscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+      }
+    });
+
     return () => {
       channelMounted = false;
+      appStateSubscription.remove();
       notifListenerRef.current?.remove();
       responseListenerRef.current?.remove();
       void sb.removeChannel(realtimeChannel);
@@ -115,5 +177,27 @@ export function useNotifications() {
     );
   };
 
-  return { notifications, unreadCount, loading, refresh, markAllRead };
+  const markNotificationAsRead = async (notification: AppNotification) => {
+    await markOneRead(notification);
+  };
+
+  const markNotificationsAsRead = async (groupItems: AppNotification[]) => {
+    await markManyRead(groupItems);
+  };
+
+  const openNotification = async (notification: AppNotification) => {
+    await markOneRead(notification);
+    handleNotificationRoute({ type: notification.type, relatedId: notification.relatedId });
+  };
+
+  return {
+    notifications,
+    unreadCount,
+    loading,
+    refresh,
+    markAllRead,
+    markNotificationAsRead,
+    markNotificationsAsRead,
+    openNotification,
+  };
 }
