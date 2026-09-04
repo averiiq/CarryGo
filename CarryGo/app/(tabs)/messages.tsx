@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, RefreshControl, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -97,8 +97,8 @@ export default function MessagesScreen() {
   const { isOnline } = useNetworkStatus();
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ConversationFilter>('all');
-  const headerEntrance = useFadeIn(0, 360);
-  const listEntrance = useFadeIn(100, 420);
+  const headerEntrance = useFadeIn(0, 420);
+  const listEntrance = useFadeIn(120, 420);
   const unreadPulse = useHeartbeat(3200, 1.14);
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -188,7 +188,7 @@ export default function MessagesScreen() {
             styles.convItem,
             { marginTop: topMargin, backgroundColor: C.surface, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
             item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
-            pressed && { opacity: 0.86, transform: [{ scale: 0.988 }] },
+            pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
           ]}
           onPress={() => openConversation(item.id)}
         >
@@ -260,7 +260,7 @@ export default function MessagesScreen() {
             <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Messages</Text>
             <Text style={[styles.pageSubtitle, { color: unreadCount > 0 ? C.error : C.textMuted }]}> 
               {unreadCount > 0
-                ? ` unread Ã‚Â·  total total`
+                ? `${unreadCount} unread - ${conversationRows.length} total`
                 : conversationRows.length > 0
                   ? `${conversationRows.length} conversations`
                   : 'Stay connected with your delivery partner'}
@@ -310,7 +310,7 @@ export default function MessagesScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.heroAction,
-              { backgroundColor: '#FFFFFF', opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+              { backgroundColor: '#FFFFFF', opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
             ]}
             onPress={handleHeroAction}
           >
@@ -331,7 +331,14 @@ export default function MessagesScreen() {
         </Animated.View>
 
         {conversationRows.length > 0 ? (
-          <View style={styles.filterRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            bounces={false}
+            style={styles.filterScroll}
+            contentContainerStyle={styles.filterRow}
+          >
             <Pressable
               style={[
                 styles.filterChip,
@@ -356,7 +363,7 @@ export default function MessagesScreen() {
             >
               <Text style={[styles.filterText, { color: activeFilter === 'unread' ? C.primary : C.textSecondary }]}>Unread</Text>
             </Pressable>
-          </View>
+          </ScrollView>
         ) : null}
       </Animated.View>
 
@@ -467,6 +474,7 @@ export default function MessagesScreen() {
           </View>
         ) : (
           <Animated.FlatList
+            keyboardDismissMode="on-drag"
             data={visibleRows}
             keyExtractor={item => item.id}
             renderItem={renderItem}
@@ -554,7 +562,8 @@ const styles = StyleSheet.create({
   heroStatLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
   heroStatValue: { marginTop: 1, fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.25 },
 
-  filterRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm + 2 },
+  filterScroll: { marginTop: Spacing.sm + 2 },
+  filterRow: { flexDirection: 'row', gap: Spacing.sm, paddingRight: Spacing.xs, paddingVertical: 1 },
   filterChip: {
     borderWidth: 1,
     borderRadius: BorderRadius.full,

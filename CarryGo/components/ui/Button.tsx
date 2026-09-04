@@ -74,15 +74,15 @@ export function Button({
     primary: 'transparent',
     secondary: C.surface,
     outline: 'transparent',
-    ghost: 'transparent',
+    ghost: C.primarySubtle,
     danger: C.error,
   }[variant];
 
   const variantBorder = {
     primary: 'transparent',
     secondary: C.surfaceBorder,
-    outline: C.primary,
-    ghost: 'transparent',
+    outline: C.primaryDark,
+    ghost: C.primarySubtle,
     danger: 'transparent',
   }[variant];
 
@@ -113,6 +113,7 @@ export function Button({
           variant === 'secondary' ? S.card : null,
           isDisabled && styles.disabled,
         ]}
+        android_ripple={{ color: C.overlayLight }}
       >
         {variant === 'primary' ? (
           <LinearGradient
@@ -146,15 +147,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fullWidth: { width: '100%' },
-  disabled: { opacity: 0.55 },
+  disabled: { opacity: 0.5 },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
 
-  sizeSm: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.smd, minHeight: 42 },
-  sizeMd: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.smd, minHeight: 54 },
+  sizeSm: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.smd, minHeight: 44 },
+  sizeMd: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.smd, minHeight: 52 },
   sizeLg: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, minHeight: 62 },
 
   text: { fontWeight: FontWeight.semibold, letterSpacing: 0.2 },

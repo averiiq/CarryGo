@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Step = {
   label: string;
@@ -39,6 +40,12 @@ export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicator
   return (
     <View style={styles.container}>
       <View style={[styles.heroStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
+        <LinearGradient
+          colors={[C.primarySubtle, 'transparent']}
+          style={StyleSheet.absoluteFillObject}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
         <View style={styles.heroTopRow}>
           <Text style={[styles.stepText, { color: C.textMuted }]}>Step {currentStep + 1} of {steps.length}</Text>
           <View style={[styles.percentPill, { backgroundColor: C.primarySubtle }]}> 
@@ -102,7 +109,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   heroStrip: {
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
     paddingHorizontal: Spacing.mdl,
     paddingVertical: Spacing.smd,

@@ -21,7 +21,10 @@ export type FaqItem = {
 
 export const publicNavLinks: NavItem[] = [
   { label: 'Features', href: '/features' },
+  { label: 'Create Trip', href: '/create-trip' },
+  { label: 'Create Parcel', href: '/create-parcel' },
   { label: 'How It Works', href: '/how-it-works' },
+  { label: 'Search', href: '/search' },
   { label: 'For Senders', href: '/for-senders' },
   { label: 'For Travelers', href: '/for-travelers' },
   { label: 'Safety', href: '/safety' },
@@ -35,7 +38,10 @@ export const footerSections: FooterSection[] = [
     title: 'Platform',
     links: [
       { label: 'Features', href: '/features' },
+      { label: 'Create Trip', href: '/create-trip' },
+      { label: 'Create Parcel', href: '/create-parcel' },
       { label: 'How It Works', href: '/how-it-works' },
+      { label: 'Search', href: '/search' },
       { label: 'Pricing', href: '/pricing' },
       { label: 'Safety', href: '/safety' },
     ],

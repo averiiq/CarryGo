@@ -11,26 +11,38 @@ interface InputProps extends TextInputProps {
   rightIcon?: React.ReactNode;
 }
 
-export function Input({ label, error, containerStyle, leftIcon, rightIcon, style, ...props }: InputProps) {
+export function Input({
+  label,
+  error,
+  containerStyle,
+  leftIcon,
+  rightIcon,
+  style,
+  onFocus,
+  onBlur,
+  ...props
+}: InputProps) {
   const { C } = useThemeColors();
   const [focused, setFocused] = useState(false);
   const borderAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
 
-  const handleFocus = () => {
+  const handleFocus: NonNullable<TextInputProps['onFocus']> = (event) => {
     setFocused(true);
     Animated.parallel([
       Animated.spring(borderAnim, { toValue: 1, useNativeDriver: false, ...Motion.springFast }),
       Animated.timing(glowAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
     ]).start();
+    onFocus?.(event);
   };
 
-  const handleBlur = () => {
+  const handleBlur: NonNullable<TextInputProps['onBlur']> = (event) => {
     setFocused(false);
     Animated.parallel([
       Animated.spring(borderAnim, { toValue: 0, useNativeDriver: false, ...Motion.springDefault }),
       Animated.timing(glowAnim, { toValue: 0, duration: 180, useNativeDriver: false }),
     ]).start();
+    onBlur?.(event);
   };
 
   const borderColor = error
@@ -61,7 +73,13 @@ export function Input({ label, error, containerStyle, leftIcon, rightIcon, style
       >
         {leftIcon ? <View style={styles.iconLeft}>{leftIcon}</View> : null}
         <TextInput
-          style={[styles.input, { color: C.textPrimary }, leftIcon ? styles.inputWithLeftIcon : null, style]}
+          style={[
+            styles.input,
+            { color: C.textPrimary },
+            leftIcon ? styles.inputWithLeftIcon : null,
+            rightIcon ? styles.inputWithRightIcon : null,
+            style,
+          ]}
           placeholderTextColor={C.textMuted}
           onFocus={handleFocus}
           onBlur={handleBlur}
@@ -98,6 +116,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
   inputWithLeftIcon: { paddingLeft: Spacing.sm },
+  inputWithRightIcon: { paddingRight: Spacing.sm },
   iconLeft: { paddingLeft: Spacing.md },
   iconRight: { paddingRight: Spacing.md },
   error: {

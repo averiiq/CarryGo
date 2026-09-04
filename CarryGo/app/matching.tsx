@@ -208,6 +208,41 @@ export default function MatchingScreen() {
   const fromCity = currentParcel?.fromCity ?? currentTrip?.fromCity ?? fcParam ?? '';
   const toCity = currentParcel?.toCity ?? currentTrip?.toCity ?? tcParam ?? '';
 
+  const handleRepostNow = useCallback(() => {
+    if (currentParcel) {
+      router.push({
+        pathname: '/create-parcel',
+        params: {
+          repost: '1',
+          fromCity: currentParcel.fromCity,
+          toCity: currentParcel.toCity,
+          deliveryDate: currentParcel.deliveryDate ?? '',
+          category: currentParcel.category,
+          description: currentParcel.description,
+          weight: String(currentParcel.weight),
+          priceOffer: String(currentParcel.priceOffer),
+        },
+      });
+      return;
+    }
+
+    if (currentTrip) {
+      router.push({
+        pathname: '/create-trip',
+        params: {
+          repost: '1',
+          fromCity: currentTrip.fromCity,
+          toCity: currentTrip.toCity,
+          date: currentTrip.date,
+          time: currentTrip.time,
+          vehicle: currentTrip.vehicleType,
+          capacity: String(currentTrip.availableCapacity),
+          price: String(currentTrip.pricePerKg),
+        },
+      });
+    }
+  }, [currentParcel, currentTrip, router]);
+
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
@@ -323,9 +358,11 @@ export default function MatchingScreen() {
             <EmptyMatches
               icon="directions-car"
               title="No travellers on this route"
-              sub="No one is travelling this route right now. Subscribe to get notified when someone is!"
-              cta="Subscribe to Route"
-              onCta={() => router.push('/subscriptions')}
+              sub={isParcelMode
+                ? 'No one is travelling this route right now. Repost quickly or subscribe for alerts when a traveller appears.'
+                : 'No one is travelling this route right now. Subscribe to get notified when someone is!'}
+              cta={isParcelMode ? 'Repost Now' : 'Subscribe to Route'}
+              onCta={isParcelMode ? handleRepostNow : () => router.push('/subscriptions')}
               C={C}
             />
           ) : (
@@ -363,9 +400,9 @@ export default function MatchingScreen() {
           <EmptyMatches
             icon="directions-car"
             title="Trip posted successfully"
-            sub="Travellers do not send offers. Senders with matching routes will send requests to you."
-            cta="Open Requests"
-            onCta={() => router.push('/(tabs)/requests')}
+            sub="Senders with matching routes will send requests to you. If no match happens in 24 hours, this listing auto-disables and you can repost."
+            cta="Repost Now"
+            onCta={handleRepostNow}
             C={C}
           />
         )}

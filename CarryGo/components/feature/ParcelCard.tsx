@@ -47,7 +47,7 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, matchScore, o
   const statusLabel = parcel.status === 'in_transit' ? 'In Transit' : parcel.status.charAt(0).toUpperCase() + parcel.status.slice(1);
 
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}>
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
       <Animated.View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder, transform: [{ scale }] }]}>
         <View style={styles.inner}>
           <View style={styles.topSection}>
@@ -148,16 +148,16 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, matchScore, o
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    borderWidth: 1.2,
+    borderRadius: 20,
+    borderWidth: 1,
     overflow: 'hidden',
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 3,
+    shadowColor: '#0D1B2A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
-  inner: { padding: Spacing.lg, gap: Spacing.md },
+  inner: { padding: Spacing.mdl, gap: Spacing.md },
 
   topSection: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   catBadge: {
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   headerContent: { flex: 1, gap: 4 },
   routeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  cityName: { fontSize: 16, fontWeight: FontWeight.extrabold, letterSpacing: -0.3 },
+  cityName: { fontSize: 15, fontWeight: FontWeight.extrabold, letterSpacing: -0.2 },
   arrowCircle: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   description: { fontSize: FontSize.sm, lineHeight: 18 },
   statusBadge: {
@@ -198,14 +198,14 @@ const styles = StyleSheet.create({
   priceBox: {
     flexDirection: 'row', alignItems: 'baseline',
     paddingHorizontal: Spacing.md, paddingVertical: 10,
-    borderRadius: 14, overflow: 'hidden',
+    borderRadius: 12, overflow: 'hidden',
   },
   priceCurrency: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   priceValue: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
 
   carryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 14, paddingVertical: 14, overflow: 'hidden',
+    borderRadius: 12, paddingVertical: 13, overflow: 'hidden',
   },
   carryBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
 });

@@ -15,11 +15,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   food: '#27272A', medicine: '#18181B', other: '#71717A',
 };
 
-function ParcelRow({ parcel, requests, onPress, onDelete, C }: {
+function ParcelRow({ parcel, requests, onPress, onDelete, onRepost, C }: {
   parcel: Parcel;
   requests: Request[];
   onPress: () => void;
   onDelete: () => void;
+  onRepost: () => void;
   C: ThemeColors;
 }) {
   const catColor = CATEGORY_COLORS[parcel.category] || C.primary;
@@ -100,7 +101,15 @@ function ParcelRow({ parcel, requests, onPress, onDelete, C }: {
               <MaterialIcons name="delete-outline" size={13} color={C.error} />
               <Text style={[styles.rowActionText, { color: C.error }]}>Delete</Text>
             </Pressable>
-          ) : null}
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.rowActionBtn, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }, pressed && { opacity: 0.7 }]}
+              onPress={() => { Haptic.confirm(); onRepost(); }}
+            >
+              <MaterialIcons name="refresh" size={13} color={C.primary} />
+              <Text style={[styles.rowActionText, { color: C.primary }]}>Repost</Text>
+            </Pressable>
+          )}
         </View>
       </Pressable>
     </Animated.View>
@@ -140,6 +149,7 @@ type ActivityParcelsListProps = {
   requests: Request[];
   onParcelPress: (parcel: Parcel) => void;
   onDeleteParcel: (parcel: Parcel) => void;
+  onRepostParcel: (parcel: Parcel) => void;
   onEmptyCta: () => void;
   refreshing: boolean;
   onRefresh: () => void;
@@ -152,6 +162,7 @@ export function ActivityParcelsList({
   requests,
   onParcelPress,
   onDeleteParcel,
+  onRepostParcel,
   onEmptyCta,
   refreshing,
   onRefresh,
@@ -169,6 +180,7 @@ export function ActivityParcelsList({
             requests={requests}
             onPress={() => onParcelPress(item)}
             onDelete={() => onDeleteParcel(item)}
+            onRepost={() => onRepostParcel(item)}
             C={C}
           />
         </View>

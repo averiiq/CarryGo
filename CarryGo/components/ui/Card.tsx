@@ -42,6 +42,7 @@ export function Card({ children, style, elevated = false, padded = true, interac
 
   return (
     <Pressable
+      android_ripple={{ color: C.overlayLight }}
       onPress={() => {
         Haptic.select();
         onPress?.();

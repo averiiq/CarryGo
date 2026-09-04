@@ -22,6 +22,7 @@ import { Trip, Parcel, Request } from '@/types';
 import { Haptic } from '@/services/haptics.service';
 import { ActivityTripsList } from '@/components/feature/ActivityTripsList';
 import { ActivityParcelsList } from '@/components/feature/ActivityParcelsList';
+import { UNMATCHED_LISTING_EXPIRY_HOURS } from '@/constants/listingFlow';
 
 type Tab = 'trips' | 'parcels';
 
@@ -141,6 +142,38 @@ export default function MyActivityScreen() {
     ]);
   };
 
+  const handleRepostTrip = (trip: Trip) => {
+    router.push({
+      pathname: '/create-trip',
+      params: {
+        repost: '1',
+        fromCity: trip.fromCity,
+        toCity: trip.toCity,
+        date: trip.date,
+        time: trip.time,
+        vehicle: trip.vehicleType,
+        capacity: String(trip.availableCapacity),
+        price: String(trip.pricePerKg),
+      },
+    });
+  };
+
+  const handleRepostParcel = (parcel: Parcel) => {
+    router.push({
+      pathname: '/create-parcel',
+      params: {
+        repost: '1',
+        fromCity: parcel.fromCity,
+        toCity: parcel.toCity,
+        deliveryDate: parcel.deliveryDate ?? '',
+        category: parcel.category,
+        description: parcel.description,
+        weight: String(parcel.weight),
+        priceOffer: String(parcel.priceOffer),
+      },
+    });
+  };
+
   const totalEarned = myRequests.filter(r => r.status === 'completed').reduce((s, r) => s + r.price, 0);
 
   const listHeader = (activeTab === 'trips' ? myTrips.length > 0 : myParcels.length > 0)
@@ -164,6 +197,9 @@ export default function MyActivityScreen() {
             <Text style={[styles.headerTitle, { color: C.textPrimary }]}>My Activity</Text>
             <Text style={[styles.headerSub, { color: C.textMuted }]}>
               {myTrips.length} trips · {myParcels.length} parcels · Rs {totalEarned} earned
+            </Text>
+            <Text style={[styles.headerHint, { color: C.textMuted }]}>
+              Unmatched posts auto-disable after {UNMATCHED_LISTING_EXPIRY_HOURS}h. Repost anytime.
             </Text>
           </View>
           <Pressable
@@ -221,6 +257,7 @@ export default function MyActivityScreen() {
           onTripPress={(trip) => router.push({ pathname: '/trip/[id]', params: { id: trip.id } })}
           onCancelTrip={handleCancelTrip}
           onDeleteTrip={handleDeleteTrip}
+          onRepostTrip={handleRepostTrip}
           onEmptyCta={() => router.push('/create-trip')}
           refreshing={refreshing || tripsQuery.isRefetching || requestsQuery.isRefetching}
           onRefresh={handleRefresh}
@@ -233,6 +270,7 @@ export default function MyActivityScreen() {
           requests={myRequests}
           onParcelPress={(parcel) => router.push({ pathname: '/parcel/[id]', params: { id: parcel.id } })}
           onDeleteParcel={handleDeleteParcel}
+          onRepostParcel={handleRepostParcel}
           onEmptyCta={() => router.push('/create-parcel')}
           refreshing={refreshing || parcelsQuery.isRefetching || requestsQuery.isRefetching}
           onRefresh={handleRefresh}
@@ -255,6 +293,7 @@ const styles = StyleSheet.create({
   backBtn: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   headerSub: { fontSize: FontSize.xs, marginTop: 2 },
+  headerHint: { fontSize: 10, marginTop: 3 },
   addBtn: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 
   tabBar: {

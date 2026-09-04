@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef, useCallback } from 'react'
 import { ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2, ImageOff, Eye } from 'lucide-react'
@@ -18,9 +18,17 @@ type DocumentViewerProps = {
 
 function isSafeDocUrl(url: string | null): boolean {
   if (!url) return false
+
+  // Allow same-origin API paths used by the authenticated KYC proxy route.
+  if (url.startsWith('/')) return true
+
   try {
     const parsed = new URL(url)
-    if (parsed.protocol !== 'https:') return false
+
+    if (!['https:', 'http:'].includes(parsed.protocol)) return false
+
+    // Explicitly allow localhost dev hosts for local testing.
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') return true
 
     const allowedSuffixes = [
       '.supabase.co',
@@ -193,7 +201,7 @@ export default function DocumentViewer({ documents }: DocumentViewerProps) {
           <button
             onClick={handleRotate}
             className="p-2 rounded-lg border border-border hover:bg-surface-elevated hover:border-border-strong transition-all"
-            title="Rotate 90°"
+            title="Rotate 90Â°"
           >
             <RotateCw className="w-3.5 h-3.5 text-muted" />
           </button>
@@ -317,3 +325,4 @@ export default function DocumentViewer({ documents }: DocumentViewerProps) {
     </div>
   )
 }
+

@@ -14,12 +14,13 @@ const VEHICLE_COLORS: Record<string, string> = {
   bike: '#71717A', car: '#52525B', bus: '#3F3F46', train: '#27272A', flight: '#18181B',
 };
 
-function TripRow({ trip, requests, onPress, onCancel, onDelete, C }: {
+function TripRow({ trip, requests, onPress, onCancel, onDelete, onRepost, C }: {
   trip: Trip;
   requests: Request[];
   onPress: () => void;
   onCancel: () => void;
   onDelete: () => void;
+  onRepost: () => void;
   C: ThemeColors;
 }) {
   const vColor = VEHICLE_COLORS[trip.vehicleType] || C.primary;
@@ -112,6 +113,13 @@ function TripRow({ trip, requests, onPress, onCancel, onDelete, C }: {
               <MaterialIcons name="open-in-new" size={13} color={C.textSecondary} />
               <Text style={[styles.rowActionText, { color: C.textSecondary }]}>Details</Text>
             </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.rowActionBtn, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }, pressed && { opacity: 0.7 }]}
+              onPress={() => { Haptic.confirm(); onRepost(); }}
+            >
+              <MaterialIcons name="refresh" size={13} color={C.primary} />
+              <Text style={[styles.rowActionText, { color: C.primary }]}>Repost</Text>
+            </Pressable>
           </View>
         )}
       </Pressable>
@@ -125,6 +133,7 @@ type ActivityTripsListProps = {
   onTripPress: (trip: Trip) => void;
   onCancelTrip: (trip: Trip) => void;
   onDeleteTrip: (trip: Trip) => void;
+  onRepostTrip: (trip: Trip) => void;
   onEmptyCta: () => void;
   refreshing: boolean;
   onRefresh: () => void;
@@ -138,6 +147,7 @@ export function ActivityTripsList({
   onTripPress,
   onCancelTrip,
   onDeleteTrip,
+  onRepostTrip,
   onEmptyCta,
   refreshing,
   onRefresh,
@@ -156,6 +166,7 @@ export function ActivityTripsList({
             onPress={() => onTripPress(item)}
             onCancel={() => onCancelTrip(item)}
             onDelete={() => onDeleteTrip(item)}
+            onRepost={() => onRepostTrip(item)}
             C={C}
           />
         </View>

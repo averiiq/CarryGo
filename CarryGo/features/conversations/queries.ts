@@ -79,6 +79,8 @@ type ChatMessagesPage = {
   nextCursor: string | null;
 };
 
+let realtimeChannelInstance = 0;
+
 function appendRealtimeMessage(
   current: InfiniteData<ChatMessagesPage, string | null> | undefined,
   message: ChatMessage
@@ -136,8 +138,9 @@ export function useConversationsRealtime(userId?: string) {
     let mounted = true;
     const sb = getSupabaseClient();
 
+    const channelInstance = ++realtimeChannelInstance;
     const convChannel = sb
-      .channel(`conversations:${userId}`)
+      .channel(`conversations:${userId}:${channelInstance}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, payload => {
         const row = (payload.new || payload.old) as any;
         const participants = row?.participant_ids;
@@ -159,7 +162,7 @@ export function useConversationsRealtime(userId?: string) {
       });
 
     const msgChannel = sb
-      .channel(`conv-messages:${userId}`)
+      .channel(`conv-messages:${userId}:${channelInstance}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, payload => {
         const row = (payload.new || payload.old) as any;
         const conversationId = row?.conversation_id;
@@ -213,8 +216,9 @@ export function useConversationMessagesRealtime(conversationId?: string, userId?
 
     let mounted = true;
     const sb = getSupabaseClient();
+    const channelInstance = ++realtimeChannelInstance;
     const channel = sb
-      .channel(`messages:${conversationId}`)
+      .channel(`messages:${conversationId}:${channelInstance}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
@@ -355,3 +359,7 @@ export function useMarkMessagesReadMutation(userId?: string) {
     },
   });
 }
+
+
+
+

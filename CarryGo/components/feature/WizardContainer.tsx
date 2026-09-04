@@ -1,10 +1,11 @@
 import React from 'react';
-import { StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, KeyboardAvoidingView, Platform, View } from 'react-native';
 import Animated, { FadeInRight, FadeOutLeft, FadeInLeft, FadeOutRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { StepIndicator } from './StepIndicator';
 import { Spacing } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Step = { label: string };
 
@@ -34,6 +35,14 @@ export function WizardContainer({
       style={[styles.container, { backgroundColor: C.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <LinearGradient
+          colors={[C.primarySubtle, 'transparent']}
+          style={StyleSheet.absoluteFillObject}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 0.3 }}
+        />
+      </View>
       <StepIndicator steps={steps} currentStep={currentStep} onStepPress={onStepPress} />
       <Animated.View
         key={`step-${currentStep}`}

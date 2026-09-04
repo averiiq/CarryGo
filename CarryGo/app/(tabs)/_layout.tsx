@@ -149,13 +149,13 @@ export default function TabLayout() {
           <View style={[StyleSheet.absoluteFill, styles.tabBarBg]}>
             <BlurView
               intensity={62}
-              tint={'light'}
+              tint={C.statusBarStyle === 'light' ? 'dark' : 'light'}
               style={StyleSheet.absoluteFill}
             />
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: 'rgba(255,255,255,0.92)' },
+                { backgroundColor: C.statusBarStyle === 'light' ? 'rgba(15,20,27,0.85)' : 'rgba(255,255,255,0.92)' },
               ]}
             />
             <View style={[styles.tabBarTopBorder, { backgroundColor: C.surfaceBorder + '99' }]} />
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(215,225,214,0.95)',
+    borderColor: 'rgba(215,225,214,0.8)',
   },
   tabBarTopBorder: {
     position: 'absolute',

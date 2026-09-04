@@ -42,7 +42,7 @@ export const TripCard = React.memo(function TripCard({ trip, matchScore, onMatch
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}>
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
       <Animated.View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder, transform: [{ scale }] }]}>
         <LinearGradient
           colors={[vGradient[0] + '16', 'transparent']}
@@ -141,26 +141,26 @@ export const TripCard = React.memo(function TripCard({ trip, matchScore, onMatch
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    borderWidth: 1.2,
+    borderRadius: 20,
+    borderWidth: 1,
     overflow: 'hidden',
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 3,
+    shadowColor: '#0D1B2A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
   headerGradient: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 80,
   },
   vehicleBadge: {
-    position: 'absolute', top: Spacing.md, right: Spacing.md,
+    position: 'absolute', top: Spacing.smd, right: Spacing.smd,
     width: 40, height: 40, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   vehicleGradient: { ...StyleSheet.absoluteFillObject },
 
-  inner: { padding: Spacing.lg, paddingTop: Spacing.md, gap: Spacing.md },
+  inner: { padding: Spacing.mdl, paddingTop: Spacing.md, gap: Spacing.md },
 
   routeSection: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingRight: 48 },
   routeVisual: { alignItems: 'center', height: 50, justifyContent: 'space-between' },
@@ -168,8 +168,8 @@ const styles = StyleSheet.create({
   routeDash: { height: 22, width: 0, borderLeftWidth: 2, borderStyle: 'dashed' },
   destDot: { width: 10, height: 10, borderRadius: 3 },
   routeText: { flex: 1, height: 50, justifyContent: 'space-between' },
-  fromCity: { fontSize: 17, fontWeight: FontWeight.extrabold, letterSpacing: -0.3 },
-  toCity: { fontSize: 17, fontWeight: FontWeight.extrabold, letterSpacing: -0.3 },
+  fromCity: { fontSize: 16, fontWeight: FontWeight.extrabold, letterSpacing: -0.25 },
+  toCity: { fontSize: 16, fontWeight: FontWeight.extrabold, letterSpacing: -0.25 },
 
   chipsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: {
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   priceBox: {
     flexDirection: 'row', alignItems: 'baseline', gap: 2,
     paddingHorizontal: Spacing.md, paddingVertical: 10,
-    borderRadius: 14, overflow: 'hidden',
+    borderRadius: 12, overflow: 'hidden',
   },
   priceCurrency: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   priceValue: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
 
   requestBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 14, paddingVertical: 14, overflow: 'hidden',
+    borderRadius: 12, paddingVertical: 13, overflow: 'hidden',
   },
   requestBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
 });

@@ -31,7 +31,7 @@ function MenuItem({ icon, label, onPress, danger, right, C, subtitle }: MenuItem
     <Pressable
       style={({ pressed }) => [
         styles.menuItem,
-        pressed && { backgroundColor: C.primarySubtle, transform: [{ scale: 0.985 }] },
+        pressed && { backgroundColor: C.primarySubtle, opacity: 0.9, transform: [{ scale: 0.97 }] },
       ]}
       onPress={() => { if (onPress) { Haptic.tap(); onPress(); } }}
       disabled={!onPress && !right}
@@ -73,9 +73,9 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
-  const heroEntrance = useFadeIn(0, 600);
-  const statsEntrance = useFadeIn(120, 500);
-  const sectionsEntrance = useFadeIn(240, 500);
+  const heroEntrance = useFadeIn(0, 520);
+  const statsEntrance = useFadeIn(120, 440);
+  const sectionsEntrance = useFadeIn(220, 440);
   const avatarBreathing = useBreathing(0.97, 1, 4500);
   const starHeartbeat = useHeartbeat(5000, 1.12);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -147,6 +147,7 @@ export default function ProfileScreen() {
       />
       <Animated.ScrollView
         ref={scrollRef}
+        keyboardDismissMode="on-drag"
         style={[styles.container, { backgroundColor: C.background }]}
         contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
@@ -176,7 +177,7 @@ export default function ProfileScreen() {
             {/* Edit button */}
             <View style={styles.heroTopRight}>
               <Pressable
-                style={({ pressed }) => [styles.editBtn, { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' }, pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }]}
+                style={({ pressed }) => [styles.editBtn, { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' }, pressed && { opacity: 0.82, transform: [{ scale: 0.97 }] }]}
                 onPress={() => { Haptic.tap(); router.push('/edit-profile'); }}
               >
                 <Ionicons name="pencil" size={12} color="#FFFFFF" />
@@ -259,6 +260,13 @@ export default function ProfileScreen() {
         </Pressable>
 
         {/* Sections */}
+        <ScrollView
+          nestedScrollEnabled
+          keyboardDismissMode="on-drag"
+          style={styles.sectionsScroll}
+          contentContainerStyle={[styles.sectionsContent, { paddingBottom: insets.bottom + 120 }]}
+          showsVerticalScrollIndicator={false}
+        >
         <Animated.View style={[styles.sectionsWrap, { opacity: sectionsEntrance.opacity, transform: sectionsEntrance.transform }]}>
 
           {/* Activity */}
@@ -268,7 +276,7 @@ export default function ProfileScreen() {
               <MenuItem C={C}
                 icon={<MaterialIcons name="bar-chart" size={17} color={C.primary} />}
                 label="My Activity"
-                subtitle={`${myTrips.length} trips · ${myParcels.length} parcels`}
+                subtitle={`${myTrips.length} trips � ${myParcels.length} parcels`}
                 onPress={() => router.push('/my-activity')}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
@@ -332,6 +340,7 @@ export default function ProfileScreen() {
             </View>
           </View>
         </Animated.View>
+        </ScrollView>
       </Animated.ScrollView>
     </>
   );
@@ -488,6 +497,13 @@ const styles = StyleSheet.create({
   pendingChipText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   // Sections
+  sectionsScroll: {
+    maxHeight: 420,
+    marginTop: Spacing.sm,
+  },
+  sectionsContent: {
+    paddingTop: 2,
+  },
   sectionsWrap: { gap: Spacing.lg },
   section: { gap: Spacing.sm },
   sectionTitle: {

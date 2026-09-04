@@ -5,6 +5,8 @@ import { sanitizeLikeInput } from '@/lib/sanitize';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { isAwsBackendEnabled } from '@/lib/backend/provider';
 import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
+import { getUnmatchedListingCutoffIso } from '@/constants/listingFlow';
+import { expireStaleUnmatchedListings } from '@/services/listing-expiry.service';
 
 type TripRow = Database['public']['Tables']['trips']['Row'];
 
@@ -49,9 +51,20 @@ export async function fetchTrips(filters?: { fromCity?: string; toCity?: string;
   }
 
   const sb = getSupabaseClient();
+  try {
+    await expireStaleUnmatchedListings();
+  } catch {
+    // Non-blocking cleanup. Listing fetch should still proceed.
+  }
   const limit = filters?.limit ?? 50;
   const offset = filters?.offset ?? 0;
-  let query = sb.from('trips').select('*', { count: 'exact' }).eq('status', 'active').order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+  let query = sb
+    .from('trips')
+    .select('*', { count: 'exact' })
+    .eq('status', 'active')
+    .gte('created_at', getUnmatchedListingCutoffIso())
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
   if (filters?.fromCity) query = query.ilike('from_city', `%${sanitizeLikeInput(filters.fromCity)}%`);
   if (filters?.toCity) query = query.ilike('to_city', `%${sanitizeLikeInput(filters.toCity)}%`);
   if (filters?.userCity && !filters.fromCity && !filters.toCity) {

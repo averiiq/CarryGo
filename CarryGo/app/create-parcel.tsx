@@ -1,7 +1,7 @@
 ﻿import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
@@ -72,6 +72,16 @@ function normalizeCity(value: string) {
 }
 
 export default function CreateParcelScreen() {
+  const params = useLocalSearchParams<{
+    fromCity?: string;
+    toCity?: string;
+    deliveryDate?: string;
+    category?: ParcelCategory;
+    description?: string;
+    weight?: string;
+    priceOffer?: string;
+    repost?: string;
+  }>();
   const { user } = useAuth();
   const createParcelMutation = useCreateParcelMutation();
   const { showAlert } = useAlert();
@@ -94,6 +104,40 @@ export default function CreateParcelScreen() {
   const setFormValues = useCallback((values: ParcelDraft) => setForm(values), []);
   const { clearDraft, isDraftRestored } = useFormDraft('create_parcel', form, setFormValues);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const hasAppliedPrefill = useRef(false);
+
+  useEffect(() => {
+    if (hasAppliedPrefill.current || params.repost !== '1') return;
+
+    const prefillCategory = params.category;
+    const isValidCategory = prefillCategory && CATEGORIES.some((entry) => entry.type === prefillCategory);
+    const nextForm: ParcelDraft = {
+      fromCity: typeof params.fromCity === 'string' ? normalizeCity(params.fromCity) : '',
+      toCity: typeof params.toCity === 'string' ? normalizeCity(params.toCity) : '',
+      deliveryDate: typeof params.deliveryDate === 'string' ? params.deliveryDate : '',
+      category: isValidCategory ? prefillCategory : 'documents',
+      description: typeof params.description === 'string' ? params.description : '',
+      weight: typeof params.weight === 'string' ? params.weight : '',
+      priceOffer: typeof params.priceOffer === 'string' ? params.priceOffer : '',
+      images: [],
+    };
+
+    if (
+      nextForm.fromCity ||
+      nextForm.toCity ||
+      nextForm.deliveryDate ||
+      nextForm.description ||
+      nextForm.weight ||
+      nextForm.priceOffer
+    ) {
+      setForm(nextForm);
+      setFieldErrors({});
+      setStep(0);
+      setShowDraftBanner(false);
+    }
+
+    hasAppliedPrefill.current = true;
+  }, [params]);
 
   const updateField = <K extends keyof ParcelDraft>(key: K, value: ParcelDraft[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -451,7 +495,7 @@ export default function CreateParcelScreen() {
               <MaterialIcons name={pendingChecks.length > 0 ? 'info-outline' : 'check-circle'} size={15} color={pendingChecks.length > 0 ? C.warning : C.success} />
               <Text style={[styles.nextHintText, { color: C.textSecondary }]} numberOfLines={1}>
                 {pendingChecks.length > 0
-                  ? `Before next: ${pendingChecks.slice(0, 2).map((item) => item.label).join(' Ã¢â‚¬Â¢ ')}`
+                  ? `Before next: ${pendingChecks.slice(0, 2).map((item) => item.label).join(' • ')}`
                   : 'Looks good - you can continue to the next step.'}
               </Text>
             </Animated.View>
@@ -488,7 +532,7 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
   locationHint: string | null;
 }) {
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled keyboardDismissMode="on-drag">
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where&apos;s it going?</Text>
       <StepHero
         title='Share a secure parcel route'
@@ -565,7 +609,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
   C: any;
 }) {
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
       <StepHero
         title='Add parcel essentials'
         subtitle='Category, weight, and photos reduce confusion and improve match quality.'
@@ -689,7 +733,7 @@ function StepReview({ form, C, onEdit }: {
   const selectedCategory = CATEGORIES.find((c) => c.type === form.category);
 
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
       <StepHero
         title='Review and send confidently'
         subtitle='Your summary sets expectations before you connect with verified travellers.'

@@ -58,25 +58,25 @@ export const DarkColors = {
 
 // Light palette (current production theme)
 export const LightColors: ThemeColors = {
-  background: '#F4F6F2',
+  background: '#F6F8FC',
   surface: '#FFFFFF',
-  surfaceElevated: '#EEF2EC',
-  surfaceHigh: '#E7EEE6',
-  surfaceBorder: '#D7E1D6',
-  surfaceBorderLight: '#E5EBE3',
+  surfaceElevated: '#F1F5FB',
+  surfaceHigh: '#EAF0F8',
+  surfaceBorder: '#D9E2EF',
+  surfaceBorderLight: '#E7EDF6',
 
   primary: '#1E8D5A',
-  primaryDark: '#146643',
-  primaryLight: '#6BC093',
-  primarySubtle: 'rgba(30, 141, 90, 0.1)',
-  primaryGlow: 'rgba(30, 141, 90, 0.22)',
+  primaryDark: '#166946',
+  primaryLight: '#7AD2A5',
+  primarySubtle: 'rgba(30, 141, 90, 0.12)',
+  primaryGlow: 'rgba(30, 141, 90, 0.24)',
 
   accent: '#2B7FFF',
   accentSubtle: 'rgba(43, 127, 255, 0.14)',
 
-  textPrimary: '#132019',
-  textSecondary: '#3B4B43',
-  textMuted: '#6C7D74',
+  textPrimary: '#0F1B2D',
+  textSecondary: '#34445E',
+  textMuted: '#6B7C97',
   textInverse: '#FFFFFF',
 
   success: '#2F9E44',
@@ -99,12 +99,12 @@ export const LightColors: ThemeColors = {
   inTransit: '#3B82F6',
   delivered: '#2F9E44',
 
-  overlay: 'rgba(9, 18, 14, 0.58)',
-  overlayLight: 'rgba(9, 18, 14, 0.2)',
-  overlayMedium: 'rgba(9, 18, 14, 0.36)',
+  overlay: 'rgba(8, 16, 30, 0.58)',
+  overlayLight: 'rgba(8, 16, 30, 0.16)',
+  overlayMedium: 'rgba(8, 16, 30, 0.32)',
 
   tabBarBg: '#FFFFFF',
-  inputBg: '#F1F5F0',
+  inputBg: '#F2F6FB',
   statusBarStyle: 'dark' as const,
 };
 
@@ -144,20 +144,20 @@ export const FontWeight = {
 export const BorderRadius = {
   xs: 8,
   sm: 12,
-  md: 16,
-  lg: 22,
-  xl: 28,
+  md: 14,
+  lg: 20,
+  xl: 24,
   xxl: 30,
   full: 9999,
 };
 
 export const Shadow = {
   card: {
-    shadowColor: '#0E1D15',
+    shadowColor: '#0D1B2A',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.09,
     shadowRadius: 20,
-    elevation: 3,
+    elevation: 4,
   },
   glow: {
     shadowColor: '#2F8F63',
@@ -167,11 +167,11 @@ export const Shadow = {
     elevation: 5,
   },
   sm: {
-    shadowColor: '#101A14',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
+    shadowColor: '#0D1B2A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
   float: {
     shadowColor: '#0F172A',

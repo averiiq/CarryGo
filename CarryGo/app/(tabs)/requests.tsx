@@ -302,7 +302,12 @@ export default function RequestsScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.refreshBtn,
-              { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.2)', opacity: pressed ? 0.75 : 1 },
+              {
+                backgroundColor: 'rgba(255,255,255,0.14)',
+                borderColor: 'rgba(255,255,255,0.2)',
+                opacity: pressed ? 0.82 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
             ]}
             onPress={handleRefresh}
             hitSlop={8}
@@ -391,11 +396,23 @@ export default function RequestsScreen() {
           })}
         </View>
 
-        <View style={styles.quickActionRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          bounces={false}
+          style={styles.quickActionScroll}
+          contentContainerStyle={styles.quickActionRow}
+        >
           <Pressable
             style={({ pressed }) => [
               styles.quickAction,
-              { backgroundColor: C.surface, borderColor: C.surfaceBorder, opacity: pressed ? 0.82 : 1 },
+              {
+                backgroundColor: C.surface,
+                borderColor: C.surfaceBorder,
+                opacity: pressed ? 0.88 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
             ]}
             onPress={() => {
               Haptic.tap();
@@ -411,7 +428,12 @@ export default function RequestsScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.quickAction,
-              { backgroundColor: C.surface, borderColor: C.surfaceBorder, opacity: pressed ? 0.82 : 1 },
+              {
+                backgroundColor: C.surface,
+                borderColor: C.surfaceBorder,
+                opacity: pressed ? 0.88 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
             ]}
             onPress={() => {
               Haptic.tap();
@@ -423,7 +445,7 @@ export default function RequestsScreen() {
             </View>
             <Text style={[styles.quickActionText, { color: C.textSecondary }]}>Send parcel</Text>
           </Pressable>
-        </View>
+        </ScrollView>
 
         <Text style={[styles.contextText, { color: C.textMuted }]}>{tabLabel}</Text>
       </Animated.View>
@@ -432,6 +454,8 @@ export default function RequestsScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          bounces={false}
           style={styles.statusFilterScroll}
           contentContainerStyle={styles.statusFilterRow}
         >
@@ -465,6 +489,7 @@ export default function RequestsScreen() {
       ) : null}
 
       <Animated.ScrollView
+        keyboardDismissMode="on-drag"
         style={[styles.list, { transform: [{ translateX: slideAnim }] }]}
         contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 108 }]}
         showsVerticalScrollIndicator={false}
@@ -524,7 +549,7 @@ export default function RequestsScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.emptyCTA,
-                  { backgroundColor: C.primaryDark, opacity: pressed ? 0.88 : 1 },
+                  { backgroundColor: C.primaryDark, opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
                 ]}
                 onPress={() => {
                   Haptic.tap();
@@ -538,7 +563,12 @@ export default function RequestsScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.emptySecondaryCTA,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: pressed ? 0.8 : 1 },
+                  {
+                    backgroundColor: C.surfaceElevated,
+                    borderColor: C.surfaceBorder,
+                    opacity: pressed ? 0.86 : 1,
+                    transform: [{ scale: pressed ? 0.97 : 1 }],
+                  },
                 ]}
                 onPress={() => {
                   Haptic.tap();
@@ -729,6 +759,9 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
 
+  quickActionScroll: {
+    marginTop: Spacing.sm,
+  },
   quickActionRow: {
     flexDirection: 'row',
     gap: Spacing.sm,

@@ -1,6 +1,6 @@
 ﻿import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
@@ -72,6 +72,16 @@ function normalizeCity(value: string) {
 }
 
 export default function CreateTripScreen() {
+  const params = useLocalSearchParams<{
+    fromCity?: string;
+    toCity?: string;
+    date?: string;
+    time?: string;
+    vehicle?: VehicleType;
+    capacity?: string;
+    price?: string;
+    repost?: string;
+  }>();
   const { user, refreshUser } = useAuth();
   const createTripMutation = useCreateTripMutation();
   const { showAlert } = useAlert();
@@ -91,6 +101,39 @@ export default function CreateTripScreen() {
   const setFormValues = useCallback((values: TripDraft) => setForm(values), []);
   const { clearDraft, isDraftRestored } = useFormDraft('create_trip', form, setFormValues);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const hasAppliedPrefill = useRef(false);
+
+  useEffect(() => {
+    if (hasAppliedPrefill.current || params.repost !== '1') return;
+
+    const prefillVehicle = params.vehicle;
+    const isValidVehicle = prefillVehicle && VEHICLES.some((item) => item.type === prefillVehicle);
+    const nextForm: TripDraft = {
+      fromCity: typeof params.fromCity === 'string' ? normalizeCity(params.fromCity) : '',
+      toCity: typeof params.toCity === 'string' ? normalizeCity(params.toCity) : '',
+      date: typeof params.date === 'string' ? params.date : '',
+      time: typeof params.time === 'string' ? params.time : '',
+      vehicle: isValidVehicle ? prefillVehicle : 'car',
+      capacity: typeof params.capacity === 'string' ? params.capacity : '',
+      price: typeof params.price === 'string' ? params.price : '',
+    };
+
+    if (
+      nextForm.fromCity ||
+      nextForm.toCity ||
+      nextForm.date ||
+      nextForm.time ||
+      nextForm.capacity ||
+      nextForm.price
+    ) {
+      setForm(nextForm);
+      setFieldErrors({});
+      setStep(0);
+      setShowDraftBanner(false);
+    }
+
+    hasAppliedPrefill.current = true;
+  }, [params]);
 
   const updateField = <K extends keyof TripDraft>(key: K, value: TripDraft[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -334,7 +377,7 @@ export default function CreateTripScreen() {
       });
       clearDraft();
       Haptic.success();
-      router.replace({ pathname: '/trip/[id]', params: { id: result.id } });
+      router.replace({ pathname: '/matching', params: { mode: 'trip', id: result.id } });
     } catch (error) {
       Haptic.error();
       showAlert(
@@ -415,7 +458,7 @@ export default function CreateTripScreen() {
               <MaterialIcons name={pendingChecks.length > 0 ? 'info-outline' : 'check-circle'} size={15} color={pendingChecks.length > 0 ? C.warning : C.success} />
               <Text style={[styles.nextHintText, { color: C.textSecondary }]} numberOfLines={1}>
                 {pendingChecks.length > 0
-                  ? `Before next: ${pendingChecks.slice(0, 2).map((item) => item.label).join(' Ã¢â‚¬Â¢ ')}`
+                  ? `Before next: ${pendingChecks.slice(0, 2).map((item) => item.label).join(' • ')}`
                   : 'Looks good - you can continue to the next step.'}
               </Text>
             </Animated.View>
@@ -452,7 +495,7 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
   locationHint: string | null;
 }) {
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled keyboardDismissMode="on-drag">
       <StepHero
         title="Plan a smooth journey"
         subtitle="Set route clarity first so verified senders can trust and match faster."
@@ -529,7 +572,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
   C: any;
 }) {
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
       <StepHero
         title="Set your carrying details"
         subtitle="Clear capacity and fair pricing create stronger, higher-quality matches."
@@ -648,7 +691,7 @@ function StepReview({ form, C, onEdit }: {
   const selectedVehicle = VEHICLES.find((v) => v.type === form.vehicle);
 
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
       <StepHero
         title="Review before publishing"
         subtitle="Confirm each detail once so pickup, timing, and expectations stay aligned."

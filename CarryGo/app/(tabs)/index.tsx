@@ -1,11 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppErrorBoundary, AsyncStateCard, FeedSkeletonList, OfflineBanner, ParcelCard, TripCard } from '@/components';
+import { AsyncStateCard, FeedSkeletonList, OfflineBanner, ParcelCard, TripCard } from '@/components';
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { ProductIllustration } from '@/components/illustrations';
@@ -22,38 +22,124 @@ import { FilterOptions, Parcel, Trip } from '@/types';
 const DEFAULT_FILTERS: FilterOptions = { fromCity: '', toCity: '', vehicleType: '', dateFrom: '', dateTo: '' };
 type FeedItem = { type: 'trip'; data: Trip } | { type: 'parcel'; data: Parcel };
 
-function QuickAction({ title, subtitle, icon, primary, onPress }: {
-  title: string;
-  subtitle: string;
-  icon: 'parcel' | 'route';
-  primary?: boolean;
-  onPress: () => void;
-}) {
+function HomeHero({ userName, unreadCount, onNotifications }: { userName: string; unreadCount: number; onNotifications: () => void }) {
   const { C } = useThemeColors();
+  const statusText = unreadCount > 0 ? `${unreadCount} new alerts` : 'All updates synced';
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => { Haptic.confirm(); onPress(); }}
-      style={({ pressed }) => [styles.quickAction, {
-        backgroundColor: primary ? C.primaryDark : C.surface,
-        borderColor: primary ? C.primaryDark : C.surfaceBorder,
-        transform: [{ scale: pressed ? 0.975 : 1 }],
-      }]}
-    >
-      {primary ? <LinearGradient colors={Gradients.primaryVibrant} style={StyleSheet.absoluteFillObject} /> : null}
-      <View style={styles.quickActionCopy}>
-        <View style={[styles.quickActionIcon, { backgroundColor: primary ? 'rgba(255,255,255,0.15)' : C.primarySubtle }]}>
-          <MaterialIcons name={icon === 'parcel' ? 'inventory-2' : 'luggage'} size={18} color={primary ? C.textInverse : C.primaryDark} />
+    <View style={[styles.hero, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      <LinearGradient
+        colors={[C.primarySubtle, 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <LinearGradient
+        colors={['transparent', C.overlayLight]}
+        start={{ x: 0.5, y: 0.2 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={styles.heroTop}>
+        <View style={styles.heroCopyWrap}>
+          <View style={[styles.heroStatusPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+            <View style={[styles.heroStatusDot, { backgroundColor: unreadCount > 0 ? C.warning : C.success }]} />
+            <Text style={[styles.heroStatusText, { color: C.textSecondary }]}>{statusText}</Text>
+          </View>
+          <Text style={[styles.heroEyebrow, { color: C.textMuted }]}>CarryGo Marketplace</Text>
+          <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Hi, {userName}</Text>
+          <Text style={[styles.heroSub, { color: C.textSecondary }]}>Post, match, and deliver with confidence.</Text>
         </View>
-        <Text style={[styles.quickActionTitle, { color: primary ? C.textInverse : C.textPrimary }]}>{title}</Text>
-        <Text style={[styles.quickActionSubtitle, { color: primary ? 'rgba(255,255,255,0.76)' : C.textMuted }]}>{subtitle}</Text>
-        <View style={styles.actionLink}>
-          <Text style={[styles.actionLinkText, { color: primary ? C.textInverse : C.primaryDark }]}>Get started</Text>
-          <MaterialIcons name="arrow-forward" size={15} color={primary ? C.textInverse : C.primaryDark} />
-        </View>
+        <Pressable
+          onPress={() => {
+            Haptic.tap();
+            onNotifications();
+          }}
+          style={({ pressed }) => [
+            styles.notifyBtn,
+            { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+          ]}
+        >
+          <MaterialIcons name="notifications-none" size={20} color={C.textPrimary} />
+          {unreadCount > 0 ? (
+            <View style={[styles.notifyBadge, { backgroundColor: C.error }]}>
+              <Text style={styles.notifyBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          ) : null}
+        </Pressable>
       </View>
-      <View style={styles.quickActionArt}><ProductIllustration variant={icon} size={106} /></View>
-    </Pressable>
+    </View>
+  );
+}
+
+function QuickActions() {
+  const router = useRouter();
+  const { C } = useThemeColors();
+
+  return (
+    <View style={styles.quickActionsRow}>
+      <Pressable
+        onPress={() => {
+          Haptic.confirm();
+          router.push('/create-parcel');
+        }}
+        style={({ pressed }) => [styles.quickAction, { borderColor: C.surfaceBorder }, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
+      >
+        <LinearGradient colors={Gradients.primaryVibrant} style={StyleSheet.absoluteFillObject} />
+        <ProductIllustration variant="parcel" size={84} />
+        <Text style={[styles.quickActionTitle, { color: C.textInverse }]}>Send Parcel</Text>
+        <Text style={[styles.quickActionSub, { color: 'rgba(255,255,255,0.8)' }]}>Post details and match fast</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => {
+          Haptic.confirm();
+          router.push('/create-trip');
+        }}
+        style={({ pressed }) => [
+          styles.quickAction,
+          { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+          pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+        ]}
+      >
+        <View style={[styles.quickIcon, { backgroundColor: C.primarySubtle }]}>
+          <MaterialIcons name="luggage" size={18} color={C.primary} />
+        </View>
+        <Text style={[styles.quickActionTitle, { color: C.textPrimary }]}>Post Trip</Text>
+        <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Earn from extra luggage space</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function HomeStats({ tripsCount, parcelsCount }: { tripsCount: number; parcelsCount: number }) {
+  const { C } = useThemeColors();
+
+  return (
+    <View style={styles.statsRow}>
+      <View style={[styles.statCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={[styles.statIcon, { backgroundColor: C.primarySubtle }]}>
+          <MaterialIcons name="route" size={14} color={C.primary} />
+        </View>
+        <Text style={[styles.statValue, { color: C.textPrimary }]}>{tripsCount}</Text>
+        <Text style={[styles.statLabel, { color: C.textMuted }]}>Live Trips</Text>
+      </View>
+      <View style={[styles.statCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={[styles.statIcon, { backgroundColor: C.successSubtle }]}>
+          <MaterialIcons name="inventory-2" size={14} color={C.success} />
+        </View>
+        <Text style={[styles.statValue, { color: C.textPrimary }]}>{parcelsCount}</Text>
+        <Text style={[styles.statLabel, { color: C.textMuted }]}>Open Parcels</Text>
+      </View>
+      <View style={[styles.statCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={[styles.statIcon, { backgroundColor: C.warningSubtle }]}>
+          <MaterialIcons name="bolt" size={14} color={C.warning} />
+        </View>
+        <Text style={[styles.statValue, { color: C.textPrimary }]}>{Math.max(1, Math.round((tripsCount + parcelsCount) / 2))}</Text>
+        <Text style={[styles.statLabel, { color: C.textMuted }]}>Fast Matches</Text>
+      </View>
+    </View>
   );
 }
 
@@ -64,20 +150,25 @@ function EmptyMarketplace({ activeTab, hasFilter, onClear, onCreate }: {
   onCreate: () => void;
 }) {
   const { C } = useThemeColors();
+
   return (
-    <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-      <ProductIllustration variant={activeTab === 'trips' ? 'route' : 'parcel'} size={176} />
+    <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
+      <ProductIllustration variant={activeTab === 'trips' ? 'route' : 'parcel'} size={170} />
       <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-        {hasFilter ? 'No exact route matches' : activeTab === 'trips' ? 'No live trips yet' : 'No open parcels yet'}
+        {hasFilter ? 'No route matches yet' : activeTab === 'trips' ? 'No live trips yet' : 'No open parcels yet'}
       </Text>
-      <Text style={[styles.emptySubtitle, { color: C.textMuted }]}>
-        {hasFilter ? 'Clear the filters or try a nearby city.' : activeTab === 'trips'
-          ? 'Post your trip and start earning from spare luggage space.'
-          : 'Create a parcel request and we will help find a traveller.'}
+      <Text style={[styles.emptySub, { color: C.textMuted }]}>
+        {hasFilter
+          ? 'Try broader locations or clear filters.'
+          : activeTab === 'trips'
+            ? 'Be the first to post a trip on this route.'
+            : 'Be the first to post a parcel request on this route.'}
       </Text>
-      <Pressable onPress={hasFilter ? onClear : onCreate} style={({ pressed }) => [styles.emptyButton, { backgroundColor: C.primaryDark, opacity: pressed ? 0.84 : 1 }]}>
-        <Text style={styles.emptyButtonText}>{hasFilter ? 'Clear filters' : activeTab === 'trips' ? 'Post a trip' : 'Send a parcel'}</Text>
-        <MaterialIcons name="arrow-forward" size={15} color="#fff" />
+      <Pressable
+        onPress={hasFilter ? onClear : onCreate}
+        style={({ pressed }) => [styles.emptyCta, { backgroundColor: C.primaryDark }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+      >
+        <Text style={styles.emptyCtaText}>{hasFilter ? 'Clear Filters' : activeTab === 'trips' ? 'Post a Trip' : 'Send a Parcel'}</Text>
       </Pressable>
     </View>
   );
@@ -90,194 +181,382 @@ export default function HomeScreen() {
   const { C } = useThemeColors();
   const { isOnline } = useNetworkStatus();
   const { notifications, unreadCount, markAllRead } = useNotifications();
-  const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
-  const [activeTab, setActiveTab] = useState<'trips' | 'parcels'>('trips');
-  const [showNotifications, setShowNotifications] = useState(false);
+
   const [showFilters, setShowFilters] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [activeTab, setActiveTab] = useState<'trips' | 'parcels'>('trips');
+  const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
   const [refreshing, setRefreshing] = useState(false);
+  const heroFade = useRef(new Animated.Value(0)).current;
+  const heroTranslateY = useRef(new Animated.Value(8)).current;
 
-  const userCity = user?.city;
-  const firstName = user?.name?.split(' ')[0] || 'there';
-  const tripsQuery = useTripsQuery(Boolean(user), userCity);
-  const parcelsQuery = useParcelsQuery(Boolean(user), userCity);
-  useListingsRealtime(Boolean(user), userCity || filters.fromCity || undefined);
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(heroFade, {
+        toValue: 1,
+        duration: 320,
+        useNativeDriver: true,
+      }),
+      Animated.timing(heroTranslateY, {
+        toValue: 0,
+        duration: 320,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [heroFade, heroTranslateY]);
 
-  const allTrips = useMemo(() => user ? flattenInfiniteData(tripsQuery.data) : [], [tripsQuery.data, user]);
-  const allParcels = useMemo(() => user ? flattenInfiniteData(parcelsQuery.data) : [], [parcelsQuery.data, user]);
-  const trips = useMemo(() => filterTrips(allTrips, filters), [allTrips, filters]);
-  const parcels = useMemo(() => filterParcels(allParcels, filters), [allParcels, filters]);
-  const myTrips = useMemo(() => allTrips.filter(item => item.userId === user?.id), [allTrips, user?.id]);
-  const myParcels = useMemo(() => allParcels.filter(item => item.userId === user?.id), [allParcels, user?.id]);
-  const liveTrips = useMemo(() => trips.filter(item => item.userId !== user?.id && item.status === 'active'), [trips, user?.id]);
-  const liveParcels = useMemo(() => parcels.filter(item => item.userId !== user?.id && item.status === 'open'), [parcels, user?.id]);
-  const hasActiveFilter = Boolean(filters.fromCity || filters.toCity || filters.vehicleType || filters.dateFrom || filters.dateTo);
-  const listingsError = tripsQuery.error || parcelsQuery.error;
+  const tripsQuery = useTripsQuery(true, user?.city);
+  const parcelsQuery = useParcelsQuery(true, user?.city);
+  useListingsRealtime();
+
+  const trips = flattenInfiniteData(tripsQuery.data);
+  const parcels = flattenInfiniteData(parcelsQuery.data);
+
+  const filteredTrips = useMemo(() => filterTrips(trips, filters), [trips, filters]);
+  const filteredParcels = useMemo(() => filterParcels(parcels, filters), [parcels, filters]);
+  const hasFilter = useMemo(() => Object.values(filters).some((value) => String(value).trim().length > 0), [filters]);
+
+  const feedData = useMemo<FeedItem[]>(() => {
+    if (activeTab === 'trips') return filteredTrips.map((trip) => ({ type: 'trip', data: trip }));
+    return filteredParcels.map((parcel) => ({ type: 'parcel', data: parcel }));
+  }, [activeTab, filteredParcels, filteredTrips]);
+
   const isLoading = tripsQuery.isLoading || parcelsQuery.isLoading;
-  const feedData = useMemo<FeedItem[]>(() => activeTab === 'trips'
-    ? liveTrips.map(data => ({ type: 'trip', data }))
-    : liveParcels.map(data => ({ type: 'parcel', data })), [activeTab, liveParcels, liveTrips]);
+  const hasError = tripsQuery.error || parcelsQuery.error;
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  }, []);
-
-  const retryListings = useCallback(() => { void tripsQuery.refetch(); void parcelsQuery.refetch(); }, [parcelsQuery, tripsQuery]);
-  const onRefresh = useCallback(async () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    try { await Promise.all([tripsQuery.refetch(), parcelsQuery.refetch()]); Haptic.success(); }
-    finally { setRefreshing(false); }
-  }, [parcelsQuery, tripsQuery]);
-  const onEndReached = useCallback(() => {
-    const query = activeTab === 'trips' ? tripsQuery : parcelsQuery;
-    if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
-  }, [activeTab, parcelsQuery, tripsQuery]);
-  const renderItem = useCallback(({ item }: { item: FeedItem }) => item.type === 'trip'
-    ? <TripCard trip={item.data} onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.data.id } })} />
-    : <ParcelCard parcel={item.data} onPress={() => router.push({ pathname: '/parcel/[id]', params: { id: item.data.id } })} />, [router]);
+    try {
+      await Promise.all([tripsQuery.refetch(), parcelsQuery.refetch()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-  const listEmpty = useCallback(() => {
-    if (isLoading) return <FeedSkeletonList count={3} />;
-    if (listingsError) return (
-      <View style={styles.stateWrap}>
-        <AsyncStateCard C={C} icon="cloud-off" title="Marketplace unavailable" message={listingsError instanceof Error ? listingsError.message : 'Refresh and try again.'} actionLabel="Retry" onAction={retryListings} />
-      </View>
+  const renderItem = ({ item }: { item: FeedItem }) => {
+    if (item.type === 'trip') {
+      return (
+        <TripCard
+          trip={item.data}
+          onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.data.id } })}
+          showRequestButton={FeatureFlags.payments}
+          onRequest={() => router.push({ pathname: '/matching', params: { mode: 'browse_trips', fromCity: item.data.fromCity, toCity: item.data.toCity } })}
+        />
+      );
+    }
+
+    return (
+      <ParcelCard
+        parcel={item.data}
+        onPress={() => router.push({ pathname: '/parcel/[id]', params: { id: item.data.id } })}
+        showCarryButton
+        onCarry={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: item.data.id } })}
+      />
     );
-    return <EmptyMarketplace activeTab={activeTab} hasFilter={hasActiveFilter} onClear={() => setFilters(DEFAULT_FILTERS)} onCreate={() => router.push(activeTab === 'trips' ? '/create-trip' : '/create-parcel')} />;
-  }, [C, activeTab, hasActiveFilter, isLoading, listingsError, retryListings, router]);
+  };
 
-  const listHeader = useMemo(() => (
-    <View style={styles.listHeader}>
-      {!isOnline ? <OfflineBanner C={C} /> : null}
-      <View>
-        <Text style={[styles.eyebrow, { color: C.primaryDark }]}>CHOOSE WHAT YOU NEED</Text>
-        <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Move something or earn on a trip</Text>
-      </View>
-      <View style={styles.actionsRow}>
-        <QuickAction title="Send a parcel" subtitle="Find someone already travelling your route." icon="parcel" primary onPress={() => router.push('/create-parcel')} />
-        <QuickAction title="Carry & earn" subtitle="Share your route and use spare luggage space." icon="route" onPress={() => router.push('/create-trip')} />
-      </View>
-      <Pressable onPress={() => router.push('/search')} style={({ pressed }) => [styles.routeSearch, { backgroundColor: C.surface, borderColor: C.surfaceBorder, opacity: pressed ? 0.82 : 1 }]}>
-        <View style={[styles.searchIcon, { backgroundColor: C.primarySubtle }]}><MaterialIcons name="route" size={20} color={C.primaryDark} /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.searchLabel, { color: C.textPrimary }]}>Search a route</Text>
-          <Text style={[styles.searchHint, { color: C.textMuted }]} numberOfLines={1}>{userCity ? `Trips and parcels around ${userCity}` : 'Choose origin, destination, and date'}</Text>
-        </View>
-        <View style={[styles.searchArrow, { backgroundColor: C.surfaceElevated }]}><MaterialIcons name="arrow-forward" size={17} color={C.textSecondary} /></View>
-      </Pressable>
-      <View style={styles.snapshotRow}>
-        <View style={[styles.snapshotCard, { backgroundColor: C.primarySubtle }]}><Text style={[styles.snapshotValue, { color: C.primaryDark }]}>{liveTrips.length}</Text><Text style={[styles.snapshotLabel, { color: C.textMuted }]}>Live trips</Text></View>
-        <View style={[styles.snapshotCard, { backgroundColor: C.accentSubtle }]}><Text style={[styles.snapshotValue, { color: C.accent }]}>{liveParcels.length}</Text><Text style={[styles.snapshotLabel, { color: C.textMuted }]}>Open parcels</Text></View>
-        <Pressable onPress={() => router.push('/my-activity')} style={({ pressed }) => [styles.snapshotCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder, opacity: pressed ? 0.75 : 1 }]}>
-          <Text style={[styles.snapshotValue, { color: C.textPrimary }]}>{myTrips.length + myParcels.length}</Text><Text style={[styles.snapshotLabel, { color: C.textMuted }]}>My listings ›</Text>
-        </Pressable>
-      </View>
-      {user && FeatureFlags.kycProvider && (!user.kycStatus || user.kycStatus === 'pending') ? (
-        <Pressable onPress={() => router.push('/(tabs)/profile')} style={({ pressed }) => [styles.trustCard, { backgroundColor: C.warningSubtle, borderColor: C.warning + '44', opacity: pressed ? 0.82 : 1 }]}>
-          <View style={[styles.trustIcon, { backgroundColor: C.warning + '20' }]}><MaterialIcons name="verified-user" size={18} color={C.warning} /></View>
-          <View style={{ flex: 1 }}><Text style={[styles.trustTitle, { color: C.textPrimary }]}>Build trust with verification</Text><Text style={[styles.trustSubtitle, { color: C.textMuted }]}>A verified profile gets clearer, safer matches.</Text></View>
-          <MaterialIcons name="arrow-forward" size={16} color={C.warning} />
-        </Pressable>
-      ) : null}
-      <View style={styles.marketplaceHeader}>
-        <View><Text style={[styles.marketplaceTitle, { color: C.textPrimary }]}>Explore nearby</Text><Text style={[styles.marketplaceSubtitle, { color: C.textMuted }]}>Fresh opportunities from the community</Text></View>
-        <Pressable onPress={() => setShowFilters(true)} style={({ pressed }) => [styles.filterButton, { backgroundColor: hasActiveFilter ? C.primarySubtle : C.surface, borderColor: hasActiveFilter ? C.primary + '66' : C.surfaceBorder, opacity: pressed ? 0.72 : 1 }]}><MaterialIcons name="tune" size={17} color={hasActiveFilter ? C.primaryDark : C.textSecondary} /></Pressable>
-      </View>
-      <View style={[styles.segmentedControl, { backgroundColor: C.surfaceElevated }]}>
-        {(['trips', 'parcels'] as const).map(tab => {
-          const selected = activeTab === tab;
-          const count = tab === 'trips' ? liveTrips.length : liveParcels.length;
-          return <Pressable key={tab} onPress={() => { Haptic.select(); setActiveTab(tab); }} style={[styles.segment, selected && { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name={tab === 'trips' ? 'directions-car' : 'inventory-2'} size={16} color={selected ? C.primaryDark : C.textMuted} />
-            <Text style={[styles.segmentText, { color: selected ? C.textPrimary : C.textMuted }]}>{tab === 'trips' ? 'Trips' : 'Parcels'}</Text>
-            <View style={[styles.segmentCount, { backgroundColor: selected ? C.primarySubtle : C.surfaceHigh }]}><Text style={[styles.segmentCountText, { color: selected ? C.primaryDark : C.textMuted }]}>{count}</Text></View>
-          </Pressable>;
-        })}
-      </View>
-      {hasActiveFilter ? <Pressable onPress={() => setFilters(DEFAULT_FILTERS)} style={[styles.filterSummary, { backgroundColor: C.primarySubtle }]}><MaterialIcons name="filter-alt" size={14} color={C.primaryDark} /><Text style={[styles.filterSummaryText, { color: C.primaryDark }]}>Filters applied</Text><MaterialIcons name="close" size={15} color={C.primaryDark} /></Pressable> : null}
-    </View>
-  ), [C, activeTab, hasActiveFilter, isOnline, liveParcels.length, liveTrips.length, myParcels.length, myTrips.length, router, user, userCity]);
+  return (
+    <View style={[styles.container, { backgroundColor: C.background }]}> 
+      <NotificationPanel
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        notifications={notifications}
+        markAllRead={() => {
+          void markAllRead();
+        }}
+        C={C}
+      />
 
-  return <>
-    <NotificationPanel visible={showNotifications} onClose={() => setShowNotifications(false)} notifications={notifications} markAllRead={markAllRead} C={C} />
-    <FilterPanel visible={showFilters} filters={filters} onClose={() => setShowFilters(false)} onApply={setFilters} C={C} />
-    <View style={[styles.screen, { backgroundColor: C.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.brandRow}><View style={[styles.brandMark, { backgroundColor: C.primaryDark }]}><MaterialIcons name="local-shipping" size={18} color={C.textInverse} /></View><Text style={[styles.brandName, { color: C.textPrimary }]}>CarryGo</Text></View>
-        <View style={[styles.headerActions, { top: insets.top + 8 }]}>
-          <Pressable onPress={() => setShowNotifications(true)} style={({ pressed }) => [styles.headerButton, { backgroundColor: C.surface, borderColor: C.surfaceBorder, opacity: pressed ? 0.72 : 1 }]}><Ionicons name="notifications-outline" size={19} color={C.textSecondary} />{unreadCount > 0 ? <View style={[styles.notificationDot, { backgroundColor: C.error, borderColor: C.surface }]} /> : null}</Pressable>
-          <Pressable onPress={() => router.push('/(tabs)/profile')} style={({ pressed }) => [styles.avatarButton, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33', opacity: pressed ? 0.74 : 1 }]}><Text style={[styles.avatarText, { color: C.primaryDark }]}>{firstName.charAt(0).toUpperCase()}</Text></Pressable>
-        </View>
-        <View style={styles.welcomeRow}><Text style={[styles.greeting, { color: C.textMuted }]}>{greeting},</Text><Text style={[styles.userName, { color: C.textPrimary }]}>{firstName}</Text><Text style={styles.wave}>👋</Text></View>
-        <Text style={[styles.welcomeSubtitle, { color: C.textSecondary }]}>Let's move something smarter today.</Text>
-      </View>
-      <AppErrorBoundary>
-        <FlashList data={feedData} renderItem={renderItem} estimatedItemSize={170} keyExtractor={item => item.data.id} ListHeaderComponent={listHeader} ListEmptyComponent={listEmpty}
-          ListFooterComponent={(activeTab === 'trips' ? tripsQuery : parcelsQuery).isFetchingNextPage ? <View style={styles.footerLoader}><ActivityIndicator color={C.primary} /></View> : null}
-          onEndReached={onEndReached} onEndReachedThreshold={0.4} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} colors={[C.primary]} progressBackgroundColor={C.surface} />} />
-      </AppErrorBoundary>
+      <FilterPanel
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        filters={filters}
+        onApply={(nextFilters) => setFilters(nextFilters)}
+        C={C}
+      />
+
+      <FlashList
+        data={feedData}
+        keyExtractor={(item) => `${item.type}-${item.data.id}`}
+        renderItem={renderItem}
+        estimatedItemSize={236}
+        ListHeaderComponent={
+          <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }]}> 
+            <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
+              <HomeHero
+                userName={user?.fullName || user?.name || 'there'}
+                unreadCount={unreadCount}
+                onNotifications={() => setShowNotifications(true)}
+              />
+            </Animated.View>
+
+            <HomeStats tripsCount={filteredTrips.length} parcelsCount={filteredParcels.length} />
+
+            <QuickActions />
+
+            <View style={styles.marketplaceHead}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Marketplace</Text>
+                <Text style={[styles.sectionSub, { color: C.textMuted }]}>Find best routes and delivery options</Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  Haptic.tap();
+                  setShowFilters(true);
+                }}
+                style={({ pressed }) => [
+                  styles.filterBtn,
+                  { borderColor: C.surfaceBorder, backgroundColor: C.surface },
+                  pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+                ]}
+              >
+                <MaterialIcons name="tune" size={18} color={C.textPrimary} />
+              </Pressable>
+            </View>
+
+            {!isOnline ? <OfflineBanner C={C} /> : null}
+
+            <View style={[styles.segmented, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
+              {(['trips', 'parcels'] as const).map((tab) => {
+                const active = activeTab === tab;
+                const count = tab === 'trips' ? filteredTrips.length : filteredParcels.length;
+
+                return (
+                  <Pressable
+                    key={tab}
+                    onPress={() => {
+                      Haptic.select();
+                      setActiveTab(tab);
+                    }}
+                    style={({ pressed }) => [
+                      styles.segment,
+                      {
+                        backgroundColor: active ? C.primaryDark : 'transparent',
+                        borderColor: active ? C.primaryDark : 'transparent',
+                      },
+                      pressed && { opacity: 0.78, transform: [{ scale: 0.98 }] },
+                    ]}
+                  >
+                    <Text style={[styles.segmentText, { color: active ? C.textInverse : C.textSecondary }]}>
+                      {tab === 'trips' ? 'Trips' : 'Parcels'} ({count})
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {hasFilter ? (
+              <View style={[styles.filterSummary, { backgroundColor: C.primarySubtle }]}> 
+                <MaterialIcons name="filter-alt" size={14} color={C.primaryDark} />
+                <Text style={[styles.filterSummaryText, { color: C.primaryDark }]}>Filters are active</Text>
+                <Pressable onPress={() => setFilters(DEFAULT_FILTERS)}>
+                  <Text style={[styles.clearText, { color: C.primaryDark }]}>Clear</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.stateWrap}>
+              <FeedSkeletonList />
+            </View>
+          ) : hasError ? (
+            <View style={styles.stateWrap}>
+              <AsyncStateCard
+                C={C}
+                icon="error-outline"
+                title="Could not load listings"
+                message="Please try again."
+                actionLabel="Retry"
+                onAction={onRefresh}
+              />
+            </View>
+          ) : (
+            <EmptyMarketplace
+              activeTab={activeTab}
+              hasFilter={hasFilter}
+              onClear={() => setFilters(DEFAULT_FILTERS)}
+              onCreate={() => router.push(activeTab === 'trips' ? '/create-trip' : '/create-parcel')}
+            />
+          )
+        }
+        ListFooterComponent={tripsQuery.isFetchingNextPage || parcelsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footerLoader} color={C.primary} /> : null}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
+        onEndReachedThreshold={0.35}
+        onEndReached={() => {
+          if (activeTab === 'trips') {
+            if (tripsQuery.hasNextPage && !tripsQuery.isFetchingNextPage) tripsQuery.fetchNextPage();
+            return;
+          }
+
+          if (parcelsQuery.hasNextPage && !parcelsQuery.isFetchingNextPage) parcelsQuery.fetchNextPage();
+        }}
+        contentContainerStyle={styles.listContent}
+      />
     </View>
-  </>;
+  );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  header: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xl },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 108 },
-  brandMark: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  brandName: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.6 },
-  headerActions: { position: 'absolute', right: Spacing.md, flexDirection: 'row', gap: Spacing.sm },
-  headerButton: { width: 42, height: 42, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  notificationDot: { position: 'absolute', right: 8, top: 7, width: 7, height: 7, borderRadius: 4, borderWidth: 1.5 },
-  avatarButton: { width: 40, height: 40, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  welcomeRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.xl, gap: 6 },
-  greeting: { fontSize: FontSize.xxl, fontWeight: FontWeight.medium, letterSpacing: -0.9 },
-  userName: { fontSize: FontSize.xxl, fontWeight: FontWeight.extrabold, letterSpacing: -0.95 },
-  wave: { fontSize: 24, marginLeft: 2 },
-  welcomeSubtitle: { fontSize: FontSize.md, marginTop: 6, lineHeight: 23 },
-  listHeader: { paddingHorizontal: Spacing.md, gap: Spacing.lg, paddingBottom: Spacing.lg },
-  eyebrow: { fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2, marginBottom: 6 },
-  sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.45, lineHeight: 30 },
-  actionsRow: { gap: Spacing.mdl },
-  quickAction: { minHeight: 150, borderRadius: BorderRadius.xl, borderWidth: 1, overflow: 'hidden', padding: Spacing.lg, justifyContent: 'center' },
-  quickActionCopy: { width: '62%', zIndex: 2 },
-  quickActionIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
-  quickActionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
-  quickActionSubtitle: { fontSize: FontSize.sm, lineHeight: 19, marginTop: 4 },
-  actionLink: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Spacing.md },
-  actionLinkText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  quickActionArt: { position: 'absolute', right: 2, bottom: 2, opacity: 0.92 },
-  routeSearch: { minHeight: 76, borderRadius: BorderRadius.lg, borderWidth: 1, padding: Spacing.mdl, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  searchIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  searchLabel: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  searchHint: { fontSize: FontSize.xs, marginTop: 3 },
-  searchArrow: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  snapshotRow: { flexDirection: 'row', gap: Spacing.sm },
-  snapshotCard: { flex: 1, minHeight: 78, borderRadius: BorderRadius.md, padding: Spacing.mdl, justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
-  snapshotValue: { fontSize: FontSize.xl, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
-  snapshotLabel: { fontSize: 10, fontWeight: FontWeight.semibold, marginTop: 3 },
-  trustCard: { borderRadius: BorderRadius.md, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  trustIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  trustTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  trustSubtitle: { fontSize: FontSize.xs, marginTop: 3, lineHeight: 17 },
-  marketplaceHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.md },
-  marketplaceTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.45 },
-  marketplaceSubtitle: { fontSize: FontSize.xs, marginTop: 3 },
-  filterButton: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  segmentedControl: { borderRadius: BorderRadius.md, padding: 5, flexDirection: 'row', gap: 5 },
-  segment: { flex: 1, minHeight: 46, borderRadius: 13, borderWidth: 1, borderColor: 'transparent', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  container: { flex: 1 },
+  listContent: { paddingBottom: 120 },
+  headerWrap: { paddingHorizontal: Spacing.md, gap: Spacing.md, paddingBottom: Spacing.md },
+
+  hero: {
+    minHeight: 130,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    padding: Spacing.mdl,
+    overflow: 'hidden',
+    shadowColor: '#0D1B2A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },
+  heroCopyWrap: { flex: 1, gap: 2, paddingRight: Spacing.sm },
+  heroStatusPill: {
+    alignSelf: 'flex-start',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  heroStatusDot: { width: 6, height: 6, borderRadius: 3 },
+  heroStatusText: { fontSize: 10, fontWeight: FontWeight.semibold, letterSpacing: 0.2 },
+  heroEyebrow: { fontSize: 10, fontWeight: FontWeight.semibold, letterSpacing: 1 },
+  heroTitle: { fontSize: FontSize.xxl + 1, fontWeight: FontWeight.bold, letterSpacing: -0.45, marginTop: 2 },
+  heroSub: { fontSize: FontSize.sm, marginTop: 5, lineHeight: 19 },
+  notifyBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifyBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  notifyBadgeText: { color: '#fff', fontSize: 9, fontWeight: FontWeight.bold },
+
+  statsRow: { flexDirection: 'row', gap: Spacing.sm },
+  statCard: {
+    flex: 1,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    alignItems: 'center',
+    gap: 3,
+    shadowColor: '#0D1B2A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  statIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, letterSpacing: -0.2 },
+  statLabel: { fontSize: 10, fontWeight: FontWeight.semibold },
+
+  quickActionsRow: { flexDirection: 'row', gap: Spacing.sm },
+  quickAction: {
+    flex: 1,
+    minHeight: 138,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    shadowColor: '#0D1B2A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  quickIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  quickActionTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  quickActionSub: { fontSize: FontSize.xs, lineHeight: 17, marginTop: 2 },
+
+  marketplaceHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.35 },
+  sectionSub: { fontSize: FontSize.xs, marginTop: 2 },
+  filterBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0D1B2A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+
+  segmented: {
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    padding: 4,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  segment: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   segmentText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  segmentCount: { minWidth: 22, height: 22, borderRadius: 8, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
-  segmentCountText: { fontSize: 10, fontWeight: FontWeight.bold },
-  filterSummary: { minHeight: 38, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+
+  filterSummary: {
+    minHeight: 34,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   filterSummaryText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  emptyCard: { marginHorizontal: Spacing.md, marginTop: Spacing.md, borderRadius: BorderRadius.xl, borderWidth: 1, padding: Spacing.xl, alignItems: 'center' },
-  emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.sm },
-  emptySubtitle: { fontSize: FontSize.sm, lineHeight: 20, textAlign: 'center', marginTop: Spacing.sm, maxWidth: 280 },
-  emptyButton: { minHeight: 46, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.lg },
-  emptyButtonText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  clearText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+
+  emptyCard: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    alignItems: 'center',
+  },
+  emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, marginTop: Spacing.sm, textAlign: 'center' },
+  emptySub: { fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 20 },
+  emptyCta: {
+    marginTop: Spacing.lg,
+    minHeight: 44,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCtaText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+
   stateWrap: { marginHorizontal: Spacing.md, marginTop: Spacing.md },
   footerLoader: { paddingVertical: Spacing.lg },
 });

@@ -5,6 +5,8 @@ import { sanitizeLikeInput } from '@/lib/sanitize';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { isAwsBackendEnabled } from '@/lib/backend/provider';
 import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
+import { getUnmatchedListingCutoffIso } from '@/constants/listingFlow';
+import { expireStaleUnmatchedListings } from '@/services/listing-expiry.service';
 
 type ParcelRow = Database['public']['Tables']['parcels']['Row'];
 
@@ -60,9 +62,20 @@ export async function fetchParcels(filters?: { fromCity?: string; toCity?: strin
   }
 
   const sb = getSupabaseClient();
+  try {
+    await expireStaleUnmatchedListings();
+  } catch {
+    // Non-blocking cleanup. Listing fetch should still proceed.
+  }
   const limit = filters?.limit ?? 50;
   const offset = filters?.offset ?? 0;
-  let query = sb.from('parcels').select('*', { count: 'exact' }).in('status', ['open', 'matched']).order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+  let query = sb
+    .from('parcels')
+    .select('*', { count: 'exact' })
+    .eq('status', 'open')
+    .gte('created_at', getUnmatchedListingCutoffIso())
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
   if (filters?.fromCity) query = query.ilike('from_city', `%${sanitizeLikeInput(filters.fromCity)}%`);
   if (filters?.toCity) query = query.ilike('to_city', `%${sanitizeLikeInput(filters.toCity)}%`);
   if (filters?.userCity && !filters.fromCity && !filters.toCity) {
