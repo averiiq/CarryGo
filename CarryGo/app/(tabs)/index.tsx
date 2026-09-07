@@ -120,19 +120,20 @@ function QuickActions() {
         }}
         style={({ pressed }) => [
           styles.quickActionCard,
-          { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-          pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+          styles.quickActionPrimaryCard,
+          { backgroundColor: C.primaryDark, borderColor: C.primaryDark },
+          pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
         ]}
       >
         <View style={styles.quickActionTop}>
-          <View style={[styles.quickActionIcon, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons name="inventory-2" size={22} color={C.primary} />
+          <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+            <MaterialIcons name="inventory-2" size={22} color="#34D399" />
           </View>
-          <MaterialIcons name="arrow-forward" size={16} color={C.textMuted} />
+          <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.7)" />
         </View>
         <View style={styles.quickActionCopy}>
-          <Text style={[styles.quickActionTitle, { color: C.textPrimary }]}>Send Parcel</Text>
-          <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Match with travelers</Text>
+          <Text style={[styles.quickActionTitle, { color: '#FFFFFF' }]}>Send Parcel</Text>
+          <Text style={[styles.quickActionSub, { color: 'rgba(255,255,255,0.78)' }]}>Match with travelers</Text>
         </View>
       </Pressable>
 
@@ -148,8 +149,8 @@ function QuickActions() {
         ]}
       >
         <View style={styles.quickActionTop}>
-          <View style={[styles.quickActionIcon, { backgroundColor: '#F0FDF4' }]}>
-            <MaterialIcons name="flight-takeoff" size={22} color={C.primaryDark} />
+          <View style={[styles.quickActionIcon, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name="flight-takeoff" size={22} color={C.primary} />
           </View>
           <MaterialIcons name="arrow-forward" size={16} color={C.textMuted} />
         </View>
@@ -162,8 +163,9 @@ function QuickActions() {
   );
 }
 
-function HomeStats({ tripsCount, parcelsCount }: { tripsCount: number; parcelsCount: number }) {
+function HomeStats({ tripsCount, parcelsCount, rating }: { tripsCount: number; parcelsCount: number; rating?: number }) {
   const { C } = useThemeColors();
+  const userRating = rating ? rating.toFixed(1) : '4.9';
 
   return (
     <View style={[styles.statsContainer, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -178,8 +180,11 @@ function HomeStats({ tripsCount, parcelsCount }: { tripsCount: number; parcelsCo
       </View>
       <View style={[styles.statDivider, { backgroundColor: C.surfaceBorder }]} />
       <View style={styles.statCol}>
-        <Text style={[styles.statNumber, { color: C.success }]}>100%</Text>
-        <Text style={[styles.statLabel, { color: C.textMuted }]}>Verified</Text>
+        <View style={styles.ratingRow}>
+          <MaterialIcons name="star" size={16} color="#F59E0B" />
+          <Text style={[styles.statNumber, { color: C.textPrimary }]}>{userRating}</Text>
+        </View>
+        <Text style={[styles.statLabel, { color: C.textMuted }]}>Your Rating</Text>
       </View>
     </View>
   );
@@ -363,7 +368,11 @@ export default function HomeScreen() {
 
             <QuickActions />
 
-            <HomeStats tripsCount={filteredTrips.length} parcelsCount={filteredParcels.length} />
+            <HomeStats
+              tripsCount={filteredTrips.length}
+              parcelsCount={filteredParcels.length}
+              rating={user?.rating}
+            />
 
             <View style={styles.marketplaceHead}>
               <View>
@@ -594,6 +603,13 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
+  quickActionPrimaryCard: {
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 4,
+  },
   quickActionTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -637,6 +653,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   statNumber: {
     fontSize: FontSize.lg,

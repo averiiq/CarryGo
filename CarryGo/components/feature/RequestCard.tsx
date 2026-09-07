@@ -17,27 +17,36 @@ interface RequestCardProps {
   onPayment?: () => void;
 }
 
-const STATUS_CONFIG = (C: ThemeColors): Record<string, { color: string; bg: string; label: string; icon: keyof typeof Ionicons.glyphMap }> => ({
-  pending: { color: C.warning, bg: C.warningSubtle, label: 'Pending', icon: 'time-outline' },
-  accepted: { color: C.success, bg: C.successSubtle, label: 'Accepted', icon: 'checkmark-circle-outline' },
-  rejected: { color: C.error, bg: C.errorSubtle, label: 'Rejected', icon: 'close-circle-outline' },
-  cancelled: { color: C.textMuted, bg: C.surfaceElevated, label: 'Cancelled', icon: 'ban-outline' },
-  completed: { color: C.success, bg: C.successSubtle, label: 'Completed', icon: 'trophy-outline' },
-  failed: { color: C.error, bg: C.errorSubtle, label: 'Failed', icon: 'alert-circle-outline' },
+const STATUS_CONFIG = (C: ThemeColors): Record<string, { color: string; bg: string; border: string; label: string; icon: keyof typeof Ionicons.glyphMap }> => ({
+  pending: { color: '#D97706', bg: '#FEF3C7', border: '#FDE68A', label: 'Pending', icon: 'time-outline' },
+  accepted: { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', label: 'Accepted', icon: 'checkmark-circle' },
+  rejected: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', label: 'Declined', icon: 'close-circle' },
+  cancelled: { color: '#64748B', bg: '#F1F5F9', border: '#E2E8F0', label: 'Cancelled', icon: 'ban' },
+  completed: { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', label: 'Completed', icon: 'trophy' },
+  failed: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', label: 'Failed', icon: 'alert-circle' },
 });
 
-export const RequestCard = React.memo(function RequestCard({ request, type, onAccept, onReject, onCancel, onChat, onDelivery, onPayment }: RequestCardProps) {
+export const RequestCard = React.memo(function RequestCard({
+  request,
+  type,
+  onAccept,
+  onReject,
+  onCancel,
+  onChat,
+  onDelivery,
+  onPayment,
+}: RequestCardProps) {
   const { C, S } = useThemeColors();
   const translateX = useRef(new Animated.Value(0)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
 
   const sc = STATUS_CONFIG(C)[request.status] || STATUS_CONFIG(C).pending;
   const personName = type === 'incoming' ? request.senderName : request.travellerName;
-  const personLabel = type === 'incoming' ? 'From Sender' : 'To Traveller';
-  const showSwipeHint = type === 'incoming' && request.status === 'pending';
+  const isIncoming = type === 'incoming';
+  const showSwipeHint = isIncoming && request.status === 'pending';
 
   // Swipe gestures for incoming pending requests
-  const SWIPE_THRESHOLD = 80;
+  const SWIPE_THRESHOLD = 85;
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_, g) => showSwipeHint && Math.abs(g.dx) > 8 && Math.abs(g.dy) < 30,
@@ -46,16 +55,14 @@ export const RequestCard = React.memo(function RequestCard({ request, type, onAc
     },
     onPanResponderRelease: (_, g) => {
       if (g.dx > SWIPE_THRESHOLD) {
-        // Swipe right → accept
         Haptic.success();
-        Animated.spring(translateX, { toValue: 400, useNativeDriver: true, tension: 100 }).start(() => {
+        Animated.spring(translateX, { toValue: 420, useNativeDriver: true, tension: 100 }).start(() => {
           translateX.setValue(0);
           onAccept?.();
         });
       } else if (g.dx < -SWIPE_THRESHOLD) {
-        // Swipe left → reject
         Haptic.error();
-        Animated.spring(translateX, { toValue: -400, useNativeDriver: true, tension: 100 }).start(() => {
+        Animated.spring(translateX, { toValue: -420, useNativeDriver: true, tension: 100 }).start(() => {
           translateX.setValue(0);
           onReject?.();
         });
@@ -67,29 +74,37 @@ export const RequestCard = React.memo(function RequestCard({ request, type, onAc
 
   const bgColor = translateX.interpolate({
     inputRange: [-200, -80, 0, 80, 200],
-    outputRange: [C.errorSubtle, C.surfaceElevated, C.surface, C.surfaceElevated, C.successSubtle],
+    outputRange: [C.errorSubtle, '#F8FAFC', '#FFFFFF', '#F8FAFC', C.successSubtle],
     extrapolate: 'clamp',
   });
 
   const onPressIn = () => Animated.spring(pressScale, { toValue: Motion.cardScale, useNativeDriver: true, ...Motion.springFast }).start();
   const onPressOut = () => Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
-  // Swipe hint labels
   const rejectOpacity = translateX.interpolate({ inputRange: [-80, 0], outputRange: [1, 0], extrapolate: 'clamp' });
   const acceptOpacity = translateX.interpolate({ inputRange: [0, 80], outputRange: [0, 1], extrapolate: 'clamp' });
+
+  const formattedDate = new Date(request.createdAt).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+  });
 
   return (
     <View style={{ position: 'relative' }}>
       {/* Swipe background hints */}
       {showSwipeHint ? (
         <>
-          <Animated.View style={[styles.swipeBg, styles.swipeBgLeft, { backgroundColor: C.errorSubtle, opacity: rejectOpacity }]}>
-            <MaterialIcons name="close" size={22} color={C.error} />
-            <Text style={[styles.swipeBgText, { color: C.error }]}>Reject</Text>
+          <Animated.View style={[styles.swipeBg, styles.swipeBgLeft, { backgroundColor: '#FEE2E2', opacity: rejectOpacity }]}>
+            <View style={styles.swipeIconCircle}>
+              <MaterialIcons name="close" size={20} color="#DC2626" />
+            </View>
+            <Text style={[styles.swipeBgText, { color: '#DC2626' }]}>Decline</Text>
           </Animated.View>
-          <Animated.View style={[styles.swipeBg, styles.swipeBgRight, { backgroundColor: C.successSubtle, opacity: acceptOpacity }]}>
-            <Text style={[styles.swipeBgText, { color: C.success }]}>Accept</Text>
-            <MaterialIcons name="check" size={22} color={C.success} />
+          <Animated.View style={[styles.swipeBg, styles.swipeBgRight, { backgroundColor: '#DCFCE7', opacity: acceptOpacity }]}>
+            <Text style={[styles.swipeBgText, { color: '#059669' }]}>Accept</Text>
+            <View style={[styles.swipeIconCircle, { backgroundColor: '#059669' }]}>
+              <MaterialIcons name="check" size={20} color="#FFFFFF" />
+            </View>
           </Animated.View>
         </>
       ) : null}
@@ -98,142 +113,197 @@ export const RequestCard = React.memo(function RequestCard({ request, type, onAc
         style={[
           styles.card,
           S.sm,
-          { backgroundColor: showSwipeHint ? bgColor : C.surface, borderColor: C.surfaceBorder },
+          { backgroundColor: showSwipeHint ? bgColor : '#FFFFFF', borderColor: '#E2E8F0' },
           { transform: [{ translateX }, { scale: pressScale }] },
         ]}
         {...(showSwipeHint ? panResponder.panHandlers : {})}
       >
-        {/* Status accent bar */}
-        <View style={[styles.statusBar, { backgroundColor: sc.color }]} />
-
         <Pressable
           style={styles.inner}
           onPressIn={onPressIn}
           onPressOut={onPressOut}
-          android_ripple={{ color: C.primarySubtle }}
           accessibilityRole="button"
-          accessibilityLabel={`${type === 'incoming' ? 'Incoming' : 'Outgoing'} request from ${personName}, Rs ${request.price}, ${sc.label}`}
-          accessibilityHint={showSwipeHint ? 'Swipe right to accept, left to reject' : undefined}
+          accessibilityLabel={`${isIncoming ? 'Incoming' : 'Outgoing'} request from ${personName}, Rs ${request.price}, ${sc.label}`}
+          accessibilityHint={showSwipeHint ? 'Swipe right to accept, left to decline' : undefined}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.personBlock}>
-              <View style={[styles.personAvatar, { backgroundColor: C.primarySubtle, borderColor: C.primary + '30' }]}>
-                <Text style={[styles.personAvatarText, { color: C.primary }]}>{personName.charAt(0).toUpperCase()}</Text>
-              </View>
-              <View>
-                <Text style={[styles.personLabel, { color: C.textMuted }]}>{personLabel}</Text>
-                <Text style={[styles.personName, { color: C.textPrimary }]}>{personName}</Text>
+          {/* Card Top: Title / Route + Type Pill + Price & Vehicle Icon */}
+          <View style={styles.cardHeader}>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {isIncoming ? `${personName}'s Request` : 'Delivery Request'}
+              </Text>
+              <View style={styles.typePill}>
+                <MaterialIcons name="inventory-2" size={11} color="#475569" />
+                <Text style={styles.typePillText}>Parcel</Text>
               </View>
             </View>
-            <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
-              <Ionicons name={sc.icon} size={11} color={sc.color} />
-              <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+
+            <View style={styles.headerRightRow}>
+              <Text style={styles.priceTag}>₹{request.price}</Text>
+              <View style={styles.vehicleIconPill}>
+                <MaterialIcons name="local-shipping" size={15} color="#475569" />
+              </View>
             </View>
           </View>
 
-          <View style={[styles.divider, { backgroundColor: C.surfaceBorder }]} />
+          {/* Route line: Pickup ┄┄ Drop point + Optional Message Tooltip */}
+          <View style={styles.routeSection}>
+            <View style={styles.routeIndicatorRow}>
+              <View style={styles.pickupDot} />
+              <Text style={styles.routeLabel}>Pickup</Text>
+              <View style={styles.dottedLine} />
+              <View style={styles.dropDot} />
+              <Text style={styles.routeLabel}>Drop point</Text>
+            </View>
 
-          {/* Details */}
-          <View style={styles.details}>
-            <View style={styles.detailItem}>
-              <MaterialIcons name="currency-rupee" size={14} color={C.success} />
-              <Text style={[styles.priceText, { color: C.success }]}>Rs {request.price}</Text>
-            </View>
-            <View style={[styles.detailSep, { backgroundColor: C.surfaceBorderLight }]} />
-            <View style={styles.detailItem}>
-              <Ionicons name="calendar-outline" size={13} color={C.textMuted} />
-              <Text style={[styles.dateText, { color: C.textMuted }]}>
-                {new Date(request.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-              </Text>
-            </View>
-            {type === 'incoming' && request.status === 'pending' ? (
-              <>
-                <View style={[styles.detailSep, { backgroundColor: C.surfaceBorderLight }]} />
-                <View style={[styles.swipeHintBadge, { backgroundColor: C.surfaceElevated }]}>
-                  <MaterialIcons name="swipe" size={11} color={C.textMuted} />
-                  <Text style={[styles.swipeHintText, { color: C.textMuted }]}>Swipe</Text>
-                </View>
-              </>
+            {request.message ? (
+              <View style={styles.messageTooltip}>
+                <Text style={styles.tooltipLabel}>Message</Text>
+                <Text style={styles.tooltipText} numberOfLines={1}>{request.message}</Text>
+              </View>
             ) : null}
           </View>
 
-          {request.message ? (
-            <View style={[styles.messageBubble, { backgroundColor: C.surfaceElevated, borderLeftColor: C.primary }]}>
-              <Text style={[styles.messageText, { color: C.textSecondary }]} numberOfLines={2}>
-                &quot;{request.message}&quot;
-              </Text>
+          {/* Metadata Chips Row: Date, Escrow Protected, Status Pill */}
+          <View style={styles.metaRow}>
+            <View style={styles.metaChip}>
+              <Ionicons name="calendar-outline" size={11} color="#64748B" />
+              <Text style={styles.metaChipText}>{formattedDate}</Text>
             </View>
-          ) : null}
 
-          {/* Actions */}
-          {type === 'incoming' && request.status === 'pending' ? (
-            <View style={styles.actions}>
-              <Pressable
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.errorSubtle, borderColor: C.error + '44', borderWidth: 1, opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => { Haptic.tap(); onReject?.(); }}
-              >
-                <Ionicons name="close" size={15} color={C.error} />
-                <Text style={[styles.actionBtnText, { color: C.error }]}>Reject</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.success, opacity: pressed ? 0.88 : 1 }]}
-                onPress={() => { Haptic.tap(); onAccept?.(); }}
-              >
-                <Ionicons name="checkmark" size={15} color="#fff" />
-                <Text style={[styles.actionBtnText, { color: '#fff' }]}>Accept</Text>
-              </Pressable>
+            <View style={[styles.metaChip, styles.escrowChip]}>
+              <MaterialIcons name="security" size={11} color="#059669" />
+              <Text style={styles.escrowChipText}>Escrow Protected</Text>
             </View>
-          ) : null}
 
-          {type === 'outgoing' && request.status === 'pending' ? (
-            <Pressable
-              style={({ pressed }) => [styles.historyBtn, { backgroundColor: C.errorSubtle, borderColor: C.error + '44', opacity: pressed ? 0.8 : 1 }]}
-              onPress={() => { Haptic.tap(); onCancel?.(); }}
-            >
-              <MaterialIcons name="cancel" size={14} color={C.error} />
-              <Text style={[styles.actionBtnText, { color: C.error }]}>Cancel Request</Text>
-            </Pressable>
-          ) : null}
+            <View style={[styles.statusChip, { backgroundColor: sc.bg, borderColor: sc.border }]}>
+              <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
+              <Text style={[styles.statusChipText, { color: sc.color }]}>{sc.label}</Text>
+            </View>
+          </View>
 
-          {request.status === 'accepted' ? (
-            <View style={styles.actions}>
-              {type === 'outgoing' ? (
+          {/* Clean Divider */}
+          <View style={styles.divider} />
+
+          {/* User Info & Actions Bar (Matching reference image) */}
+          <View style={styles.userFooterRow}>
+            {/* User on Left */}
+            <View style={styles.userBlock}>
+              <View style={styles.avatarWrap}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{personName.charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={styles.avatarVerifiedBadge}>
+                  <MaterialIcons name="check" size={8} color="#FFFFFF" />
+                </View>
+              </View>
+
+              <View style={styles.userMeta}>
+                <View style={styles.userNameRow}>
+                  <Text style={styles.userName} numberOfLines={1}>{personName}</Text>
+                  <MaterialIcons name="verified" size={13} color="#0284C7" />
+                </View>
+                <Text style={styles.userSubText}>
+                  4.8 ★ · {isIncoming ? 'Sender' : 'Traveler'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Actions on Right */}
+            <View style={styles.actionsRight}>
+              {/* Chat Button (Square Pill from reference image) */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.squareActionBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+                ]}
+                onPress={() => { Haptic.tap(); onChat?.(); }}
+                hitSlop={6}
+                accessibilityLabel="Chat"
+              >
+                <Ionicons name="chatbubble-outline" size={16} color="#334155" />
+              </Pressable>
+
+              {/* Status Action Buttons */}
+              {isIncoming && request.status === 'pending' ? (
+                <>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.squareActionBtn,
+                      styles.declineSquareBtn,
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+                    ]}
+                    onPress={() => { Haptic.tap(); onReject?.(); }}
+                    accessibilityLabel="Decline"
+                  >
+                    <Ionicons name="close" size={16} color="#DC2626" />
+                  </Pressable>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.primaryActionPill,
+                      pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                    ]}
+                    onPress={() => { Haptic.tap(); onAccept?.(); }}
+                  >
+                    <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                    <Text style={styles.primaryActionText}>Accept</Text>
+                  </Pressable>
+                </>
+              ) : null}
+
+              {!isIncoming && request.status === 'pending' ? (
                 <Pressable
-                  style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.warning + '18', borderColor: C.warning + '44', borderWidth: 1, flex: undefined, paddingHorizontal: Spacing.md, opacity: pressed ? 0.8 : 1 }]}
-                  onPress={() => { Haptic.tap(); onPayment?.(); }}
+                  style={({ pressed }) => [
+                    styles.cancelPill,
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                  ]}
+                  onPress={() => { Haptic.tap(); onCancel?.(); }}
                 >
-                  <MaterialIcons name="account-balance-wallet" size={14} color={C.warning} />
-                  <Text style={[styles.actionBtnText, { color: C.warning }]}>Pay</Text>
+                  <Text style={styles.cancelPillText}>Cancel</Text>
                 </Pressable>
               ) : null}
 
-              <Pressable
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44', borderWidth: 1, flex: undefined, paddingHorizontal: Spacing.md, opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => { Haptic.tap(); onChat?.(); }}
-              >
-                <Ionicons name="chatbubble-outline" size={14} color={C.primary} />
-                <Text style={[styles.actionBtnText, { color: C.primary }]}>Chat</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1 }]}
-                onPress={() => { Haptic.tap(); onDelivery?.(); }}
-              >
-                <MaterialIcons name="local-shipping" size={14} color="#fff" />
-                <Text style={[styles.actionBtnText, { color: '#fff' }]}>Track</Text>
-              </Pressable>
-            </View>
-          ) : null}
+              {request.status === 'accepted' ? (
+                <>
+                  {!isIncoming ? (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.payPill,
+                        pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                      ]}
+                      onPress={() => { Haptic.tap(); onPayment?.(); }}
+                    >
+                      <Text style={styles.payPillText}>Pay</Text>
+                    </Pressable>
+                  ) : null}
 
-          {request.status === 'completed' ? (
-            <Pressable
-              style={({ pressed }) => [styles.historyBtn, { backgroundColor: C.successSubtle, borderColor: C.success + '44', opacity: pressed ? 0.8 : 1 }]}
-              onPress={() => { Haptic.tap(); onPayment?.(); }}
-            >
-              <MaterialIcons name="receipt-long" size={14} color={C.success} />
-              <Text style={[styles.actionBtnText, { color: C.success }]}>View Payment</Text>
-            </Pressable>
-          ) : null}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.primaryActionPill,
+                      pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                    ]}
+                    onPress={() => { Haptic.tap(); onDelivery?.(); }}
+                  >
+                    <MaterialIcons name="local-shipping" size={14} color="#FFFFFF" />
+                    <Text style={styles.primaryActionText}>Track</Text>
+                  </Pressable>
+                </>
+              ) : null}
+
+              {request.status === 'completed' ? (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.receiptPill,
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                  ]}
+                  onPress={() => { Haptic.tap(); onPayment?.(); }}
+                >
+                  <Text style={styles.receiptPillText}>Receipt</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
         </Pressable>
       </Animated.View>
     </View>
@@ -242,53 +312,360 @@ export const RequestCard = React.memo(function RequestCard({ request, type, onAc
 
 const styles = StyleSheet.create({
   swipeBg: {
-    position: 'absolute', top: 0, bottom: 0, width: '50%',
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row',
-    gap: 8, borderRadius: BorderRadius.lg, zIndex: 0,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: '50%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderRadius: 22,
+    zIndex: 0,
   },
-  swipeBgLeft: { left: 0, paddingLeft: 20, justifyContent: 'flex-start' },
-  swipeBgRight: { right: 0, paddingRight: 20, justifyContent: 'flex-end' },
+  swipeBgLeft: { left: 0, paddingLeft: 24, justifyContent: 'flex-start' },
+  swipeBgRight: { right: 0, paddingRight: 24, justifyContent: 'flex-end' },
   swipeBgText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  swipeIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
 
+  // Card Container (Clean, NO top border line)
   card: {
-    borderRadius: BorderRadius.lg, borderWidth: 1, overflow: 'hidden', zIndex: 1,
+    borderRadius: 22,
+    borderWidth: 1,
+    overflow: 'hidden',
+    zIndex: 1,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  statusBar: { height: 3 },
-  inner: { padding: Spacing.md, gap: Spacing.sm },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  personBlock: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  personAvatar: {
-    width: 38, height: 38, borderRadius: 19, borderWidth: 1.5,
-    alignItems: 'center', justifyContent: 'center',
+  inner: {
+    padding: Spacing.md + 2,
+    gap: Spacing.sm + 2,
   },
-  personAvatarText: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  personLabel: { fontSize: FontSize.xs },
-  personName: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.full },
-  statusText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  divider: { height: 1 },
-  details: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  detailItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  detailSep: { width: 1, height: 14 },
-  priceText: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  dateText: { fontSize: FontSize.xs },
-  swipeHintBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.full,
+
+  // Card Header: Title + Type Pill on left, Price + Vehicle Icon on right
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  swipeHintText: { fontSize: 10, fontWeight: FontWeight.medium },
-  messageBubble: {
-    padding: Spacing.sm, borderRadius: BorderRadius.sm, borderLeftWidth: 2.5,
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flex: 1,
   },
-  messageText: { fontSize: FontSize.sm, fontStyle: 'italic', lineHeight: 20 },
-  actions: { flexDirection: 'row', gap: Spacing.sm },
-  actionBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: Spacing.sm + 3, borderRadius: BorderRadius.md,
+  cardTitle: {
+    fontSize: FontSize.md + 1,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
+    color: '#0F172A',
   },
-  actionBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  historyBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: Spacing.sm + 1, borderRadius: BorderRadius.md, borderWidth: 1,
+  typePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  typePillText: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+    color: '#475569',
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  priceTag: {
+    fontSize: 17,
+    fontWeight: FontWeight.bold,
+    color: '#059669',
+    letterSpacing: -0.3,
+  },
+  vehicleIconPill: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Route Section: Pickup ┄┄ Drop point + Message Tooltip
+  routeSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  routeIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    flex: 1,
+  },
+  pickupDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#059669',
+  },
+  dropDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  routeLabel: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+    color: '#475569',
+  },
+  dottedLine: {
+    width: 28,
+    height: 1,
+    borderWidth: 0.8,
+    borderColor: '#94A3B8',
+    borderStyle: 'dashed',
+  },
+  messageTooltip: {
+    maxWidth: 150,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 1,
+  },
+  tooltipLabel: {
+    fontSize: 8,
+    fontWeight: FontWeight.bold,
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  tooltipText: {
+    fontSize: 10,
+    color: '#334155',
+  },
+
+  // Metadata Chips Row
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  metaChipText: {
+    fontSize: 10.5,
+    fontWeight: FontWeight.medium,
+    color: '#64748B',
+  },
+  escrowChip: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  escrowChipText: {
+    fontSize: 10.5,
+    fontWeight: FontWeight.semibold,
+    color: '#059669',
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  statusChipText: {
+    fontSize: 10.5,
+    fontWeight: FontWeight.bold,
+  },
+
+  // Card Divider
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 1,
+  },
+
+  // User Footer Row: Avatar + Name on left, Square action buttons on right
+  userFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  userBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  avatarWrap: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 15,
+    fontWeight: FontWeight.bold,
+    color: '#064E3B',
+  },
+  avatarVerifiedBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  userMeta: {
+    gap: 1,
+    flex: 1,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  userName: {
+    fontSize: FontSize.sm + 0.5,
+    fontWeight: FontWeight.bold,
+    color: '#0F172A',
+  },
+  userSubText: {
+    fontSize: 10.5,
+    fontWeight: FontWeight.medium,
+    color: '#64748B',
+  },
+
+  // Right Actions
+  actionsRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  squareActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  declineSquareBtn: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  primaryActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#059669',
+  },
+  primaryActionText: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+    color: '#FFFFFF',
+  },
+  cancelPill: {
+    paddingHorizontal: 10,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelPillText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+    color: '#DC2626',
+  },
+  payPill: {
+    paddingHorizontal: 10,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payPillText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+    color: '#B45309',
+  },
+  receiptPill: {
+    paddingHorizontal: 10,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  receiptPillText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+    color: '#059669',
   },
 });

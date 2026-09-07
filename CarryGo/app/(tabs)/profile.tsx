@@ -14,7 +14,6 @@ import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { flattenInfiniteData, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { useFadeIn, useBreathing, useHeartbeat } from '@/hooks/useAnimations';
-import { ProductIllustration } from '@/components/illustrations';
 
 interface MenuItemProps {
   icon: React.ReactNode;
@@ -185,64 +184,102 @@ export default function ProfileScreen() {
         )}
         scrollEventThrottle={16}
       >
-        {/* Hero */}
+        {/* Modern Horizontal Executive Hero */}
         <Animated.View style={{ opacity: heroEntrance.opacity, transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }] }}>
-          <View style={[styles.heroCard, { backgroundColor: C.primaryDark, borderColor: C.primaryDark }]}>
-            <View style={styles.heroBackdropImage}>
-              <ProductIllustration variant="profile" size={180} />
-            </View>
+          <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            {/* Subtle Gradient Backing */}
             <LinearGradient
-              colors={[C.primaryDark, C.primary, C.primaryDark]}
-              style={[StyleSheet.absoluteFillObject, { opacity: 0.8 }]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            />
-            <LinearGradient
-              colors={['transparent', 'rgba(17,69,47,0.72)']}
-              style={[StyleSheet.absoluteFillObject]}
-              start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.85 }}
+              colors={['#FFFFFF', '#FAFDFB', '#F8FAFC']}
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
             />
 
-            {/* Edit button */}
-            <View style={styles.heroTopRight}>
-              <Pressable
-                style={({ pressed }) => [styles.editBtn, { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' }, pressed && { opacity: 0.82, transform: [{ scale: 0.97 }] }]}
-                onPress={() => { Haptic.tap(); router.push('/edit-profile'); }}
-              >
-                <Ionicons name="pencil" size={12} color="#FFFFFF" />
-                <Text style={[styles.editBtnText, { color: '#FFFFFF' }]}>Edit</Text>
-              </Pressable>
-            </View>
+            {/* Main Horizontal Identity Block */}
+            <View style={styles.heroMainRow}>
+              {/* Avatar on Left */}
+              <Animated.View style={[styles.avatarOuter, { transform: [{ scale: avatarBreathing }] }]}>
+                <LinearGradient
+                  colors={[C.primary, C.primaryLight]}
+                  style={styles.avatarGradientRing}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                />
+                <View style={[styles.avatarInner, { backgroundColor: C.surface }]}>
+                  <View style={[styles.avatar, { backgroundColor: '#ECFDF5' }]}>
+                    <Text style={[styles.avatarText, { color: '#064E3B' }]}>
+                      {displayName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                {isKycApproved ? (
+                  <View style={[styles.verifiedBadge, { backgroundColor: '#059669', borderColor: '#FFFFFF' }]}>
+                    <MaterialIcons name="check" size={10} color="#fff" />
+                  </View>
+                ) : null}
+              </Animated.View>
 
-            {/* Avatar */}
-            <Animated.View style={[styles.avatarOuter, { transform: [{ scale: avatarBreathing }] }]}>
-              <LinearGradient
-                colors={[C.primary, C.primaryLight]}
-                style={styles.avatarGradientRing}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              />
-              <View style={[styles.avatarInner, { backgroundColor: C.surface }]}>
-                <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
-                  <Text style={[styles.avatarText, { color: C.primary }]}>{displayName.charAt(0).toUpperCase()}</Text>
+              {/* User Identity Details */}
+              <View style={styles.heroMetaWrap}>
+                <View style={styles.heroNameRow}>
+                  <Text style={[styles.profileName, { color: C.textPrimary }]} numberOfLines={1}>
+                    {displayName}
+                  </Text>
+                  {isKycApproved ? (
+                    <View style={[styles.trustTag, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                      <MaterialIcons name="verified" size={11} color="#059669" />
+                      <Text style={[styles.trustTagText, { color: '#064E3B' }]}>Verified</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.emailRow}>
+                  <Ionicons name="mail-outline" size={12} color={C.textMuted} />
+                  <Text style={[styles.profileEmail, { color: C.textMuted }]} numberOfLines={1}>
+                    {user.email}
+                  </Text>
+                </View>
+
+                {/* Rating & Member Chips Row */}
+                <View style={styles.heroChipsRow}>
+                  <View style={[styles.ratingPill, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                    <MaterialIcons name="star" size={12} color="#D97706" />
+                    <Text style={[styles.ratingPillText, { color: '#B45309' }]}>
+                      {(user.rating || 4.9).toFixed(1)} Rating
+                    </Text>
+                  </View>
+
+                  <View style={[styles.memberPill, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
+                    <MaterialIcons name="shield" size={11} color="#64748B" />
+                    <Text style={[styles.memberPillText, { color: '#475569' }]}>
+                      Since {new Date(user.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              {isKycApproved ? (
-                <View style={[styles.verifiedBadge, { backgroundColor: C.success, borderColor: C.surface }]}>
-                  <MaterialIcons name="check" size={10} color="#fff" />
-                </View>
-              ) : null}
-            </Animated.View>
-
-            {/* Name + Email */}
-            <Text style={[styles.profileName, { color: '#FFFFFF' }]}>{displayName}</Text>
-            <Text style={[styles.profileEmail, { color: 'rgba(255,255,255,0.7)' }]}>{user.email}</Text>
-
-            {/* Member badge */}
-            <View style={[styles.memberChip, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
-              <MaterialIcons name="auto-awesome" size={10} color="#FFFFFF" />
-              <Text style={[styles.memberText, { color: 'rgba(255,255,255,0.8)' }]}>
-                Member since {new Date(user.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
-              </Text>
             </View>
+
+            {/* Bottom Quick Action Strip */}
+            <View style={[styles.heroBottomDivider, { backgroundColor: C.surfaceBorder + '66' }]} />
+            <Pressable
+              style={({ pressed }) => [
+                styles.editProfileFullBtn,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }
+              ]}
+              onPress={() => { Haptic.tap(); router.push('/edit-profile'); }}
+            >
+              <View style={styles.editBtnLeft}>
+                <View style={[styles.editIconCircle, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                  <Ionicons name="pencil" size={12} color="#059669" />
+                </View>
+                <View style={styles.editTextWrap}>
+                  <Text style={[styles.editProfileFullBtnText, { color: C.textPrimary }]}>Edit Profile & Settings</Text>
+                  <Text style={[styles.editProfileSubText, { color: C.textMuted }]}>Manage profile details, security & alerts</Text>
+                </View>
+              </View>
+              <View style={[styles.editChevronWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                <MaterialIcons name="chevron-right" size={14} color={C.textMuted} />
+              </View>
+            </Pressable>
           </View>
         </Animated.View>
 
@@ -381,98 +418,154 @@ const styles = StyleSheet.create({
   // Hero
   heroCard: {
     borderRadius: BorderRadius.xl + 4,
-    paddingTop: Spacing.xxl + 8,
-    paddingBottom: Spacing.xl,
-    paddingHorizontal: Spacing.xl,
-    alignItems: 'center',
-    gap: 6,
+    paddingTop: Spacing.lg + 6,
+    paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
     borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
     marginTop: Spacing.sm,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 3,
   },
-  heroBackdropImage: {
-    position: 'absolute',
-    right: -28,
-    top: -8,
-    opacity: 0.2,
-  },
-  heroTopRight: {
-    position: 'absolute',
-    top: Spacing.md,
-    right: Spacing.md,
-    zIndex: 2,
-  },
-  editBtn: {
+  heroMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
+    gap: Spacing.md + 2,
   },
-  editBtnText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
 
   // Avatar
   avatarOuter: {
-    width: 96,
-    height: 96,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    marginBottom: Spacing.sm,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 3,
   },
   avatarGradientRing: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 48,
+    borderRadius: 36,
   },
   avatarInner: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
+  avatarText: { fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
   verifiedBadge: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
+    bottom: -1,
+    right: -1,
     width: 22,
     height: 22,
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
 
-  // Profile text
+  // Identity Meta
+  heroMetaWrap: { flex: 1, gap: 3 },
+  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   profileName: {
-    fontSize: FontSize.xxl + 2,
+    fontSize: FontSize.lg + 2,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.5,
-    marginTop: 2,
+    letterSpacing: -0.4,
   },
-  profileEmail: { fontSize: FontSize.sm, marginTop: 2, letterSpacing: 0.1 },
-  memberChip: {
+  trustTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    marginTop: Spacing.sm,
   },
-  memberText: { fontSize: 10, fontWeight: FontWeight.medium, letterSpacing: 0.2 },
+  trustTagText: { fontSize: 10, fontWeight: FontWeight.bold },
+  emailRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  profileEmail: { fontSize: FontSize.xs, letterSpacing: 0.1 },
+  heroChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 3,
+    flexWrap: 'wrap',
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  ratingPillText: { fontSize: 11, fontWeight: FontWeight.bold },
+  memberPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  memberPillText: { fontSize: 11, fontWeight: FontWeight.medium },
+
+  // Bottom action
+  heroBottomDivider: { height: 1 },
+  editProfileFullBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  editBtnLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  editIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  editTextWrap: { flex: 1, gap: 1 },
+  editProfileFullBtnText: { fontSize: FontSize.xs + 1, fontWeight: FontWeight.bold },
+  editProfileSubText: { fontSize: 10, fontWeight: FontWeight.regular },
+  editChevronWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
 
   // Stats
   statsGrid: {

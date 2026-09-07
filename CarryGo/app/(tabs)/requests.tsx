@@ -256,102 +256,44 @@ export default function RequestsScreen() {
   const tabLabel = tab === 'incoming' ? 'Requests to carry parcels' : 'Requests you have sent';
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top + 10 }]}>
-      <Animated.View
-        style={{
-          opacity: headerEntrance.opacity,
-          transform: [...headerEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }],
-        }}
-      >
-        <View
-        style={[
-          styles.heroCard,
-          {
-            backgroundColor: C.primaryDark,
-            borderColor: C.primaryDark,
-          },
-        ]}
-      >
-        <LinearGradient
-          colors={[C.primaryDark, C.primary, C.primaryDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroScrim}
-        />
-        <View style={styles.heroArtwork}>
-          <ProductIllustration variant="requests" size={138} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.headerTop, { paddingTop: insets.top + Spacing.sm }]}>
+        <View style={styles.titleWrap}>
+          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Requests</Text>
+          <Text style={[styles.pageSubtitle, { color: C.textMuted }]}>
+            {pendingCount > 0
+              ? `${pendingCount} pending handover decision${pendingCount > 1 ? 's' : ''}`
+              : 'Manage delivery matches and handoffs'}
+          </Text>
         </View>
 
-        <View style={styles.heroTopRow}>
-          <View style={[styles.liveBadge, { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
-            <Animated.View
-              style={[
-                styles.liveDot,
-                {
-                  backgroundColor: pendingCount > 0 ? C.warning : C.success,
-                  transform: [{ scale: pendingPulse }],
-                },
-              ]}
-            />
-            <Text style={[styles.liveText, { color: '#FFFFFF' }]}>
-              {pendingCount > 0
-                ? `${pendingCount} pending action${pendingCount > 1 ? 's' : ''}`
-                : 'Everything is up to date'}
-            </Text>
-          </View>
+        <View style={styles.headerActionRow}>
+          {pendingCount > 0 ? (
+            <View style={[styles.pulsePill, { backgroundColor: C.warningSubtle, borderColor: C.warning + '44' }]}>
+              <View style={[styles.liveDot, { backgroundColor: C.warning }]} />
+              <Text style={[styles.pulsePillText, { color: C.warning }]}>{pendingCount} Action{pendingCount > 1 ? 's' : ''}</Text>
+            </View>
+          ) : (
+            <View style={[styles.pulsePill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
+              <MaterialIcons name="check-circle" size={13} color={C.primary} />
+              <Text style={[styles.pulsePillText, { color: C.primary }]}>Synced</Text>
+            </View>
+          )}
 
           <Pressable
             style={({ pressed }) => [
               styles.refreshBtn,
-              {
-                backgroundColor: 'rgba(255,255,255,0.14)',
-                borderColor: 'rgba(255,255,255,0.2)',
-                opacity: pressed ? 0.82 : 1,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
             ]}
             onPress={handleRefresh}
             hitSlop={8}
+            accessibilityLabel="Refresh requests"
           >
-            <MaterialIcons name="refresh" size={18} color="#FFFFFF" />
+            <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
           </Pressable>
         </View>
-
-        <Text style={[styles.pageTitle, { color: '#FFFFFF' }]}>Requests</Text>
-        <Text style={[styles.pageSubtitle, { color: 'rgba(255,255,255,0.72)' }]}>Review decisions, continue deliveries, and follow every handoff.</Text>
-
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
-            <View style={[styles.statIcon, { backgroundColor: C.primarySubtle }]}> 
-              <MaterialIcons name="inbox" size={14} color={C.primaryDark} />
-            </View>
-            <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{base.length}</Text>
-            <Text style={[styles.statLabel, { color: 'rgba(255,255,255,0.68)' }]}>Total</Text>
-          </View>
-
-          <Animated.View
-            style={[
-              styles.statCard,
-              { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)', transform: [{ scale: pendingPulse }] },
-            ]}
-          >
-            <View style={[styles.statIcon, { backgroundColor: C.warning + '24' }]}> 
-              <MaterialIcons name="hourglass-empty" size={14} color={C.warning} />
-            </View>
-            <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{statusCounts.pending}</Text>
-            <Text style={[styles.statLabel, { color: 'rgba(255,255,255,0.68)' }]}>Pending</Text>
-          </Animated.View>
-
-          <View style={[styles.statCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
-            <View style={[styles.statIcon, { backgroundColor: C.success + '24' }]}> 
-              <MaterialIcons name="savings" size={14} color={C.success} />
-            </View>
-            <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{statusCounts.accepted + statusCounts.completed}</Text>
-            <Text style={[styles.statLabel, { color: 'rgba(255,255,255,0.68)' }]}>Active</Text>
-          </View>
-        </View>
       </View>
-      </Animated.View>
 
       {!isOnline ? (
         <View style={styles.networkState}>
@@ -359,108 +301,53 @@ export default function RequestsScreen() {
         </View>
       ) : null}
 
-      <Animated.View style={{ opacity: controlsEntrance.opacity, transform: controlsEntrance.transform }}>
-        <View style={[styles.tabRow, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}> 
-          {(['incoming', 'outgoing'] as const).map(t => {
-            const active = tab === t;
-            const count = t === 'incoming' ? incoming.length : outgoing.length;
-            return (
-              <Pressable
-                key={t}
+      {/* Segmented Mode Switcher: Incoming vs Outgoing */}
+      <View style={[styles.segmentedWrap, { backgroundColor: '#F1F5F9', borderColor: C.surfaceBorder }]}>
+        {(['incoming', 'outgoing'] as const).map((t) => {
+          const active = tab === t;
+          const count = t === 'incoming' ? incoming.length : outgoing.length;
+          return (
+            <Pressable
+              key={t}
+              style={({ pressed }) => [
+                styles.segmentTab,
+                { backgroundColor: active ? C.primary : 'transparent' },
+                pressed && { opacity: 0.85 },
+              ]}
+              onPress={() => switchTab(t)}
+            >
+              <MaterialIcons
+                name={t === 'incoming' ? 'call-received' : 'call-made'}
+                size={16}
+                color={active ? '#FFFFFF' : C.textSecondary}
+              />
+              <Text
                 style={[
-                  styles.tab,
-                  { borderColor: C.surfaceBorderLight },
-                  active && [styles.tabActive, { backgroundColor: C.surface, borderColor: C.primary + '44' }],
+                  styles.segmentLabel,
+                  { color: active ? '#FFFFFF' : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium },
                 ]}
-                onPress={() => switchTab(t)}
               >
-                <View style={[styles.tabIcon, { backgroundColor: active ? C.primarySubtle : C.surfaceElevated }]}> 
-                  <MaterialIcons
-                    name={t === 'incoming' ? 'call-received' : 'call-made'}
-                    size={14}
-                    color={active ? C.primaryDark : C.textMuted}
-                  />
+                {t === 'incoming' ? 'Received' : 'Sent'} ({count})
+              </Text>
+              {t === 'incoming' && pendingCount > 0 ? (
+                <View style={[styles.tabBadge, { backgroundColor: active ? '#FFFFFF' : C.error }]}>
+                  <Text style={[styles.tabBadgeText, { color: active ? C.primary : '#FFFFFF' }]}>{pendingCount}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.tabTitle, { color: active ? C.textPrimary : C.textSecondary }]}>
-                    {t === 'incoming' ? 'Incoming' : 'Outgoing'}
-                  </Text>
-                  <Text style={[styles.tabMeta, { color: active ? C.primaryDark : C.textMuted }]}>{count} requests</Text>
-                </View>
-                {t === 'incoming' && pendingCount > 0 ? (
-                  <View style={[styles.tabBadge, { backgroundColor: C.error }]}> 
-                    <Text style={styles.tabBadgeText}>{pendingCount}</Text>
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          bounces={false}
-          style={styles.quickActionScroll}
-          contentContainerStyle={styles.quickActionRow}
-        >
-          <Pressable
-            style={({ pressed }) => [
-              styles.quickAction,
-              {
-                backgroundColor: C.surface,
-                borderColor: C.surfaceBorder,
-                opacity: pressed ? 0.88 : 1,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
-            onPress={() => {
-              Haptic.tap();
-              router.push('/create-trip');
-            }}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: C.primarySubtle }]}> 
-              <MaterialIcons name="drive-eta" size={16} color={C.primaryDark} />
-            </View>
-            <Text style={[styles.quickActionText, { color: C.textSecondary }]}>Post trip</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.quickAction,
-              {
-                backgroundColor: C.surface,
-                borderColor: C.surfaceBorder,
-                opacity: pressed ? 0.88 : 1,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
-            onPress={() => {
-              Haptic.tap();
-              router.push('/create-parcel');
-            }}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: C.primarySubtle }]}> 
-              <MaterialIcons name="inventory-2" size={16} color={C.primaryDark} />
-            </View>
-            <Text style={[styles.quickActionText, { color: C.textSecondary }]}>Send parcel</Text>
-          </Pressable>
-        </ScrollView>
-
-        <Text style={[styles.contextText, { color: C.textMuted }]}>{tabLabel}</Text>
-      </Animated.View>
-
+      {/* Status Filter Row */}
       {base.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          bounces={false}
           style={styles.statusFilterScroll}
           contentContainerStyle={styles.statusFilterRow}
         >
-          {STATUS_TABS.map(st => {
+          {STATUS_TABS.map((st) => {
             const count = statusCounts[st.key];
             const active = statusFilter === st.key;
             return (
@@ -468,9 +355,11 @@ export default function RequestsScreen() {
                 key={st.key}
                 style={[
                   styles.statusChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  active && { backgroundColor: C.primarySubtle, borderColor: C.primary + '55' },
-                  count === 0 && st.key !== 'all' && { opacity: 0.5 },
+                  {
+                    backgroundColor: active ? C.primarySubtle : C.surface,
+                    borderColor: active ? C.primary : C.surfaceBorder,
+                  },
+                  count === 0 && st.key !== 'all' && { opacity: 0.45 },
                 ]}
                 onPress={() => {
                   Haptic.select();
@@ -478,9 +367,16 @@ export default function RequestsScreen() {
                 }}
                 disabled={count === 0 && st.key !== 'all'}
               >
-                <MaterialIcons name={st.icon} size={13} color={active ? C.primaryDark : C.textMuted} />
-                <Text style={[styles.statusChipText, { color: active ? C.primaryDark : C.textMuted }]}>{st.label}</Text>
-                <View style={[styles.statusChipBadge, { backgroundColor: active ? C.primaryDark : C.surfaceBorder }]}> 
+                <MaterialIcons name={st.icon} size={14} color={active ? C.primary : C.textSecondary} />
+                <Text
+                  style={[
+                    styles.statusChipText,
+                    { color: active ? C.primary : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium },
+                  ]}
+                >
+                  {st.label}
+                </Text>
+                <View style={[styles.statusChipBadge, { backgroundColor: active ? C.primary : C.surfaceBorder }]}>
                   <Text style={[styles.statusChipCount, { color: '#fff' }]}>{count}</Text>
                 </View>
               </Pressable>
@@ -617,137 +513,88 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
 
-  heroCard: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.mdl,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  heroArtwork: { position: 'absolute', right: -12, top: 30, opacity: 0.32 },
-  heroScrim: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  heroTopRow: {
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.sm,
+    paddingBottom: Spacing.xs,
   },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  liveText: {
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.25,
-  },
-  refreshBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  titleWrap: {
+    flex: 1,
   },
   pageTitle: {
     fontSize: FontSize.xxl,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
+    letterSpacing: -0.4,
   },
   pageSubtitle: {
-    fontSize: FontSize.sm,
-    lineHeight: 21,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+    fontSize: FontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
-  statCard: {
-    flex: 1,
+  headerActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+  },
+  pulsePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingVertical: 12,
-    alignItems: 'center',
-    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  statIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 1,
-  },
-  statValue: {
-    fontSize: FontSize.xl,
+  pulsePillText: {
+    fontSize: 11,
     fontWeight: FontWeight.bold,
   },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: FontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.35,
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  refreshBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
 
   networkState: {
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginVertical: Spacing.xs,
   },
 
-  tabRow: {
-    marginTop: 2,
+  segmentedWrap: {
     flexDirection: 'row',
-    padding: 4,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    gap: 6,
+    padding: 3,
+    gap: 3,
+    marginVertical: Spacing.xs,
   },
-  tab: {
+  segmentTab: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
+    minHeight: 40,
+    borderRadius: BorderRadius.md - 2,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-  },
-  tabActive: {
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  tabIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
   },
-  tabTitle: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-  },
-  tabMeta: {
-    fontSize: 11,
-    marginTop: 1,
-    fontWeight: FontWeight.medium,
+  segmentLabel: {
+    fontSize: FontSize.sm - 0.5,
+    letterSpacing: -0.1,
   },
   tabBadge: {
     minWidth: 18,
@@ -758,55 +605,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   tabBadgeText: {
-    color: '#fff',
     fontSize: 10,
     fontWeight: FontWeight.bold,
   },
 
-  quickActionScroll: {
-    marginTop: Spacing.sm,
-  },
-  quickActionRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  quickAction: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  quickActionIcon: {
-    width: 25,
-    height: 25,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickActionText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-  },
-  contextText: {
-    marginTop: 10,
-    marginBottom: Spacing.sm,
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-  },
-
   statusFilterScroll: {
     flexGrow: 0,
-    marginBottom: Spacing.md,
+    marginVertical: Spacing.xs + 2,
   },
   statusFilterRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    paddingRight: Spacing.xs,
+    gap: Spacing.xs + 2,
+    paddingRight: Spacing.sm,
   },
   statusChip: {
     flexDirection: 'row',
@@ -814,13 +624,13 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    paddingVertical: 8,
-    paddingLeft: 12,
-    paddingRight: 7,
+    paddingVertical: 6,
+    paddingLeft: 10,
+    paddingRight: 6,
   },
   statusChipText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
+    letterSpacing: -0.1,
   },
   statusChipBadge: {
     minWidth: 20,

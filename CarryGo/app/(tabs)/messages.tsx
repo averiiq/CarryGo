@@ -245,126 +245,87 @@ export default function MessagesScreen() {
         style={[
           styles.header,
           {
-            paddingTop: insets.top + 14,
+            paddingTop: insets.top + Spacing.sm,
             opacity: headerEntrance.opacity,
             transform: [...headerEntrance.transform, { translateY: heroTranslateY }],
           },
         ]}
       >
-        <LinearGradient
-          colors={[C.primarySubtle + '99', 'transparent']}
-          style={StyleSheet.absoluteFillObject}
-        />
-
         <View style={styles.headerRow}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Messages</Text>
-            <Text style={[styles.pageSubtitle, { color: unreadCount > 0 ? C.error : C.textMuted }]}> 
+            <Text style={[styles.pageSubtitle, { color: C.textMuted }]}> 
               {unreadCount > 0
-                ? `${unreadCount} unread - ${conversationRows.length} total`
+                ? `${unreadCount} unread • ${conversationRows.length} total conversations`
                 : conversationRows.length > 0
-                  ? `${conversationRows.length} conversations`
-                  : 'Stay connected with your delivery partner'}
+                  ? `${conversationRows.length} active delivery conversations`
+                  : 'Direct coordinate chat with delivery partners'}
             </Text>
           </View>
 
-          {unreadCount > 0 ? (
-            <Animated.View
-              style={[
-                styles.unreadCountBadge,
-                { backgroundColor: C.error, transform: [{ scale: unreadPulse }] },
+          <View style={styles.headerActionRow}>
+            {unreadCount > 0 ? (
+              <View style={[styles.unreadPill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
+                <View style={[styles.unreadDot, { backgroundColor: C.primary }]} />
+                <Text style={[styles.unreadPillText, { color: C.primaryDark }]}>{unreadCount} New</Text>
+              </View>
+            ) : (
+              <View style={[styles.unreadPill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
+                <MaterialIcons name="done-all" size={13} color={C.primary} />
+                <Text style={[styles.unreadPillText, { color: C.primary }]}>All Read</Text>
+              </View>
+            )}
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.refreshBtn,
+                { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+                pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
               ]}
+              onPress={handleRefresh}
+              hitSlop={8}
+              accessibilityLabel="Refresh messages"
             >
-              <Text style={styles.unreadCountText}>{unreadCount}</Text>
-            </Animated.View>
-          ) : null}
+              <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
+            </Pressable>
+          </View>
         </View>
 
-        <Animated.View
-          style={[
-            styles.heroCard,
-            {
-              transform: [{ scale: heroScale }],
-              borderColor: C.primaryDark,
-              backgroundColor: C.primaryDark,
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={[C.primaryDark, C.primary, C.primaryDark]}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={styles.heroArtwork}>
-            <ProductIllustration variant="chat" size={126} />
-          </View>
-
-          <View style={styles.heroTopRow}>
-            <View>
-              <Text style={[styles.heroGreeting, { color: 'rgba(255,255,255,0.68)' }]}>DELIVERY CONVERSATIONS</Text>
-              <Text style={[styles.heroTitle, { color: '#FFFFFF' }]}>Everything coordinated in one place</Text>
-            </View>
-            <View style={[styles.heroAvatar, { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' }]}>
-              <Text style={[styles.heroAvatarText, { color: '#FFFFFF' }]}>{(user?.name?.charAt(0) || 'U').toUpperCase()}</Text>
-            </View>
-          </View>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.heroAction,
-              { backgroundColor: '#FFFFFF', opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-            ]}
-            onPress={handleHeroAction}
-          >
-            <MaterialIcons name={firstUnread ? 'mark-chat-unread' : 'add-circle-outline'} size={16} color={C.primaryDark} />
-            <Text style={[styles.heroActionText, { color: C.primaryDark }]}>{firstUnread ? 'Open Unread Chat' : 'Send a Parcel'}</Text>
-          </Pressable>
-
-          <View style={styles.heroStatsRow}>
-            <View style={[styles.heroStatCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
-              <Text style={[styles.heroStatLabel, { color: 'rgba(255,255,255,0.68)' }]}>Unread</Text>
-              <Text style={[styles.heroStatValue, { color: '#FFFFFF' }]}>{unreadCount}</Text>
-            </View>
-            <View style={[styles.heroStatCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }]}>
-              <Text style={[styles.heroStatLabel, { color: 'rgba(255,255,255,0.68)' }]}>Active chats</Text>
-              <Text style={[styles.heroStatValue, { color: '#FFFFFF' }]}>{conversationRows.length}</Text>
-            </View>
-          </View>
-        </Animated.View>
-
         {conversationRows.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            bounces={false}
-            style={styles.filterScroll}
-            contentContainerStyle={styles.filterRow}
-          >
+          <View style={[styles.filterSegment, { backgroundColor: '#F1F5F9', borderColor: C.surfaceBorder }]}>
             <Pressable
               style={[
-                styles.filterChip,
-                {
-                  backgroundColor: activeFilter === 'all' ? C.primarySubtle : C.surfaceElevated,
-                  borderColor: activeFilter === 'all' ? C.primary + '44' : C.surfaceBorder,
-                },
+                styles.segmentItem,
+                { backgroundColor: activeFilter === 'all' ? C.primary : 'transparent' },
               ]}
               onPress={() => handleFilterPress('all')}
             >
-              <Text style={[styles.filterText, { color: activeFilter === 'all' ? C.primary : C.textSecondary }]}>All</Text>
+              <Text
+                style={[
+                  styles.segmentText,
+                  { color: activeFilter === 'all' ? '#FFFFFF' : C.textSecondary, fontWeight: activeFilter === 'all' ? FontWeight.bold : FontWeight.medium },
+                ]}
+              >
+                All Chats ({conversationRows.length})
+              </Text>
             </Pressable>
             <Pressable
               style={[
-                styles.filterChip,
-                {
-                  backgroundColor: activeFilter === 'unread' ? C.primarySubtle : C.surfaceElevated,
-                  borderColor: activeFilter === 'unread' ? C.primary + '44' : C.surfaceBorder,
-                },
+                styles.segmentItem,
+                { backgroundColor: activeFilter === 'unread' ? C.primary : 'transparent' },
               ]}
               onPress={() => handleFilterPress('unread')}
             >
-              <Text style={[styles.filterText, { color: activeFilter === 'unread' ? C.primary : C.textSecondary }]}>Unread</Text>
+              <Text
+                style={[
+                  styles.segmentText,
+                  { color: activeFilter === 'unread' ? '#FFFFFF' : C.textSecondary, fontWeight: activeFilter === 'unread' ? FontWeight.bold : FontWeight.medium },
+                ]}
+              >
+                Unread ({unreadCount})
+              </Text>
             </Pressable>
-          </ScrollView>
+          </View>
         ) : null}
       </Animated.View>
 
@@ -514,69 +475,78 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
     overflow: 'hidden',
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pageTitle: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold },
-  pageSubtitle: { fontSize: FontSize.xs, marginTop: 2, fontWeight: FontWeight.medium },
-  unreadCountBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unreadCountText: { color: '#fff', fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-
-  heroCard: {
-    marginTop: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    padding: Spacing.mdl,
-    overflow: 'hidden',
-    gap: Spacing.sm,
-  },
-  heroArtwork: { position: 'absolute', right: -4, bottom: -12, opacity: 0.42 },
-  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
-  heroGreeting: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  heroTitle: { marginTop: 2, fontSize: FontSize.xl, fontWeight: FontWeight.bold, maxWidth: 240, letterSpacing: -0.35 },
-  heroAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  heroAvatarText: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  heroAction: {
-    marginTop: 2,
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: BorderRadius.full,
-    paddingVertical: Spacing.sm,
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
   },
-  heroActionText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold, letterSpacing: 0.2 },
-  heroStatsRow: { flexDirection: 'row', gap: Spacing.sm },
-  heroStatCard: {
-    flex: 1,
+  pageTitle: {
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.4,
+  },
+  pageSubtitle: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+    fontWeight: FontWeight.medium,
+  },
+  headerActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+  },
+  unreadPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  unreadDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  unreadPillText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+  },
+  refreshBtn: {
+    width: 40,
+    height: 40,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  heroStatLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  heroStatValue: { marginTop: 1, fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.25 },
 
-  filterScroll: { marginTop: Spacing.sm + 2 },
-  filterRow: { flexDirection: 'row', gap: Spacing.sm, paddingRight: Spacing.xs, paddingVertical: 1 },
-  filterChip: {
+  filterSegment: {
+    flexDirection: 'row',
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+    padding: 3,
+    gap: 3,
+    marginTop: Spacing.md,
   },
-  filterText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  segmentItem: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: BorderRadius.md - 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentText: {
+    fontSize: FontSize.sm - 0.5,
+    letterSpacing: -0.1,
+  },
 
   list: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
   stateWrap: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
