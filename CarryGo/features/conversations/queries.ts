@@ -84,8 +84,13 @@ let realtimeChannelInstance = 0;
 function appendRealtimeMessage(
   current: InfiniteData<ChatMessagesPage, string | null> | undefined,
   message: ChatMessage
-): InfiniteData<ChatMessagesPage, string | null> | undefined {
-  if (!current || current.pages.length === 0) return current;
+): InfiniteData<ChatMessagesPage, string | null> {
+  if (!current || !current.pages || current.pages.length === 0) {
+    return {
+      pages: [{ items: [message], nextCursor: null }],
+      pageParams: [null],
+    };
+  }
   const allItems = current.pages.flatMap(page => page.items);
   if (allItems.some(item => item.id === message.id)) return current;
   const lastPage = current.pages[current.pages.length - 1];
@@ -190,6 +195,8 @@ export function useConversationMessagesQuery(conversationId?: string) {
     queryKey: queryKeys.conversations.messages(conversationId ?? 'missing'),
     enabled: Boolean(conversationId),
     initialPageParam: null,
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
     queryFn: async ({ pageParam }) => {
       if (!conversationId) return { items: [], nextCursor: null };
       const { data, error, hasMore } = await fetchMessagesPage(conversationId, {
@@ -228,6 +235,7 @@ export function useConversationMessagesRealtime(conversationId?: string, userId?
             queryKeys.conversations.messages(conversationId),
             current => appendRealtimeMessage(current, message)
           );
+          queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messages(conversationId) });
           if (userId) queryClient.invalidateQueries({ queryKey: queryKeys.conversations.byUser(userId) });
         }
       )
@@ -240,6 +248,7 @@ export function useConversationMessagesRealtime(conversationId?: string, userId?
             queryKeys.conversations.messages(conversationId),
             current => updateRealtimeMessage(current, message)
           );
+          queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messages(conversationId) });
           if (userId) queryClient.invalidateQueries({ queryKey: queryKeys.conversations.byUser(userId) });
         }
       )
@@ -301,7 +310,12 @@ export function useSendMessageMutation(userId?: string) {
       queryClient.setQueryData<InfiniteData<ChatMessagesPage, string | null> | undefined>(
         queryKeys.conversations.messages(sent.conversationId),
         current => {
-          if (!current) return current;
+          if (!current || !current.pages || current.pages.length === 0) {
+            return {
+              pages: [{ items: [sent], nextCursor: null }],
+              pageParams: [null],
+            };
+          }
           const withoutDupes = current.pages.map(page => ({
             ...page,
             items: page.items.filter(message => message.id !== sent.id),
@@ -309,6 +323,8 @@ export function useSendMessageMutation(userId?: string) {
           return appendRealtimeMessage({ ...current, pages: withoutDupes }, sent);
         }
       );
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messages(sent.conversationId) });
 
       if (userId) {
         queryClient.setQueryData<Conversation[]>(queryKeys.conversations.byUser(userId), current => {

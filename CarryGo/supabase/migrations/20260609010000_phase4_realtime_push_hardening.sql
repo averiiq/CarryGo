@@ -240,10 +240,10 @@ begin
     raise exception 'Only conversation participants can send messages';
   end if;
 
-  select coalesce(nullif(trim(full_name), ''), nullif(trim(username), ''), split_part(email, '@', 1), 'User')
+  select coalesce(nullif(trim(up.full_name), ''), nullif(trim(up.username), ''), split_part(up.email, '@', 1), 'User')
   into v_sender_name
-  from public.user_profiles
-  where id = v_actor_id;
+  from public.user_profiles up
+  where up.id = v_actor_id;
 
   insert into public.messages (
     conversation_id,
@@ -259,12 +259,12 @@ begin
   )
   returning * into v_message;
 
-  update public.conversations
+  update public.conversations c
   set last_message_text = v_message.text,
       last_message_at = v_message.created_at,
       last_message_sender_id = v_actor_id,
       last_message_read = false
-  where id = v_conversation.id;
+  where c.id = v_conversation.id;
 
   select participant_id
   into v_recipient_id

@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, Pressable,
-  KeyboardAvoidingView, Platform, Animated,
+  KeyboardAvoidingView, Platform, Animated, FlatList,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -55,7 +54,7 @@ function buildListItems(messages: ChatMessage[]): ListItem[] {
   return items;
 }
 
-function MessageBubble({
+const MessageBubble = React.memo(function MessageBubble({
   item, isMine, showAvatar, senderInitial, onLongPress, C,
 }: {
   item: ChatMessage; isMine: boolean; showAvatar: boolean;
@@ -119,7 +118,113 @@ function MessageBubble({
       </Pressable>
     </Animated.View>
   );
+});
+
+interface ChatInputBarProps {
+  onSend: (text: string) => Promise<void> | void;
+  isSending: boolean;
+  otherName: string;
+  C: ThemeColors;
+  insetsBottom: number;
+  onFocus?: () => void;
 }
+
+const ChatInputBar = React.memo(function ChatInputBar({
+  onSend,
+  isSending,
+  otherName,
+  C,
+  insetsBottom,
+  onFocus,
+}: ChatInputBarProps) {
+  const [text, setText] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+  const sendBtnScale = useRef(new Animated.Value(1)).current;
+
+  const handleSend = async () => {
+    const trimmed = text.trim();
+    if (!trimmed || isSending) return;
+
+    setText('');
+    Haptic.tap();
+
+    Animated.sequence([
+      Animated.spring(sendBtnScale, { toValue: 0.85, useNativeDriver: true, tension: 300 }),
+      Animated.spring(sendBtnScale, { toValue: 1, useNativeDriver: true, tension: 300 }),
+    ]).start();
+
+    try {
+      await onSend(trimmed);
+    } catch {
+      setText(trimmed);
+    }
+  };
+
+  const hasText = text.trim().length > 0;
+
+  return (
+    <View
+      style={[
+        styles.inputRow,
+        {
+          backgroundColor: C.surface,
+          borderTopColor: C.surfaceBorder,
+          paddingBottom: Math.max(insetsBottom, Spacing.xs) + Spacing.sm,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.inputWrap,
+          {
+            backgroundColor: isFocused ? C.primarySubtle : C.inputBg,
+            borderColor: isFocused ? C.primary : C.surfaceBorder,
+          },
+        ]}
+      >
+        <TextInput
+          style={[
+            styles.input,
+            {
+              color: C.textPrimary,
+              ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+            },
+          ]}
+          value={text}
+          onChangeText={setText}
+          placeholder={`Message ${otherName}...`}
+          placeholderTextColor={C.textMuted}
+          multiline
+          maxLength={500}
+          onFocus={() => {
+            setIsFocused(true);
+            onFocus?.();
+          }}
+          onBlur={() => setIsFocused(false)}
+        />
+      </View>
+      <Animated.View style={{ transform: [{ scale: sendBtnScale }] }}>
+        <Pressable
+          style={[
+            styles.sendBtn,
+            { backgroundColor: hasText && !isSending ? C.primaryDark : C.surfaceElevated },
+          ]}
+          onPress={handleSend}
+          disabled={!hasText || isSending}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+        >
+          <Ionicons
+            name="send"
+            size={18}
+            color={hasText && !isSending ? C.textInverse : C.textMuted}
+          />
+        </Pressable>
+      </Animated.View>
+    </View>
+  );
+});
 
 export default function ChatScreen() {
   const { id: rawId, conversationId: rawConversationId } = useLocalSearchParams<{ id?: string | string[]; conversationId?: string | string[] }>();
@@ -134,23 +239,22 @@ export default function ChatScreen() {
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
   const insets = useSafeAreaInsets();
-  const [text, setText] = useState('');
-  const [inputFocused, setInputFocused] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-  const flatListRef = useRef<any>(null);
+  const flatListRef = useRef<FlatList<ListItem>>(null);
   const router = useRouter();
-  const sendBtnScale = useRef(new Animated.Value(1)).current;
   const scrollBtnOpacity = useRef(new Animated.Value(0)).current;
 
   const conversations = user ? conversationsQuery.data ?? [] : [];
   const conversation = conversations.find(c => c.id === id);
   const chatMessages: ChatMessage[] = (messagesQuery.data?.pages ?? []).flatMap(page => page.items);
-  const myId = user?.id || '';
-  const otherName = conversation
-    ? Object.entries(conversation.participantNames).find(([k]) => k !== myId)?.[1] || 'User'
-    : 'User';
 
-  const listItems = React.useMemo(() => buildListItems(chatMessages), [chatMessages]);
+  const myId = user?.id || '';
+  const otherName = useMemo(() => {
+    if (!conversation) return 'User';
+    return Object.entries(conversation.participantNames).find(([k]) => k !== myId)?.[1] || 'User';
+  }, [conversation, myId]);
+
+  const listItems = useMemo(() => buildListItems(chatMessages), [chatMessages]);
 
   useConversationsRealtime(user?.id);
   useConversationMessagesRealtime(id, user?.id);
@@ -161,35 +265,58 @@ export default function ChatScreen() {
     }
   }, [id, markMessagesReadAsync, user?.id]);
 
+  const safeScrollToEnd = useCallback((animated = true) => {
+    requestAnimationFrame(() => {
+      try {
+        if (flatListRef.current && listItems.length > 0) {
+          flatListRef.current.scrollToEnd({ animated });
+        }
+      } catch {
+        // Safe layout fallback
+      }
+    });
+  }, [listItems.length]);
+
   useEffect(() => {
     if (chatMessages.length > 0) {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      safeScrollToEnd(false);
     }
-  }, [chatMessages.length]);
+  }, [chatMessages.length, safeScrollToEnd]);
 
-  const handleSend = async () => {
-    if (!text.trim() || !user || !id || isSending) return;
-    const t = text.trim();
-    setText('');
-    Haptic.tap();
+  const handleInputFocus = useCallback(() => {
+    setTimeout(() => {
+      safeScrollToEnd(true);
+    }, 250);
+  }, [safeScrollToEnd]);
 
-    // Button bounce
-    Animated.sequence([
-      Animated.spring(sendBtnScale, { toValue: 0.85, useNativeDriver: true, tension: 300 }),
-      Animated.spring(sendBtnScale, { toValue: 1, useNativeDriver: true, tension: 300 }),
-    ]).start();
-
+  const handleSend = useCallback(async (msgText: string) => {
+    const trimmed = msgText.trim();
+    if (!trimmed) return;
+    if (!user?.id) {
+      showAlert('Sign In Required', 'Please sign in to send messages.');
+      throw new Error('User is not signed in');
+    }
+    if (!id) {
+      showAlert('Invalid Conversation', 'Conversation link is invalid. Please return to Messages.');
+      throw new Error('Missing conversation ID');
+    }
     try {
-      await sendMessageAsync({ conversationId: id, senderId: user.id, senderName: user.name, text: t });
+      await sendMessageAsync({
+        conversationId: id,
+        senderId: user.id,
+        senderName: user.name || user.fullName || user.email || 'User',
+        text: trimmed,
+      });
+      safeScrollToEnd(true);
     } catch (error) {
-      setText(t);
       Haptic.error();
       showAlert(
         'Message Not Sent',
         error instanceof Error ? error.message : 'Could not send this message. Please try again.',
       );
+      throw error;
     }
-  };
+  }, [user, id, sendMessageAsync, showAlert, safeScrollToEnd]);
 
   const handleScroll = useCallback((event: any) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -202,9 +329,9 @@ export default function ChatScreen() {
   }, [showScrollBtn, scrollBtnOpacity]);
 
   const scrollToBottom = useCallback(() => {
-    flatListRef.current?.scrollToEnd({ animated: true });
+    safeScrollToEnd(true);
     Haptic.tap();
-  }, []);
+  }, [safeScrollToEnd]);
 
   const handleLongPress = useCallback((msg: ChatMessage) => {
     showAlert('Message Options', msg.text.slice(0, 60) + (msg.text.length > 60 ? '...' : ''), [
@@ -248,11 +375,57 @@ export default function ChatScreen() {
     return item.type === 'day_label' ? item.id : item.data.id;
   }, []);
 
+  const renderEmpty = useCallback(() => {
+    const chatError = messagesQuery.error || conversationsQuery.error;
+    if (chatError) {
+      return (
+        <AsyncStateCard
+          C={C}
+          icon="cloud-off"
+          title="Could not load chat"
+          message={chatError instanceof Error ? chatError.message : 'Refresh and try again.'}
+          actionLabel="Retry"
+          onAction={() => {
+            void messagesQuery.refetch();
+            void conversationsQuery.refetch();
+          }}
+          compact
+        />
+      );
+    }
+    if (messagesQuery.isLoading || conversationsQuery.isLoading) {
+      return (
+        <AsyncStateCard
+          C={C}
+          icon="sync"
+          title="Loading chat..."
+          message="Fetching the latest delivery messages."
+          compact
+        />
+      );
+    }
+    return (
+      <View style={styles.emptyChat}>
+        <View style={[styles.emptyIconBox, { backgroundColor: C.surfaceElevated }]}>
+          <Ionicons name="chatbubbles-outline" size={40} color={C.textMuted} />
+        </View>
+        <Text style={[styles.emptyChatText, { color: C.textSecondary }]}>Start the conversation!</Text>
+        <Text style={[styles.emptyChatSubtext, { color: C.textMuted }]}>
+          Coordinate pickup and delivery details with {otherName}
+        </Text>
+        <View style={[styles.copyHint, { backgroundColor: C.surfaceElevated }]}>
+          <MaterialIcons name="touch-app" size={13} color={C.textMuted} />
+          <Text style={[styles.copyHintText, { color: C.textMuted }]}>Long-press any message for options</Text>
+        </View>
+      </View>
+    );
+  }, [messagesQuery.error, messagesQuery.isLoading, messagesQuery.refetch, conversationsQuery.error, conversationsQuery.isLoading, conversationsQuery.refetch, C, otherName]);
+
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: C.background }]}
-      behavior="padding"
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* Delivery CTA bar */}
       {!id ? (
@@ -283,15 +456,18 @@ export default function ChatScreen() {
       ) : null}
 
       <AppErrorBoundary>
-        <FlashList
+        <FlatList
           ref={flatListRef}
           data={listItems}
+          extraData={listItems}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          contentContainerStyle={[styles.messageList, { paddingBottom: 16 }] as any}
+          contentContainerStyle={[styles.messageList, { paddingBottom: 16 }]}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
-          scrollEventThrottle={100}
+          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="always"
+          onLayout={() => safeScrollToEnd(false)}
           ListHeaderComponent={messagesQuery.hasNextPage ? (
             <Pressable
               style={[styles.loadOlderBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
@@ -308,51 +484,7 @@ export default function ChatScreen() {
               </Text>
             </Pressable>
           ) : null}
-          ListEmptyComponent={() => {
-            const chatError = messagesQuery.error || conversationsQuery.error;
-            if (chatError) {
-              return (
-                <AsyncStateCard
-                  C={C}
-                  icon="cloud-off"
-                  title="Could not load chat"
-                  message={chatError instanceof Error ? chatError.message : 'Refresh and try again.'}
-                  actionLabel="Retry"
-                  onAction={() => {
-                    void messagesQuery.refetch();
-                    void conversationsQuery.refetch();
-                  }}
-                  compact
-                />
-              );
-            }
-            if (messagesQuery.isLoading || conversationsQuery.isLoading) {
-              return (
-                <AsyncStateCard
-                  C={C}
-                  icon="sync"
-                  title="Loading chat..."
-                  message="Fetching the latest delivery messages."
-                  compact
-                />
-              );
-            }
-            return (
-              <View style={styles.emptyChat}>
-                <View style={[styles.emptyIconBox, { backgroundColor: C.surfaceElevated }]}>
-                  <Ionicons name="chatbubbles-outline" size={40} color={C.textMuted} />
-                </View>
-                <Text style={[styles.emptyChatText, { color: C.textSecondary }]}>Start the conversation!</Text>
-                <Text style={[styles.emptyChatSubtext, { color: C.textMuted }]}>
-                  Coordinate pickup and delivery details with {otherName}
-                </Text>
-                <View style={[styles.copyHint, { backgroundColor: C.surfaceElevated }]}>
-                  <MaterialIcons name="touch-app" size={13} color={C.textMuted} />
-                  <Text style={[styles.copyHintText, { color: C.textMuted }]}>Long-press any message for options</Text>
-                </View>
-              </View>
-            );
-          }}
+          ListEmptyComponent={renderEmpty}
         />
       </AppErrorBoundary>
 
@@ -369,48 +501,15 @@ export default function ChatScreen() {
         </Animated.View>
       ) : null}
 
-      {/* Input */}
-      <View style={[
-        styles.inputRow,
-        {
-          backgroundColor: C.surface,
-          borderTopColor: C.surfaceBorder,
-          paddingBottom: (Platform.OS === 'ios' && inputFocused) ? Spacing.sm : insets.bottom + Spacing.sm,
-        },
-      ]}>
-        <View style={[
-          styles.inputWrap,
-          {
-            backgroundColor: inputFocused ? C.primarySubtle : C.inputBg,
-            borderColor: inputFocused ? C.primary : C.surfaceBorder,
-          },
-        ]}>
-          <TextInput
-            style={[styles.input, { color: C.textPrimary }]}
-            value={text}
-            onChangeText={setText}
-            placeholder={`Message ${otherName}...`}
-            placeholderTextColor={C.textMuted}
-            multiline
-            maxLength={500}
-            onFocus={() => { setInputFocused(true); setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200); }}
-            onBlur={() => setInputFocused(false)}
-          />
-        </View>
-        <Animated.View style={{ transform: [{ scale: sendBtnScale }] }}>
-          <Pressable
-            style={[
-              styles.sendBtn,
-              { backgroundColor: text.trim() && !isSending ? C.primaryDark : C.surfaceElevated },
-            ]}
-            onPress={handleSend}
-            disabled={!text.trim() || isSending}
-            hitSlop={8}
-          >
-            <Ionicons name="send" size={18} color={text.trim() && !isSending ? C.textInverse : C.textMuted} />
-          </Pressable>
-        </Animated.View>
-      </View>
+      {/* Input Bar */}
+      <ChatInputBar
+        onSend={handleSend}
+        isSending={isSending}
+        otherName={otherName}
+        C={C}
+        insetsBottom={insets.bottom}
+        onFocus={handleInputFocus}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -489,7 +588,12 @@ const styles = StyleSheet.create({
     flex: 1, borderRadius: BorderRadius.full,
     borderWidth: 1.2, paddingHorizontal: Spacing.mdl, paddingVertical: 11,
   },
-  input: { fontSize: FontSize.md, maxHeight: 120, includeFontPadding: false },
+  input: {
+    fontSize: FontSize.md,
+    maxHeight: 120,
+    paddingTop: Platform.OS === 'ios' ? 2 : 0,
+    paddingBottom: Platform.OS === 'ios' ? 2 : 0,
+  },
   sendBtn: {
     width: 48, height: 48, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center',

@@ -119,9 +119,13 @@ export async function sendMessage(msg: {
   senderName: string;
   text: string;
 }) {
-  const rateCheck = await enforceRateLimit(msg.senderId, 'send_message');
-  if (!rateCheck.allowed) {
-    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
+  try {
+    const rateCheck = await enforceRateLimit(msg.senderId, 'send_message');
+    if (!rateCheck.allowed && rateCheck.error?.includes('Rate limit exceeded')) {
+      return { data: null, error: rateCheck.error };
+    }
+  } catch {
+    // Fail open for transient rate limit RPC errors so database command can validate
   }
 
   const sanitizedText = sanitizeMessageText(msg.text);
