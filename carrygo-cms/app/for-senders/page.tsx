@@ -99,8 +99,8 @@ export default function ForSendersPage() {
           badge="For Senders"
           title="Ship Packages Intercity in Hours, Not Days"
           description="Connect directly with verified travelers on flights, trains, and highway routes. Get your urgent parcel to its destination with speed, full visibility, and escrow protection."
-          illustrationSrc="/images/custom/sender-operations.svg"
-          illustrationAlt="Sender operations illustration"
+          illustrationSrc="/images/abstract/sender-logistics.jpg"
+          illustrationAlt="Abstract 3D parcel logistics network"
           illustrationLabel="Peer-to-peer delivery network"
           actions={[
             { label: 'Post a Parcel Request', href: '/create-parcel' },

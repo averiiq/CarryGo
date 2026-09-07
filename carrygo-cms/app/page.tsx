@@ -200,6 +200,31 @@ export default async function LandingPage() {
               </div>
             </div>
           </Reveal>
+
+          {/* Hero Abstract Artwork Showcase */}
+          <Reveal delay={0.25}>
+            <div className="pt-8 relative max-w-4xl mx-auto">
+              <div className="relative overflow-hidden rounded-3xl border border-border bg-surface p-2 sm:p-3 shadow-2xl">
+                <Image
+                  src="/images/abstract/hero-routes.jpg"
+                  alt="CarryGo intercity route connectivity artwork"
+                  width={1200}
+                  height={675}
+                  className="aspect-[16/9] w-full rounded-2xl object-cover"
+                  priority
+                />
+                <div className="absolute bottom-5 left-5 right-5 sm:bottom-6 sm:left-6 sm:right-6 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+                  <div className="px-3.5 py-1.5 rounded-full bg-surface/90 backdrop-blur-md border border-border text-xs font-semibold text-foreground shadow-lg flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                    <span>Real-Time P2P Matching</span>
+                  </div>
+                  <div className="px-3.5 py-1.5 rounded-full bg-surface/90 backdrop-blur-md border border-border text-xs font-semibold text-primary shadow-lg">
+                    <span>100% ID-Verified Transit</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </ScrollLinkedSection>
 
@@ -308,6 +333,17 @@ export default async function LandingPage() {
                 </div>
               </div>
 
+              {/* Abstract Visual Card */}
+              <div className="overflow-hidden rounded-2xl border border-border shadow-xs">
+                <Image
+                  src="/images/abstract/sender-logistics.jpg"
+                  alt="Abstract parcel logistics network"
+                  width={800}
+                  height={450}
+                  className="aspect-[16/9] w-full object-cover"
+                />
+              </div>
+
               <div className="space-y-4">
                 {[
                   {
@@ -364,6 +400,17 @@ export default async function LandingPage() {
                   <h3 className="text-xl font-heading font-bold text-foreground">For Travelers</h3>
                   <p className="text-xs text-muted">Offset your travel costs safely</p>
                 </div>
+              </div>
+
+              {/* Abstract Visual Card */}
+              <div className="overflow-hidden rounded-2xl border border-border shadow-xs">
+                <Image
+                  src="/images/abstract/traveler-journey.jpg"
+                  alt="Abstract traveler mobility network"
+                  width={800}
+                  height={450}
+                  className="aspect-[16/9] w-full object-cover"
+                />
               </div>
 
               <div className="space-y-4">

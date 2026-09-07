@@ -1,4 +1,4 @@
-﻿import Image from 'next/image'
+import Image from 'next/image'
 import Link from 'next/link'
 import { footerSections } from '@/components/marketing/site-data'
 
@@ -16,11 +16,11 @@ export function SiteFooter() {
           <p className='text-sm font-medium text-foreground'>support@carrygo.in</p>
           <div className='glass-card relative mt-4 max-w-[240px] overflow-hidden rounded-2xl p-2'>
             <Image
-              src='/images/custom/team-collaboration.svg'
-              alt='CarryGo team collaboration'
+              src="/images/abstract/hero-routes.jpg"
+              alt="CarryGo interconnected route network"
               width={320}
-              height={220}
-              className='h-auto w-full rounded-xl'
+              height={200}
+              className="aspect-[16/10] w-full rounded-xl object-cover"
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿import { AlertTriangle, ClipboardCheck, Fingerprint, ShieldCheck, Siren, UserRoundCheck } from 'lucide-react'
+import { AlertTriangle, ClipboardCheck, Fingerprint, ShieldCheck, Siren, UserRoundCheck } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -51,9 +51,9 @@ export default function SafetyPage() {
           badge='Safety and Trust'
           title='Protection Layers Built into Every Delivery'
           description='CarryGo combines identity checks, secure handovers, and incident-ready workflows to keep delivery dependable.'
-          illustrationSrc='/images/custom/secure-handover.svg'
-          illustrationAlt='Custom parcel safety illustration'
-          illustrationLabel='Policy-first protection layers'
+          illustrationSrc="/images/abstract/hero-routes.jpg"
+          illustrationAlt="Abstract 3D security and route network"
+          illustrationLabel="Policy-first protection layers"
           actions={[
             { label: 'View Legal Policies', href: '/terms-and-conditions' },
             { label: 'Contact Support', href: '/contact', variant: 'secondary' },

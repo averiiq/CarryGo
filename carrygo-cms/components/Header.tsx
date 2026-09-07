@@ -6,7 +6,6 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import CommandPalette from './CommandPalette'
-import ThemeToggle from './ThemeToggle'
 import { NAV_ITEMS } from './Sidebar'
 
 const routeTitles: Record<string, string> = {
@@ -94,8 +93,6 @@ export default function Header() {
                 <Command className="w-2.5 h-2.5" />K
               </kbd>
             </button>
-
-            <ThemeToggle />
 
             {/* Logout */}
             <button

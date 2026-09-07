@@ -1,4 +1,4 @@
-﻿import { CheckCheck, ClipboardList, Handshake, MessageSquare, Route, ShieldCheck } from 'lucide-react'
+import { CheckCheck, ClipboardList, Handshake, MessageSquare, Route, ShieldCheck } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -51,9 +51,9 @@ export default function HowItWorksPage() {
           badge='Workflow'
           title='A Clear Delivery Journey for Everyone Involved'
           description='CarryGo removes ambiguity with structured pickup, transit, and delivery operations designed around trust and speed.'
-          illustrationSrc='/images/custom/secure-handover.svg'
-          illustrationAlt='Custom secure handover illustration'
-          illustrationLabel='Structured delivery journey'
+          illustrationSrc="/images/abstract/hero-routes.jpg"
+          illustrationAlt="Abstract 3D delivery journey artwork"
+          illustrationLabel="Structured delivery journey"
           actions={[
             { label: 'View Sender Experience', href: '/for-senders' },
             { label: 'View Traveler Experience', href: '/for-travelers', variant: 'secondary' },

@@ -229,7 +229,7 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
           <button
             type="button"
             onClick={() => setFeedback(null)}
-            className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition"
+            className="p-1 rounded-lg hover:bg-black/5 transition"
             aria-label="Dismiss feedback"
           >
             <X className="w-4 h-4" />

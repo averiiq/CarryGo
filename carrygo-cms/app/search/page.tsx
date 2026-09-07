@@ -1,4 +1,4 @@
-﻿import Link from 'next/link'
+import Link from 'next/link'
 import { ArrowRight, Filter, MapPin, Package, Route, Search as SearchIcon } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
@@ -139,12 +139,12 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
     <MarketingShell>
       <ScrollLinkedSection className='px-6 pt-16 pb-10 md:pt-24 md:pb-12'>
         <PageHero
-          badge='Phase 2: Search & Match'
-          title='Find Trips and Parcels Like in the App'
-          description='Use route filters to discover active trips and open parcel requests with the same discovery intent as the mobile experience.'
-          illustrationSrc='/images/custom/route-network.svg'
-          illustrationAlt='Route discovery illustration'
-          illustrationLabel='Live route discovery'
+          badge="Live Marketplace"
+          title="Search Verified Travelers & Open Parcels"
+          description="Explore active intercity routes, filter by departure and destination cities, and connect with verified community members moving in your direction."
+          illustrationSrc="/images/abstract/hero-routes.jpg"
+          illustrationAlt="Abstract 3D interconnected route network"
+          illustrationLabel="Live route discovery"
           actions={[
             { label: 'Create Trip', href: '/create-trip' },
             { label: 'Create Parcel', href: '/create-parcel', variant: 'secondary' },

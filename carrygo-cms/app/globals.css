@@ -51,60 +51,13 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
   --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.1), 0 8px 20px rgba(0, 0, 0, 0.06);
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --shadow-glow: 0 0 20px rgba(30, 141, 90, 0.15);
   --shadow-bento: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04), 0 12px 40px rgba(0, 0, 0, 0.03);
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-[data-theme="dark"] {
-  --background: #0F141B;
-  --foreground: #F8FAFC;
-  --surface: rgba(22, 29, 39, 0.78);
-  --surface-elevated: rgba(28, 36, 48, 0.9);
-  --surface-solid: #161D27;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --muted: #94A3B8;
-  --muted-foreground: #64748B;
-
-  --primary: #79E38C;
-  --primary-hover: #42C45A;
-  --primary-foreground: #0F141B;
-  --primary-subtle: rgba(121, 227, 140, 0.14);
-  --primary-glow: rgba(121, 227, 140, 0.28);
-
-  --accent: #7AC5FF;
-  --accent-hover: #4CA6F5;
-  --accent-foreground: #0F141B;
-  --accent-subtle: rgba(122, 197, 255, 0.16);
-
-  --success: #4ADE80;
-  --success-hover: #22C55E;
-  --success-subtle: rgba(74, 222, 128, 0.14);
-  --warning: #F59E0B;
-  --warning-hover: #D97706;
-  --warning-subtle: rgba(245, 158, 11, 0.16);
-  --danger: #F87171;
-  --danger-hover: #EF4444;
-  --danger-subtle: rgba(248, 113, 113, 0.16);
-
-  --glass-bg: rgba(22, 29, 39, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --glass-blur: 16px;
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
-  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.5), 0 8px 20px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 24px rgba(121, 227, 140, 0.22);
-  --shadow-bento: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 16px rgba(0, 0, 0, 0.3), 0 12px 40px rgba(0, 0, 0, 0.2);
 }
 
 @theme inline {
@@ -191,12 +144,6 @@ body {
     radial-gradient(ellipse 70% 50% at 50% 90%, rgba(16, 185, 129, 0.04) 0%, transparent 60%);
 }
 
-[data-theme="dark"] .mesh-gradient {
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 80% at 80% 50%, rgba(249, 115, 22, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 70% 50% at 50% 90%, rgba(16, 185, 129, 0.05) 0%, transparent 60%);
-}
 
 /* Animations */
 @keyframes fade-in {
@@ -418,11 +365,6 @@ body {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-[data-theme='dark'] .premium-gradient-card {
-  background:
-    linear-gradient(155deg, rgba(22, 29, 39, 0.92) 0%, rgba(28, 36, 48, 0.85) 40%, rgba(20, 38, 30, 0.75) 100%);
-  border-color: rgba(255, 255, 255, 0.1);
-}
 
 .premium-gradient-surface {
   background:
@@ -432,13 +374,6 @@ body {
     linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(246, 248, 252, 0.85) 100%);
 }
 
-[data-theme='dark'] .premium-gradient-surface {
-  background:
-    radial-gradient(circle at 12% 22%, rgba(121, 227, 140, 0.16) 0%, rgba(121, 227, 140, 0) 40%),
-    radial-gradient(circle at 88% 18%, rgba(122, 197, 255, 0.14) 0%, rgba(122, 197, 255, 0) 45%),
-    radial-gradient(circle at 70% 85%, rgba(245, 158, 11, 0.10) 0%, rgba(245, 158, 11, 0) 40%),
-    linear-gradient(135deg, rgba(22, 29, 39, 0.92) 0%, rgba(15, 20, 27, 0.85) 100%);
-}
 
 .premium-text-gradient {
   background: linear-gradient(120deg, #1E8D5A 0%, #2F9E44 35%, #2B7FFF 75%, #146643 100%);
@@ -447,12 +382,6 @@ body {
   color: transparent;
 }
 
-[data-theme='dark'] .premium-text-gradient {
-  background: linear-gradient(120deg, #79E38C 0%, #4ADE80 40%, #7AC5FF 80%, #9EF2AE 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
 
 @keyframes gradient-shift {
   0% {

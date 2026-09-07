@@ -1,4 +1,4 @@
-﻿import Link from 'next/link'
+import Link from 'next/link'
 import { CheckCheck, Sparkles } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
@@ -49,9 +49,9 @@ export default function PricingPage() {
           badge='Pricing'
           title='Transparent Plans for Individuals and Growing Teams'
           description='Choose the structure that matches your shipment volume while keeping trust and delivery quality uncompromised.'
-          illustrationSrc='/images/custom/sender-operations.svg'
-          illustrationAlt='Custom pricing operations illustration'
-          illustrationLabel='Clear pricing for every segment'
+          illustrationSrc="/images/abstract/sender-logistics.jpg"
+          illustrationAlt="Abstract 3D logistics and rate calculation artwork"
+          illustrationLabel="Clear pricing for every segment"
           actions={[
             { label: 'Contact for Business Plan', href: '/contact' },
             { label: 'Read Refund Policy', href: '/refund-cancellation', variant: 'secondary' },

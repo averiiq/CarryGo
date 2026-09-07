@@ -12,7 +12,6 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { primaryNavLinks, secondaryNavLinks } from '@/components/marketing/site-data'
-import ThemeToggle from '@/components/ThemeToggle'
 import { TrackingLookupModal } from '@/components/marketing/tracking-lookup-modal'
 
 export function SiteHeader() {
@@ -107,9 +106,6 @@ export function SiteHeader() {
               <PackageSearch className="h-3.5 w-3.5 text-primary" />
               <span className="hidden md:inline">Track Parcel</span>
             </button>
-
-            {/* Dark / Light Mode Switcher */}
-            <ThemeToggle />
 
             {/* Primary Action Button */}
             <Link

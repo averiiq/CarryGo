@@ -109,8 +109,8 @@ export default function ForTravelersPage() {
           badge="For Verified Travelers"
           title="Turn Empty Luggage Space into Travel Income"
           description="Whether you commute weekly by train, drive between cities, or fly for business, CarryGo lets you earn by carrying verified packages on routes you are already taking."
-          illustrationSrc="/images/custom/traveler-earnings.svg"
-          illustrationAlt="Traveler earnings illustration"
+          illustrationSrc="/images/abstract/traveler-journey.jpg"
+          illustrationAlt="Abstract 3D traveler mobility sculpture"
           illustrationLabel="Monetize your journey"
           actions={[
             { label: 'Post a Travel Plan', href: '/create-trip' },

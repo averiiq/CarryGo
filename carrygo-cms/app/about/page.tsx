@@ -1,4 +1,4 @@
-﻿import { Compass, Gem, Target, Users } from 'lucide-react'
+import { Compass, Gem, Target, Users } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -40,9 +40,9 @@ export default function AboutPage() {
           badge='About CarryGo'
           title='Building the Most Trusted Peer Logistics Experience'
           description='CarryGo is focused on making parcel movement faster, safer, and more transparent through verified traveler networks.'
-          illustrationSrc='/images/custom/team-collaboration.svg'
-          illustrationAlt='Custom team collaboration illustration'
-          illustrationLabel='Human-first logistics platform'
+          illustrationSrc="/images/abstract/hero-routes.jpg"
+          illustrationAlt="Abstract 3D interconnected network artwork"
+          illustrationLabel="Human-first logistics platform"
           actions={[
             { label: 'Contact Us', href: '/contact' },
             { label: 'Explore Features', href: '/features', variant: 'secondary' },
