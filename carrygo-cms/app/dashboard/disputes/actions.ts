@@ -49,7 +49,36 @@ export async function resolveDispute(
     p_note: sanitizedNote ?? null,
   })
 
-  if (error) return { error: error.message }
+  if (error) {
+    // If no locked escrow payment is active, still allow admin to conclude the dispute on the request record
+    if (error.message.includes('Locked payment not found')) {
+      const formattedMessage = sanitizedNote
+        ? `[RESOLVED: ${resolution}] ${sanitizedNote}`
+        : `[RESOLVED: ${resolution}]`
+
+      const { error: fallbackError } = await auth.supabase
+        .from('requests')
+        .update({
+          status: newStatus,
+          message: formattedMessage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', requestId)
+
+      if (fallbackError) return { error: fallbackError.message }
+
+      await logAdminAction(auth.supabase, auth.userId, 'resolve_dispute_unpaid', {
+        request_id: requestId,
+        resolution,
+        note: sanitizedNote,
+      })
+
+      revalidatePath('/dashboard/disputes')
+      return { error: null }
+    }
+
+    return { error: error.message }
+  }
 
   revalidatePath('/dashboard/disputes')
   return { error: null }

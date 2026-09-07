@@ -2,7 +2,18 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Eye, ChevronUp, ChevronDown } from 'lucide-react'
+import {
+  Search,
+  Eye,
+  ChevronUp,
+  ChevronDown,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  X,
+  ShieldCheck,
+} from 'lucide-react'
+import { bulkApproveKycSessions } from './actions'
 
 type KycSession = {
   id: string
@@ -64,6 +75,11 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
   const [sortField, setSortField] = useState<SortField>('submittedAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
+  // Bulk action states
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
   const filteredSessions = useMemo(() => {
     let filtered = sessions
 
@@ -100,6 +116,79 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
     return sorted
   }, [sessions, activeTab, searchQuery, sortField, sortDirection])
 
+  // Selectable items (excluding already approved)
+  const selectableSessions = useMemo(() => {
+    return filteredSessions.filter((s) => s.status !== 'approved')
+  }, [filteredSessions])
+
+  const selectableCount = selectableSessions.length
+  const selectedCount = selectableSessions.filter((s) => selectedIds.has(s.id)).length
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAll = () => {
+    const eligibleIds = selectableSessions.map((s) => s.id)
+    const allSelected = eligibleIds.length > 0 && eligibleIds.every((id) => selectedIds.has(id))
+
+    if (allSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const id of eligibleIds) next.delete(id)
+        return next
+      })
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const id of eligibleIds) next.add(id)
+        return next
+      })
+    }
+  }
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.size === 0) return
+    const count = selectedIds.size
+    const confirmMsg = `Are you sure you want to approve ${count} selected KYC submission${count > 1 ? 's' : ''}? This will mark users as verified.`
+    if (!window.confirm(confirmMsg)) return
+
+    setIsSubmitting(true)
+    setFeedback(null)
+
+    try {
+      const res = await bulkApproveKycSessions(Array.from(selectedIds))
+      if (res.success) {
+        setFeedback({
+          type: 'success',
+          message: `Successfully approved ${res.approvedCount} KYC submission${res.approvedCount === 1 ? '' : 's'}!`,
+        })
+        setSelectedIds(new Set())
+        router.refresh()
+      } else {
+        setFeedback({
+          type: 'error',
+          message: res.error || 'Failed to approve selected submissions.',
+        })
+      }
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'An unexpected error occurred.',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
@@ -120,12 +209,42 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
 
   return (
     <div className="space-y-4">
+      {/* Status Feedback Banner */}
+      {feedback && (
+        <div
+          className={`p-4 rounded-xl flex items-center justify-between gap-3 text-sm font-medium border ${
+            feedback.type === 'success'
+              ? 'bg-success-subtle text-success border-success/30'
+              : 'bg-danger-subtle text-danger border-danger/30'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {feedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            )}
+            <span>{feedback.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition"
+            aria-label="Dismiss feedback"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Tabs */}
       <div className="flex flex-wrap gap-1 bg-surface rounded-xl p-1">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => {
               setActiveTab(tab.key)
+              setSelectedIds(new Set())
               router.push(tab.key === 'all' ? '/dashboard/kyc' : `/dashboard/kyc?status=${tab.key}`)
             }}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
@@ -148,6 +267,7 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
         ))}
       </div>
 
+      {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
@@ -159,11 +279,26 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
         />
       </div>
 
+      {/* Table Card */}
       <div className="rounded-2xl bg-surface shadow-[var(--shadow-bento)] border border-border-subtle overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
               <tr className="border-b border-border-subtle bg-surface">
+                <th className="w-12 px-4 py-3.5 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all eligible submissions"
+                    checked={selectableCount > 0 && selectedCount === selectableCount}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate = selectedCount > 0 && selectedCount < selectableCount
+                      }
+                    }}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-border-subtle text-primary focus:ring-primary/30 accent-primary cursor-pointer"
+                  />
+                </th>
                 <th
                   onClick={() => handleSort('fullName')}
                   className="px-6 py-3.5 text-left text-xs font-semibold text-muted uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
@@ -202,7 +337,7 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
             <tbody className="divide-y divide-border-subtle">
               {filteredSessions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
                     {searchQuery
                       ? 'No sessions match your search'
                       : 'No KYC sessions in this category'}
@@ -211,6 +346,9 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
               ) : (
                 filteredSessions.map((session) => {
                   const badge = getStatusBadge(session.status)
+                  const isSelected = selectedIds.has(session.id)
+                  const isSelectable = session.status !== 'approved'
+
                   return (
                     <tr
                       key={session.id}
@@ -223,8 +361,23 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
                           router.push(`/dashboard/kyc/${session.id}`)
                         }
                       }}
-                      className="hover:bg-surface transition-colors cursor-pointer"
+                      className={`hover:bg-surface transition-colors cursor-pointer ${
+                        isSelected ? 'bg-primary-subtle/30' : ''
+                      }`}
                     >
+                      <td
+                        className="w-12 px-4 py-4 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${session.fullName}`}
+                          disabled={!isSelectable}
+                          checked={isSelected}
+                          onChange={() => handleToggleSelect(session.id)}
+                          className="w-4 h-4 rounded border-border-subtle text-primary focus:ring-primary/30 accent-primary cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-foreground">
                           {session.fullName}
@@ -252,12 +405,12 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
                           {badge.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/dashboard/kyc/${session.id}`)
-                          }}
+                          onClick={() => router.push(`/dashboard/kyc/${session.id}`)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary bg-primary-subtle rounded-lg hover:bg-primary/10 transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -272,6 +425,56 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
           </table>
         </div>
       </div>
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+          <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 rounded-2xl bg-surface/95 backdrop-blur-md border border-border shadow-2xl">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                {selectedIds.size}
+              </span>
+              <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">
+                {selectedIds.size} {selectedIds.size === 1 ? 'submission' : 'submissions'} selected
+              </span>
+            </div>
+
+            <div className="h-4 w-px bg-border-subtle" />
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleBulkApprove}
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-success text-white hover:bg-success/90 transition shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Approving...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Approve Selected</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                disabled={isSubmitting}
+                className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-surface-subtle transition cursor-pointer"
+                title="Clear selection"
+                aria-label="Clear selection"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

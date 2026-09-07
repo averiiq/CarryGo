@@ -1,4 +1,4 @@
-﻿export type NavItem = {
+export type NavItem = {
   label: string
   href: string
 }
@@ -19,18 +19,27 @@ export type FaqItem = {
   answer: string
 }
 
-export const publicNavLinks: NavItem[] = [
-  { label: 'Features', href: '/features' },
-  { label: 'Create Trip', href: '/create-trip' },
-  { label: 'Create Parcel', href: '/create-parcel' },
+export const primaryNavLinks: NavItem[] = [
   { label: 'How It Works', href: '/how-it-works' },
-  { label: 'Search', href: '/search' },
+  { label: 'Send Parcel', href: '/create-parcel' },
+  { label: 'Travel & Earn', href: '/create-trip' },
+  { label: 'Find Routes', href: '/search' },
+  { label: 'Safety', href: '/safety' },
+]
+
+export const secondaryNavLinks: NavItem[] = [
+  { label: 'Features', href: '/features' },
+  { label: 'Pricing', href: '/pricing' },
   { label: 'For Senders', href: '/for-senders' },
   { label: 'For Travelers', href: '/for-travelers' },
-  { label: 'Safety', href: '/safety' },
-  { label: 'Pricing', href: '/pricing' },
+  { label: 'About Us', href: '/about' },
   { label: 'FAQ', href: '/faq' },
   { label: 'Contact', href: '/contact' },
+]
+
+export const publicNavLinks: NavItem[] = [
+  ...primaryNavLinks,
+  ...secondaryNavLinks,
 ]
 
 export const footerSections: FooterSection[] = [
@@ -76,21 +85,21 @@ export const quickStats = [
 export const testimonials: Testimonial[] = [
   {
     quote:
-      'Coordinate time-sensitive document deliveries with clear milestones and handover confirmation.',
-    name: 'Operations teams',
-    role: 'Workflow example',
+      'I needed to send an urgent signed agreement from Mumbai to Pune within 4 hours. Traditional couriers quoted next-day 6 PM. Found an IT consultant driving to Pune on CarryGo who delivered it directly by 3 PM. Absolute lifesaver!',
+    name: 'Arjun Mehta',
+    role: 'Founder, Apex Media (Mumbai)',
   },
   {
     quote:
-      'Match parcel requests with relevant routes and keep both participants informed throughout delivery.',
-    name: 'Growing businesses',
-    role: 'Workflow example',
+      'I travel twice a week between Bangalore and Hyderabad for client meetings. Carrying 2 small packages each trip covers almost my entire round-trip travel expense. The dual-OTP system gives complete peace of mind.',
+    name: 'Kavita Sundaram',
+    role: 'Management Consultant & Frequent Traveler',
   },
   {
     quote:
-      'Use planned journeys to carry suitable parcels through a structured, verification-led process.',
-    name: 'Frequent travelers',
-    role: 'Workflow example',
+      'We run an artisanal craft store in Delhi and use CarryGo for urgent customer orders to Jaipur and Chandigarh. Customers are thrilled when packages arrive the very same evening. 60% cheaper than priority courier services!',
+    name: 'Rohan Deshmukh',
+    role: 'Co-founder, CraftNook Organics',
   },
 ]
 
