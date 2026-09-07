@@ -541,10 +541,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  backBtn: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   headerSub: { fontSize: FontSize.xs, marginTop: 2 },
-  addButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  addButton: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 
   statsBar: { flexDirection: 'row', gap: Spacing.sm },
   statChip: {

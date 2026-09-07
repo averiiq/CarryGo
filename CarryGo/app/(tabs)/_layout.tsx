@@ -67,7 +67,7 @@ function FloatingCapsuleTabBar({
   useEffect(() => {
     Animated.timing(indexAnim, {
       toValue: state.index,
-      duration: 260,
+      duration: 240,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
@@ -75,7 +75,7 @@ function FloatingCapsuleTabBar({
 
   const tabCount = state.routes.length;
   const slotWidth = barWidth > 0 ? barWidth / tabCount : 0;
-  const sliderWidth = slotWidth > 0 ? Math.max(50, slotWidth - 18) : 50;
+  const sliderWidth = slotWidth > 0 ? Math.max(54, slotWidth - 12) : 54;
 
   const outputRange = useMemo(
     () => state.routes.map((_, i) => i * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2)),
@@ -96,30 +96,16 @@ function FloatingCapsuleTabBar({
         styles.tabBarContainer,
         {
           bottom: 16,
-          left: 28,
-          right: 28,
-          height: 66 + bottomPad,
+          left: 24,
+          right: 24,
+          height: 64 + bottomPad,
           paddingBottom: bottomPad,
+          backgroundColor: C.surface,
+          borderColor: C.surfaceBorder,
         },
       ]}
       onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
     >
-      <View style={[StyleSheet.absoluteFill, styles.tabBarBg]}>
-        <BlurView
-          intensity={62}
-          tint={C.statusBarStyle === 'light' ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        />
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: C.statusBarStyle === 'light' ? 'rgba(8,14,20,0.68)' : 'rgba(255,255,255,0.82)' },
-          ]}
-        />
-        <View style={[StyleSheet.absoluteFill, styles.glassEdge]} />
-        <View style={styles.glassHighlight} />
-      </View>
-
       {barWidth > 0 ? (
         <Animated.View
           pointerEvents="none"
@@ -128,7 +114,7 @@ function FloatingCapsuleTabBar({
             {
               width: sliderWidth,
               transform: [{ translateX: sliderTranslateX }],
-              backgroundColor: C.primaryDark + 'E6',
+              backgroundColor: C.primary,
             },
           ]}
         />
@@ -138,7 +124,7 @@ function FloatingCapsuleTabBar({
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
-          const tintColor = isFocused ? C.textInverse : C.textMuted;
+          const tintColor = isFocused ? '#FFFFFF' : C.textMuted;
           const meta = getTabMeta(route.name, pendingRequests, unreadMessages, kycPending);
 
           const onPress = () => {
@@ -167,15 +153,15 @@ function FloatingCapsuleTabBar({
               testID={options.tabBarButtonTestID}
               onPress={onPress}
               onLongPress={onLongPress}
-              android_ripple={{ color: C.primarySubtle, borderless: true, radius: 34 }}
-              style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+              android_ripple={{ color: C.primarySubtle, borderless: true, radius: 28 }}
+              style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.85 }]}
             >
               <View style={styles.tabItem}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name={isFocused ? meta.icon : meta.outlineIcon} size={21} color={tintColor} />
+                  <Ionicons name={isFocused ? meta.icon : meta.outlineIcon} size={20} color={tintColor} />
                   {(meta.badge ?? 0) > 0 ? <TabBadge count={meta.badge ?? 0} C={C} /> : null}
                   {meta.dotAlert && (meta.badge ?? 0) === 0 ? (
-                    <View style={[styles.alertDot, { backgroundColor: C.error, borderColor: C.tabBarBg }]} />
+                    <View style={[styles.alertDot, { backgroundColor: C.error, borderColor: C.surface }]} />
                   ) : null}
                 </View>
                 <Text
@@ -243,35 +229,13 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: 'absolute',
-    paddingTop: 6,
-    borderTopWidth: 0,
-    elevation: 18,
-    shadowColor: '#05130D',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.2,
-    shadowRadius: 26,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  tabBarBg: {
-    overflow: 'hidden',
-    borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.46)',
-  },
-  glassEdge: {
+    elevation: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  glassHighlight: {
-    position: 'absolute',
-    top: 1,
-    left: 18,
-    right: 18,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.45)',
-    borderRadius: 1,
   },
   tabRow: {
     flex: 1,
@@ -283,8 +247,13 @@ const styles = StyleSheet.create({
   activeSlider: {
     position: 'absolute',
     top: 8,
-    bottom: 8,
+    height: 48,
     borderRadius: 999,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   tabButton: {
     flex: 1,
@@ -297,11 +266,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    width: 72,
+    width: 68,
     height: 44,
     borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
     position: 'relative',
   },
   iconContainer: {
@@ -309,13 +278,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: 28,
-    height: 24,
+    height: 22,
   },
   tabLabel: {
     fontSize: 10.5,
     fontWeight: '600',
     letterSpacing: 0.1,
-    lineHeight: 12,
+    lineHeight: 13,
     textAlign: 'center',
   },
   tabLabelActive: {

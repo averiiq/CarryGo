@@ -15,12 +15,12 @@ export const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   backBtn: {
-    width: 42, height: 42, borderRadius: 14,
+    width: 44, height: 44, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
   },
   cancelHeaderBtn: {
-    width: 38, height: 38, borderRadius: 12,
+    minWidth: 44, minHeight: 44, borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
     marginRight: Spacing.sm,

@@ -22,54 +22,88 @@ import { FilterOptions, Parcel, Trip } from '@/types';
 const DEFAULT_FILTERS: FilterOptions = { fromCity: '', toCity: '', vehicleType: '', dateFrom: '', dateTo: '' };
 type FeedItem = { type: 'trip'; data: Trip } | { type: 'parcel'; data: Parcel };
 
-function HomeHero({ userName, unreadCount, onNotifications }: { userName: string; unreadCount: number; onNotifications: () => void }) {
+function HomeHeader({
+  userName,
+  unreadCount,
+  onNotifications,
+}: {
+  userName: string;
+  unreadCount: number;
+  onNotifications: () => void;
+}) {
   const { C } = useThemeColors();
-  const statusText = unreadCount > 0 ? `${unreadCount} new alerts` : 'All updates synced';
+  const initial = (userName || 'U').charAt(0).toUpperCase();
 
   return (
-    <View style={[styles.hero, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-      <LinearGradient
-        colors={[C.primarySubtle, 'transparent']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
-      <LinearGradient
-        colors={['transparent', C.overlayLight]}
-        start={{ x: 0.5, y: 0.2 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
-      <View style={styles.heroTop}>
-        <View style={styles.heroCopyWrap}>
-          <View style={[styles.heroStatusPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <View style={[styles.heroStatusDot, { backgroundColor: unreadCount > 0 ? C.warning : C.success }]} />
-            <Text style={[styles.heroStatusText, { color: C.textSecondary }]}>{statusText}</Text>
-          </View>
-          <Text style={[styles.heroEyebrow, { color: C.textMuted }]}>CarryGo Marketplace</Text>
-          <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Hi, {userName}</Text>
-          <Text style={[styles.heroSub, { color: C.textSecondary }]}>Post, match, and deliver with confidence.</Text>
+    <View style={styles.headerTop}>
+      <View style={styles.userProfileWrap}>
+        <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.surfaceBorder }]}>
+          <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
         </View>
-        <Pressable
-          onPress={() => {
-            Haptic.tap();
-            onNotifications();
-          }}
-          style={({ pressed }) => [
-            styles.notifyBtn,
-            { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-            pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
-          ]}
-        >
-          <MaterialIcons name="notifications-none" size={20} color={C.textPrimary} />
-          {unreadCount > 0 ? (
-            <View style={[styles.notifyBadge, { backgroundColor: C.error }]}>
-              <Text style={styles.notifyBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
+        <View style={styles.greetingWrap}>
+          <Text style={[styles.greetingSub, { color: C.textMuted }]}>Welcome back,</Text>
+          <Text style={[styles.greetingName, { color: C.textPrimary }]} numberOfLines={1}>
+            {userName}
+          </Text>
+        </View>
       </View>
+
+      <Pressable
+        onPress={() => {
+          Haptic.tap();
+          onNotifications();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Notifications"
+        style={({ pressed }) => [
+          styles.notifyBtn,
+          { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+          pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+        ]}
+      >
+        <MaterialIcons name="notifications-none" size={22} color={C.textPrimary} />
+        {unreadCount > 0 ? (
+          <View style={[styles.notifyBadge, { backgroundColor: C.error }]}>
+            <Text style={styles.notifyBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+          </View>
+        ) : null}
+      </Pressable>
     </View>
+  );
+}
+
+function SearchBarTrigger({
+  onSearchPress,
+  hasFilter,
+}: {
+  onSearchPress: () => void;
+  hasFilter: boolean;
+}) {
+  const { C } = useThemeColors();
+
+  return (
+    <Pressable
+      onPress={() => {
+        Haptic.tap();
+        onSearchPress();
+      }}
+      style={({ pressed }) => [
+        styles.searchBar,
+        { backgroundColor: C.surface, borderColor: hasFilter ? C.primary : C.surfaceBorder },
+        pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+      ]}
+    >
+      <View style={[styles.searchIconWrap, { backgroundColor: C.primarySubtle }]}>
+        <MaterialIcons name="search" size={20} color={C.primary} />
+      </View>
+      <View style={styles.searchCopyWrap}>
+        <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Where are you sending to?</Text>
+        <Text style={[styles.searchSubPlaceholder, { color: C.textMuted }]}>Search routes, cities or dates</Text>
+      </View>
+      <View style={[styles.filterIconBadge, { backgroundColor: hasFilter ? C.primarySubtle : C.background }]}>
+        <MaterialIcons name="tune" size={18} color={hasFilter ? C.primary : C.textSecondary} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -84,12 +118,22 @@ function QuickActions() {
           Haptic.confirm();
           router.push('/create-parcel');
         }}
-        style={({ pressed }) => [styles.quickAction, { borderColor: C.surfaceBorder }, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
+        style={({ pressed }) => [
+          styles.quickActionCard,
+          { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+          pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+        ]}
       >
-        <LinearGradient colors={Gradients.primaryVibrant} style={StyleSheet.absoluteFillObject} />
-        <ProductIllustration variant="parcel" size={84} />
-        <Text style={[styles.quickActionTitle, { color: C.textInverse }]}>Send Parcel</Text>
-        <Text style={[styles.quickActionSub, { color: 'rgba(255,255,255,0.8)' }]}>Post details and match fast</Text>
+        <View style={styles.quickActionTop}>
+          <View style={[styles.quickActionIcon, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name="inventory-2" size={22} color={C.primary} />
+          </View>
+          <MaterialIcons name="arrow-forward" size={16} color={C.textMuted} />
+        </View>
+        <View style={styles.quickActionCopy}>
+          <Text style={[styles.quickActionTitle, { color: C.textPrimary }]}>Send Parcel</Text>
+          <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Match with travelers</Text>
+        </View>
       </Pressable>
 
       <Pressable
@@ -98,16 +142,21 @@ function QuickActions() {
           router.push('/create-trip');
         }}
         style={({ pressed }) => [
-          styles.quickAction,
+          styles.quickActionCard,
           { backgroundColor: C.surface, borderColor: C.surfaceBorder },
           pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
         ]}
       >
-        <View style={[styles.quickIcon, { backgroundColor: C.primarySubtle }]}>
-          <MaterialIcons name="luggage" size={18} color={C.primary} />
+        <View style={styles.quickActionTop}>
+          <View style={[styles.quickActionIcon, { backgroundColor: '#F0FDF4' }]}>
+            <MaterialIcons name="flight-takeoff" size={22} color={C.primaryDark} />
+          </View>
+          <MaterialIcons name="arrow-forward" size={16} color={C.textMuted} />
         </View>
-        <Text style={[styles.quickActionTitle, { color: C.textPrimary }]}>Post Trip</Text>
-        <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Earn from extra luggage space</Text>
+        <View style={styles.quickActionCopy}>
+          <Text style={[styles.quickActionTitle, { color: C.textPrimary }]}>Post a Trip</Text>
+          <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Earn from bag space</Text>
+        </View>
       </Pressable>
     </View>
   );
@@ -117,33 +166,31 @@ function HomeStats({ tripsCount, parcelsCount }: { tripsCount: number; parcelsCo
   const { C } = useThemeColors();
 
   return (
-    <View style={styles.statsRow}>
-      <View style={[styles.statCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <View style={[styles.statIcon, { backgroundColor: C.primarySubtle }]}>
-          <MaterialIcons name="route" size={14} color={C.primary} />
-        </View>
-        <Text style={[styles.statValue, { color: C.textPrimary }]}>{tripsCount}</Text>
+    <View style={[styles.statsContainer, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      <View style={styles.statCol}>
+        <Text style={[styles.statNumber, { color: C.primary }]}>{tripsCount}</Text>
         <Text style={[styles.statLabel, { color: C.textMuted }]}>Live Trips</Text>
       </View>
-      <View style={[styles.statCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <View style={[styles.statIcon, { backgroundColor: C.successSubtle }]}>
-          <MaterialIcons name="inventory-2" size={14} color={C.success} />
-        </View>
-        <Text style={[styles.statValue, { color: C.textPrimary }]}>{parcelsCount}</Text>
+      <View style={[styles.statDivider, { backgroundColor: C.surfaceBorder }]} />
+      <View style={styles.statCol}>
+        <Text style={[styles.statNumber, { color: C.textPrimary }]}>{parcelsCount}</Text>
         <Text style={[styles.statLabel, { color: C.textMuted }]}>Open Parcels</Text>
       </View>
-      <View style={[styles.statCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <View style={[styles.statIcon, { backgroundColor: C.warningSubtle }]}>
-          <MaterialIcons name="bolt" size={14} color={C.warning} />
-        </View>
-        <Text style={[styles.statValue, { color: C.textPrimary }]}>{Math.max(1, Math.round((tripsCount + parcelsCount) / 2))}</Text>
-        <Text style={[styles.statLabel, { color: C.textMuted }]}>Fast Matches</Text>
+      <View style={[styles.statDivider, { backgroundColor: C.surfaceBorder }]} />
+      <View style={styles.statCol}>
+        <Text style={[styles.statNumber, { color: C.success }]}>100%</Text>
+        <Text style={[styles.statLabel, { color: C.textMuted }]}>Verified</Text>
       </View>
     </View>
   );
 }
 
-function EmptyMarketplace({ activeTab, hasFilter, onClear, onCreate }: {
+function EmptyMarketplace({
+  activeTab,
+  hasFilter,
+  onClear,
+  onCreate,
+}: {
   activeTab: 'trips' | 'parcels';
   hasFilter: boolean;
   onClear: () => void;
@@ -152,23 +199,35 @@ function EmptyMarketplace({ activeTab, hasFilter, onClear, onCreate }: {
   const { C } = useThemeColors();
 
   return (
-    <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
-      <ProductIllustration variant={activeTab === 'trips' ? 'route' : 'parcel'} size={170} />
+    <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      <View style={[styles.emptyIconWrap, { backgroundColor: C.primarySubtle }]}>
+        <MaterialIcons
+          name={activeTab === 'trips' ? 'explore' : 'local-shipping'}
+          size={36}
+          color={C.primary}
+        />
+      </View>
       <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-        {hasFilter ? 'No route matches yet' : activeTab === 'trips' ? 'No live trips yet' : 'No open parcels yet'}
+        {hasFilter ? 'No route matches found' : activeTab === 'trips' ? 'No live trips available' : 'No open parcels yet'}
       </Text>
       <Text style={[styles.emptySub, { color: C.textMuted }]}>
         {hasFilter
-          ? 'Try broader locations or clear filters.'
+          ? 'Try adjusting your destination, vehicle or date filters.'
           : activeTab === 'trips'
-            ? 'Be the first to post a trip on this route.'
-            : 'Be the first to post a parcel request on this route.'}
+            ? 'Be the first traveler to post a route and earn on this trip.'
+            : 'Post your package request and get matched with verified travelers.'}
       </Text>
       <Pressable
         onPress={hasFilter ? onClear : onCreate}
-        style={({ pressed }) => [styles.emptyCta, { backgroundColor: C.primaryDark }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+        style={({ pressed }) => [
+          styles.emptyCta,
+          { backgroundColor: C.primary },
+          pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+        ]}
       >
-        <Text style={styles.emptyCtaText}>{hasFilter ? 'Clear Filters' : activeTab === 'trips' ? 'Post a Trip' : 'Send a Parcel'}</Text>
+        <Text style={styles.emptyCtaText}>
+          {hasFilter ? 'Reset Filters' : activeTab === 'trips' ? 'Post a Trip' : 'Send a Parcel'}
+        </Text>
       </Pressable>
     </View>
   );
@@ -290,21 +349,26 @@ export default function HomeScreen() {
         ListHeaderComponent={
           <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }]}> 
             <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
-              <HomeHero
+              <HomeHeader
                 userName={user?.fullName || user?.name || 'there'}
                 unreadCount={unreadCount}
                 onNotifications={() => setShowNotifications(true)}
               />
             </Animated.View>
 
-            <HomeStats tripsCount={filteredTrips.length} parcelsCount={filteredParcels.length} />
+            <SearchBarTrigger
+              onSearchPress={() => setShowFilters(true)}
+              hasFilter={hasFilter}
+            />
 
             <QuickActions />
 
+            <HomeStats tripsCount={filteredTrips.length} parcelsCount={filteredParcels.length} />
+
             <View style={styles.marketplaceHead}>
               <View>
-                <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Marketplace</Text>
-                <Text style={[styles.sectionSub, { color: C.textMuted }]}>Find best routes and delivery options</Text>
+                <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Live Marketplace</Text>
+                <Text style={[styles.sectionSub, { color: C.textMuted }]}>Direct traveler-to-sender delivery routes</Text>
               </View>
               <Pressable
                 onPress={() => {
@@ -313,17 +377,17 @@ export default function HomeScreen() {
                 }}
                 style={({ pressed }) => [
                   styles.filterBtn,
-                  { borderColor: C.surfaceBorder, backgroundColor: C.surface },
+                  { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface },
                   pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
                 ]}
               >
-                <MaterialIcons name="tune" size={18} color={C.textPrimary} />
+                <MaterialIcons name="tune" size={18} color={hasFilter ? C.primary : C.textPrimary} />
               </Pressable>
             </View>
 
             {!isOnline ? <OfflineBanner C={C} /> : null}
 
-            <View style={[styles.segmented, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
+            <View style={[styles.segmented, { backgroundColor: '#F1F5F9', borderColor: C.surfaceBorder }]}> 
               {(['trips', 'parcels'] as const).map((tab) => {
                 const active = activeTab === tab;
                 const count = tab === 'trips' ? filteredTrips.length : filteredParcels.length;
@@ -338,14 +402,13 @@ export default function HomeScreen() {
                     style={({ pressed }) => [
                       styles.segment,
                       {
-                        backgroundColor: active ? C.primaryDark : 'transparent',
-                        borderColor: active ? C.primaryDark : 'transparent',
+                        backgroundColor: active ? C.primary : 'transparent',
                       },
                       pressed && { opacity: 0.78, transform: [{ scale: 0.98 }] },
                     ]}
                   >
-                    <Text style={[styles.segmentText, { color: active ? C.textInverse : C.textSecondary }]}>
-                      {tab === 'trips' ? 'Trips' : 'Parcels'} ({count})
+                    <Text style={[styles.segmentText, { color: active ? '#FFFFFF' : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium }]}>
+                      {tab === 'trips' ? 'Available Trips' : 'Parcels to Carry'} ({count})
                     </Text>
                   </Pressable>
                 );
@@ -355,7 +418,7 @@ export default function HomeScreen() {
             {hasFilter ? (
               <View style={[styles.filterSummary, { backgroundColor: C.primarySubtle }]}> 
                 <MaterialIcons name="filter-alt" size={14} color={C.primaryDark} />
-                <Text style={[styles.filterSummaryText, { color: C.primaryDark }]}>Filters are active</Text>
+                <Text style={[styles.filterSummaryText, { color: C.primaryDark }]}>Active filters applied</Text>
                 <Pressable onPress={() => setFilters(DEFAULT_FILTERS)}>
                   <Text style={[styles.clearText, { color: C.primaryDark }]}>Clear</Text>
                 </Pressable>
@@ -407,135 +470,228 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  listContent: { paddingBottom: 120 },
+  listContent: { paddingBottom: 110 },
   headerWrap: { paddingHorizontal: Spacing.md, gap: Spacing.md, paddingBottom: Spacing.md },
 
-  hero: {
-    minHeight: 130,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    padding: Spacing.mdl,
-    overflow: 'hidden',
-    shadowColor: '#0D1B2A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },
-  heroCopyWrap: { flex: 1, gap: 2, paddingRight: Spacing.sm },
-  heroStatusPill: {
-    alignSelf: 'flex-start',
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.xs,
   },
-  heroStatusDot: { width: 6, height: 6, borderRadius: 3 },
-  heroStatusText: { fontSize: 10, fontWeight: FontWeight.semibold, letterSpacing: 0.2 },
-  heroEyebrow: { fontSize: 10, fontWeight: FontWeight.semibold, letterSpacing: 1 },
-  heroTitle: { fontSize: FontSize.xxl + 1, fontWeight: FontWeight.bold, letterSpacing: -0.45, marginTop: 2 },
-  heroSub: { fontSize: FontSize.sm, marginTop: 5, lineHeight: 19 },
-  notifyBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
+  userProfileWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm + 2,
+    flex: 1,
+  },
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarInitial: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+  },
+  greetingWrap: {
+    flex: 1,
+  },
+  greetingSub: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    lineHeight: 16,
+  },
+  greetingName: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  notifyBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   notifyBadge: {
     position: 'absolute',
-    top: -5,
+    top: -4,
     right: -4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  notifyBadgeText: { color: '#fff', fontSize: 9, fontWeight: FontWeight.bold },
+  notifyBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: FontWeight.bold },
 
-  statsRow: { flexDirection: 'row', gap: Spacing.sm },
-  statCard: {
-    flex: 1,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
+  searchBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    shadowColor: '#0D1B2A',
+    minHeight: 56,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm + 2,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 2,
   },
-  statIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, letterSpacing: -0.2 },
-  statLabel: { fontSize: 10, fontWeight: FontWeight.semibold },
-
-  quickActionsRow: { flexDirection: 'row', gap: Spacing.sm },
-  quickAction: {
+  searchIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchCopyWrap: {
     flex: 1,
-    minHeight: 138,
-    borderRadius: BorderRadius.lg,
+  },
+  searchPlaceholder: {
+    fontSize: FontSize.sm + 0.5,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: -0.1,
+  },
+  searchSubPlaceholder: {
+    fontSize: FontSize.xs,
+    marginTop: 1,
+  },
+  filterIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  quickActionCard: {
+    flex: 1,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
     padding: Spacing.md,
     justifyContent: 'space-between',
-    overflow: 'hidden',
-    shadowColor: '#0D1B2A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 3,
+    minHeight: 106,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  quickIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  quickActionTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  quickActionSub: { fontSize: FontSize.xs, lineHeight: 17, marginTop: 2 },
-
-  marketplaceHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.35 },
-  sectionSub: { fontSize: FontSize.xs, marginTop: 2 },
-  filterBtn: {
-    width: 40,
-    height: 40,
+  quickActionTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quickActionIcon: {
+    width: 38,
+    height: 38,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0D1B2A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.04,
+  },
+  quickActionCopy: {
+    marginTop: Spacing.sm,
+  },
+  quickActionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  quickActionSub: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.sm,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
     shadowRadius: 8,
     elevation: 1,
   },
-
-  segmented: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: 4,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  segment: {
+  statCol: {
     flex: 1,
-    minHeight: 42,
-    borderRadius: BorderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statNumber: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 26,
+  },
+
+  marketplaceHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xs,
+  },
+  sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
+  sectionSub: { fontSize: FontSize.xs, marginTop: 2 },
+  filterBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  segmentText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+
+  segmented: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: 3,
+    flexDirection: 'row',
+    gap: 3,
+  },
+  segment: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: BorderRadius.md - 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentText: {
+    fontSize: FontSize.sm - 0.5,
+    letterSpacing: -0.1,
+  },
 
   filterSummary: {
     minHeight: 34,
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -552,12 +708,20 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
   },
-  emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, marginTop: Spacing.sm, textAlign: 'center' },
-  emptySub: { fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 20 },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  emptyTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, textAlign: 'center', letterSpacing: -0.2 },
+  emptySub: { fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.xs, lineHeight: 20 },
   emptyCta: {
     marginTop: Spacing.lg,
     minHeight: 44,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',

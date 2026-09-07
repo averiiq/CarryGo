@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,7 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRazorpayCheckout } from '@/hooks/useRazorpayCheckout';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchPaymentByRequest } from '@/services/payments.service';
-import { getSupabaseClient } from '@/template';
+import { getSupabaseClient, useAlert } from '@/template';
 import { ProductIllustration } from '@/components/illustrations';
 
 type PaymentStatus = 'locked' | 'released' | 'refunded';
@@ -34,6 +33,7 @@ export default function PaymentScreen() {
   const { C, S } = useThemeColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const { data: request } = useRequestQuery(id);
 
   const [paymentComplete, setPaymentComplete] = useState(false);
@@ -93,10 +93,10 @@ export default function PaymentScreen() {
     onSuccess: (paymentId) => {
       setPaymentComplete(true);
       setExistingPayment({ id: paymentId, status: 'locked' });
-      Alert.alert('Payment Successful', 'Your payment is now securely held in escrow.');
+      showAlert('Payment Successful', 'Your payment is now securely held in escrow.');
     },
     onFailure: (message) => {
-      Alert.alert('Payment Failed', message);
+      showAlert('Payment Failed', message);
     },
   });
 

@@ -150,15 +150,19 @@ export default function OnboardingScreen() {
         </View>
 
         <Pressable
-          style={({ pressed }) => [styles.cta, { backgroundColor: C.primary }, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+          style={({ pressed }) => [styles.cta, { backgroundColor: C.primaryDark }, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
           onPress={goNext}
           disabled={finishing}
         >
-          <Text style={[styles.ctaText, { color: C.textInverse }]}>{isLast ? 'Get Started' : 'Continue'}</Text>
-          <MaterialIcons name="arrow-forward" size={18} color={C.textInverse} />
+          <Text style={[styles.ctaText, { color: '#FFFFFF' }]}>{isLast ? 'Get Started' : 'Continue'}</Text>
+          <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
         </Pressable>
 
-        <Text style={[styles.stepCounter, { color: C.textMuted }]}>{activeIndex + 1} / {SLIDES.length}</Text>
+        <Pressable onPress={() => void handleFinish()} hitSlop={10} style={styles.signInLink}>
+          <Text style={[styles.signInText, { color: C.textSecondary }]}>
+            Already have an account? <Text style={{ color: C.primary, fontWeight: FontWeight.bold }}>Sign in</Text>
+          </Text>
+        </Pressable>
       </View>
     </LinearGradient>
   );
@@ -212,10 +216,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   title: {
-    fontSize: 34,
+    fontSize: 28,
     fontWeight: FontWeight.bold,
-    lineHeight: 40,
-    letterSpacing: -0.8,
+    lineHeight: 36,
+    letterSpacing: -0.6,
     textAlign: 'center',
   },
   body: {
@@ -242,10 +246,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     width: '100%',
-    paddingVertical: Spacing.md + 2,
+    minHeight: 52,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
   ctaText: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  stepCounter: { fontSize: 11, fontWeight: FontWeight.medium },
+  signInLink: { paddingVertical: Spacing.xs, alignItems: 'center', justifyContent: 'center' },
+  signInText: { fontSize: FontSize.sm },
 });

@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useAlert } from '@/template';
 import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 
@@ -18,6 +19,7 @@ type ParcelImagePickerProps = {
 
 export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImagePickerProps) {
   const { C } = useThemeColors();
+  const { showAlert } = useAlert();
   const [processingIndex, setProcessingIndex] = useState<number | null>(null);
   const mountedRef = useRef(true);
 
@@ -36,7 +38,7 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
 
   const showSourcePicker = (slotIndex: number) => {
     Haptic.tap();
-    Alert.alert(
+    showAlert(
       'Add Photo',
       'Choose how to add a parcel photo',
       [
@@ -50,7 +52,7 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
   const captureFromCamera = async (slotIndex: number) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Needed', 'Camera access is required to take parcel photos.');
+      showAlert('Permission Needed', 'Camera access is required to take parcel photos.');
       return;
     }
 
@@ -69,7 +71,7 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
   const pickFromGallery = async (slotIndex: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Needed', 'Photo library access is required to select parcel photos.');
+      showAlert('Permission Needed', 'Photo library access is required to select parcel photos.');
       return;
     }
 
@@ -102,7 +104,7 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
       Haptic.confirm();
     } else {
       Haptic.error();
-      Alert.alert('Error', 'Failed to process image. Please try again.');
+      showAlert('Error', 'Failed to process image. Please try again.');
     }
   };
 

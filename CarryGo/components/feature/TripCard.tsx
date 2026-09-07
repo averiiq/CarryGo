@@ -15,9 +15,9 @@ const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 };
 
 const vehicleColors: Record<string, [string, string]> = {
-  bike: ['#64748B', '#475569'],
-  car: ['#4B5563', '#374151'],
-  bus: ['#6B7280', '#4B5563'],
+  bike: ['#D97706', '#B45309'],
+  car: ['#2563EB', '#1D4ED8'],
+  bus: ['#7C3AED', '#6D28D9'],
   train: ['#0F766E', '#0D9488'],
   flight: ['#16A34A', '#15803D'],
 };
@@ -32,106 +32,157 @@ interface TripCardProps {
   compact?: boolean;
 }
 
-export const TripCard = React.memo(function TripCard({ trip, matchScore, onMatchPress, onPress, showRequestButton, onRequest }: TripCardProps) {
+export const TripCard = React.memo(function TripCard({
+  trip,
+  matchScore,
+  onMatchPress,
+  onPress,
+  showRequestButton,
+  onRequest,
+}: TripCardProps) {
   const { C } = useThemeColors();
-  const vGradient = vehicleColors[trip.vehicleType] || ['#4B5563', '#374151'];
+  const vGradient = vehicleColors[trip.vehicleType] || ['#059669', '#064E3B'];
   const vColor = vGradient[0];
   const scale = useRef(new Animated.Value(1)).current;
 
-  const onPressIn = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, ...Motion.springFast }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
+  const onPressIn = () =>
+    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, ...Motion.springFast }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
-      <Animated.View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder, transform: [{ scale }] }]}>
-        <LinearGradient
-          colors={[vGradient[0] + '16', 'transparent']}
-          style={styles.headerGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-
-        <View style={[styles.vehicleBadge, { backgroundColor: vColor + '18' }]}>
-          <LinearGradient colors={vGradient} style={styles.vehicleGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-          <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'directions-car'} size={18} color={C.textInverse} />
-        </View>
-
-        <View style={styles.inner}>
-          <View style={styles.routeSection}>
-            <View style={styles.routeVisual}>
-              <View style={[styles.originDot, { backgroundColor: C.success }]} />
-              <View style={[styles.routeDash, { borderColor: C.surfaceBorderLight }]} />
-              <View style={[styles.destDot, { backgroundColor: C.error }]} />
-            </View>
-            <View style={styles.routeText}>
-              <Text style={[styles.fromCity, { color: C.textPrimary }]} numberOfLines={1}>{trip.fromCity}</Text>
-              <Text style={[styles.toCity, { color: C.textPrimary }]} numberOfLines={1}>{trip.toCity}</Text>
-            </View>
-          </View>
-
-          <View style={styles.chipsRow}>
-            {typeof matchScore === 'number' && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.chip,
-                  styles.matchChip,
-                  { backgroundColor: C.primary + '12' },
-                  pressed && onMatchPress ? { opacity: 0.8 } : null,
-                ]}
-                onPress={onMatchPress}
-                disabled={!onMatchPress}
-              >
-                <MaterialIcons name={'auto-awesome'} size={12} color={C.primary} />
-                <Text style={[styles.chipLabel, { color: C.primary }]}>{matchScore}% match</Text>
-                <MaterialIcons name={'info-outline'} size={12} color={C.primary} />
-              </Pressable>
-            )}
-            <View style={[styles.chip, { backgroundColor: C.surfaceElevated }]}>
-              <Ionicons name="calendar" size={12} color={C.textSecondary} />
-              <Text style={[styles.chipLabel, { color: C.textSecondary }]}>{trip.date}</Text>
-            </View>
-            <View style={[styles.chip, { backgroundColor: C.surfaceElevated }]}>
-              <Ionicons name="time" size={12} color={C.textSecondary} />
-              <Text style={[styles.chipLabel, { color: C.textSecondary }]}>{trip.time}</Text>
-            </View>
-            <View style={[styles.chip, { backgroundColor: vColor + '12' }]}>
-              <MaterialIcons name="scale" size={12} color={vColor} />
-              <Text style={[styles.chipLabel, { color: vColor }]}>{trip.availableCapacity}kg</Text>
-            </View>
-          </View>
-
-          <View style={styles.footer}>
-            <View style={styles.userRow}>
-              <LinearGradient colors={vGradient} style={styles.avatarGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                <Text style={styles.avatarLetter}>{trip.userName.charAt(0).toUpperCase()}</Text>
-              </LinearGradient>
-              <View>
-                <Text style={[styles.userName, { color: C.textPrimary }]}>{trip.userName}</Text>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={11} color={C.warning} />
-                  <Text style={[styles.ratingVal, { color: C.textMuted }]}>{trip.userRating.toFixed(1)}</Text>
-                </View>
+    <Pressable
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}
+    >
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            backgroundColor: C.surface,
+            borderColor: C.surfaceBorder,
+            transform: [{ scale }],
+          },
+        ]}
+      >
+        <View style={styles.topRow}>
+          <View style={styles.userSection}>
+            <LinearGradient
+              colors={vGradient}
+              style={styles.avatar}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.avatarLetter}>
+                {trip.userName.charAt(0).toUpperCase()}
+              </Text>
+            </LinearGradient>
+            <View style={styles.userMeta}>
+              <Text style={[styles.userName, { color: C.textPrimary }]} numberOfLines={1}>
+                {trip.userName}
+              </Text>
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={11} color="#F59E0B" />
+                <Text style={[styles.ratingText, { color: C.textSecondary }]}>
+                  {trip.userRating.toFixed(1)}
+                </Text>
               </View>
             </View>
+          </View>
 
-            <View style={styles.priceBox}>
-              <LinearGradient colors={[C.successSubtle, C.primarySubtle]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-              <Text style={[styles.priceValue, { color: C.success }]}> 
-                <Text style={styles.priceCurrency}>Rs </Text>{trip.pricePerKg}
-              </Text>
-              <Text style={[styles.priceUnit, { color: C.success + 'CC' }]}>/kg</Text>
+          <View style={[styles.vehicleChip, { backgroundColor: vColor + '12', borderColor: vColor + '28' }]}>
+            <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'directions-car'} size={13} color={vColor} />
+            <Text style={[styles.vehicleLabel, { color: vColor }]}>
+              {trip.vehicleType.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.routeContainer}>
+          <View style={styles.cityBlock}>
+            <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
+            <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+              {trip.fromCity}
+            </Text>
+          </View>
+
+          <View style={styles.arrowBlock}>
+            <View style={[styles.arrowLine, { borderColor: C.surfaceBorder }]} />
+            <View style={[styles.arrowIconCircle, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name="arrow-forward" size={13} color={C.primary} />
             </View>
           </View>
 
-          {showRequestButton && (
+          <View style={[styles.cityBlock, { alignItems: 'flex-end' }]}>
+            <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
+            <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+              {trip.toCity}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.specsRow}>
+          <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
+            <Ionicons name="calendar-outline" size={12} color={C.textSecondary} />
+            <Text style={[styles.specText, { color: C.textSecondary }]}>{trip.date}</Text>
+          </View>
+
+          <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
+            <Ionicons name="time-outline" size={12} color={C.textSecondary} />
+            <Text style={[styles.specText, { color: C.textSecondary }]}>{trip.time}</Text>
+          </View>
+
+          <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
+            <MaterialIcons name="scale" size={12} color={C.textSecondary} />
+            <Text style={[styles.specText, { color: C.textSecondary }]}>
+              {trip.availableCapacity} kg
+            </Text>
+          </View>
+
+          {typeof matchScore === 'number' && (
             <Pressable
-              style={({ pressed }) => [styles.requestBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+              style={[styles.specItem, styles.matchItem, { backgroundColor: C.primarySubtle }]}
+              onPress={onMatchPress}
+              disabled={!onMatchPress}
+            >
+              <MaterialIcons name="auto-awesome" size={12} color={C.primary} />
+              <Text style={[styles.specText, { color: C.primary, fontWeight: FontWeight.bold }]}>
+                {matchScore}% match
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={[styles.footerRow, { borderTopColor: C.surfaceBorderLight }]}>
+          <View style={styles.priceContainer}>
+            <Text style={[styles.priceLabel, { color: C.textMuted }]}>PRICE</Text>
+            <View style={styles.priceValueRow}>
+              <Text style={[styles.priceAmount, { color: C.primaryDark }]}>
+                ₹{trip.pricePerKg}
+              </Text>
+              <Text style={[styles.priceUnit, { color: C.textMuted }]}>/kg</Text>
+            </View>
+          </View>
+
+          {showRequestButton ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: C.primaryDark },
+                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+              ]}
               onPress={onRequest}
             >
-              <LinearGradient colors={[C.primary, C.primaryDark]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-              <MaterialIcons name="send" size={15} color={C.textInverse} />
-              <Text style={styles.requestBtnText}>Send Request</Text>
+              <MaterialIcons name="send" size={13} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Send Request</Text>
             </Pressable>
+          ) : (
+            <View style={styles.viewDetailsRow}>
+              <Text style={[styles.viewDetailsText, { color: C.primary }]}>View Details</Text>
+              <MaterialIcons name="chevron-right" size={16} color={C.primary} />
+            </View>
           )}
         </View>
       </Animated.View>
@@ -141,68 +192,184 @@ export const TripCard = React.memo(function TripCard({ trip, matchScore, onMatch
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
-    overflow: 'hidden',
-    shadowColor: '#0D1B2A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
+    padding: Spacing.md,
+    gap: Spacing.md,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  headerGradient: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 80,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  vehicleBadge: {
-    position: 'absolute', top: Spacing.smd, right: Spacing.smd,
-    width: 40, height: 40, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
   },
-  vehicleGradient: { ...StyleSheet.absoluteFillObject },
-
-  inner: { padding: Spacing.mdl, paddingTop: Spacing.md, gap: Spacing.md },
-
-  routeSection: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingRight: 48 },
-  routeVisual: { alignItems: 'center', height: 50, justifyContent: 'space-between' },
-  originDot: { width: 10, height: 10, borderRadius: 5 },
-  routeDash: { height: 22, width: 0, borderLeftWidth: 2, borderStyle: 'dashed' },
-  destDot: { width: 10, height: 10, borderRadius: 3 },
-  routeText: { flex: 1, height: 50, justifyContent: 'space-between' },
-  fromCity: { fontSize: 16, fontWeight: FontWeight.extrabold, letterSpacing: -0.25 },
-  toCity: { fontSize: 16, fontWeight: FontWeight.extrabold, letterSpacing: -0.25 },
-
-  chipsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 6,
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  userMeta: {
+    gap: 2,
+  },
+  userName: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  ratingText: {
+    fontSize: 11,
+    fontWeight: FontWeight.semibold,
+  },
+  vehicleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
-  matchChip: { borderWidth: 1, borderColor: 'transparent' },
-  chipLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatarGradient: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
+  vehicleLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.4,
   },
-  avatarLetter: { color: '#fff', fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  userName: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
-  ratingVal: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-
-  priceBox: {
-    flexDirection: 'row', alignItems: 'baseline', gap: 2,
-    paddingHorizontal: Spacing.md, paddingVertical: 10,
-    borderRadius: 12, overflow: 'hidden',
+  routeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
   },
-  priceCurrency: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  priceValue: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
-  priceUnit: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-
-  requestBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 12, paddingVertical: 13, overflow: 'hidden',
+  cityBlock: {
+    flex: 1,
+    gap: 2,
   },
-  requestBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+  cityLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  cityName: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.4,
+  },
+  arrowBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.sm,
+    position: 'relative',
+    width: 60,
+  },
+  arrowLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderStyle: 'dashed',
+  },
+  arrowIconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  specsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  specItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  matchItem: {
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.25)',
+  },
+  specText: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  priceContainer: {
+    gap: 1,
+  },
+  priceLabel: {
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  priceValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+  },
+  priceAmount: {
+    fontSize: 20,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.5,
+  },
+  priceUnit: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md + 2,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  viewDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  viewDetailsText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
 });

@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1, gap: Spacing.sm, overflow: 'hidden',
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  backBtn: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   headerSub: { fontSize: FontSize.xs, marginTop: 2 },
   clearBtn: {

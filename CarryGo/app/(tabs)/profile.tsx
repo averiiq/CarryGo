@@ -288,13 +288,6 @@ export default function ProfileScreen() {
         </Pressable>
 
         {/* Sections */}
-        <ScrollView
-          nestedScrollEnabled
-          keyboardDismissMode="on-drag"
-          style={styles.sectionsScroll}
-          contentContainerStyle={[styles.sectionsContent, { paddingBottom: insets.bottom + 120 }]}
-          showsVerticalScrollIndicator={false}
-        >
         <Animated.View style={[styles.sectionsWrap, { opacity: sectionsEntrance.opacity, transform: sectionsEntrance.transform }]}>
 
           {/* Activity */}
@@ -304,7 +297,7 @@ export default function ProfileScreen() {
               <MenuItem C={C}
                 icon={<MaterialIcons name="bar-chart" size={17} color={C.primary} />}
                 label="My Activity"
-                subtitle={`${myTrips.length} trips ? ${myParcels.length} parcels`}
+                subtitle={`${myTrips.length} trips • ${myParcels.length} parcels`}
                 onPress={() => router.push('/my-activity')}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
@@ -376,7 +369,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         </Animated.View>
-        </ScrollView>
       </Animated.ScrollView>
     </>
   );
@@ -533,14 +525,7 @@ const styles = StyleSheet.create({
   pendingChipText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   // Sections
-  sectionsScroll: {
-    maxHeight: 420,
-    marginTop: Spacing.sm,
-  },
-  sectionsContent: {
-    paddingTop: 2,
-  },
-  sectionsWrap: { gap: Spacing.lg },
+  sectionsWrap: { gap: Spacing.lg, marginTop: Spacing.sm },
   section: { gap: Spacing.sm },
   sectionTitle: {
     fontSize: 10,

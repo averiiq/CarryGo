@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -533,16 +533,12 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
 }) {
   return (
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled keyboardDismissMode="on-drag">
-      <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where&apos;s it going?</Text>
-      <StepHero
-        title='Share a secure parcel route'
-        subtitle='A clear route and handover date helps trusted travellers match with confidence.'
-        illustration="route"
+      <StepHeader
+        title="Where's it going?"
+        subtitle="Choose route and preferred handover day"
+        icon="alt-route"
         C={C}
       />
-      <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-        Choose route and preferred handover day clearly
-      </Text>
 
       <View style={styles.fieldGroup}>
         <CitySearchField
@@ -610,16 +606,12 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
 }) {
   return (
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
-      <StepHero
-        title='Add parcel essentials'
-        subtitle='Category, weight, and photos reduce confusion and improve match quality.'
-        illustration="parcel"
+      <StepHeader
+        title="Parcel details"
+        subtitle="Add parcel category, photos, weight and offer"
+        icon="inventory-2"
         C={C}
       />
-      <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Parcel details</Text>
-      <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-        Add parcel details so travellers can trust quickly
-      </Text>
 
       <View style={styles.fieldGroup}>
         <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Category</Text>
@@ -734,16 +726,12 @@ function StepReview({ form, C, onEdit }: {
 
   return (
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
-      <StepHero
-        title='Review and send confidently'
-        subtitle='Your summary sets expectations before you connect with verified travellers.'
-        illustration="requests"
+      <StepHeader
+        title="Review your parcel"
+        subtitle="Double-check details before publishing to travelers"
+        icon="fact-check"
         C={C}
       />
-      <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Review your parcel</Text>
-      <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-        Review and publish with complete clarity
-      </Text>
 
       <View style={[styles.reviewCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
         <View style={styles.reviewHeader}>
@@ -829,70 +817,48 @@ function StepReview({ form, C, onEdit }: {
   );
 }
 
-function StepHero({
+function StepHeader({
   title,
   subtitle,
-  illustration,
+  icon,
   C,
 }: {
   title: string;
   subtitle: string;
-  illustration: ProductIllustrationVariant;
+  icon: keyof typeof MaterialIcons.glyphMap;
   C: any;
 }) {
   return (
-    <View style={[styles.heroCard, { borderColor: C.surfaceBorder }]}>
-      <View style={styles.heroImage}><ProductIllustration variant={illustration} size={130} /></View>
-      <View style={[styles.heroOverlay, { backgroundColor: C.primarySubtle }]} />
-      <View style={[styles.heroGlow, { backgroundColor: C.primarySubtle }]} />
-      <Text style={[styles.heroTitle, { color: C.textPrimary }]}>{title}</Text>
-      <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>{subtitle}</Text>
+    <View style={styles.stepHeaderWrap}>
+      <View style={[styles.stepHeaderIcon, { backgroundColor: C.primarySubtle }]}>
+        <MaterialIcons name={icon} size={22} color={C.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.stepTitle, { color: C.textPrimary }]}>{title}</Text>
+        <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>{subtitle}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   stepContent: { flex: 1 },
-  stepInner: { gap: Spacing.xl, paddingBottom: 132 },
-  heroCard: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
-    padding: Spacing.md,
-    minHeight: 148,
-    justifyContent: 'flex-end',
-    position: 'relative',
+  stepInner: { gap: Spacing.lg, paddingBottom: 132 },
+  stepHeaderWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.xs,
   },
-  heroImage: {
-    position: 'absolute',
-    right: -4,
-    bottom: -18,
-    opacity: 0.5,
+  stepHeaderIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    opacity: 0.55,
-  },
-  heroTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.35,
-  },
-  heroSubtitle: {
-    marginTop: 4,
-    fontSize: FontSize.sm,
-    lineHeight: 21,
-  },
-  stepTitle: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, letterSpacing: -0.6 },
-  stepSubtitle: { fontSize: FontSize.md, marginTop: -Spacing.xs, lineHeight: 23 },
+  stepTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
+  stepSubtitle: { fontSize: FontSize.sm, marginTop: 2, lineHeight: 18 },
 
   fieldGroup: { gap: Spacing.sm },
   fieldLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },

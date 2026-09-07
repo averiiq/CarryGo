@@ -375,7 +375,7 @@ export default function ChatScreen() {
         {
           backgroundColor: C.surface,
           borderTopColor: C.surfaceBorder,
-          paddingBottom: insets.bottom + Spacing.sm,
+          paddingBottom: (Platform.OS === 'ios' && inputFocused) ? Spacing.sm : insets.bottom + Spacing.sm,
         },
       ]}>
         <View style={[

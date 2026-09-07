@@ -56,55 +56,55 @@ export const DarkColors = {
   statusBarStyle: 'light' as const,
 };
 
-// Light palette (current production theme)
+// Light palette (pure, calm, world-class light theme)
 export const LightColors: ThemeColors = {
-  background: '#F6F8FC',
+  background: '#F8FAFC',
   surface: '#FFFFFF',
-  surfaceElevated: '#F1F5FB',
-  surfaceHigh: '#EAF0F8',
-  surfaceBorder: '#D9E2EF',
-  surfaceBorderLight: '#E7EDF6',
+  surfaceElevated: '#F1F5F9',
+  surfaceHigh: '#E2E8F0',
+  surfaceBorder: '#E2E8F0',
+  surfaceBorderLight: '#F1F5F9',
 
-  primary: '#1E8D5A',
-  primaryDark: '#166946',
-  primaryLight: '#7AD2A5',
-  primarySubtle: 'rgba(30, 141, 90, 0.12)',
-  primaryGlow: 'rgba(30, 141, 90, 0.24)',
+  primary: '#059669',
+  primaryDark: '#064E3B',
+  primaryLight: '#34D399',
+  primarySubtle: '#ECFDF5',
+  primaryGlow: 'rgba(5, 150, 105, 0.20)',
 
-  accent: '#2B7FFF',
-  accentSubtle: 'rgba(43, 127, 255, 0.14)',
+  accent: '#2563EB',
+  accentSubtle: '#EFF6FF',
 
-  textPrimary: '#0F1B2D',
-  textSecondary: '#34445E',
-  textMuted: '#6B7C97',
+  textPrimary: '#0F172A',
+  textSecondary: '#334155',
+  textMuted: '#64748B',
   textInverse: '#FFFFFF',
 
-  success: '#2F9E44',
-  successSubtle: 'rgba(47, 158, 68, 0.14)',
-  error: '#E74C3C',
-  errorSubtle: 'rgba(231, 76, 60, 0.14)',
-  warning: '#E3A008',
-  warningSubtle: 'rgba(227, 160, 8, 0.14)',
+  success: '#10B981',
+  successSubtle: '#ECFDF5',
+  error: '#EF4444',
+  errorSubtle: '#FEF2F2',
+  warning: '#F59E0B',
+  warningSubtle: '#FFFBEB',
   info: '#3B82F6',
-  infoSubtle: 'rgba(59, 130, 246, 0.14)',
+  infoSubtle: '#EFF6FF',
 
   locked: '#64748B',
-  lockedSubtle: 'rgba(100, 116, 139, 0.14)',
-  released: '#2F9E44',
-  releasedSubtle: 'rgba(47, 158, 68, 0.14)',
+  lockedSubtle: 'rgba(100, 116, 139, 0.12)',
+  released: '#10B981',
+  releasedSubtle: '#ECFDF5',
 
-  pending: '#E3A008',
-  accepted: '#2F9E44',
-  rejected: '#E74C3C',
+  pending: '#F59E0B',
+  accepted: '#10B981',
+  rejected: '#EF4444',
   inTransit: '#3B82F6',
-  delivered: '#2F9E44',
+  delivered: '#10B981',
 
-  overlay: 'rgba(8, 16, 30, 0.58)',
-  overlayLight: 'rgba(8, 16, 30, 0.16)',
-  overlayMedium: 'rgba(8, 16, 30, 0.32)',
+  overlay: 'rgba(15, 23, 42, 0.52)',
+  overlayLight: 'rgba(15, 23, 42, 0.12)',
+  overlayMedium: 'rgba(15, 23, 42, 0.28)',
 
   tabBarBg: '#FFFFFF',
-  inputBg: '#F2F6FB',
+  inputBg: '#F8FAFC',
   statusBarStyle: 'dark' as const,
 };
 
@@ -153,33 +153,44 @@ export const BorderRadius = {
 
 export const Shadow = {
   card: {
-    shadowColor: '#0D1B2A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.09,
-    shadowRadius: 20,
-    elevation: 4,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
   glow: {
-    shadowColor: '#2F8F63',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    elevation: 3,
   },
   sm: {
-    shadowColor: '#0D1B2A',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   float: {
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
   },
+};
+
+/**
+ * Modern React Native 0.79+ CSS-aligned boxShadow tokens.
+ * Provides crisp cross-platform rendering across iOS, Android, and Web.
+ */
+export const BoxShadow = {
+  card: '0px 4px 12px rgba(15, 23, 42, 0.05)',
+  glow: '0px 6px 14px rgba(5, 150, 105, 0.14)',
+  sm: '0px 2px 6px rgba(15, 23, 42, 0.04)',
+  float: '0px 8px 20px rgba(15, 23, 42, 0.08)',
 };
 
 export const LightShadow = {
@@ -187,13 +198,13 @@ export const LightShadow = {
 };
 
 export const Gradients = {
-  primary: ['#2FA872', '#146643'] as [string, string],
-  primaryVibrant: ['#25A06A', '#115A3A'] as [string, string],
-  accent: ['#79ADFF', '#3E88FF'] as [string, string],
-  hero: ['#F8FAF6', '#F1F5F0', '#E8EFE7'] as [string, string, string],
-  card: ['rgba(46,168,114,0.1)', 'rgba(46,168,114,0.0)'] as [string, string],
-  success: ['#63CC7A', '#2F9E44'] as [string, string],
-  warm: ['#FFD98A', '#F4AF2F'] as [string, string],
+  primary: ['#059669', '#064E3B'] as [string, string],
+  primaryVibrant: ['#10B981', '#047857'] as [string, string],
+  accent: ['#3B82F6', '#1D4ED8'] as [string, string],
+  hero: ['#FFFFFF', '#F8FAFC', '#F1F5F9'] as [string, string, string],
+  card: ['rgba(5, 150, 105, 0.06)', 'rgba(5, 150, 105, 0.0)'] as [string, string],
+  success: ['#34D399', '#059669'] as [string, string],
+  warm: ['#FBBF24', '#D97706'] as [string, string],
 };
 
 export const Motion = {

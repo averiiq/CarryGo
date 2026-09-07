@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, RefreshControl, ScrollView } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -473,17 +474,22 @@ export default function MessagesScreen() {
             </View>
           </View>
         ) : (
-          <Animated.FlatList
+          <FlashList
             keyboardDismissMode="on-drag"
             data={visibleRows}
             keyExtractor={item => item.id}
             renderItem={renderItem}
-            contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 110 }]}
+            estimatedItemSize={92}
+            contentContainerStyle={{
+              paddingHorizontal: Spacing.md,
+              paddingTop: Spacing.sm,
+              paddingBottom: insets.bottom + 110,
+            }}
             showsVerticalScrollIndicator={false}
             ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: true }
+              { useNativeDriver: false }
             )}
             scrollEventThrottle={16}
             refreshControl={

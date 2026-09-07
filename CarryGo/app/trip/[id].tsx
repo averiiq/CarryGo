@@ -25,9 +25,9 @@ const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   train: 'train', flight: 'flight',
 };
 const vehicleGradients: Record<string, [string, string]> = {
-  bike: ['#64748B', '#475569'],
-  car: ['#4B5563', '#374151'],
-  bus: ['#6B7280', '#4B5563'],
+  bike: ['#D97706', '#B45309'],
+  car: ['#2563EB', '#1D4ED8'],
+  bus: ['#7C3AED', '#6D28D9'],
   train: ['#0F766E', '#0D9488'],
   flight: ['#16A34A', '#15803D'],
 };
@@ -94,7 +94,7 @@ export default function TripDetailScreen() {
         text: 'Accept', onPress: async () => {
           await updateRequestStatusAsync({ requestId: req.id, status: 'accepted' });
           const parcel = parcels.find(p => p.id === req.parcelId);
-          const route = parcel ? ` Ã¢â€ â€™ ` : trip ? ` Ã¢â€ â€™ ` : 'Route';
+          const route = parcel ? `${parcel.fromCity} → ${parcel.toCity}` : trip ? `${trip.fromCity} → ${trip.toCity}` : 'Route';
           const existingConversation = conversations.find(conversation => conversation.requestId === req.id);
           if (!existingConversation) {
             await createConversationAsync({
@@ -199,8 +199,8 @@ export default function TripDetailScreen() {
           <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{trip.fromCity} Ã¢â€ â€™ {trip.toCity}</Text>
-          <Text style={[styles.headerSub, { color: C.textMuted }]}>{trip.date} Ã‚Â· {trip.time}</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{trip.fromCity} → {trip.toCity}</Text>
+          <Text style={[styles.headerSub, { color: C.textMuted }]}>{trip.date} • {trip.time}</Text>
         </View>
         {isOwner && trip.status === 'active' ? (
           <Pressable

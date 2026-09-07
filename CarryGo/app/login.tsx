@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
-  TextInput, Animated, Dimensions, Clipboard, Pressable,
+  TextInput, Animated, Dimensions, Pressable,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
@@ -24,12 +25,6 @@ type Step = 'email' | 'otp';
 const OTP_LENGTH = AUTH_OTP_LENGTH;
 const RESEND_COOLDOWN = 60;
 const { width: W } = Dimensions.get('window');
-
-const FEATURES = [
-  { icon: 'route' as const, text: 'Route-matched deliveries' },
-  { icon: 'account-balance-wallet' as const, text: 'Earn while you travel' },
-  { icon: 'verified-user' as const, text: 'Trusted community' },
-];
 
 export default function LoginScreen() {
   const { sendOTP, verifyOTP } = useAuth();
@@ -203,7 +198,7 @@ export default function LoginScreen() {
 
   const handlePasteOTP = async () => {
     try {
-      const text = await Clipboard.getString();
+      const text = await Clipboard.getStringAsync();
       const digits = text.replace(/\D/g, '').slice(0, OTP_LENGTH);
       if (digits.length > 0) {
         autoSubmittedOtpRef.current = null;
@@ -246,23 +241,8 @@ export default function LoginScreen() {
               </View>
             </View>
             <View style={styles.heroText}>
-              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Deliver with confidence,{'\n'}earn on every route</Text>
-              <Text style={[styles.heroSub, { color: C.textSecondary }]}>A premium parcel marketplace built for safe handoffs, transparent matching, and verified travellers.</Text>
-            </View>
-            <View style={styles.featurePills}>
-              {FEATURES.map((f, i) => (
-                <View key={i} style={[styles.featurePill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '30' }]}>
-                  <MaterialIcons name={f.icon} size={12} color={C.primary} />
-                  <Text style={[styles.featurePillText, { color: C.primary }]}>{f.text}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={[styles.loginArtwork, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <ProductIllustration variant="delivery" size={164} />
-              <View style={styles.artworkCopy}>
-                <Text style={[styles.artworkTitle, { color: C.textPrimary }]}>Designed for modern delivery</Text>
-                <Text style={[styles.artworkSubtitle, { color: C.textMuted }]}>Match by route, coordinate safely, and track every handoff.</Text>
-              </View>
+              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Welcome to CarryGo</Text>
+              <Text style={[styles.heroSub, { color: C.textSecondary }]}>Route-matched deliveries with verified travelers. Fast, secure, and fully tracked.</Text>
             </View>
           </Animated.View>
 
@@ -323,33 +303,15 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flexGrow: 1 },
-  hero: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl, gap: Spacing.lg, overflow: 'hidden' },
+  hero: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md, gap: Spacing.md, overflow: 'hidden' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  logoBox: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  brandName: { fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
-  brandTag: { fontSize: FontSize.sm, marginTop: 1 },
-  heroText: { gap: 8 },
-  heroTitle: { fontSize: FontSize.display, fontWeight: FontWeight.extrabold, letterSpacing: -1, lineHeight: 46 },
+  logoBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  brandName: { fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
+  brandTag: { fontSize: FontSize.xs, marginTop: 1 },
+  heroText: { gap: 6, marginTop: 2 },
+  heroTitle: { fontSize: FontSize.xxl, fontWeight: FontWeight.extrabold, letterSpacing: -0.6, lineHeight: 34 },
   heroSub: { fontSize: FontSize.sm, lineHeight: 21 },
-  featurePills: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  featurePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.full, borderWidth: 1,
-  },
-  featurePillText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  loginArtwork: {
-    minHeight: 142,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.sm,
-    overflow: 'hidden',
-  },
-  artworkCopy: { flex: 1, gap: 5, marginLeft: -8, paddingRight: Spacing.sm },
-  artworkTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, lineHeight: 20 },
-  artworkSubtitle: { fontSize: FontSize.xs, lineHeight: 17 },
-  formOuter: { overflow: 'hidden', paddingHorizontal: Spacing.md, minHeight: 500 },
+  formOuter: { overflow: 'hidden', paddingHorizontal: Spacing.md, minHeight: 460 },
   formSlide: { width: '100%' },
   formSlideAbs: { position: 'absolute', top: 0, left: Spacing.md, right: Spacing.md },
   terms: { alignItems: 'center', gap: 3, paddingHorizontal: Spacing.xl },

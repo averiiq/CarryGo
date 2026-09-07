@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, Animated,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -488,121 +489,124 @@ export default function RequestsScreen() {
         </ScrollView>
       ) : null}
 
-      <Animated.ScrollView
-        keyboardDismissMode="on-drag"
-        style={[styles.list, { transform: [{ translateX: slideAnim }] }]}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 108 }]}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing || requestsQuery.isRefetching}
-            onRefresh={handleRefresh}
-            tintColor={C.primaryDark}
-            colors={[C.primaryDark]}
-          />
-        }
-      >
-        {requestsQuery.error ? (
-          <View style={styles.feedbackWrap}>
-            <AsyncStateCard
-              C={C}
-              icon="cloud-off"
-              title="Could not load requests"
-              message={requestsQuery.error instanceof Error ? requestsQuery.error.message : 'Refresh and try again.'}
-              actionLabel="Retry"
-              onAction={() => { void requestsQuery.refetch(); }}
-            />
-          </View>
-        ) : requestsQuery.isLoading ? (
-          <View style={styles.feedbackWrap}>
-            <AsyncStateCard
-              C={C}
-              icon="sync"
-              title="Loading requests"
-              message="Checking your incoming and outgoing delivery requests."
-            />
-          </View>
-        ) : displayed.length === 0 ? (
-          <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
-            <View style={[styles.emptyVisual, { backgroundColor: C.surfaceElevated }]}> 
-              <EmptyRequestsSVG width={176} height={132} />
-            </View>
-
-            <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>
-              {statusFilter !== 'all' ? `No ${statusFilter} requests` : `No ${tab} requests yet`}
-            </Text>
-
-            <Text style={[styles.emptySubtext, { color: C.textMuted }]}> 
-              {statusFilter !== 'all'
-                ? 'Try another filter or clear this one to explore more requests.'
-                : tab === 'incoming'
-                  ? 'Post a trip and receive delivery requests from senders on your route.'
-                  : 'Send a parcel request and match with trusted travellers quickly.'}
-            </Text>
-
-            {statusFilter === 'all' ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.emptyCTA,
-                  { backgroundColor: C.primaryDark, opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-                ]}
-                onPress={() => {
-                  Haptic.tap();
-                  router.push(tab === 'incoming' ? '/create-trip' : '/create-parcel');
-                }}
-              >
-                <MaterialIcons name={tab === 'incoming' ? 'drive-eta' : 'inventory-2'} size={16} color="#fff" />
-                <Text style={styles.emptyCTAText}>{tab === 'incoming' ? 'Post a Trip' : 'Send a Parcel'}</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.emptySecondaryCTA,
-                  {
-                    backgroundColor: C.surfaceElevated,
-                    borderColor: C.surfaceBorder,
-                    opacity: pressed ? 0.86 : 1,
-                    transform: [{ scale: pressed ? 0.97 : 1 }],
-                  },
-                ]}
-                onPress={() => {
-                  Haptic.tap();
-                  setStatusFilter('all');
-                }}
-              >
-                <MaterialIcons name="filter-alt-off" size={15} color={C.textSecondary} />
-                <Text style={[styles.emptySecondaryText, { color: C.textSecondary }]}>Clear filter</Text>
-              </Pressable>
-            )}
-          </View>
-        ) : (
-          displayed.map((req, index) => {
+      <Animated.View style={[{ flex: 1 }, { transform: [{ translateX: slideAnim }] }]}>
+        <FlashList
+          data={requestsQuery.error || requestsQuery.isLoading ? [] : displayed}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => {
             const anim = cardAnims[index];
             return (
               <Animated.View
-                key={req.id}
                 style={anim ? { opacity: anim.opacity, transform: [{ translateY: anim.translateY }] } : undefined}
               >
                 <RequestCard
-                  request={req}
+                  request={item}
                   type={tab}
-                  onAccept={() => handleAccept(req.id, req)}
-                  onReject={() => handleReject(req.id, req)}
-                  onCancel={() => handleCancel(req.id, req)}
-                  onChat={() => handleChat(req)}
-                  onDelivery={() => handleDelivery(req)}
-                  onPayment={() => handlePayment(req)}
+                  onAccept={() => handleAccept(item.id, item)}
+                  onReject={() => handleReject(item.id, item)}
+                  onCancel={() => handleCancel(item.id, item)}
+                  onChat={() => handleChat(item)}
+                  onDelivery={() => handleDelivery(item)}
+                  onPayment={() => handlePayment(item)}
                 />
               </Animated.View>
             );
-          })
-        )}
-      </Animated.ScrollView>
+          }}
+          estimatedItemSize={220}
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 108 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing || requestsQuery.isRefetching}
+              onRefresh={handleRefresh}
+              tintColor={C.primaryDark}
+              colors={[C.primaryDark]}
+            />
+          }
+          ListEmptyComponent={
+            requestsQuery.error ? (
+              <View style={styles.feedbackWrap}>
+                <AsyncStateCard
+                  C={C}
+                  icon="cloud-off"
+                  title="Could not load requests"
+                  message={requestsQuery.error instanceof Error ? requestsQuery.error.message : 'Refresh and try again.'}
+                  actionLabel="Retry"
+                  onAction={() => { void requestsQuery.refetch(); }}
+                />
+              </View>
+            ) : requestsQuery.isLoading ? (
+              <View style={styles.feedbackWrap}>
+                <AsyncStateCard
+                  C={C}
+                  icon="sync"
+                  title="Loading requests"
+                  message="Checking your incoming and outgoing delivery requests."
+                />
+              </View>
+            ) : (
+              <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
+                <View style={[styles.emptyVisual, { backgroundColor: C.surfaceElevated }]}> 
+                  <EmptyRequestsSVG width={176} height={132} />
+                </View>
+
+                <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>
+                  {statusFilter !== 'all' ? `No ${statusFilter} requests` : `No ${tab} requests yet`}
+                </Text>
+
+                <Text style={[styles.emptySubtext, { color: C.textMuted }]}> 
+                  {statusFilter !== 'all'
+                    ? 'Try another filter or clear this one to explore more requests.'
+                    : tab === 'incoming'
+                      ? 'Post a trip and receive delivery requests from senders on your route.'
+                      : 'Send a parcel request and match with trusted travellers quickly.'}
+                </Text>
+
+                {statusFilter === 'all' ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.emptyCTA,
+                      { backgroundColor: C.primaryDark, opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+                    ]}
+                    onPress={() => {
+                      Haptic.tap();
+                      router.push(tab === 'incoming' ? '/create-trip' : '/create-parcel');
+                    }}
+                  >
+                    <MaterialIcons name={tab === 'incoming' ? 'drive-eta' : 'inventory-2'} size={16} color="#fff" />
+                    <Text style={styles.emptyCTAText}>{tab === 'incoming' ? 'Post a Trip' : 'Send a Parcel'}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.emptySecondaryCTA,
+                      {
+                        backgroundColor: C.surfaceElevated,
+                        borderColor: C.surfaceBorder,
+                        opacity: pressed ? 0.86 : 1,
+                        transform: [{ scale: pressed ? 0.97 : 1 }],
+                      },
+                    ]}
+                    onPress={() => {
+                      Haptic.tap();
+                      setStatusFilter('all');
+                    }}
+                  >
+                    <MaterialIcons name="filter-alt-off" size={15} color={C.textSecondary} />
+                    <Text style={[styles.emptySecondaryText, { color: C.textSecondary }]}>Clear filter</Text>
+                  </Pressable>
+                )}
+              </View>
+            )
+          }
+        />
+      </Animated.View>
     </View>
   );
 }
@@ -834,9 +838,7 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
-  listContent: {
-    gap: Spacing.md,
-  },
+  listContent: {},
   feedbackWrap: {
     marginTop: 2,
   },

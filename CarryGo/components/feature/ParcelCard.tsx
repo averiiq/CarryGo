@@ -17,12 +17,12 @@ const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 };
 
 const categoryGradients: Record<string, [string, string]> = {
-  documents: ['#6B7280', '#4B5563'],
+  documents: ['#475569', '#334155'],
   electronics: ['#0F766E', '#0D9488'],
-  clothing: ['#64748B', '#475569'],
+  clothing: ['#BE185D', '#9D174D'],
   food: ['#EA580C', '#C2410C'],
   medicine: ['#16A34A', '#15803D'],
-  other: ['#4B5563', '#334155'],
+  other: ['#4F46E5', '#4338CA'],
 };
 
 interface ParcelCardProps {
@@ -34,111 +34,168 @@ interface ParcelCardProps {
   onCarry?: () => void;
 }
 
-export const ParcelCard = React.memo(function ParcelCard({ parcel, matchScore, onMatchPress, onPress, showCarryButton, onCarry }: ParcelCardProps) {
+export const ParcelCard = React.memo(function ParcelCard({
+  parcel,
+  matchScore,
+  onMatchPress,
+  onPress,
+  showCarryButton,
+  onCarry,
+}: ParcelCardProps) {
   const { C } = useThemeColors();
-  const cGradient = categoryGradients[parcel.category] || ['#6B7280', '#4B5563'];
+  const cGradient = categoryGradients[parcel.category] || ['#0F766E', '#0D9488'];
   const cColor = cGradient[0];
   const scale = useRef(new Animated.Value(1)).current;
 
-  const onPressIn = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, ...Motion.springFast }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
+  const onPressIn = () =>
+    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, ...Motion.springFast }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
   const statusColor = parcel.status === 'open' ? C.success : parcel.status === 'in_transit' ? C.primary : C.textMuted;
   const statusLabel = parcel.status === 'in_transit' ? 'In Transit' : parcel.status.charAt(0).toUpperCase() + parcel.status.slice(1);
 
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
-      <Animated.View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder, transform: [{ scale }] }]}>
-        <View style={styles.inner}>
-          <View style={styles.topSection}>
-            <View style={styles.catBadge}>
-              <LinearGradient colors={cGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-              <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={20} color={C.textInverse} />
-            </View>
-
-            <View style={styles.headerContent}>
-              <View style={styles.routeRow}>
-                <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>{parcel.fromCity}</Text>
-                <View style={[styles.arrowCircle, { backgroundColor: cColor + '14' }]}>
-                  <MaterialIcons name="arrow-forward" size={10} color={cColor} />
-                </View>
-                <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>{parcel.toCity}</Text>
-              </View>
-              <Text style={[styles.description, { color: C.textSecondary }]} numberOfLines={1}>{parcel.description}</Text>
-            </View>
-
-            <View style={[styles.statusBadge, { backgroundColor: statusColor + '14' }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
-            </View>
-          </View>
-
-          <View style={styles.metaRow}>
-            {typeof matchScore === 'number' && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.metaChip,
-                  styles.matchChip,
-                  { backgroundColor: C.primary + '14' },
-                  pressed && onMatchPress ? { opacity: 0.82 } : null,
-                ]}
-                onPress={onMatchPress}
-                disabled={!onMatchPress}
-              >
-                <MaterialIcons name={'auto-awesome'} size={12} color={C.primary} />
-                <Text style={[styles.metaLabel, { color: C.primary }]}>{matchScore}% match</Text>
-                <MaterialIcons name={'info-outline'} size={12} color={C.primary} />
-              </Pressable>
-            )}
-            <View style={[styles.metaChip, { backgroundColor: C.surfaceElevated }]}> 
-              <MaterialIcons name="scale" size={12} color={C.textSecondary} />
-              <Text style={[styles.metaLabel, { color: C.textSecondary }]}>{parcel.weight}kg</Text>
-            </View>
-            <View style={[styles.metaChip, { backgroundColor: cColor + '10' }]}>
-              <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={12} color={cColor} />
-              <Text style={[styles.metaLabel, { color: cColor }]}>
-                {parcel.category.charAt(0).toUpperCase() + parcel.category.slice(1)}
+    <Pressable
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}
+    >
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            backgroundColor: C.surface,
+            borderColor: C.surfaceBorder,
+            transform: [{ scale }],
+          },
+        ]}
+      >
+        <View style={styles.topRow}>
+          <View style={styles.senderSection}>
+            <LinearGradient
+              colors={cGradient}
+              style={styles.avatar}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.avatarLetter}>
+                {parcel.userName.charAt(0).toUpperCase()}
               </Text>
-            </View>
-            {parcel.deliveryDate && (
-              <View style={[styles.metaChip, { backgroundColor: C.surfaceElevated }]}> 
-                <Ionicons name="calendar" size={12} color={C.textSecondary} />
-                <Text style={[styles.metaLabel, { color: C.textSecondary }]}>By {formatScheduleDate(parcel.deliveryDate)}</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.bottomRow}>
-            <View style={styles.senderSection}>
-              <LinearGradient colors={cGradient} style={styles.senderAvatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                <Text style={styles.senderLetter}>{parcel.userName.charAt(0).toUpperCase()}</Text>
-              </LinearGradient>
-              <View>
-                <Text style={[styles.senderName, { color: C.textPrimary }]}>{parcel.userName}</Text>
-                {!parcel.deliveryDate && (
-                  <Text style={[styles.timeAgo, { color: C.textMuted }]}>
-                    {new Date(parcel.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                  </Text>
-                )}
-              </View>
-            </View>
-            <View style={styles.priceBox}>
-              <LinearGradient colors={[C.successSubtle, C.primarySubtle]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-              <Text style={[styles.priceValue, { color: C.success }]}> 
-                <Text style={styles.priceCurrency}>Rs </Text>{parcel.priceOffer}
+            </LinearGradient>
+            <View style={styles.senderMeta}>
+              <Text style={[styles.senderName, { color: C.textPrimary }]} numberOfLines={1}>
+                {parcel.userName}
+              </Text>
+              <Text style={[styles.categorySubtitle, { color: C.textMuted }]}>
+                {parcel.category.toUpperCase()}
               </Text>
             </View>
           </View>
 
-          {showCarryButton && (
+          <View style={[styles.statusChip, { backgroundColor: statusColor + '12', borderColor: statusColor + '28' }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.statusLabel, { color: statusColor }]}>
+              {statusLabel}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.routeContainer}>
+          <View style={styles.cityBlock}>
+            <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
+            <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+              {parcel.fromCity}
+            </Text>
+          </View>
+
+          <View style={styles.arrowBlock}>
+            <View style={[styles.arrowLine, { borderColor: C.surfaceBorder }]} />
+            <View style={[styles.arrowIconCircle, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name="arrow-forward" size={13} color={C.primary} />
+            </View>
+          </View>
+
+          <View style={[styles.cityBlock, { alignItems: 'flex-end' }]}>
+            <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
+            <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+              {parcel.toCity}
+            </Text>
+          </View>
+        </View>
+
+        {parcel.description ? (
+          <Text style={[styles.descriptionText, { color: C.textSecondary }]} numberOfLines={1}>
+            {parcel.description}
+          </Text>
+        ) : null}
+
+        <View style={styles.specsRow}>
+          <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
+            <MaterialIcons name="scale" size={12} color={C.textSecondary} />
+            <Text style={[styles.specText, { color: C.textSecondary }]}>
+              {parcel.weight} kg
+            </Text>
+          </View>
+
+          <View style={[styles.specItem, { backgroundColor: cColor + '10' }]}>
+            <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={12} color={cColor} />
+            <Text style={[styles.specText, { color: cColor, fontWeight: FontWeight.semibold }]}>
+              {parcel.category.charAt(0).toUpperCase() + parcel.category.slice(1)}
+            </Text>
+          </View>
+
+          {parcel.deliveryDate ? (
+            <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
+              <Ionicons name="calendar-outline" size={12} color={C.textSecondary} />
+              <Text style={[styles.specText, { color: C.textSecondary }]}>
+                By {formatScheduleDate(parcel.deliveryDate)}
+              </Text>
+            </View>
+          ) : null}
+
+          {typeof matchScore === 'number' && (
             <Pressable
-              style={({ pressed }) => [styles.carryBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+              style={[styles.specItem, styles.matchItem, { backgroundColor: C.primarySubtle }]}
+              onPress={onMatchPress}
+              disabled={!onMatchPress}
+            >
+              <MaterialIcons name="auto-awesome" size={12} color={C.primary} />
+              <Text style={[styles.specText, { color: C.primary, fontWeight: FontWeight.bold }]}>
+                {matchScore}% match
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={[styles.footerRow, { borderTopColor: C.surfaceBorderLight }]}>
+          <View style={styles.priceContainer}>
+            <Text style={[styles.priceLabel, { color: C.textMuted }]}>REWARD OFFER</Text>
+            <View style={styles.priceValueRow}>
+              <Text style={[styles.priceAmount, { color: C.primaryDark }]}>
+                ₹{parcel.priceOffer}
+              </Text>
+            </View>
+          </View>
+
+          {showCarryButton ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: C.primaryDark },
+                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+              ]}
               onPress={onCarry}
             >
-              <LinearGradient colors={[C.primary, C.primaryDark]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} />
-              <MaterialIcons name="local-shipping" size={15} color={C.textInverse} />
-              <Text style={styles.carryBtnText}>Carry This Parcel</Text>
+              <MaterialIcons name="local-shipping" size={13} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Carry Parcel</Text>
             </Pressable>
+          ) : (
+            <View style={styles.viewDetailsRow}>
+              <Text style={[styles.viewDetailsText, { color: C.primary }]}>View Details</Text>
+              <MaterialIcons name="chevron-right" size={16} color={C.primary} />
+            </View>
           )}
         </View>
       </Animated.View>
@@ -148,64 +205,186 @@ export const ParcelCard = React.memo(function ParcelCard({ parcel, matchScore, o
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
-    overflow: 'hidden',
-    shadowColor: '#0D1B2A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
+    padding: Spacing.md,
+    gap: Spacing.md,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  inner: { padding: Spacing.mdl, gap: Spacing.md },
-
-  topSection: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  catBadge: {
-    width: 44, height: 44, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  headerContent: { flex: 1, gap: 4 },
-  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  cityName: { fontSize: 15, fontWeight: FontWeight.extrabold, letterSpacing: -0.2 },
-  arrowCircle: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  description: { fontSize: FontSize.sm, lineHeight: 18 },
-  statusBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 5, borderRadius: BorderRadius.full, flexShrink: 0,
+  senderSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusLabel: { fontSize: 10, fontWeight: FontWeight.bold },
-
-  metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  metaChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 6,
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  senderMeta: {
+    gap: 2,
+  },
+  senderName: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  categorySubtitle: {
+    fontSize: 10,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.4,
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
-  matchChip: { borderWidth: 1, borderColor: 'transparent' },
-  metaLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-
-  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  senderSection: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  senderAvatar: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  senderLetter: { color: '#fff', fontSize: 12, fontWeight: FontWeight.bold },
-  senderName: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  timeAgo: { fontSize: FontSize.xs, marginTop: 1 },
-
-  priceBox: {
-    flexDirection: 'row', alignItems: 'baseline',
-    paddingHorizontal: Spacing.md, paddingVertical: 10,
-    borderRadius: 12, overflow: 'hidden',
+  statusLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.2,
   },
-  priceCurrency: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  priceValue: { fontSize: 22, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
-
-  carryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 12, paddingVertical: 13, overflow: 'hidden',
+  routeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
   },
-  carryBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+  cityBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  cityLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  cityName: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.4,
+  },
+  arrowBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.sm,
+    position: 'relative',
+    width: 60,
+  },
+  arrowLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderStyle: 'dashed',
+  },
+  arrowIconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  descriptionText: {
+    fontSize: FontSize.sm,
+    lineHeight: 18,
+    marginTop: -2,
+  },
+  specsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  specItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  matchItem: {
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.25)',
+  },
+  specText: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  priceContainer: {
+    gap: 1,
+  },
+  priceLabel: {
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  priceValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+  },
+  priceAmount: {
+    fontSize: 20,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.5,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md + 2,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  viewDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  viewDetailsText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
 });

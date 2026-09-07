@@ -268,14 +268,22 @@ export default function DeliveryScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={[styles.heroCard, { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}> 
-            <View style={styles.heroImage}><ProductIllustration variant="delivery" size={132} /></View>
-            <View style={[styles.heroOverlay, { backgroundColor: C.primarySubtle }]} />
-            <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Delivery Journey</Text>
-            <Text style={[styles.heroSubtitle, { color: C.textSecondary }]}>
+          <View style={[styles.headerCard, { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}>
+            <View style={styles.headerTopRow}>
+              <View style={[styles.headerIconWrap, { backgroundColor: C.primarySubtle }]}>
+                <MaterialIcons name="local-shipping" size={22} color={C.primary} />
+              </View>
+              <View style={[styles.headerBadge, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
+                <Text style={[styles.headerBadgeText, { color: C.primaryDark }]}>Live Journey</Text>
+              </View>
+            </View>
+            <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
+              {request ? `${request.senderName} ↔ ${request.travellerName}` : 'Delivery Journey'}
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: C.textSecondary }]}>
               {isTraveller
-                ? 'Use OTP flow and keep live location on while in transit.'
-                : 'Track traveller progress live and confirm safe handover.'}
+                ? 'Use OTP verification and keep live location enabled while traveling.'
+                : 'Track traveler progress in real-time and confirm safe handover.'}
             </Text>
           </View>
 
@@ -419,33 +427,48 @@ export default function DeliveryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.mdl, gap: Spacing.mdl },
-  heroCard: {
+  headerCard: {
     borderWidth: 1,
     borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
-    minHeight: 138,
-    padding: Spacing.mdl,
-    justifyContent: 'flex-end',
-    position: 'relative',
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  heroImage: {
-    position: 'absolute',
-    right: -8,
-    bottom: -18,
-    opacity: 0.48,
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  headerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heroTitle: {
-    fontSize: FontSize.xxl,
+  headerBadge: {
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+  },
+  headerBadgeText: {
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.45,
   },
-  heroSubtitle: {
-    marginTop: 4,
+  headerTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
+    marginTop: 2,
+  },
+  headerSubtitle: {
     fontSize: FontSize.sm,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg },
   emptyStateTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },

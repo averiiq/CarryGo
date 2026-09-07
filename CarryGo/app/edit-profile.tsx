@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, gap: Spacing.md,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 12,
+    width: 44, height: 44, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { flex: 1, fontSize: FontSize.xl, fontWeight: FontWeight.bold },

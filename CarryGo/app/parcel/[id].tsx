@@ -36,12 +36,12 @@ const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 };
 
 const categoryGradients: Record<string, [string, string]> = {
-  documents: ['#6B7280', '#4B5563'],
+  documents: ['#475569', '#334155'],
   electronics: ['#0F766E', '#0D9488'],
-  clothing: ['#64748B', '#475569'],
+  clothing: ['#BE185D', '#9D174D'],
   food: ['#EA580C', '#C2410C'],
   medicine: ['#16A34A', '#15803D'],
-  other: ['#4B5563', '#334155'],
+  other: ['#4F46E5', '#4338CA'],
 };
 
 type StatusKey = 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'failed';
@@ -94,7 +94,7 @@ function RequestRow({ request, viewerRole, onCancel, onChat, onTrack, onPayment,
           <Text style={[styles.tName, { color: C.textPrimary }]}>{request.travellerName}</Text>
           <Text style={[styles.tTime, { color: C.textMuted }]}>
             {new Date(request.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-            {' Ã‚Â· '}
+            {' • '}
             {new Date(request.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
@@ -284,7 +284,7 @@ export default function ParcelDetailScreen() {
           <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{parcel.fromCity} Ã¢â€ â€™ {parcel.toCity}</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{parcel.fromCity} → {parcel.toCity}</Text>
           <Text style={[styles.headerSub, { color: C.textMuted }]}>{parcel.description}</Text>
         </View>
         {isSender && parcel.status === 'open' ? (
@@ -496,10 +496,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
     overflow: 'hidden',
   },
-  backBtn: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  backBtn: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   headerTitle: { fontSize: 20, fontWeight: FontWeight.extrabold, letterSpacing: -0.5 },
   headerSub: { fontSize: FontSize.xs, marginTop: 2 },
-  cancelBtn2: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: Spacing.sm },
+  cancelBtn2: { minWidth: 44, minHeight: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: Spacing.sm },
   catBadgeHeader: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
 
   scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, gap: Spacing.lg },
