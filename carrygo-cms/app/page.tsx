@@ -160,50 +160,50 @@ export default async function LandingPage() {
           </Reveal>
 
           <Reveal delay={0.05}>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-extrabold tracking-tight text-foreground leading-[1.12]">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-heading font-extrabold tracking-tight text-foreground leading-[1.12]">
               Same-Day Intercity Deliveries with{' '}
               <span className="premium-text-gradient">Travelers Heading Your Way</span>
             </h1>
           </Reveal>
 
           <Reveal delay={0.1}>
-            <p className="mx-auto max-w-2xl text-base sm:text-lg text-muted leading-relaxed">
+            <p className="mx-auto max-w-2xl text-sm sm:text-lg text-muted leading-relaxed">
               Send urgent documents, gifts, and packages faster and at up to 60% lower rates. Or monetize your empty car trunk or luggage space while traveling.
             </p>
           </Reveal>
 
           {/* Interactive Hero Route Search Widget */}
           <Reveal delay={0.15}>
-            <div className="mt-8">
+            <div className="mt-6 sm:mt-8">
               <HeroRouteSearch />
             </div>
           </Reveal>
 
           {/* Trust Highlights Strip */}
           <Reveal delay={0.2}>
-            <div className="pt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto border-t border-border/80 text-center">
+            <div className="pt-6 sm:pt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto border-t border-border/80 text-center">
               <div>
-                <p className="text-2xl sm:text-3xl font-heading font-extrabold text-foreground">10,000+</p>
-                <p className="text-xs text-muted font-medium mt-0.5">Parcels Delivered</p>
+                <p className="text-xl sm:text-3xl font-heading font-extrabold text-foreground">10,000+</p>
+                <p className="text-[11px] sm:text-xs text-muted font-medium mt-0.5">Parcels Delivered</p>
               </div>
               <div>
-                <p className="text-2xl sm:text-3xl font-heading font-extrabold text-primary">100%</p>
-                <p className="text-xs text-muted font-medium mt-0.5">Verified Travelers</p>
+                <p className="text-xl sm:text-3xl font-heading font-extrabold text-primary">100%</p>
+                <p className="text-[11px] sm:text-xs text-muted font-medium mt-0.5">Verified Travelers</p>
               </div>
               <div>
-                <p className="text-2xl sm:text-3xl font-heading font-extrabold text-foreground">₹0 Risk</p>
-                <p className="text-xs text-muted font-medium mt-0.5">Escrow Protection</p>
+                <p className="text-xl sm:text-3xl font-heading font-extrabold text-foreground">₹0 Risk</p>
+                <p className="text-[11px] sm:text-xs text-muted font-medium mt-0.5">Escrow Protection</p>
               </div>
               <div>
-                <p className="text-2xl sm:text-3xl font-heading font-extrabold text-accent">4.9 ★</p>
-                <p className="text-xs text-muted font-medium mt-0.5">App Store Rating</p>
+                <p className="text-xl sm:text-3xl font-heading font-extrabold text-accent">4.9 ★</p>
+                <p className="text-[11px] sm:text-xs text-muted font-medium mt-0.5">App Store Rating</p>
               </div>
             </div>
           </Reveal>
 
           {/* Hero Abstract Artwork Showcase */}
           <Reveal delay={0.25}>
-            <div className="pt-8 relative max-w-4xl mx-auto">
+            <div className="pt-6 sm:pt-8 relative max-w-4xl mx-auto">
               <div className="relative overflow-hidden rounded-3xl border border-border bg-surface p-2 sm:p-3 shadow-2xl">
                 <Image
                   src="/images/abstract/hero-routes.jpg"
@@ -213,12 +213,12 @@ export default async function LandingPage() {
                   className="aspect-[16/9] w-full rounded-2xl object-cover"
                   priority
                 />
-                <div className="absolute bottom-5 left-5 right-5 sm:bottom-6 sm:left-6 sm:right-6 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
-                  <div className="px-3.5 py-1.5 rounded-full bg-surface/90 backdrop-blur-md border border-border text-xs font-semibold text-foreground shadow-lg flex items-center gap-2">
+                <div className="absolute bottom-3 left-3 right-3 sm:bottom-6 sm:left-6 sm:right-6 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 pointer-events-none">
+                  <div className="px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-surface/90 backdrop-blur-md border border-border text-[11px] sm:text-xs font-semibold text-foreground shadow-lg flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                     <span>Real-Time P2P Matching</span>
                   </div>
-                  <div className="px-3.5 py-1.5 rounded-full bg-surface/90 backdrop-blur-md border border-border text-xs font-semibold text-primary shadow-lg">
+                  <div className="px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-surface/90 backdrop-blur-md border border-border text-[11px] sm:text-xs font-semibold text-primary shadow-lg">
                     <span>100% ID-Verified Transit</span>
                   </div>
                 </div>
@@ -508,17 +508,17 @@ export default async function LandingPage() {
             description="Real stories from people who move parcels and travel smarter every day."
           />
 
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {testimonials.map((review, index) => (
               <Reveal key={review.name} delay={index * 0.05}>
-                <div className="rounded-3xl bg-surface border border-border p-6 sm:p-7 space-y-4 shadow-xs flex flex-col justify-between">
+                <div className="rounded-3xl bg-surface border border-border p-5 sm:p-7 space-y-4 shadow-xs flex flex-col justify-between h-full">
                   <div className="space-y-3">
                     <div className="flex items-center text-amber-500 gap-1">
                       {[...Array(5)].map((_, i) => (
                         <Star key={i} className="w-3.5 h-3.5 fill-current" />
                       ))}
                     </div>
-                    <p className="text-sm text-foreground/80 leading-relaxed italic">
+                    <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed italic">
                       &ldquo;{review.quote}&rdquo;
                     </p>
                   </div>
@@ -542,29 +542,29 @@ export default async function LandingPage() {
       {/* High-Impact Final Call-to-Action Banner */}
       <ScrollLinkedSection className="px-4 pt-8 pb-20 sm:px-6 md:pb-28">
         <Reveal>
-          <div className="mx-auto max-w-5xl rounded-3xl bg-surface border border-border shadow-2xl p-8 sm:p-12 text-center relative overflow-hidden">
+          <div className="mx-auto max-w-5xl rounded-3xl bg-surface border border-border shadow-2xl p-6 sm:p-12 text-center relative overflow-hidden">
             {/* Background Glow */}
             <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 blur-[90px] rounded-full pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-80 h-80 bg-accent/10 blur-[90px] rounded-full pointer-events-none" />
 
-            <div className="relative z-10 space-y-5 max-w-2xl mx-auto">
+            <div className="relative z-10 space-y-4 sm:space-y-5 max-w-2xl mx-auto">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-subtle text-primary border border-primary/20">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Start Moving Smarter Today</span>
               </span>
 
-              <h2 className="text-3xl sm:text-4xl font-heading font-extrabold text-foreground tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-heading font-extrabold text-foreground tracking-tight">
                 Ready to Send a Parcel or Earn on Your Next Trip?
               </h2>
 
-              <p className="text-sm sm:text-base text-muted leading-relaxed">
+              <p className="text-xs sm:text-base text-muted leading-relaxed">
                 Join verified travelers and senders connecting daily across India&apos;s most active travel routes.
               </p>
 
-              <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
+              <div className="pt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
                 <Link
                   href="/create-parcel"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-lg transition-all active:scale-95"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-lg transition-all active:scale-95"
                 >
                   <span>Send a Parcel Now</span>
                   <ArrowRight className="w-4 h-4" />
@@ -572,7 +572,7 @@ export default async function LandingPage() {
 
                 <Link
                   href="/create-trip"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-semibold border border-border bg-surface-elevated text-foreground hover:bg-surface hover:border-primary/40 transition-all active:scale-95"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-semibold border border-border bg-surface-elevated text-foreground hover:bg-surface hover:border-primary/40 transition-all active:scale-95"
                 >
                   <Plane className="w-4 h-4 text-accent" />
                   <span>Post Travel Route</span>

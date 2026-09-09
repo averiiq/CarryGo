@@ -24,7 +24,7 @@ export function MobileAppShowcase() {
 
   return (
     <div className="w-full max-w-6xl mx-auto">
-      <div className="rounded-3xl bg-surface/90 border border-border shadow-2xl p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+      <div className="rounded-3xl bg-surface/90 border border-border shadow-2xl p-4 sm:p-8 md:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
         {/* Left Side: Copywriting, Screen Switcher, & Download Links */}
         <div className="lg:col-span-7 space-y-6">
           <div>
@@ -32,16 +32,16 @@ export function MobileAppShowcase() {
               <Smartphone className="w-3.5 h-3.5" />
               <span>Available for iOS &amp; Android</span>
             </div>
-            <h3 className="text-3xl sm:text-4xl font-heading font-extrabold text-foreground tracking-tight">
+            <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-extrabold text-foreground tracking-tight">
               The Full Power of CarryGo in Your Pocket
             </h3>
-            <p className="text-base text-muted leading-relaxed mt-2">
+            <p className="text-sm sm:text-base text-muted leading-relaxed mt-2">
               From instant traveler route notifications to dual-OTP handovers and live chat, the CarryGo mobile app makes peer-to-peer parcel shipping seamless and secure.
             </p>
           </div>
 
           {/* Interactive Screen Feature Switcher */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
             {[
               {
                 id: 'match' as const,
@@ -75,7 +75,7 @@ export function MobileAppShowcase() {
                   key={item.id}
                   type="button"
                   onClick={() => setActiveScreen(item.id)}
-                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                  className={`p-3 sm:p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                     isActive
                       ? 'border-primary bg-primary-subtle/60 text-primary shadow-xs'
                       : 'border-border bg-background text-muted hover:border-primary/30 hover:text-foreground'
@@ -94,12 +94,12 @@ export function MobileAppShowcase() {
           </div>
 
           {/* Download Buttons & Ratings */}
-          <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               {/* App Store Button */}
               <a
                 href="#download"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-foreground text-background font-semibold text-xs hover:opacity-90 transition shadow-sm"
+                className="flex-1 xs:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-foreground text-background font-semibold text-xs hover:opacity-90 transition shadow-sm"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.67-1.09 1.74-.95 2.78 1.01.08 2.05-.53 2.68-1.28z" />
@@ -113,7 +113,7 @@ export function MobileAppShowcase() {
               {/* Google Play Button */}
               <a
                 href="#download"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-foreground text-background font-semibold text-xs hover:opacity-90 transition shadow-sm"
+                className="flex-1 xs:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-foreground text-background font-semibold text-xs hover:opacity-90 transition shadow-sm"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M3.609 1.814L13.793 12 3.61 22.186a2.007 2.007 0 0 1-.61-.958V2.772c.15-.365.37-.687.61-.958zm11.238 11.239l2.428 2.428-11.83 6.83 9.402-9.258zm0-2.106L5.445 1.69l11.83 6.829-2.428 2.428zm1.488 1.053l3.666 2.116c1.075.62 1.075 1.636 0 2.257l-3.666 2.116-2.502-2.502 2.502-2.502z" />
@@ -139,8 +139,8 @@ export function MobileAppShowcase() {
         </div>
 
         {/* Right Side: Interactive Smartphone Device Mockup */}
-        <div className="lg:col-span-5 flex justify-center">
-          <div className="w-[280px] sm:w-[300px] rounded-[42px] p-3 bg-zinc-900 shadow-2xl border-4 border-zinc-700/60 relative">
+        <div className="lg:col-span-5 flex justify-center w-full">
+          <div className="w-[260px] min-[380px]:w-[280px] sm:w-[300px] max-w-full rounded-[38px] sm:rounded-[42px] p-2.5 sm:p-3 bg-zinc-900 shadow-2xl border-4 border-zinc-700/60 relative">
             {/* Camera / Speaker Notch */}
             <div className="absolute top-5 left-1/2 -translate-x-1/2 w-24 h-4 bg-zinc-800 rounded-full z-20" />
 

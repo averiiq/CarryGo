@@ -120,9 +120,9 @@ export default function DataTable<T extends { id: string }>({
       className="space-y-4"
     >
       {/* Toolbar */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         {searchable && (
-          <div className="relative flex-1 min-w-[200px] max-w-md">
+          <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
@@ -133,16 +133,18 @@ export default function DataTable<T extends { id: string }>({
             />
           </div>
         )}
-        {toolbar}
-        {selected.size > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="px-3 py-1.5 rounded-lg bg-primary-subtle text-primary text-xs font-medium"
-          >
-            {selected.size} selected
-          </motion.div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {toolbar}
+          {selected.size > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="px-3 py-1.5 rounded-lg bg-primary-subtle text-primary text-xs font-medium"
+            >
+              {selected.size} selected
+            </motion.div>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -232,8 +234,8 @@ export default function DataTable<T extends { id: string }>({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted text-xs">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+          <span className="text-muted text-xs text-center sm:text-left">
             Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, sorted.length)} of {sorted.length}
           </span>
           <div className="flex items-center gap-1">

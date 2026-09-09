@@ -11,7 +11,12 @@ export interface CityDropdownProps {
   C: ThemeColors;
 }
 
-export function CityDropdown({ suggestions, onSelect, accent, C }: CityDropdownProps) {
+export const CityDropdown = React.memo(function CityDropdown({
+  suggestions,
+  onSelect,
+  accent,
+  C,
+}: CityDropdownProps) {
   if (suggestions.length === 0) return null;
   return (
     <View style={[styles.dropdown, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
@@ -35,7 +40,7 @@ export function CityDropdown({ suggestions, onSelect, accent, C }: CityDropdownP
       ))}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   dropdown: {

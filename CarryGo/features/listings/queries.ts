@@ -235,9 +235,15 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
     let mounted = true;
     const sb = getSupabaseClient();
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const invalidateAll = () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!mounted) return;
+        queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
+      }, 400);
     };
 
     const suffix = cityFilter || 'all';
@@ -276,6 +282,7 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
 
     return () => {
       mounted = false;
+      if (debounceTimer) clearTimeout(debounceTimer);
       void sb.removeChannel(tripsChannel);
       void sb.removeChannel(parcelsChannel);
     };

@@ -39,7 +39,14 @@ function mapRow(row: ParcelRow): Parcel {
   };
 }
 
-export async function fetchParcels(filters?: { fromCity?: string; toCity?: string; userCity?: string; limit?: number; offset?: number }) {
+export async function fetchParcels(filters?: {
+  fromCity?: string;
+  toCity?: string;
+  userCity?: string;
+  limit?: number;
+  offset?: number;
+  includeCount?: boolean;
+}) {
   if (isAwsBackendEnabled()) {
     try {
       const limit = filters?.limit ?? 50;
@@ -62,16 +69,16 @@ export async function fetchParcels(filters?: { fromCity?: string; toCity?: strin
   }
 
   const sb = getSupabaseClient();
-  try {
-    await expireStaleUnmatchedListings();
-  } catch {
-    // Non-blocking cleanup. Listing fetch should still proceed.
-  }
+  // Non-blocking background expiry check
+  void expireStaleUnmatchedListings().catch(() => {});
+
   const limit = filters?.limit ?? 50;
   const offset = filters?.offset ?? 0;
+  const shouldCount = filters?.includeCount === true || (filters?.includeCount !== false && offset === 0);
+
   let query = sb
     .from('parcels')
-    .select('*', { count: 'exact' })
+    .select('*', shouldCount ? { count: 'exact' } : undefined)
     .eq('status', 'open')
     .gte('created_at', getUnmatchedListingCutoffIso())
     .order('created_at', { ascending: false })

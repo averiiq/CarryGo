@@ -28,7 +28,14 @@ function mapRow(row: TripRow): Trip {
   };
 }
 
-export async function fetchTrips(filters?: { fromCity?: string; toCity?: string; userCity?: string; limit?: number; offset?: number }) {
+export async function fetchTrips(filters?: {
+  fromCity?: string;
+  toCity?: string;
+  userCity?: string;
+  limit?: number;
+  offset?: number;
+  includeCount?: boolean;
+}) {
   if (isAwsBackendEnabled()) {
     try {
       const limit = filters?.limit ?? 50;
@@ -51,16 +58,16 @@ export async function fetchTrips(filters?: { fromCity?: string; toCity?: string;
   }
 
   const sb = getSupabaseClient();
-  try {
-    await expireStaleUnmatchedListings();
-  } catch {
-    // Non-blocking cleanup. Listing fetch should still proceed.
-  }
+  // Non-blocking background expiry check
+  void expireStaleUnmatchedListings().catch(() => {});
+
   const limit = filters?.limit ?? 50;
   const offset = filters?.offset ?? 0;
+  const shouldCount = filters?.includeCount === true || (filters?.includeCount !== false && offset === 0);
+
   let query = sb
     .from('trips')
-    .select('*', { count: 'exact' })
+    .select('*', shouldCount ? { count: 'exact' } : undefined)
     .eq('status', 'active')
     .gte('created_at', getUnmatchedListingCutoffIso())
     .order('created_at', { ascending: false })

@@ -154,7 +154,7 @@ export default function ForTravelersPage() {
             description="Typical payouts earned by verified travelers carrying small packages and document envelopes."
           />
 
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {EARNING_EXAMPLES.map((example) => {
               const Icon = example.icon
               return (

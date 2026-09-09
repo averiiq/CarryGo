@@ -137,7 +137,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
 
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 pt-16 pb-10 md:pt-24 md:pb-12'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pt-16 pb-10 md:pt-24 md:pb-12'>
         <PageHero
           badge="Live Marketplace"
           title="Search Verified Travelers & Open Parcels"
@@ -152,9 +152,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-8'>
-        <section className='glass-card mx-auto w-full max-w-6xl rounded-3xl p-5 md:p-6'>
-          <form method='GET' className='grid gap-3 md:grid-cols-[1fr_1fr_180px_auto] md:items-end'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pb-8'>
+        <section className='glass-card mx-auto w-full max-w-6xl rounded-3xl p-4 sm:p-5 md:p-6'>
+          <form method='GET' className='grid gap-3 sm:grid-cols-2 md:grid-cols-[1fr_1fr_180px_auto] md:items-end'>
             <label className='space-y-1.5'>
               <span className='text-xs font-medium uppercase tracking-wide text-muted'>From City</span>
               <input
@@ -175,7 +175,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
               />
             </label>
 
-            <label className='space-y-1.5'>
+            <label className='space-y-1.5 sm:col-span-2 md:col-span-1'>
               <span className='text-xs font-medium uppercase tracking-wide text-muted'>Type</span>
               <select
                 name='type'
@@ -188,7 +188,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
               </select>
             </label>
 
-            <button type='submit' className='button-primary'>
+            <button type='submit' className='button-primary w-full sm:col-span-2 md:col-span-1 md:w-auto flex items-center justify-center gap-2'>
               <Filter className='h-4 w-4' />
               Apply Filters
             </button>
@@ -196,7 +196,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         </section>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-24 md:pb-28'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pb-24 md:pb-28'>
         <section className='mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-2'>
           <div className='space-y-4'>
             <div className='flex items-center justify-between'>
@@ -295,7 +295,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
           </div>
         </section>
 
-        <section className='mx-auto mt-7 flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface-elevated/70 px-4 py-3'>
+        <section className='mx-auto mt-7 flex w-full max-w-6xl flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border bg-surface-elevated/70 px-4 py-3'>
           <div className='inline-flex items-center gap-2 text-sm text-muted'>
             <SearchIcon className='h-4 w-4 text-primary' />
             <span>Next phase: one-tap chat handoff after request creation from these cards.</span>

@@ -46,7 +46,7 @@ const deliveryFlow = [
 export default function HowItWorksPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 py-16 md:py-24'>
         <PageHero
           badge='Workflow'
           title='A Clear Delivery Journey for Everyone Involved'
@@ -61,13 +61,13 @@ export default function HowItWorksPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-12'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pb-12'>
         <SectionHeading
           label='Phase One'
           title='Request to pickup'
           description='Simple onboarding for senders while preserving matching quality and safety.'
         />
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {senderFlow.map((step, index) => (
             <article key={step.title} className='glass-card p-6 md:p-7'>
               <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/25 bg-primary-subtle text-xs font-semibold text-primary'>
@@ -83,13 +83,13 @@ export default function HowItWorksPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pt-12 pb-24'>
         <SectionHeading
           label='Phase Two'
           title='Transit to closure'
           description='Delivery progress remains visible and policy-supported through completion.'
         />
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {deliveryFlow.map((step, index) => (
             <article key={step.title} className='glass-card p-6 md:p-7'>
               <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-accent/25 bg-accent-subtle text-xs font-semibold text-accent'>

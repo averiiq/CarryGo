@@ -6,13 +6,14 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, TouchTarget } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { LinearGradient } from 'expo-linear-gradient';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { flattenInfiniteData, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useBreathing, useHeartbeat } from '@/hooks/useAnimations';
 
 interface MenuItemProps {
@@ -32,6 +33,7 @@ function MenuItem({ icon, label, onPress, danger, right, C, subtitle }: MenuItem
         styles.menuItem,
         pressed && { backgroundColor: C.primarySubtle, opacity: 0.9, transform: [{ scale: 0.97 }] },
       ]}
+      hitSlop={TouchTarget.smallHitSlop}
       onPress={() => { if (onPress) { Haptic.tap(); onPress(); } }}
       disabled={!onPress && !right}
     >
@@ -52,14 +54,30 @@ function MenuItem({ icon, label, onPress, danger, right, C, subtitle }: MenuItem
   );
 }
 
-function StatPill({ label, value, icon, color, C, iconAnim }: { label: string; value: string; icon: keyof typeof MaterialIcons.glyphMap; color: string; C: ThemeColors; iconAnim?: Animated.Value }) {
+function StatPill({
+  label,
+  value,
+  icon,
+  color,
+  C,
+  iconAnim,
+  isSmallDevice,
+}: {
+  label: string;
+  value: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  color: string;
+  C: ThemeColors;
+  iconAnim?: Animated.Value;
+  isSmallDevice?: boolean;
+}) {
   return (
-    <View style={[styles.statPill, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+    <View style={[styles.statPill, isSmallDevice && { paddingHorizontal: 2 }, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
       <Animated.View style={[styles.statPillIcon, { backgroundColor: color + '14' }, iconAnim ? { transform: [{ scale: iconAnim }] } : undefined]}>
         <MaterialIcons name={icon} size={14} color={color} />
       </Animated.View>
       <View style={styles.statPillContent}>
-        <Text style={[styles.statPillVal, { color: C.textPrimary }]}>{value}</Text>
+        <Text style={[styles.statPillVal, isSmallDevice && { fontSize: FontSize.md }, { color: C.textPrimary }]}>{value}</Text>
         <Text style={[styles.statPillLabel, { color: C.textMuted }]}>{label}</Text>
       </View>
     </View>
@@ -72,6 +90,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
+  const { isSmallDevice, isTablet } = useResponsive();
   const heroEntrance = useFadeIn(0, 520);
   const statsEntrance = useFadeIn(120, 440);
   const sectionsEntrance = useFadeIn(220, 440);
@@ -176,7 +195,7 @@ export default function ProfileScreen() {
         ref={scrollRef}
         keyboardDismissMode="on-drag"
         style={[styles.container, { backgroundColor: C.background }]}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 120 }, isTablet && styles.tabletContainer]}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -186,7 +205,7 @@ export default function ProfileScreen() {
       >
         {/* Modern Horizontal Executive Hero */}
         <Animated.View style={{ opacity: heroEntrance.opacity, transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }] }}>
-          <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, isSmallDevice && styles.heroCardSmall]}>
             {/* Subtle Gradient Backing */}
             <LinearGradient
               colors={['#FFFFFF', '#FAFDFB', '#F8FAFC']}
@@ -265,6 +284,7 @@ export default function ProfileScreen() {
                 { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }
               ]}
+              hitSlop={TouchTarget.smallHitSlop}
               onPress={() => { Haptic.tap(); router.push('/edit-profile'); }}
             >
               <View style={styles.editBtnLeft}>
@@ -286,16 +306,17 @@ export default function ProfileScreen() {
         {/* Stats */}
         <Animated.View style={{ opacity: statsEntrance.opacity, transform: statsEntrance.transform }}>
           <View style={styles.statsGrid}>
-            <StatPill label="Rating" value={(user.rating || 4.5).toFixed(1)} icon="star" color={C.warning} C={C} iconAnim={starHeartbeat} />
-            <StatPill label="Trips" value={String(myTrips.length)} icon="directions-car" color={C.primary} C={C} />
-            <StatPill label="Parcels" value={String(myParcels.length)} icon="inventory-2" color={C.success} C={C} />
-            <StatPill label="Delivered" value={String(completed)} icon="check-circle" color={C.info} C={C} />
+            <StatPill label="Rating" value={(user.rating || 4.5).toFixed(1)} icon="star" color={C.warning} C={C} iconAnim={starHeartbeat} isSmallDevice={isSmallDevice} />
+            <StatPill label="Trips" value={String(myTrips.length)} icon="directions-car" color={C.primary} C={C} isSmallDevice={isSmallDevice} />
+            <StatPill label="Parcels" value={String(myParcels.length)} icon="inventory-2" color={C.success} C={C} isSmallDevice={isSmallDevice} />
+            <StatPill label="Delivered" value={String(completed)} icon="check-circle" color={C.info} C={C} isSmallDevice={isSmallDevice} />
           </View>
         </Animated.View>
 
         {/* KYC Banner */}
         <Pressable
           style={[styles.kycBanner, { backgroundColor: kycBg, borderColor: kycColor + '30' }]}
+          hitSlop={TouchTarget.smallHitSlop}
           onPress={canOpenKycBanner ? () => setShowKyc(true) : undefined}
           disabled={!canOpenKycBanner}
         >
@@ -414,6 +435,11 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: Spacing.md + 2, gap: Spacing.md + 4 },
+  tabletContainer: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
+  },
 
   // Hero
   heroCard: {
@@ -431,6 +457,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 18,
     elevation: 3,
+  },
+  heroCardSmall: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md + 2,
   },
   heroMainRow: {
     flexDirection: 'row',

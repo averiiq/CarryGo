@@ -75,13 +75,19 @@ export const INDIAN_CITIES: readonly IndianCity[] = [
   { name: 'Noida', state: 'Uttar Pradesh', lat: 28.5355, lng: 77.3910, tier: 'tier1' },
 ];
 
+const CITY_MAP = new Map<string, IndianCity>();
+for (const city of INDIAN_CITIES) {
+  CITY_MAP.set(city.name.toLowerCase().trim(), city);
+}
+
 /**
  * Find a city by name (case-insensitive partial match).
- * Returns the best match or undefined.
+ * Uses O(1) map lookup for exact matches with fallback to partial search.
  */
 export function findCity(name: string): IndianCity | undefined {
+  if (!name) return undefined;
   const lower = name.toLowerCase().trim();
-  const exact = INDIAN_CITIES.find(c => c.name.toLowerCase() === lower);
+  const exact = CITY_MAP.get(lower);
   if (exact) return exact;
   return INDIAN_CITIES.find(c => c.name.toLowerCase().includes(lower));
 }

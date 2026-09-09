@@ -1,9 +1,10 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Step = {
@@ -26,6 +27,7 @@ function getStepHint(label: string) {
 
 export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicatorProps) {
   const { C } = useThemeColors();
+  const { isSmallDevice, isTablet } = useResponsive();
   const progress = (currentStep + 1) / steps.length;
   const percent = Math.round(progress * 100);
 
@@ -38,7 +40,7 @@ export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicator
   }, [progress]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isTablet && styles.containerTablet]}>
       <View style={[styles.heroStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
         <LinearGradient
           colors={[C.primarySubtle, 'transparent']}
@@ -74,12 +76,14 @@ export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicator
               accessibilityState={{ selected: isActive }}
               onPress={() => onStepPress?.(index)}
               disabled={!onStepPress}
+              hitSlop={TouchTarget.smallHitSlop}
               style={({ pressed }) => [
                 styles.stepChip,
                 {
                   backgroundColor: isActive ? C.primarySubtle : C.surface,
                   borderColor: isActive || isComplete ? C.primary + '55' : C.surfaceBorder,
                   opacity: pressed ? 0.72 : 1,
+                  paddingHorizontal: isSmallDevice ? 4 : Spacing.sm,
                 },
               ]}
             >
@@ -107,6 +111,11 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
     gap: 10,
+  },
+  containerTablet: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
   },
   heroStrip: {
     borderRadius: BorderRadius.xl,
@@ -161,7 +170,7 @@ const styles = StyleSheet.create({
   stepsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: 2 },
   stepChip: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
     paddingHorizontal: Spacing.sm,

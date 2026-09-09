@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { FormEvent, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -209,7 +209,7 @@ export function ParityCreateForm({ mode }: Props) {
 
         {mode === 'trip' ? (
           <>
-            <div className='grid gap-4 md:grid-cols-2'>
+            <div className='grid gap-4 sm:grid-cols-2'>
               <label className='space-y-2'>
                 <span className='text-sm font-medium text-foreground'>Travel Date</span>
                 <input
@@ -233,7 +233,7 @@ export function ParityCreateForm({ mode }: Props) {
               </label>
             </div>
 
-            <div className='grid gap-4 md:grid-cols-3'>
+            <div className='grid gap-4 sm:grid-cols-2 md:grid-cols-3'>
               <label className='space-y-2'>
                 <span className='text-sm font-medium text-foreground'>Vehicle</span>
                 <select
@@ -261,7 +261,7 @@ export function ParityCreateForm({ mode }: Props) {
                 />
               </label>
 
-              <label className='space-y-2'>
+              <label className='space-y-2 sm:col-span-2 md:col-span-1'>
                 <span className='text-sm font-medium text-foreground'>Price / kg (₹)</span>
                 <input
                   type='number'
@@ -276,8 +276,8 @@ export function ParityCreateForm({ mode }: Props) {
           </>
         ) : (
           <>
-            <div className='grid gap-4 md:grid-cols-3'>
-              <label className='space-y-2 md:col-span-1'>
+            <div className='grid gap-4 sm:grid-cols-2 md:grid-cols-3'>
+              <label className='space-y-2'>
                 <span className='text-sm font-medium text-foreground'>Delivery Date</span>
                 <input
                   type='date'
@@ -288,7 +288,7 @@ export function ParityCreateForm({ mode }: Props) {
                 />
               </label>
 
-              <label className='space-y-2 md:col-span-1'>
+              <label className='space-y-2'>
                 <span className='text-sm font-medium text-foreground'>Category</span>
                 <select
                   value={category}
@@ -303,7 +303,7 @@ export function ParityCreateForm({ mode }: Props) {
                 </select>
               </label>
 
-              <label className='space-y-2 md:col-span-1'>
+              <label className='space-y-2 sm:col-span-2 md:col-span-1'>
                 <span className='text-sm font-medium text-foreground'>Weight (kg)</span>
                 <input
                   type='number'
@@ -365,17 +365,17 @@ export function ParityCreateForm({ mode }: Props) {
           </div>
         )}
 
-        <div className='flex flex-wrap items-center gap-3'>
+        <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2'>
           <button
             type='submit'
             disabled={isSubmitting}
-            className='button-primary disabled:cursor-not-allowed disabled:opacity-70'
+            className='button-primary w-full sm:w-auto justify-center disabled:cursor-not-allowed disabled:opacity-70'
           >
             {isSubmitting ? <Loader2 className='h-4 w-4 animate-spin' /> : null}
             {isSubmitting ? 'Submitting...' : mode === 'trip' ? 'Publish Trip' : 'Publish Parcel'}
           </button>
 
-          <Link href='/features' className='button-secondary'>
+          <Link href='/features' className='button-secondary w-full sm:w-auto justify-center'>
             View all features
           </Link>
 

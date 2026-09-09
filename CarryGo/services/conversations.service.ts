@@ -64,13 +64,15 @@ export async function fetchConversations(userId: string, options?: { limit?: num
   return { data: (data || []).map(mapConvRow), error: null };
 }
 
-export async function fetchMessages(conversationId: string) {
+export async function fetchMessages(conversationId: string, options?: { limit?: number }) {
   const sb = getSupabaseClient();
+  const limit = options?.limit ?? 100;
   const { data, error } = await sb
     .from('messages')
     .select('*')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .limit(limit);
   if (error) return { data: null, error: error.message };
   return { data: (data || []).map(mapMsgRow), error: null };
 }

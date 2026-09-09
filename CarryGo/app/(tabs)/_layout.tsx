@@ -7,11 +7,12 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { useConversationsQuery } from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
-import { ThemeColors, Motion, Spacing } from '@/constants/theme';
+import { ThemeColors, Motion, Spacing, TouchTarget } from '@/constants/theme';
 
 function TabBadge({ count, C }: { count: number; C: ThemeColors }) {
   if (count === 0) return null;
@@ -61,6 +62,7 @@ function FloatingCapsuleTabBar({
   C: ThemeColors;
   bottomPad: number;
 }) {
+  const { isSmallDevice, isTablet, width: screenWidth } = useResponsive();
   const indexAnim = useRef(new Animated.Value(state.index)).current;
   const [barWidth, setBarWidth] = useState(0);
 
@@ -75,7 +77,7 @@ function FloatingCapsuleTabBar({
 
   const tabCount = state.routes.length;
   const slotWidth = barWidth > 0 ? barWidth / tabCount : 0;
-  const sliderWidth = slotWidth > 0 ? Math.max(54, slotWidth - 12) : 54;
+  const sliderWidth = slotWidth > 0 ? Math.max(isSmallDevice ? 48 : 54, slotWidth - (isSmallDevice ? 8 : 12)) : (isSmallDevice ? 48 : 54);
 
   const outputRange = useMemo(
     () => state.routes.map((_, i) => i * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2)),
@@ -90,15 +92,21 @@ function FloatingCapsuleTabBar({
       })
     : new Animated.Value(0);
 
+  const horizontalMargin = isSmallDevice
+    ? 12
+    : isTablet
+    ? Math.max(24, Math.round((screenWidth - 520) / 2))
+    : 18;
+
   return (
     <View
       style={[
         styles.tabBarContainer,
         {
           bottom: 16,
-          left: 24,
-          right: 24,
-          height: 64 + bottomPad,
+          left: horizontalMargin,
+          right: horizontalMargin,
+          height: (isSmallDevice ? 60 : 64) + bottomPad,
           paddingBottom: bottomPad,
           backgroundColor: C.surface,
           borderColor: C.surfaceBorder,
@@ -153,6 +161,7 @@ function FloatingCapsuleTabBar({
               testID={options.tabBarButtonTestID}
               onPress={onPress}
               onLongPress={onLongPress}
+              hitSlop={TouchTarget.smallHitSlop}
               android_ripple={{ color: C.primarySubtle, borderless: true, radius: 28 }}
               style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.85 }]}
             >
@@ -266,10 +275,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    width: 68,
-    height: 44,
+    width: '100%',
+    minHeight: 44,
     borderRadius: 999,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
     paddingVertical: 2,
     position: 'relative',
   },

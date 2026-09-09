@@ -54,35 +54,37 @@ export function HeroRouteSearch() {
       {/* Search Container Card */}
       <div className="rounded-3xl bg-surface/95 backdrop-blur-xl border border-border shadow-2xl p-4 sm:p-6 transition-all">
         {/* Top Mode Switcher */}
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="inline-flex rounded-2xl bg-surface-elevated p-1 border border-border/80">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+          <div className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex rounded-2xl bg-surface-elevated p-1 border border-border/80">
             <button
               type="button"
               onClick={() => setMode('send')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 mode === 'send'
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted hover:text-foreground'
               }`}
             >
-              <Package className="w-4 h-4" />
-              <span>I Want to Send a Parcel</span>
+              <Package className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">I Want to Send a Parcel</span>
+              <span className="sm:hidden">Send Parcel</span>
             </button>
             <button
               type="button"
               onClick={() => setMode('travel')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 mode === 'travel'
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted hover:text-foreground'
               }`}
             >
-              <Plane className="w-4 h-4" />
-              <span>I&apos;m Traveling (Earn Money)</span>
+              <Plane className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">I&apos;m Traveling (Earn Money)</span>
+              <span className="sm:hidden">Travel &amp; Earn</span>
             </button>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1 text-[11px] font-semibold text-primary">
+          <div className="hidden sm:flex items-center gap-1 text-[11px] font-semibold text-primary shrink-0">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Over 2,400 active monthly routes</span>
           </div>
@@ -109,7 +111,21 @@ export function HeroRouteSearch() {
               </div>
             </div>
 
-            {/* Swap Button */}
+            {/* Mobile Swap Button */}
+            <div className="flex sm:hidden justify-center -my-0.5">
+              <button
+                type="button"
+                onClick={handleSwap}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-border bg-surface text-muted hover:text-primary hover:border-primary/40 text-[11px] font-semibold shadow-xs transition cursor-pointer"
+                title="Swap origin and destination"
+                aria-label="Swap origin and destination cities"
+              >
+                <ArrowRightLeft className="w-3 h-3 text-primary" />
+                <span>Swap Cities</span>
+              </button>
+            </div>
+
+            {/* Desktop Swap Button */}
             <div className="hidden sm:flex self-end mb-1">
               <button
                 type="button"
@@ -159,16 +175,16 @@ export function HeroRouteSearch() {
           </div>
 
           {/* Bottom Row: Quick Corridors & Search Action */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-border/60">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-border/60">
             {/* Quick Pills */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs text-muted font-medium">Popular:</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 sm:flex-wrap w-full sm:w-auto">
+              <span className="text-xs text-muted font-medium shrink-0">Popular:</span>
               {POPULAR_CORRIDORS.map((corridor) => (
                 <button
                   key={`${corridor.from}-${corridor.to}`}
                   type="button"
                   onClick={() => handleQuickSelect(corridor.from, corridor.to)}
-                  className="px-2.5 py-1 rounded-lg text-xs bg-surface-elevated hover:bg-primary-subtle text-muted hover:text-primary transition border border-border/70 cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg text-xs bg-surface-elevated hover:bg-primary-subtle text-muted hover:text-primary transition border border-border/70 cursor-pointer shrink-0 whitespace-nowrap"
                 >
                   {corridor.from} → {corridor.to}
                 </button>
@@ -178,7 +194,7 @@ export function HeroRouteSearch() {
             {/* Search Submit Button */}
             <button
               type="submit"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer shrink-0"
             >
               <Search className="w-4 h-4" />
               <span>{mode === 'send' ? 'Find Travelers' : 'Find Available Parcels'}</span>

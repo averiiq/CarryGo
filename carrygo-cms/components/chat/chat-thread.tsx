@@ -1,6 +1,6 @@
-﻿'use client'
+'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2, SendHorizonal } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
@@ -32,10 +32,7 @@ export function ChatThread({ conversationId }: Props) {
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
 
-  async function loadThread() {
-    setError(null)
-    setIsLoading(true)
-
+  const loadThread = useCallback(async () => {
     try {
       const supabase = createClient()
       const {
@@ -44,6 +41,7 @@ export function ChatThread({ conversationId }: Props) {
 
       if (!user) {
         setError('Please login to access chat.')
+        setIsLoading(false)
         return
       }
 
@@ -64,25 +62,29 @@ export function ChatThread({ conversationId }: Props) {
 
       if (conversationRes.error) {
         setError(conversationRes.error.message)
+        setIsLoading(false)
         return
       }
       if (messagesRes.error) {
         setError(messagesRes.error.message)
+        setIsLoading(false)
         return
       }
 
       setConversation(conversationRes.data as Conversation)
       setMessages((messagesRes.data ?? []) as Message[])
+      setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load chat')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [conversationId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadThread()
-  }, [conversationId])
+  }, [loadThread])
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

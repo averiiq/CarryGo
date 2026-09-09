@@ -2,8 +2,9 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, PanResponder } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Request } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Motion } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Motion, TouchTarget } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
 
 interface RequestCardProps {
@@ -37,6 +38,7 @@ export const RequestCard = React.memo(function RequestCard({
   onPayment,
 }: RequestCardProps) {
   const { C, S } = useThemeColors();
+  const { isSmallDevice, isTablet, swipeThreshold } = useResponsive();
   const translateX = useRef(new Animated.Value(0)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
 
@@ -45,22 +47,22 @@ export const RequestCard = React.memo(function RequestCard({
   const isIncoming = type === 'incoming';
   const showSwipeHint = isIncoming && request.status === 'pending';
 
-  // Swipe gestures for incoming pending requests
-  const SWIPE_THRESHOLD = 85;
+  // Calibrated swipe gesture with directional lock: only trigger on clear horizontal drag
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_, g) => showSwipeHint && Math.abs(g.dx) > 8 && Math.abs(g.dy) < 30,
+    onMoveShouldSetPanResponder: (_, g) =>
+      showSwipeHint && Math.abs(g.dx) > 18 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
     onPanResponderMove: (_, g) => {
       translateX.setValue(g.dx);
     },
     onPanResponderRelease: (_, g) => {
-      if (g.dx > SWIPE_THRESHOLD) {
+      if (g.dx > swipeThreshold) {
         Haptic.success();
         Animated.spring(translateX, { toValue: 420, useNativeDriver: true, tension: 100 }).start(() => {
           translateX.setValue(0);
           onAccept?.();
         });
-      } else if (g.dx < -SWIPE_THRESHOLD) {
+      } else if (g.dx < -swipeThreshold) {
         Haptic.error();
         Animated.spring(translateX, { toValue: -420, useNativeDriver: true, tension: 100 }).start(() => {
           translateX.setValue(0);
@@ -113,6 +115,7 @@ export const RequestCard = React.memo(function RequestCard({
         style={[
           styles.card,
           S.sm,
+          isTablet && styles.cardTablet,
           { backgroundColor: showSwipeHint ? bgColor : '#FFFFFF', borderColor: '#E2E8F0' },
           { transform: [{ translateX }, { scale: pressScale }] },
         ]}
@@ -211,17 +214,17 @@ export const RequestCard = React.memo(function RequestCard({
 
             {/* Actions on Right */}
             <View style={styles.actionsRight}>
-              {/* Chat Button (Square Pill from reference image) */}
+              {/* Chat Button */}
               <Pressable
                 style={({ pressed }) => [
                   styles.squareActionBtn,
                   pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
                 ]}
                 onPress={() => { Haptic.tap(); onChat?.(); }}
-                hitSlop={6}
+                hitSlop={TouchTarget.smallHitSlop}
                 accessibilityLabel="Chat"
               >
-                <Ionicons name="chatbubble-outline" size={16} color="#334155" />
+                <Ionicons name="chatbubble-outline" size={17} color="#334155" />
               </Pressable>
 
               {/* Status Action Buttons */}
@@ -234,9 +237,10 @@ export const RequestCard = React.memo(function RequestCard({
                       pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
                     ]}
                     onPress={() => { Haptic.tap(); onReject?.(); }}
+                    hitSlop={TouchTarget.smallHitSlop}
                     accessibilityLabel="Decline"
                   >
-                    <Ionicons name="close" size={16} color="#DC2626" />
+                    <Ionicons name="close" size={17} color="#DC2626" />
                   </Pressable>
 
                   <Pressable
@@ -245,8 +249,9 @@ export const RequestCard = React.memo(function RequestCard({
                       pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
                     ]}
                     onPress={() => { Haptic.tap(); onAccept?.(); }}
+                    hitSlop={TouchTarget.smallHitSlop}
                   >
-                    <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                     <Text style={styles.primaryActionText}>Accept</Text>
                   </Pressable>
                 </>
@@ -259,6 +264,7 @@ export const RequestCard = React.memo(function RequestCard({
                     pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                   ]}
                   onPress={() => { Haptic.tap(); onCancel?.(); }}
+                  hitSlop={TouchTarget.smallHitSlop}
                 >
                   <Text style={styles.cancelPillText}>Cancel</Text>
                 </Pressable>
@@ -273,6 +279,7 @@ export const RequestCard = React.memo(function RequestCard({
                         pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                       ]}
                       onPress={() => { Haptic.tap(); onPayment?.(); }}
+                      hitSlop={TouchTarget.smallHitSlop}
                     >
                       <Text style={styles.payPillText}>Pay</Text>
                     </Pressable>
@@ -284,8 +291,9 @@ export const RequestCard = React.memo(function RequestCard({
                       pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
                     ]}
                     onPress={() => { Haptic.tap(); onDelivery?.(); }}
+                    hitSlop={TouchTarget.smallHitSlop}
                   >
-                    <MaterialIcons name="local-shipping" size={14} color="#FFFFFF" />
+                    <MaterialIcons name="local-shipping" size={15} color="#FFFFFF" />
                     <Text style={styles.primaryActionText}>Track</Text>
                   </Pressable>
                 </>
@@ -298,6 +306,7 @@ export const RequestCard = React.memo(function RequestCard({
                     pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                   ]}
                   onPress={() => { Haptic.tap(); onPayment?.(); }}
+                  hitSlop={TouchTarget.smallHitSlop}
                 >
                   <Text style={styles.receiptPillText}>Receipt</Text>
                 </Pressable>
@@ -351,9 +360,16 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
+  cardTablet: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
+  },
   inner: {
-    padding: Spacing.md + 2,
-    gap: Spacing.sm + 2,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
+    gap: 12,
   },
 
   // Card Header: Title + Type Pill on left, Price + Vehicle Icon on right
@@ -596,9 +612,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   squareActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -613,9 +629,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 12,
-    height: 36,
-    borderRadius: 10,
+    paddingHorizontal: 13,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#059669',
   },
   primaryActionText: {
@@ -624,9 +640,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   cancelPill: {
-    paddingHorizontal: 10,
-    height: 34,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
     borderColor: '#FECACA',
@@ -634,14 +650,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelPillText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: FontWeight.bold,
     color: '#DC2626',
   },
   payPill: {
-    paddingHorizontal: 10,
-    height: 34,
-    borderRadius: 8,
+    paddingHorizontal: 13,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#FDE68A',
@@ -649,14 +665,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   payPillText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: FontWeight.bold,
     color: '#B45309',
   },
   receiptPill: {
-    paddingHorizontal: 10,
-    height: 34,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#ECFDF5',
     borderWidth: 1,
     borderColor: '#A7F3D0',
@@ -664,7 +680,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   receiptPillText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: FontWeight.bold,
     color: '#059669',
   },

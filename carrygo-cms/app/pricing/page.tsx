@@ -44,7 +44,7 @@ const feeNotes = [
 export default function PricingPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 py-16 md:py-24'>
         <PageHero
           badge='Pricing'
           title='Transparent Plans for Individuals and Growing Teams'
@@ -59,14 +59,14 @@ export default function PricingPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-12'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pb-12'>
         <SectionHeading
           label='Plans'
           title='Simple pricing, clear value'
           description='All plans include secure handovers, verified traveler access, and policy-backed support.'
         />
 
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1'>
           {plans.map((plan) => (
             <article
               key={plan.name}
@@ -94,7 +94,7 @@ export default function PricingPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
           <article className='glass-card p-6 md:p-8'>
             <h3 className='text-2xl font-heading font-semibold text-foreground'>Pricing notes</h3>
@@ -108,14 +108,16 @@ export default function PricingPage() {
             </ul>
           </article>
 
-          <article className='glass-card p-6 md:p-8'>
-            <h3 className='text-2xl font-heading font-semibold text-foreground'>Need a custom enterprise setup?</h3>
-            <p className='mt-4 text-sm leading-relaxed text-muted'>
-              We support custom route governance, team onboarding, and reporting requirements for larger operations.
-            </p>
+          <article className='glass-card p-6 md:p-8 flex flex-col justify-between'>
+            <div>
+              <h3 className='text-2xl font-heading font-semibold text-foreground'>Need a custom enterprise setup?</h3>
+              <p className='mt-4 text-sm leading-relaxed text-muted'>
+                We support custom route governance, team onboarding, and reporting requirements for larger operations.
+              </p>
+            </div>
             <Link
               href='/contact'
-              className='button-primary mt-6'
+              className='button-primary mt-6 w-full sm:w-auto inline-flex justify-center text-center'
             >
               Talk to Enterprise Team
             </Link>

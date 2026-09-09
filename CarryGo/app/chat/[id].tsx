@@ -318,15 +318,18 @@ export default function ChatScreen() {
     }
   }, [user, id, sendMessageAsync, showAlert, safeScrollToEnd]);
 
+  const showScrollBtnRef = useRef(false);
+
   const handleScroll = useCallback((event: any) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
     const shouldShow = distanceFromBottom > 150;
-    if (shouldShow !== showScrollBtn) {
+    if (shouldShow !== showScrollBtnRef.current) {
+      showScrollBtnRef.current = shouldShow;
       setShowScrollBtn(shouldShow);
       Animated.timing(scrollBtnOpacity, { toValue: shouldShow ? 1 : 0, duration: 200, useNativeDriver: true }).start();
     }
-  }, [showScrollBtn, scrollBtnOpacity]);
+  }, [scrollBtnOpacity]);
 
   const scrollToBottom = useCallback(() => {
     safeScrollToEnd(true);
@@ -465,7 +468,11 @@ export default function ChatScreen() {
           contentContainerStyle={[styles.messageList, { paddingBottom: 16 }]}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
-          scrollEventThrottle={16}
+          scrollEventThrottle={64}
+          initialNumToRender={20}
+          maxToRenderPerBatch={15}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === 'android'}
           keyboardShouldPersistTaps="always"
           onLayout={() => safeScrollToEnd(false)}
           ListHeaderComponent={messagesQuery.hasNextPage ? (

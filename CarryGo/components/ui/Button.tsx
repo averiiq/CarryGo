@@ -10,9 +10,10 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BorderRadius, FontSize, FontWeight, Spacing, Gradients, Motion } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, Gradients, Motion, TouchTarget } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
+import type { Insets } from 'react-native';
 
 interface ButtonProps {
   title: string;
@@ -25,6 +26,7 @@ interface ButtonProps {
   textStyle?: TextStyle;
   fullWidth?: boolean;
   icon?: React.ReactNode;
+  hitSlop?: Insets;
 }
 
 export function Button({
@@ -38,6 +40,7 @@ export function Button({
   textStyle,
   fullWidth = false,
   icon,
+  hitSlop,
 }: ButtonProps) {
   const { C, S } = useThemeColors();
   const isDisabled = disabled || loading;
@@ -101,6 +104,7 @@ export function Button({
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         disabled={isDisabled}
+        hitSlop={hitSlop ?? (size === 'sm' ? TouchTarget.smallHitSlop : undefined)}
         style={[
           styles.base,
           sizeStyle,

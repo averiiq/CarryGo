@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { AsyncStateCard, OfflineBanner, RequestCard } from '@/components';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { sendLocalNotification, sendRequestNotification } from '@/services/notifications.service';
 import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
@@ -20,8 +20,10 @@ import { useConversationsQuery, useCreateConversationMutation } from '@/features
 import { flattenInfiniteData, useParcelsQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useUpdateRequestStatusMutation } from '@/features/requests/queries';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useStaggeredList } from '@/hooks/useAnimations';
 import { ProductIllustration } from '@/components/illustrations';
+import { Request } from '@/types';
 
 type TabType = 'incoming' | 'outgoing';
 type StatusFilterKey = 'all' | 'pending' | 'accepted' | 'completed';
@@ -33,6 +35,62 @@ const STATUS_TABS: { key: StatusFilterKey; label: string; icon: keyof typeof Mat
   { key: 'completed', label: 'Done', icon: 'task-alt' },
 ];
 
+const RequestListItem = React.memo(function RequestListItem({
+  item,
+  tab,
+  isTablet,
+  anim,
+  onAccept,
+  onReject,
+  onCancel,
+  onChat,
+  onDelivery,
+  onPayment,
+}: {
+  item: Request;
+  tab: TabType;
+  isTablet: boolean;
+  anim?: { opacity: Animated.Value; translateY: Animated.Value };
+  onAccept: (id: string, req: Request) => void;
+  onReject: (id: string, req: Request) => void;
+  onCancel: (id: string, req: Request) => void;
+  onChat: (req: Request) => void;
+  onDelivery: (req: Request) => void;
+  onPayment: (req: Request) => void;
+}) {
+  const handleAccept = useCallback(() => onAccept(item.id, item), [onAccept, item]);
+  const handleReject = useCallback(() => onReject(item.id, item), [onReject, item]);
+  const handleCancel = useCallback(() => onCancel(item.id, item), [onCancel, item]);
+  const handleChat = useCallback(() => onChat(item), [onChat, item]);
+  const handleDelivery = useCallback(() => onDelivery(item), [onDelivery, item]);
+  const handlePayment = useCallback(() => onPayment(item), [onPayment, item]);
+
+  const content = (
+    <View style={isTablet ? styles.tabletContainer : undefined}>
+      <RequestCard
+        request={item}
+        type={tab}
+        onAccept={handleAccept}
+        onReject={handleReject}
+        onCancel={handleCancel}
+        onChat={handleChat}
+        onDelivery={handleDelivery}
+        onPayment={handlePayment}
+      />
+    </View>
+  );
+
+  if (anim) {
+    return (
+      <Animated.View style={{ opacity: anim.opacity, transform: [{ translateY: anim.translateY }] }}>
+        {content}
+      </Animated.View>
+    );
+  }
+
+  return content;
+});
+
 export default function RequestsScreen() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
@@ -40,6 +98,7 @@ export default function RequestsScreen() {
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
   const { isOnline } = useNetworkStatus();
+  const { isSmallDevice, isTablet } = useResponsive();
   const requestsQuery = useRequestsQuery(user?.id);
   const conversationsQuery = useConversationsQuery(user?.id);
   const parcelsQuery = useParcelsQuery(Boolean(user));
@@ -52,21 +111,8 @@ export default function RequestsScreen() {
 
   const slideAnim = React.useRef(new Animated.Value(0)).current;
   const pendingPulse = React.useRef(new Animated.Value(1)).current;
-  const scrollY = React.useRef(new Animated.Value(0)).current;
   const headerEntrance = useFadeIn(0, 420);
   const controlsEntrance = useFadeIn(120, 420);
-
-  const heroTranslateY = scrollY.interpolate({
-    inputRange: [0, 180],
-    outputRange: [0, -12],
-    extrapolate: 'clamp',
-  });
-
-  const heroScale = scrollY.interpolate({
-    inputRange: [0, 220],
-    outputRange: [1, 0.975],
-    extrapolate: 'clamp',
-  });
 
   const requests = user ? requestsQuery.data ?? [] : [];
   const conversations = user ? conversationsQuery.data ?? [] : [];
@@ -257,7 +303,7 @@ export default function RequestsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      <View style={[styles.headerTop, { paddingTop: insets.top + Spacing.sm }]}>
+      <View style={[styles.headerTop, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}>
         <View style={styles.titleWrap}>
           <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Requests</Text>
           <Text style={[styles.pageSubtitle, { color: C.textMuted }]}>
@@ -287,7 +333,7 @@ export default function RequestsScreen() {
               pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
             ]}
             onPress={handleRefresh}
-            hitSlop={8}
+            hitSlop={TouchTarget.smallHitSlop}
             accessibilityLabel="Refresh requests"
           >
             <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
@@ -296,13 +342,13 @@ export default function RequestsScreen() {
       </View>
 
       {!isOnline ? (
-        <View style={styles.networkState}>
+        <View style={[styles.networkState, isTablet && styles.tabletContainer]}>
           <OfflineBanner C={C} />
         </View>
       ) : null}
 
       {/* Segmented Mode Switcher: Incoming vs Outgoing */}
-      <View style={[styles.segmentedWrap, { backgroundColor: '#F1F5F9', borderColor: C.surfaceBorder }]}>
+      <View style={[styles.segmentedWrap, { backgroundColor: '#F1F5F9', borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
         {(['incoming', 'outgoing'] as const).map((t) => {
           const active = tab === t;
           const count = t === 'incoming' ? incoming.length : outgoing.length;
@@ -314,6 +360,7 @@ export default function RequestsScreen() {
                 { backgroundColor: active ? C.primary : 'transparent' },
                 pressed && { opacity: 0.85 },
               ]}
+              hitSlop={TouchTarget.smallHitSlop}
               onPress={() => switchTab(t)}
             >
               <MaterialIcons
@@ -344,7 +391,7 @@ export default function RequestsScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.statusFilterScroll}
+          style={[styles.statusFilterScroll, isTablet && styles.tabletContainer]}
           contentContainerStyle={styles.statusFilterRow}
         >
           {STATUS_TABS.map((st) => {
@@ -361,6 +408,7 @@ export default function RequestsScreen() {
                   },
                   count === 0 && st.key !== 'all' && { opacity: 0.45 },
                 ]}
+                hitSlop={TouchTarget.smallHitSlop}
                 onPress={() => {
                   Haptic.select();
                   setStatusFilter(st.key);
@@ -389,32 +437,23 @@ export default function RequestsScreen() {
         <FlashList
           data={requestsQuery.error || requestsQuery.isLoading ? [] : displayed}
           keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => {
-            const anim = cardAnims[index];
-            return (
-              <Animated.View
-                style={anim ? { opacity: anim.opacity, transform: [{ translateY: anim.translateY }] } : undefined}
-              >
-                <RequestCard
-                  request={item}
-                  type={tab}
-                  onAccept={() => handleAccept(item.id, item)}
-                  onReject={() => handleReject(item.id, item)}
-                  onCancel={() => handleCancel(item.id, item)}
-                  onChat={() => handleChat(item)}
-                  onDelivery={() => handleDelivery(item)}
-                  onPayment={() => handlePayment(item)}
-                />
-              </Animated.View>
-            );
-          }}
+          renderItem={({ item, index }) => (
+            <RequestListItem
+              item={item}
+              tab={tab}
+              isTablet={isTablet}
+              anim={cardAnims[index]}
+              onAccept={handleAccept}
+              onReject={handleReject}
+              onCancel={handleCancel}
+              onChat={handleChat}
+              onDelivery={handleDelivery}
+              onPayment={handlePayment}
+            />
+          )}
           estimatedItemSize={220}
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
           contentContainerStyle={{ paddingBottom: insets.bottom + 108 }}
           refreshControl={
@@ -574,6 +613,12 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.xs,
   },
 
+  tabletContainer: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
+  },
+
   segmentedWrap: {
     flexDirection: 'row',
     borderRadius: BorderRadius.lg,
@@ -584,7 +629,7 @@ const styles = StyleSheet.create({
   },
   segmentTab: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: BorderRadius.md - 2,
     flexDirection: 'row',
     alignItems: 'center',
@@ -621,6 +666,7 @@ const styles = StyleSheet.create({
   statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 40,
     gap: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1,

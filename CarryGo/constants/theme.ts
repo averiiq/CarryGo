@@ -215,3 +215,11 @@ export const Motion = {
   pressScale: 0.968,
   cardScale: 0.978,
 };
+
+export const TouchTarget = {
+  minSize: 44,
+  hitSlop: { top: 8, bottom: 8, left: 8, right: 8 },
+  largeHitSlop: { top: 12, bottom: 12, left: 12, right: 12 },
+  smallHitSlop: { top: 6, bottom: 6, left: 6, right: 6 },
+} as const;
+

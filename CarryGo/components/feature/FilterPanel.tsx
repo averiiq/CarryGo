@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, ScrollView, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { ThemeColors } from '@/constants/theme';
+import { ThemeColors, TouchTarget } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { FilterOptions, VehicleType } from '@/types';
 import { CitySearchField } from './CitySearchField';
@@ -40,7 +40,11 @@ export function FilterPanel({ visible, filters, onClose, onApply, C }: FilterPan
         <View style={[styles.sheetHandle, { backgroundColor: C.surfaceBorderLight }]} />
         <View style={styles.filterHeaderRow}>
           <Text style={[styles.filterTitle, { color: C.textPrimary }]}>Filter Listings</Text>
-          <Pressable onPress={() => { setLocal(DEFAULT_FILTERS); onApply(DEFAULT_FILTERS); onClose(); }} style={[styles.resetPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+          <Pressable
+            onPress={() => { setLocal(DEFAULT_FILTERS); onApply(DEFAULT_FILTERS); onClose(); }}
+            hitSlop={TouchTarget.smallHitSlop}
+            style={[styles.resetPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+          >
             <MaterialIcons name="refresh" size={13} color={C.textSecondary} />
             <Text style={[styles.resetPillText, { color: C.textSecondary }]}>Reset</Text>
           </Pressable>
@@ -77,6 +81,7 @@ export function FilterPanel({ visible, filters, onClose, onApply, C }: FilterPan
             <View style={styles.vehicleRow}>
               <Pressable
                 style={[styles.vehicleChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, !local.vehicleType && { backgroundColor: C.primary, borderColor: C.primary }]}
+                hitSlop={TouchTarget.smallHitSlop}
                 onPress={() => { Haptic.select(); update('vehicleType', ''); }}
               >
                 <MaterialIcons name="all-inclusive" size={14} color={!local.vehicleType ? '#fff' : C.textMuted} />
@@ -86,6 +91,7 @@ export function FilterPanel({ visible, filters, onClose, onApply, C }: FilterPan
                 <Pressable
                   key={v.type}
                   style={[styles.vehicleChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, local.vehicleType === v.type && { backgroundColor: C.primary, borderColor: C.primary }]}
+                  hitSlop={TouchTarget.smallHitSlop}
                   onPress={() => { Haptic.select(); update('vehicleType', v.type); }}
                 >
                   <MaterialIcons name={v.icon as any} size={14} color={local.vehicleType === v.type ? '#fff' : C.textMuted} />

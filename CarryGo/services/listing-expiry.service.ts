@@ -12,7 +12,16 @@ function isMissingFunctionError(message: string | null | undefined) {
   return normalized.includes('does not exist') || normalized.includes('could not find the function');
 }
 
-export async function expireStaleUnmatchedListings(cutoffIso = getUnmatchedListingCutoffIso()): Promise<ExpiryResult> {
+let lastExpiryRun = 0;
+const EXPIRY_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes
+
+export async function expireStaleUnmatchedListings(cutoffIso = getUnmatchedListingCutoffIso(), force = false): Promise<ExpiryResult> {
+  const now = Date.now();
+  if (!force && now - lastExpiryRun < EXPIRY_THROTTLE_MS) {
+    return {};
+  }
+  lastExpiryRun = now;
+
   const sb = getSupabaseClient();
   const { data, error } = await (sb as any).rpc('expire_stale_unmatched_listings', { p_cutoff: cutoffIso });
 

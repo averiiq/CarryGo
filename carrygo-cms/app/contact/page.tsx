@@ -1,4 +1,4 @@
-﻿import Link from 'next/link'
+import Link from 'next/link'
 import { Mail, MessageSquareHeart, Phone, Sparkles } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
@@ -34,7 +34,7 @@ const channels = [
 export default function ContactPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 py-16 md:py-24'>
         <PageHero
           badge='Contact'
           title='Talk to the CarryGo Team'
@@ -48,7 +48,7 @@ export default function ContactPage() {
           ]}
         />
 
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1'>
           {channels.map((channel) => (
             <article key={channel.title} className='glass-card p-6 md:p-7'>
               <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
@@ -64,18 +64,18 @@ export default function ContactPage() {
           ))}
         </div>
 
-        <article className='glass-card mx-auto mt-8 w-full max-w-6xl p-6 md:p-8'>
-          <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+        <article className='glass-card mx-auto mt-8 w-full max-w-6xl p-5 sm:p-6 md:p-8'>
+          <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
             <div>
               <p className='badge-pill'>Need a guided rollout?</p>
-              <h2 className='mt-2 text-2xl font-heading font-bold tracking-tight text-foreground'>Let us help you set up a professional delivery workflow</h2>
+              <h2 className='mt-2 text-xl sm:text-2xl font-heading font-bold tracking-tight text-foreground'>Let us help you set up a professional delivery workflow</h2>
               <p className='mt-2 text-sm text-muted'>
                 We support onboarding for frequent shippers and operations teams that need reliable route execution.
               </p>
             </div>
             <Link
               href='mailto:support@carrygo.in?subject=CarryGo%20Onboarding%20Support'
-              className='button-primary'
+              className='button-primary w-full md:w-auto inline-flex items-center justify-center shrink-0'
             >
               <Sparkles className='h-4 w-4' />
               Request Onboarding

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, KeyboardAvoidingView, Platform, Animated, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ import { CityDropdown } from '@/components/feature/CityDropdown';
 import { HistoryChip, SearchHistoryEntry } from '@/components/feature/HistoryChip';
 import { RouteMapView } from '@/components/feature/RouteMapView';
 import { SortOption } from '@/hooks/useSmartSearch';
+import { useResponsive, TouchTarget } from '@/hooks/useResponsive';
 import { styles } from '@/styles/search.styles';
 
 const CITIES = INDIAN_CITIES.map(c => c.name);
@@ -52,6 +53,7 @@ type FocusedField = 'from' | 'to' | null;
 
 export default function SearchScreen() {
   const { user } = useAuth();
+  const { isSmallDevice, isTablet } = useResponsive();
   const tripsQuery = useTripsQuery(Boolean(user));
   const parcelsQuery = useParcelsQuery(Boolean(user));
   const { showAlert } = useAlert();
@@ -114,22 +116,28 @@ export default function SearchScreen() {
     }).start();
   }, [showFilters, filtersHeight]);
 
-  const trips = user ? flattenInfiniteData(tripsQuery.data) : [];
-  const parcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
-  const sourceTrips = trips.filter(t => t.status === 'active' && t.userId !== user?.id);
-  const sourceParcels = parcels.filter(p => p.status === 'open' && p.userId !== user?.id);
-  const matchedTrips = sourceTrips.filter(t => {
+  const trips: Trip[] = user ? flattenInfiniteData(tripsQuery.data) : [];
+  const parcels: Parcel[] = user ? flattenInfiniteData(parcelsQuery.data) : [];
+  const sourceTrips = useMemo(
+    () => trips.filter((t: Trip) => t.status === 'active' && t.userId !== user?.id),
+    [trips, user?.id]
+  );
+  const sourceParcels = useMemo(
+    () => parcels.filter((p: Parcel) => p.status === 'open' && p.userId !== user?.id),
+    [parcels, user?.id]
+  );
+  const matchedTrips = useMemo(() => sourceTrips.filter((t: Trip) => {
     const matchFrom = !fromCity || t.fromCity.toLowerCase().includes(fromCity.toLowerCase());
     const matchTo = !toCity || t.toCity.toLowerCase().includes(toCity.toLowerCase());
     const matchVehicle = !vehicleType || t.vehicleType === vehicleType;
     return matchFrom && matchTo && matchVehicle;
-  });
+  }), [sourceTrips, fromCity, toCity, vehicleType]);
 
-  const matchedParcels = sourceParcels.filter(p => {
+  const matchedParcels = useMemo(() => sourceParcels.filter((p: Parcel) => {
     const matchFrom = !fromCity || p.fromCity.toLowerCase().includes(fromCity.toLowerCase());
     const matchTo = !toCity || p.toCity.toLowerCase().includes(toCity.toLowerCase());
     return matchFrom && matchTo;
-  });
+  }), [sourceParcels, fromCity, toCity]);
 
   // Sort results
   type SearchItem = { type: 'trip'; data: Trip } | { type: 'parcel'; data: Parcel };
@@ -158,21 +166,32 @@ export default function SearchScreen() {
     });
   }, [sortBy]);
 
-  const allResults = sortResults([
-    ...matchedTrips.map(t => ({ type: 'trip' as const, data: t })),
-    ...matchedParcels.map(p => ({ type: 'parcel' as const, data: p })),
-  ]);
+  const allResults: SearchItem[] = useMemo(() => sortResults([
+    ...matchedTrips.map((t: Trip) => ({ type: 'trip' as const, data: t })),
+    ...matchedParcels.map((p: Parcel) => ({ type: 'parcel' as const, data: p })),
+  ]), [matchedTrips, matchedParcels, sortResults]);
 
-  const displayResults = tab === 'all' ? allResults :
-    tab === 'trips' ? sortResults(matchedTrips.map(t => ({ type: 'trip' as const, data: t }))) :
-      sortResults(matchedParcels.map(p => ({ type: 'parcel' as const, data: p })));
+  const displayResults: SearchItem[] = useMemo(() => {
+    if (tab === 'trips') return sortResults(matchedTrips.map((t: Trip) => ({ type: 'trip' as const, data: t })));
+    if (tab === 'parcels') return sortResults(matchedParcels.map((p: Parcel) => ({ type: 'parcel' as const, data: p })));
+    return allResults;
+  }, [allResults, matchedParcels, matchedTrips, sortResults, tab]);
 
-  const fromSuggestions = CITIES.filter(c =>
-    c.toLowerCase().includes(fromCity.toLowerCase()) && c !== toCity && fromCity.length > 0 && fromCity !== c
-  );
-  const toSuggestions = CITIES.filter(c =>
-    c.toLowerCase().includes(toCity.toLowerCase()) && c !== fromCity && toCity.length > 0 && toCity !== c
-  );
+  const fromSuggestions = useMemo(() => {
+    if (!fromCity || fromCity.length === 0) return [];
+    const lower = fromCity.toLowerCase();
+    return CITIES.filter(c =>
+      c.toLowerCase().includes(lower) && c !== toCity && fromCity !== c
+    ).slice(0, 6);
+  }, [fromCity, toCity]);
+
+  const toSuggestions = useMemo(() => {
+    if (!toCity || toCity.length === 0) return [];
+    const lower = toCity.toLowerCase();
+    return CITIES.filter(c =>
+      c.toLowerCase().includes(lower) && c !== fromCity && toCity !== c
+    ).slice(0, 6);
+  }, [toCity, fromCity]);
 
   const handleSearch = () => {
     setFocused(null);
@@ -243,11 +262,11 @@ export default function SearchScreen() {
       <View style={[styles.container, { backgroundColor: C.background }]}>
         <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
           <LinearGradient colors={[C.primarySubtle, 'transparent']} style={StyleSheet.absoluteFillObject} />
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, isTablet && styles.tabletContainer]}>
             <Pressable
               style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]}
               onPress={() => { Haptic.tap(); router.back(); }}
-              hitSlop={8}
+              hitSlop={TouchTarget.smallHitSlop}
             >
               <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
             </Pressable>
@@ -293,7 +312,7 @@ export default function SearchScreen() {
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
         >
-          <View style={[styles.searchCard, { backgroundColor: C.surface, borderColor: focused ? C.primary + '66' : C.surfaceBorder }]}>
+          <View style={[styles.searchCard, { backgroundColor: C.surface, borderColor: focused ? C.primary + '66' : C.surfaceBorder }, isTablet && styles.tabletContainer]}>
             <View style={[styles.fieldRow, { borderBottomColor: C.surfaceBorder }]}>
               <View style={[styles.fieldDot, { backgroundColor: C.successSubtle }]}>
                 <View style={[styles.fieldDotInner, { backgroundColor: C.success }]} />
@@ -315,7 +334,7 @@ export default function SearchScreen() {
                 />
               </View>
               {fromCity ? (
-                <Pressable onPress={() => { setFromCity(''); Haptic.tap(); }} hitSlop={8}>
+                <Pressable onPress={() => { setFromCity(''); Haptic.tap(); }} hitSlop={TouchTarget.smallHitSlop}>
                   <MaterialIcons name="close" size={17} color={C.textMuted} />
                 </Pressable>
               ) : null}
@@ -323,6 +342,7 @@ export default function SearchScreen() {
 
             <Pressable
               style={[styles.swapBtn, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}
+              hitSlop={TouchTarget.smallHitSlop}
               onPress={handleSwap}
             >
               <MaterialIcons name="swap-vert" size={18} color={C.primary} />
@@ -349,7 +369,7 @@ export default function SearchScreen() {
                 />
               </View>
               {toCity ? (
-                <Pressable onPress={() => { setToCity(''); Haptic.tap(); }} hitSlop={8}>
+                <Pressable onPress={() => { setToCity(''); Haptic.tap(); }} hitSlop={TouchTarget.smallHitSlop}>
                   <MaterialIcons name="close" size={17} color={C.textMuted} />
                 </Pressable>
               ) : null}
@@ -363,7 +383,7 @@ export default function SearchScreen() {
             <CityDropdown suggestions={toSuggestions} onSelect={c => { setToCity(c); setFocused(null); }} accent={C.error} C={C} />
           ) : null}
 
-          <View style={styles.vehicleSection}>
+          <View style={[styles.vehicleSection, isTablet && styles.tabletContainer]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.vehicleRow}>
                 <Pressable
@@ -372,6 +392,7 @@ export default function SearchScreen() {
                     { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                     !vehicleType && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
                   ]}
+                  hitSlop={TouchTarget.smallHitSlop}
                   onPress={() => { Haptic.select(); setVehicleType(''); }}
                 >
                   <MaterialIcons name="all-inclusive" size={14} color={!vehicleType ? C.primary : C.textMuted} />
@@ -385,6 +406,7 @@ export default function SearchScreen() {
                       { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                       vehicleType === v.type && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
                     ]}
+                    hitSlop={TouchTarget.smallHitSlop}
                     onPress={() => { Haptic.select(); setVehicleType(vehicleType === v.type ? '' : v.type); }}
                   >
                     <MaterialIcons name={v.icon as any} size={14} color={vehicleType === v.type ? C.primary : C.textMuted} />
@@ -395,7 +417,7 @@ export default function SearchScreen() {
             </ScrollView>
           </View>
 
-          <View style={styles.actionRow}>
+          <View style={[styles.actionRow, isTablet && styles.tabletContainer]}>
             <Animated.View style={[{ flex: 1 }, { transform: [{ scale: searchBtnScale }] }]}>
               <Pressable
                 style={[
@@ -418,6 +440,7 @@ export default function SearchScreen() {
                   opacity: subscribing ? 0.7 : 1,
                 },
               ]}
+              hitSlop={TouchTarget.smallHitSlop}
               onPress={handleSubscribe}
               disabled={subscribing}
             >
@@ -470,7 +493,7 @@ export default function SearchScreen() {
                 </ScrollView>
               </Animated.View>
 
-              <View style={styles.resultTabsRow}>
+              <View style={[styles.resultTabsRow, isTablet && styles.tabletContainer]}>
                 {(['all', 'trips', 'parcels'] as ResultTab[]).map(t => {
                   const count = t === 'all' ? allResults.length : t === 'trips' ? matchedTrips.length : matchedParcels.length;
                   return (
@@ -481,6 +504,7 @@ export default function SearchScreen() {
                         { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                         tab === t && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
                       ]}
+                      hitSlop={TouchTarget.smallHitSlop}
                       onPress={() => { Haptic.select(); setTab(t); }}
                     >
                       <MaterialIcons
@@ -498,7 +522,7 @@ export default function SearchScreen() {
 
               {(fromCity && toCity && allResults.length > 0) ? (
                 <Pressable
-                  style={[styles.subscribeCta, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}
+                  style={[styles.subscribeCta, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }, isTablet && styles.tabletContainer]}
                   onPress={handleSubscribe}
                 >
                   <Ionicons name="notifications-outline" size={14} color={C.primary} />
@@ -511,7 +535,7 @@ export default function SearchScreen() {
 
               {/* Map View */}
               {viewMode === 'map' && displayResults.length > 0 && (
-                <View style={localStyles.mapContainer}>
+                <View style={[localStyles.mapContainer, isTablet && styles.tabletContainer]}>
                   <RouteMapView
                     trips={tab === 'parcels' ? [] : matchedTrips}
                     parcels={tab === 'trips' ? [] : matchedParcels}
@@ -525,8 +549,8 @@ export default function SearchScreen() {
 
               {/* List View */}
               {viewMode === 'list' && displayResults.length > 0 ? (
-                <View style={styles.resultsList}>
-                  {displayResults.map((item, idx) => (
+                <View style={[styles.resultsList, isTablet && styles.tabletContainer]}>
+                  {displayResults.map((item: SearchItem, idx: number) => (
                     <View key={`${item.type}-${item.data.id}-${idx}`} style={styles.resultItem}>
                       {item.type === 'trip' ? (
                         <TripCard
@@ -543,7 +567,7 @@ export default function SearchScreen() {
                   ))}
                 </View>
               ) : viewMode === 'list' && displayResults.length === 0 ? (
-                <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
                   <View style={[styles.emptyIcon, { backgroundColor: C.surfaceElevated }]}>
                     <MaterialIcons name="search-off" size={36} color={C.textMuted} />
                   </View>
@@ -569,7 +593,7 @@ export default function SearchScreen() {
               {/* Pull to refresh hint */}
               {displayResults.length > 0 && (
                 <Pressable
-                  style={[localStyles.refreshBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+                  style={[localStyles.refreshBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}
                   onPress={handleRefresh}
                 >
                   <MaterialIcons name="refresh" size={14} color={C.textMuted} />
@@ -578,7 +602,7 @@ export default function SearchScreen() {
               )}
             </Animated.View>
           ) : (
-            <View style={styles.preSearch}>
+            <View style={[styles.preSearch, isTablet && styles.tabletContainer]}>
               {history.length > 0 ? (
                 <View style={styles.historySection}>
                   <View style={styles.historySectionHeader}>

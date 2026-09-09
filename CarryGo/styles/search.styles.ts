@@ -40,17 +40,24 @@ export const styles = StyleSheet.create({
   fieldInput: { fontSize: FontSize.md, fontWeight: FontWeight.medium, padding: 0, includeFontPadding: false },
   swapBtn: {
     position: 'absolute', right: Spacing.md, top: '50%',
-    marginTop: -20, width: 40, height: 40, borderRadius: 20,
+    marginTop: -22, width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.2, zIndex: 10,
+  },
+
+  // Tablet containment
+  tabletContainer: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   // Vehicle filter
   vehicleSection: { marginHorizontal: Spacing.md, marginTop: Spacing.sm },
   vehicleRow: { flexDirection: 'row', gap: Spacing.sm },
   vehicleChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 13, paddingVertical: 9,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    minHeight: 44, paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: BorderRadius.full, borderWidth: 1.2,
   },
   vehicleChipText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
@@ -79,7 +86,7 @@ export const styles = StyleSheet.create({
   },
   resultTab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-    paddingVertical: 10, borderRadius: BorderRadius.full, borderWidth: 1.2,
+    minHeight: 44, paddingVertical: 8, borderRadius: BorderRadius.full, borderWidth: 1.2,
   },
   resultTabText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 

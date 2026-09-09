@@ -204,7 +204,7 @@ export default function ForSendersPage() {
           <div className="pt-8 text-center">
             <Link
               href="/create-parcel"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-lg transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-lg transition-all"
             >
               <span>Post a Parcel Request Now</span>
               <ArrowRight className="w-4 h-4" />

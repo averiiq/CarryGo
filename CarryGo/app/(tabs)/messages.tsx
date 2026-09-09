@@ -6,12 +6,13 @@ import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useConversationsQuery, useConversationsRealtime } from '@/features/conversations/queries';
 import { AsyncStateCard, OfflineBanner } from '@/components';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useHeartbeat } from '@/hooks/useAnimations';
 import { formatRelative } from '@/lib/dateFormat';
 import { Conversation } from '@/types';
@@ -180,63 +181,67 @@ export default function MessagesScreen() {
 
   useConversationsRealtime(user?.id);
 
+  const { isSmallDevice, isTablet } = useResponsive();
+
   const renderItem = useCallback(
     ({ item, index }: { item: ConversationRowModel; index: number }) => {
       const topMargin = index === 0 ? Spacing.sm : 0;
       return (
-        <Pressable
-          style={({ pressed }) => [
-            styles.convItem,
-            { marginTop: topMargin, backgroundColor: C.surface, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
-            item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
-            pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-          ]}
-          onPress={() => openConversation(item.id)}
-        >
-          <View
-            style={[
-              styles.avatar,
-              {
-                backgroundColor: item.isUnread ? C.primarySubtle : C.surfaceElevated,
-                borderColor: item.isUnread ? C.primary + '44' : C.surfaceBorder,
-              },
+        <View style={isTablet ? styles.tabletContainer : undefined}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.convItem,
+              { marginTop: topMargin, backgroundColor: C.surface, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
+              item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
+              pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
             ]}
+            onPress={() => openConversation(item.id)}
           >
-            <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
-            {item.isUnread ? (
-              <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.surface }]} />
-            ) : null}
-          </View>
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: item.isUnread ? C.primarySubtle : C.surfaceElevated,
+                  borderColor: item.isUnread ? C.primary + '44' : C.surfaceBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
+              {item.isUnread ? (
+                <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.surface }]} />
+              ) : null}
+            </View>
 
-          <View style={styles.convInfo}>
-            <View style={styles.convTop}>
-              <Text style={[styles.convName, { color: C.textPrimary }, item.isUnread && { fontWeight: FontWeight.bold }]} numberOfLines={1}>
-                {item.displayName}
+            <View style={styles.convInfo}>
+              <View style={styles.convTop}>
+                <Text style={[styles.convName, { color: C.textPrimary }, item.isUnread && { fontWeight: FontWeight.bold }]} numberOfLines={1}>
+                  {item.displayName}
+                </Text>
+                <Text style={[styles.convTime, { color: item.isUnread ? C.primary : C.textMuted }]}>{item.previewTimeLabel}</Text>
+              </View>
+
+              <View style={[styles.routePill, { backgroundColor: C.primarySubtle }]}>
+                <MaterialIcons name="route" size={10} color={C.primary} />
+                <Text style={[styles.routeText, { color: C.primary }]} numberOfLines={1}>{item.routeLabel}</Text>
+              </View>
+
+              <Text style={[styles.lastMsg, { color: item.isUnread ? C.textPrimary : C.textMuted }]} numberOfLines={1}>
+                {item.previewText}
               </Text>
-              <Text style={[styles.convTime, { color: item.isUnread ? C.primary : C.textMuted }]}>{item.previewTimeLabel}</Text>
             </View>
 
-            <View style={[styles.routePill, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="route" size={10} color={C.primary} />
-              <Text style={[styles.routeText, { color: C.primary }]} numberOfLines={1}>{item.routeLabel}</Text>
-            </View>
-
-            <Text style={[styles.lastMsg, { color: item.isUnread ? C.textPrimary : C.textMuted }]} numberOfLines={1}>
-              {item.previewText}
-            </Text>
-          </View>
-
-          {item.isUnread ? (
-            <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
-              <Text style={styles.unreadText}>NEW</Text>
-            </View>
-          ) : (
-            <MaterialIcons name="chevron-right" size={17} color={C.surfaceBorderLight} />
-          )}
-        </Pressable>
+            {item.isUnread ? (
+              <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
+                <Text style={styles.unreadText}>NEW</Text>
+              </View>
+            ) : (
+              <MaterialIcons name="chevron-right" size={17} color={C.surfaceBorderLight} />
+            )}
+          </Pressable>
+        </View>
       );
     },
-    [C, openConversation]
+    [C, isTablet, openConversation]
   );
 
   return (
@@ -244,6 +249,7 @@ export default function MessagesScreen() {
       <Animated.View
         style={[
           styles.header,
+          isTablet && styles.tabletContainer,
           {
             paddingTop: insets.top + Spacing.sm,
             opacity: headerEntrance.opacity,
@@ -283,7 +289,7 @@ export default function MessagesScreen() {
                 pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
               ]}
               onPress={handleRefresh}
-              hitSlop={8}
+              hitSlop={TouchTarget.smallHitSlop}
               accessibilityLabel="Refresh messages"
             >
               <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
@@ -298,6 +304,7 @@ export default function MessagesScreen() {
                 styles.segmentItem,
                 { backgroundColor: activeFilter === 'all' ? C.primary : 'transparent' },
               ]}
+              hitSlop={TouchTarget.smallHitSlop}
               onPress={() => handleFilterPress('all')}
             >
               <Text
@@ -314,6 +321,7 @@ export default function MessagesScreen() {
                 styles.segmentItem,
                 { backgroundColor: activeFilter === 'unread' ? C.primary : 'transparent' },
               ]}
+              hitSlop={TouchTarget.smallHitSlop}
               onPress={() => handleFilterPress('unread')}
             >
               <Text
@@ -528,6 +536,12 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
+  tabletContainer: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
+  },
+
   filterSegment: {
     flexDirection: 'row',
     borderRadius: BorderRadius.lg,
@@ -538,7 +552,7 @@ const styles = StyleSheet.create({
   },
   segmentItem: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 44,
     borderRadius: BorderRadius.md - 2,
     alignItems: 'center',
     justifyContent: 'center',

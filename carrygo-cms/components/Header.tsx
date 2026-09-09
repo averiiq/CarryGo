@@ -106,18 +106,25 @@ export default function Header() {
           </div>
         </div>
         {mobileNavOpen && (
-          <nav aria-label="Dashboard navigation" className="grid max-h-[calc(100vh-4rem)] grid-cols-2 gap-2 overflow-y-auto border-t border-border-subtle bg-surface-solid p-3 md:hidden">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileNavOpen(false)}
-                aria-current={pathname === item.href ? 'page' : undefined}
-                className="rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface-elevated hover:text-foreground"
-              >
-                {item.label}
-              </Link>
-            ))}
+          <nav aria-label="Dashboard navigation" className="grid max-h-[calc(100vh-4rem)] grid-cols-1 min-[420px]:grid-cols-2 gap-1.5 overflow-y-auto border-t border-border-subtle bg-surface-solid p-3 md:hidden shadow-lg">
+            {NAV_ITEMS.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary-subtle text-primary font-semibold'
+                      : 'text-muted hover:bg-surface-elevated hover:text-foreground'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
           </nav>
         )}
       </header>

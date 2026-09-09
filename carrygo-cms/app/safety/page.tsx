@@ -46,7 +46,7 @@ const incidentFlow = [
 export default function SafetyPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 py-16 md:py-24'>
         <PageHero
           badge='Safety and Trust'
           title='Protection Layers Built into Every Delivery'
@@ -61,14 +61,14 @@ export default function SafetyPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-12'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pb-12'>
         <SectionHeading
           label='Safety Architecture'
           title='Designed for prevention, not just response'
           description='Risk controls are embedded from onboarding through final payout closure.'
         />
 
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {safetyLayers.map((layer) => (
             <article key={layer.title} className='glass-card p-6 md:p-7'>
               <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
@@ -81,14 +81,14 @@ export default function SafetyPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pt-12 pb-24'>
         <SectionHeading
           label='Incident Handling'
           title='Fast and auditable escalation path'
           description='When issues happen, the platform provides enough evidence for quick resolution.'
         />
 
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {incidentFlow.map((step, index) => (
             <article key={step.title} className='glass-card p-6 md:p-7'>
               <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-accent/25 bg-accent-subtle text-xs font-semibold text-accent'>

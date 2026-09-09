@@ -1,4 +1,4 @@
-﻿import {
+import {
   BellRing,
   Blocks,
   CheckCircle2,
@@ -99,7 +99,7 @@ const productHighlights = [
 export default function FeaturesPage() {
   return (
     <MarketingShell>
-      <ScrollLinkedSection className='px-6 py-16 md:py-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 py-16 md:py-24'>
         <PageHero
           badge='Product Features'
           title='Mobile App Capabilities, Now Mirrored on Website'
@@ -114,13 +114,13 @@ export default function FeaturesPage() {
         />
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pb-12'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pb-12'>
         <SectionHeading
           label='Core Modules'
           title='Built to optimize every delivery stage'
           description='Each module reduces operational friction while improving trust and transparency.'
         />
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1'>
           {featureCategories.map((category) => (
             <article key={category.title} className='glass-card space-y-5 p-6 md:p-7'>
               <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-subtle text-primary'>
@@ -143,13 +143,13 @@ export default function FeaturesPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pt-8 pb-12 md:pt-12'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pt-8 pb-12 md:pt-12'>
         <SectionHeading
           label='App Parity on Web'
           title='Same product journey across mobile and website'
           description='These feature surfaces bring app-level workflows directly into the web experience.'
         />
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-2 lg:grid-cols-3'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3'>
           {appFeatureParity.map((item) => (
             <article key={item.title} className='glass-card p-6 md:p-7'>
               <div className='flex items-start gap-4'>
@@ -166,14 +166,14 @@ export default function FeaturesPage() {
         </div>
       </ScrollLinkedSection>
 
-      <ScrollLinkedSection className='px-6 pt-12 pb-24'>
+      <ScrollLinkedSection className='px-4 sm:px-6 pt-12 pb-24'>
         <SectionHeading
           label='Professional Workflows'
           title='Designed for teams that need consistency'
           description='Whether shipping personal parcels or managing business routes, the experience stays smooth.'
         />
 
-        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-2'>
+        <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2'>
           {productHighlights.map((item) => (
             <article key={item.title} className='glass-card p-6 md:p-7'>
               <div className='flex items-start gap-4'>

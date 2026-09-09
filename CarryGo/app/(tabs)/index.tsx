@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ActivityIndicator, Animated, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
@@ -9,12 +9,13 @@ import { AsyncStateCard, FeedSkeletonList, OfflineBanner, ParcelCard, TripCard }
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { ProductIllustration } from '@/components/illustrations';
-import { BorderRadius, FontSize, FontWeight, Gradients, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Gradients, Spacing, TouchTarget } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { FilterOptions, Parcel, Trip } from '@/types';
@@ -55,6 +56,7 @@ function HomeHeader({
         }}
         accessibilityRole="button"
         accessibilityLabel="Notifications"
+        hitSlop={TouchTarget.smallHitSlop}
         style={({ pressed }) => [
           styles.notifyBtn,
           { backgroundColor: C.surface, borderColor: C.surfaceBorder },
@@ -163,26 +165,37 @@ function QuickActions() {
   );
 }
 
-function HomeStats({ tripsCount, parcelsCount, rating }: { tripsCount: number; parcelsCount: number; rating?: number }) {
+function HomeStats({
+  tripsCount,
+  parcelsCount,
+  rating,
+  isSmallDevice,
+}: {
+  tripsCount: number;
+  parcelsCount: number;
+  rating?: number;
+  isSmallDevice?: boolean;
+}) {
   const { C } = useThemeColors();
   const userRating = rating ? rating.toFixed(1) : '4.9';
+  const responsiveStatNumberStyle = isSmallDevice ? { fontSize: FontSize.md } : undefined;
 
   return (
     <View style={[styles.statsContainer, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
       <View style={styles.statCol}>
-        <Text style={[styles.statNumber, { color: C.primary }]}>{tripsCount}</Text>
+        <Text style={[styles.statNumber, responsiveStatNumberStyle, { color: C.primary }]}>{tripsCount}</Text>
         <Text style={[styles.statLabel, { color: C.textMuted }]}>Live Trips</Text>
       </View>
       <View style={[styles.statDivider, { backgroundColor: C.surfaceBorder }]} />
       <View style={styles.statCol}>
-        <Text style={[styles.statNumber, { color: C.textPrimary }]}>{parcelsCount}</Text>
+        <Text style={[styles.statNumber, responsiveStatNumberStyle, { color: C.textPrimary }]}>{parcelsCount}</Text>
         <Text style={[styles.statLabel, { color: C.textMuted }]}>Open Parcels</Text>
       </View>
       <View style={[styles.statDivider, { backgroundColor: C.surfaceBorder }]} />
       <View style={styles.statCol}>
         <View style={styles.ratingRow}>
           <MaterialIcons name="star" size={16} color="#F59E0B" />
-          <Text style={[styles.statNumber, { color: C.textPrimary }]}>{userRating}</Text>
+          <Text style={[styles.statNumber, responsiveStatNumberStyle, { color: C.textPrimary }]}>{userRating}</Text>
         </View>
         <Text style={[styles.statLabel, { color: C.textMuted }]}>Your Rating</Text>
       </View>
@@ -238,6 +251,61 @@ function EmptyMarketplace({
   );
 }
 
+const FeedTripItem = React.memo(function FeedTripItem({
+  trip,
+  isTablet,
+  onPress,
+  onRequest,
+}: {
+  trip: Trip;
+  isTablet: boolean;
+  onPress: (id: string) => void;
+  onRequest: (fromCity: string, toCity: string) => void;
+}) {
+  const handlePress = useCallback(() => onPress(trip.id), [onPress, trip.id]);
+  const handleRequest = useCallback(
+    () => onRequest(trip.fromCity, trip.toCity),
+    [onRequest, trip.fromCity, trip.toCity]
+  );
+
+  return (
+    <View style={isTablet ? styles.tabletCardWrap : undefined}>
+      <TripCard
+        trip={trip}
+        onPress={handlePress}
+        showRequestButton={FeatureFlags.payments}
+        onRequest={handleRequest}
+      />
+    </View>
+  );
+});
+
+const FeedParcelItem = React.memo(function FeedParcelItem({
+  parcel,
+  isTablet,
+  onPress,
+  onCarry,
+}: {
+  parcel: Parcel;
+  isTablet: boolean;
+  onPress: (id: string) => void;
+  onCarry: (id: string) => void;
+}) {
+  const handlePress = useCallback(() => onPress(parcel.id), [onPress, parcel.id]);
+  const handleCarry = useCallback(() => onCarry(parcel.id), [onCarry, parcel.id]);
+
+  return (
+    <View style={isTablet ? styles.tabletCardWrap : undefined}>
+      <ParcelCard
+        parcel={parcel}
+        onPress={handlePress}
+        showCarryButton
+        onCarry={handleCarry}
+      />
+    </View>
+  );
+});
+
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -245,6 +313,7 @@ export default function HomeScreen() {
   const { C } = useThemeColors();
   const { isOnline } = useNetworkStatus();
   const { notifications, unreadCount, markAllRead, markNotificationsAsRead, openNotification } = useNotifications();
+  const { isSmallDevice, isTablet } = useResponsive();
 
   const [showFilters, setShowFilters] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -297,27 +366,43 @@ export default function HomeScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: FeedItem }) => {
+  const handlePressTrip = useCallback((tripId: string) => {
+    router.push({ pathname: '/trip/[id]', params: { id: tripId } });
+  }, [router]);
+
+  const handleRequestTrip = useCallback((fromCity: string, toCity: string) => {
+    router.push({ pathname: '/matching', params: { mode: 'browse_trips', fromCity, toCity } });
+  }, [router]);
+
+  const handlePressParcel = useCallback((parcelId: string) => {
+    router.push({ pathname: '/parcel/[id]', params: { id: parcelId } });
+  }, [router]);
+
+  const handleCarryParcel = useCallback((parcelId: string) => {
+    router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcelId } });
+  }, [router]);
+
+  const renderItem = useCallback(({ item }: { item: FeedItem }) => {
     if (item.type === 'trip') {
       return (
-        <TripCard
+        <FeedTripItem
           trip={item.data}
-          onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.data.id } })}
-          showRequestButton={FeatureFlags.payments}
-          onRequest={() => router.push({ pathname: '/matching', params: { mode: 'browse_trips', fromCity: item.data.fromCity, toCity: item.data.toCity } })}
+          isTablet={isTablet}
+          onPress={handlePressTrip}
+          onRequest={handleRequestTrip}
         />
       );
     }
 
     return (
-      <ParcelCard
+      <FeedParcelItem
         parcel={item.data}
-        onPress={() => router.push({ pathname: '/parcel/[id]', params: { id: item.data.id } })}
-        showCarryButton
-        onCarry={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: item.data.id } })}
+        isTablet={isTablet}
+        onPress={handlePressParcel}
+        onCarry={handleCarryParcel}
       />
     );
-  };
+  }, [handleCarryParcel, handlePressParcel, handlePressTrip, handleRequestTrip, isTablet]);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}> 
@@ -352,7 +437,7 @@ export default function HomeScreen() {
         renderItem={renderItem}
         estimatedItemSize={236}
         ListHeaderComponent={
-          <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }]}> 
+          <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}> 
             <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
               <HomeHeader
                 userName={user?.fullName || user?.name || 'there'}
@@ -372,6 +457,7 @@ export default function HomeScreen() {
               tripsCount={filteredTrips.length}
               parcelsCount={filteredParcels.length}
               rating={user?.rating}
+              isSmallDevice={isSmallDevice}
             />
 
             <View style={styles.marketplaceHead}>
@@ -384,6 +470,9 @@ export default function HomeScreen() {
                   Haptic.tap();
                   setShowFilters(true);
                 }}
+                hitSlop={TouchTarget.smallHitSlop}
+                accessibilityRole="button"
+                accessibilityLabel="Filter listings"
                 style={({ pressed }) => [
                   styles.filterBtn,
                   { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface },
@@ -408,6 +497,7 @@ export default function HomeScreen() {
                       Haptic.select();
                       setActiveTab(tab);
                     }}
+                    hitSlop={TouchTarget.smallHitSlop}
                     style={({ pressed }) => [
                       styles.segment,
                       {
@@ -683,8 +773,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   sectionSub: { fontSize: FontSize.xs, marginTop: 2 },
   filterBtn: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     alignItems: 'center',
@@ -700,7 +790,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: BorderRadius.md - 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -708,6 +798,16 @@ const styles = StyleSheet.create({
   segmentText: {
     fontSize: FontSize.sm - 0.5,
     letterSpacing: -0.1,
+  },
+  tabletContainer: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  tabletCardWrap: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   filterSummary: {

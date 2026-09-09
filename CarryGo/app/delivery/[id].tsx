@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet,
   Switch, ActivityIndicator, Animated, Platform, KeyboardAvoidingView,
+  AppState,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,14 +74,16 @@ export default function DeliveryScreen() {
     };
   }, [fadeAnim, id, initDelivery, isParticipant, request]);
 
-  // Poll traveller location (sender side)
+  // Poll traveller location (sender side) with AppState awareness
   useEffect(() => {
     if (!FeatureFlags.preciseLocationSharing || !deliveryId || !isSender || step === 'delivered') return;
     let consecutiveFailures = 0;
     const MAX_FAILURES = 3;
     let intervalId: ReturnType<typeof setInterval> | null = null;
+    let isAppActive = AppState.currentState === 'active';
 
     const poll = async () => {
+      if (!isAppActive) return; // Pause polling when app is minimized or in background
       try {
         const { data } = await fetchDeliveryLocation(deliveryId);
         if (data) { setTravellerLocation(data); consecutiveFailures = 0; }
@@ -89,10 +92,23 @@ export default function DeliveryScreen() {
         if (consecutiveFailures >= MAX_FAILURES && intervalId) { clearInterval(intervalId); intervalId = null; }
       }
     };
+
     void poll();
     intervalId = setInterval(poll, 15000);
     pollInterval.current = intervalId;
-    return () => { if (intervalId) clearInterval(intervalId); pollInterval.current = null; };
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      isAppActive = nextState === 'active';
+      if (isAppActive) {
+        void poll(); // Immediately refresh location when returning to foreground
+      }
+    });
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      pollInterval.current = null;
+      subscription.remove();
+    };
   }, [deliveryId, isSender, step]);
 
   const handleToggleLocation = async (enabled: boolean) => {
@@ -116,6 +132,7 @@ export default function DeliveryScreen() {
     }
 
     const updateLoc = async () => {
+      if (AppState.currentState !== 'active') return true; // Save battery while backgrounded
       const { data, error } = await getCurrentLocation();
       if (!data || !user?.id) {
         if (error) showAlert('Location Error', error);

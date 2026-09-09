@@ -1,4 +1,4 @@
-﻿import Image from 'next/image'
+import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Reveal } from '@/components/marketing/animated-reveal'
@@ -37,15 +37,15 @@ export function PageHero({
           {badge}
         </div>
 
-        <h1 className='mt-6 max-w-3xl text-[clamp(2rem,5.4vw,4.35rem)] font-heading font-bold leading-[1.08] tracking-tight text-foreground lg:mx-0'>
+        <h1 className='mt-6 max-w-3xl text-[clamp(1.85rem,5vw,4.25rem)] font-heading font-bold leading-[1.1] tracking-tight text-foreground lg:mx-0'>
           {title}
         </h1>
 
-        <p className='mx-auto mt-5 max-w-2xl text-[1.02rem] leading-relaxed text-muted md:text-lg lg:mx-0'>
+        <p className='mx-auto mt-4 sm:mt-5 max-w-2xl text-[0.95rem] sm:text-[1.02rem] leading-relaxed text-muted md:text-lg lg:mx-0'>
           {description}
         </p>
 
-        <div className='mt-8 flex flex-wrap items-stretch justify-center gap-3 sm:items-center lg:justify-start'>
+        <div className='mt-7 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3'>
           {actions.map((action) => {
             const isPrimary = action.variant !== 'secondary'
 

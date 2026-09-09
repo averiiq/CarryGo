@@ -5,8 +5,8 @@ import { footerSections } from '@/components/marketing/site-data'
 export function SiteFooter() {
   return (
     <footer className='border-t border-border bg-surface/75 px-4 py-12 sm:px-6 sm:py-16'>
-      <div className='mx-auto grid w-full max-w-7xl gap-8 sm:gap-10 lg:grid-cols-[1.3fr_1fr_1fr_1fr]'>
-        <div className='space-y-4'>
+      <div className='mx-auto grid w-full max-w-7xl gap-8 sm:gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr]'>
+        <div className='space-y-4 sm:col-span-2 lg:col-span-1'>
           <div className='text-2xl font-heading font-bold tracking-tight'>
             CarryGo<span className='text-primary'>.</span>
           </div>
@@ -41,7 +41,7 @@ export function SiteFooter() {
         ))}
       </div>
 
-      <div className='site-footer-bottom mx-auto mt-10 flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 border-t border-border pt-5 text-xs text-muted sm:mt-12 sm:gap-3 sm:pt-6 sm:text-sm'>
+      <div className='site-footer-bottom mx-auto mt-10 flex w-full max-w-7xl flex-col sm:flex-row items-center justify-between gap-2.5 border-t border-border pt-5 text-xs text-muted sm:mt-12 sm:pt-6 sm:text-sm text-center sm:text-left'>
         <p>&copy; 2026 CarryGo Technologies. All rights reserved.</p>
         <p>Custom in-house visuals by CarryGo design system.</p>
       </div>

@@ -54,9 +54,9 @@ export function useMatchingTrips(params: MatchTripsParams | null) {
       if (!params) return [];
 
       const [exact, fromNearby, toNearby] = await Promise.all([
-        fetchTrips({ fromCity: params.fromCity, toCity: params.toCity, limit: 120, offset: 0 }),
-        fetchTrips({ userCity: params.fromCity, limit: 120, offset: 0 }),
-        fetchTrips({ userCity: params.toCity, limit: 120, offset: 0 }),
+        fetchTrips({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
+        fetchTrips({ userCity: params.fromCity, limit: 60, offset: 0, includeCount: false }),
+        fetchTrips({ userCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
       ]);
 
       const firstError = exact.error || fromNearby.error || toNearby.error;
@@ -111,9 +111,9 @@ export function useMatchingParcels(params: MatchParcelsParams | null) {
       if (!params) return [];
 
       const [exact, fromNearby, toNearby] = await Promise.all([
-        fetchParcels({ fromCity: params.fromCity, toCity: params.toCity, limit: 120, offset: 0 }),
-        fetchParcels({ userCity: params.fromCity, limit: 120, offset: 0 }),
-        fetchParcels({ userCity: params.toCity, limit: 120, offset: 0 }),
+        fetchParcels({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
+        fetchParcels({ userCity: params.fromCity, limit: 60, offset: 0, includeCount: false }),
+        fetchParcels({ userCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
       ]);
 
       const firstError = exact.error || fromNearby.error || toNearby.error;
@@ -159,9 +159,9 @@ export function useMatchingTripsOnRoute(params: MatchTripsOnRouteParams | null) 
     queryFn: async () => {
       if (!params) return [];
       const [exact, fromNearby, toNearby] = await Promise.all([
-        fetchTrips({ fromCity: params.fromCity, toCity: params.toCity, limit: 120, offset: 0 }),
-        fetchTrips({ userCity: params.fromCity, limit: 120, offset: 0 }),
-        fetchTrips({ userCity: params.toCity, limit: 120, offset: 0 }),
+        fetchTrips({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
+        fetchTrips({ userCity: params.fromCity, limit: 60, offset: 0, includeCount: false }),
+        fetchTrips({ userCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
       ]);
 
       const firstError = exact.error || fromNearby.error || toNearby.error;
