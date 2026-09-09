@@ -7,20 +7,24 @@ import {
   CheckCircle2,
   Clock,
   Coins,
-  IndianRupee,
-  Layers,
-  Percent,
+  FileText,
+  Laptop,
+  Package,
+  Pill,
   ShieldCheck,
+  ShoppingBag,
+  Sparkles,
   TrendingDown,
+  Wallet,
   Zap,
 } from 'lucide-react'
 
 const CATEGORIES = [
-  { id: 'documents', label: 'Documents', baseFee: 120, ratePerKg: 40 },
-  { id: 'electronics', label: 'Electronics', baseFee: 200, ratePerKg: 80 },
-  { id: 'clothing', label: 'Clothing & Gifts', baseFee: 150, ratePerKg: 50 },
-  { id: 'medicine', label: 'Medicine / Urgent', baseFee: 180, ratePerKg: 60 },
-  { id: 'other', label: 'General / Other', baseFee: 140, ratePerKg: 50 },
+  { id: 'documents', label: 'Documents', icon: FileText, baseFee: 120, ratePerKg: 40 },
+  { id: 'electronics', label: 'Electronics', icon: Laptop, baseFee: 200, ratePerKg: 80 },
+  { id: 'clothing', label: 'Clothing & Gifts', icon: ShoppingBag, baseFee: 150, ratePerKg: 50 },
+  { id: 'medicine', label: 'Medicine', icon: Pill, baseFee: 180, ratePerKg: 60 },
+  { id: 'other', label: 'General Goods', icon: Package, baseFee: 140, ratePerKg: 50 },
 ]
 
 export function RateCalculator() {
@@ -58,32 +62,37 @@ export function RateCalculator() {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <div className="rounded-3xl bg-surface border border-border shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+      <div className="relative rounded-3xl border border-slate-200/90 bg-white shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+        {/* Subtle top edge highlight */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500" />
+
         {/* Left Side: Interactive Controls */}
-        <div className="lg:col-span-7 p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
+        <div className="lg:col-span-7 p-6 sm:p-8 space-y-6">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-subtle text-primary border border-primary/20 mb-3">
-              <Coins className="w-3.5 h-3.5" />
-              <span>Transparent Pricing Calculator</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-3">
+              <Coins className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Transparent Route Pricing Calculator</span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-heading font-bold text-foreground">
-              Calculate Delivery Cost &amp; Traveler Payout
+            <h3 className="text-2xl sm:text-3xl font-heading font-extrabold text-slate-900 tracking-tight">
+              See How Much You Save &amp; Travelers Earn
             </h3>
-            <p className="text-xs sm:text-sm text-muted mt-1">
-              Move parcels affordably with travelers already commuting on your route.
+            <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+              Real peer-to-peer rates based on actual carrier routes. No hidden hub or sorting surcharges.
             </p>
           </div>
 
           {/* Weight Slider */}
-          <div className="space-y-2">
+          <div className="space-y-3 rounded-2xl bg-slate-50 border border-slate-200 p-4 sm:p-5">
             <div className="flex items-center justify-between">
-              <label htmlFor="package-weight-slider" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Package Weight
+              <label htmlFor="package-weight-slider" className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                Parcel Weight
               </label>
-              <span className="text-base font-heading font-bold text-primary">
-                {weight} {weight === 1 ? 'kg' : 'kg'}
-              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-extrabold font-mono text-emerald-700">{weight}</span>
+                <span className="text-xs font-bold text-slate-500">KG</span>
+              </div>
             </div>
+
             <input
               id="package-weight-slider"
               type="range"
@@ -92,150 +101,153 @@ export function RateCalculator() {
               step="0.5"
               value={weight}
               onChange={(e) => setWeight(parseFloat(e.target.value))}
-              aria-label="Package weight in kilograms"
-              className="w-full h-2 rounded-lg bg-surface-elevated appearance-none cursor-pointer accent-primary"
+              className="w-full h-2 rounded-lg bg-slate-200 accent-emerald-600 cursor-pointer transition-all"
             />
-            <div className="flex justify-between text-[11px] text-muted">
-              <span>0.5 kg (Small envelope)</span>
+
+            <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <span>0.5 kg (Document)</span>
               <span>5 kg (Shoebox)</span>
-              <span>15 kg (Suitcase parcel)</span>
+              <span>15 kg (Luggage)</span>
             </div>
           </div>
 
-          {/* Category Selectors */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Item Category
+          {/* Parcel Category Selector */}
+          <div className="space-y-2.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+              Parcel Category
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategory(cat.id)}
-                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold border text-left transition cursor-pointer ${
-                    category === cat.id
-                      ? 'border-primary bg-primary-subtle text-primary shadow-xs'
-                      : 'border-border bg-background text-muted hover:border-primary/40 hover:text-foreground'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {CATEGORIES.map((cat) => {
+                const Icon = cat.icon
+                const isSelected = category === cat.id
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategory(cat.id)}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      isSelected
+                        ? 'bg-emerald-50 border-emerald-400 text-emerald-900 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-emerald-700' : 'text-slate-500'}`} />
+                    <span className="text-xs font-semibold truncate">{cat.label}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          {/* Speed / Urgency */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Timeline Window
-            </label>
-            <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
+          {/* Urgency Selection */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+              Delivery Window
+            </span>
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
               <button
                 type="button"
                 onClick={() => setUrgency('express')}
-                className={`flex items-center gap-2 p-3 rounded-2xl border text-left transition cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   urgency === 'express'
-                    ? 'border-primary bg-primary-subtle text-primary'
-                    : 'border-border bg-background text-muted'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Zap className="w-4 h-4 shrink-0" />
-                <div>
-                  <div className="text-xs font-bold text-foreground">Same-Day / Next-Day</div>
-                  <div className="text-[10px] text-muted">Handed over directly on route</div>
-                </div>
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>Same-Day Transit</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => setUrgency('standard')}
-                className={`flex items-center gap-2 p-3 rounded-2xl border text-left transition cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   urgency === 'standard'
-                    ? 'border-primary bg-primary-subtle text-primary'
-                    : 'border-border bg-background text-muted'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Clock className="w-4 h-4 shrink-0" />
-                <div>
-                  <div className="text-xs font-bold text-foreground">Flexible Window (2–3 Days)</div>
-                  <div className="text-[10px] text-muted">Matches weekend trips</div>
-                </div>
+                Flexible (24h)
               </button>
             </div>
           </div>
         </div>
 
-        {/* Right Side: Price Comparison Card */}
-        <div className="lg:col-span-5 bg-surface-elevated p-4 sm:p-6 md:p-8 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-border">
+        {/* Right Side: Cost Comparison & Savings Display */}
+        <div className="lg:col-span-5 bg-slate-50 border-t lg:border-t-0 lg:border-l border-slate-200 p-6 sm:p-8 flex flex-col justify-between space-y-6">
           <div className="space-y-5">
-            {/* Big Price Headline */}
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Estimated Delivery Fare
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                Cost Comparison
               </span>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl sm:text-4xl md:text-5xl font-heading font-extrabold text-foreground tracking-tight">
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                Save {calculation.savingsPercent}%
+              </span>
+            </div>
+
+            {/* CarryGo Price Card */}
+            <div className="rounded-2xl bg-white border-2 border-emerald-500/40 p-4 sm:p-5 shadow-sm relative">
+              <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-emerald-600" /> CarryGo Peer-to-Peer
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] border border-emerald-200">
+                  Same-Day Delivery
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-3xl sm:text-4xl font-heading font-extrabold text-slate-900">
                   ₹{calculation.carrygoEst}
                 </span>
-                <span className="text-xs font-medium text-muted">total all-inclusive</span>
+                <span className="text-xs text-slate-500">all-inclusive</span>
+              </div>
+              <div className="mt-2 text-[11px] text-emerald-700 font-medium flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Handed over directly in 3 to 6 hours</span>
               </div>
             </div>
 
-            {/* Savings Pill */}
-            <div className="p-3 sm:p-3.5 rounded-2xl bg-success-subtle border border-success/20 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-1.5 text-xs">
-              <div className="flex items-center gap-2 text-success font-bold">
-                <TrendingDown className="w-4 h-4 shrink-0" />
-                <span>Save ~₹{calculation.savings} ({calculation.savingsPercent}%)</span>
-              </div>
-              <span className="text-muted text-[11px] line-through">
-                ₹{calculation.courierEst} Courier
-              </span>
-            </div>
-
-            {/* Breakdown List */}
-            <div className="space-y-2.5 pt-2 border-t border-border/80 text-xs">
+            {/* Courier Benchmark */}
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 text-xs text-slate-600 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="text-muted">Traveler Fuel/Ticket Payout</span>
-                <span className="font-semibold text-foreground">₹{calculation.travelerPayout}</span>
+                <span>Traditional Courier (DTDC / Bluedart)</span>
+                <span className="text-slate-400 line-through font-bold text-sm">
+                  ₹{calculation.courierEst}
+                </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Escrow Protection &amp; Protocol Fee</span>
-                <span className="font-semibold text-foreground">₹{calculation.platformFee}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Estimated Delivery Speed</span>
-                <span className="font-semibold text-primary">Same-Day / Next-Day</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Traditional Courier Speed</span>
-                <span className="text-muted-foreground">3 to 5 business days</span>
+              <div className="mt-1 text-[11px] text-slate-500">
+                Takes 2 to 4 days • Multiple sorting warehouses
               </div>
             </div>
 
-            {/* Trust Bullet */}
-            <div className="flex items-center gap-2 text-xs text-muted pt-2">
-              <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-              <span>Funds held securely in escrow until recipient verifies OTP drop</span>
+            {/* Breakdown & Payout Transparency */}
+            <div className="space-y-2 pt-2 border-t border-slate-200 text-xs">
+              <div className="flex items-center justify-between text-slate-700 font-medium">
+                <span className="flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-sky-600" /> Traveler Earnings (UPI):
+                </span>
+                <span className="font-mono font-bold text-emerald-700">₹{calculation.travelerPayout}</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Escrow &amp; Insurance Protection:
+                </span>
+                <span className="font-mono font-bold text-slate-900">₹{calculation.platformFee}</span>
+              </div>
             </div>
           </div>
 
-          {/* Action CTAs */}
-          <div className="pt-6 space-y-2">
+          {/* Action CTA */}
+          <div>
             <Link
               href={`/create-parcel?weight=${weight}&category=${category}`}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-lg transition-all active:scale-95"
+              className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:brightness-105 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98]"
             >
-              <span>Post Delivery Request</span>
+              <span>Post This Parcel for ₹{calculation.carrygoEst}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
-
-            <Link
-              href="/create-trip"
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-muted hover:text-foreground hover:bg-surface transition text-center px-2"
-            >
-              <span>Have extra luggage space? Travel &amp; Earn ₹{calculation.travelerPayout}</span>
-            </Link>
+            <p className="text-[10px] text-center text-slate-500 mt-2">
+              Free to post • Pay only when traveler accepts and is verified
+            </p>
           </div>
         </div>
       </div>

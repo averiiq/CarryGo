@@ -2,9 +2,7 @@
 
 import { useState } from 'react'
 import {
-  ArrowRight,
   CheckCircle2,
-  Download,
   KeyRound,
   Lock,
   MessageSquare,
@@ -24,47 +22,50 @@ export function MobileAppShowcase() {
 
   return (
     <div className="w-full max-w-6xl mx-auto">
-      <div className="rounded-3xl bg-surface/90 border border-border shadow-2xl p-4 sm:p-8 md:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-        {/* Left Side: Copywriting, Screen Switcher, & Download Links */}
+      <div className="relative rounded-3xl border border-slate-200/90 bg-white shadow-xl p-6 sm:p-10 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center overflow-hidden">
+        {/* Subtle top edge highlight */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500" />
+
+        {/* Left Side: Copywriting, Screen Switcher, & Ratings */}
         <div className="lg:col-span-7 space-y-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-primary-subtle text-primary border border-primary/20 mb-3">
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Available for iOS &amp; Android</span>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-3">
+              <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Mobile First Delivery Network</span>
             </div>
-            <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-extrabold text-foreground tracking-tight">
-              The Full Power of CarryGo in Your Pocket
+            <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-extrabold text-slate-900 tracking-tight">
+              Move Parcels or Earn on the Go with CarryGo App
             </h3>
-            <p className="text-sm sm:text-base text-muted leading-relaxed mt-2">
-              From instant traveler route notifications to dual-OTP handovers and live chat, the CarryGo mobile app makes peer-to-peer parcel shipping seamless and secure.
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed mt-2.5">
+              Live route matching, instant dual-OTP signoffs, real-time in-transit messaging, and zero-fee UPI payouts right from your pocket.
             </p>
           </div>
 
           {/* Interactive Screen Feature Switcher */}
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 sm:gap-3">
             {[
               {
                 id: 'match' as const,
-                title: 'Smart Route Match',
-                desc: 'Find travelers heading your way',
+                title: 'Smart Route Radar',
+                desc: 'Instant traveler route matching',
                 icon: Navigation,
               },
               {
                 id: 'otp' as const,
-                title: 'Dual-OTP Handover',
-                desc: 'Verified pickup & dropoff',
+                title: 'Dual-OTP Guarantee',
+                desc: 'Verified pickup & dropoff codes',
                 icon: KeyRound,
               },
               {
                 id: 'chat' as const,
-                title: 'In-App Secure Chat',
-                desc: 'Coordinate seamlessly',
+                title: 'Encrypted Live Chat',
+                desc: 'Direct sender-traveler coordination',
                 icon: MessageSquare,
               },
               {
                 id: 'wallet' as const,
-                title: 'Instant Payout Wallet',
-                desc: 'UPI & bank transfers',
+                title: 'Instant UPI Payouts',
+                desc: 'Direct to GPay, PhonePe, Bank',
                 icon: Wallet,
               },
             ].map((item) => {
@@ -75,128 +76,105 @@ export function MobileAppShowcase() {
                   key={item.id}
                   type="button"
                   onClick={() => setActiveScreen(item.id)}
-                  className={`p-3 sm:p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                     isActive
-                      ? 'border-primary bg-primary-subtle/60 text-primary shadow-xs'
-                      : 'border-border bg-background text-muted hover:border-primary/30 hover:text-foreground'
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-900 shadow-xs'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted'}`} />
-                    <span className="text-xs sm:text-sm font-bold text-foreground">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-700' : 'text-slate-500'}`} />
+                    <span className="text-xs sm:text-sm font-bold">
                       {item.title}
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted line-clamp-1">{item.desc}</p>
+                  <p className="text-[11px] text-slate-500 line-clamp-1">{item.desc}</p>
                 </button>
               )
             })}
           </div>
 
-          {/* Download Buttons & Ratings */}
-          <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              {/* App Store Button */}
-              <a
-                href="#download"
-                className="flex-1 xs:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-foreground text-background font-semibold text-xs hover:opacity-90 transition shadow-sm"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.67-1.09 1.74-.95 2.78 1.01.08 2.05-.53 2.68-1.28z" />
-                </svg>
-                <div className="text-left">
-                  <div className="text-[9px] uppercase tracking-wider opacity-80 leading-none">Download on</div>
-                  <div className="text-xs font-bold leading-tight">App Store</div>
-                </div>
-              </a>
-
-              {/* Google Play Button */}
-              <a
-                href="#download"
-                className="flex-1 xs:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-foreground text-background font-semibold text-xs hover:opacity-90 transition shadow-sm"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M3.609 1.814L13.793 12 3.61 22.186a2.007 2.007 0 0 1-.61-.958V2.772c.15-.365.37-.687.61-.958zm11.238 11.239l2.428 2.428-11.83 6.83 9.402-9.258zm0-2.106L5.445 1.69l11.83 6.829-2.428 2.428zm1.488 1.053l3.666 2.116c1.075.62 1.075 1.636 0 2.257l-3.666 2.116-2.502-2.502 2.502-2.502z" />
-                </svg>
-                <div className="text-left">
-                  <div className="text-[9px] uppercase tracking-wider opacity-80 leading-none">Get it on</div>
-                  <div className="text-xs font-bold leading-tight">Google Play</div>
-                </div>
-              </a>
-            </div>
-
-            {/* Trust Rating */}
-            <div className="flex items-center gap-2 text-xs text-muted">
+          {/* Ratings & Downloads */}
+          <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
               <div className="flex items-center text-amber-500">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                  <Star key={i} className="w-4 h-4 fill-current" />
                 ))}
               </div>
-              <span className="font-bold text-foreground">4.9/5</span>
-              <span>(2,500+ reviews)</span>
+              <div className="text-xs text-slate-600">
+                <span className="font-bold text-slate-900">4.9 / 5</span> rating across iOS &amp; Android
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700">
+              <QrCode className="w-4 h-4 text-emerald-600" />
+              <span>Scan to download app</span>
             </div>
           </div>
         </div>
 
         {/* Right Side: Interactive Smartphone Device Mockup */}
         <div className="lg:col-span-5 flex justify-center w-full">
-          <div className="w-[260px] min-[380px]:w-[280px] sm:w-[300px] max-w-full rounded-[38px] sm:rounded-[42px] p-2.5 sm:p-3 bg-zinc-900 shadow-2xl border-4 border-zinc-700/60 relative">
-            {/* Camera / Speaker Notch */}
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 w-24 h-4 bg-zinc-800 rounded-full z-20" />
+          <div className="w-[270px] sm:w-[300px] rounded-[44px] p-3 bg-slate-900 shadow-2xl border-4 border-slate-700 relative">
+            {/* Dynamic Island */}
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-full z-20 flex items-center justify-end px-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
 
-            {/* Screen Glass Container */}
-            <div className="w-full aspect-[9/18.5] rounded-[34px] overflow-hidden bg-background text-foreground flex flex-col justify-between p-4 border border-zinc-800 relative select-none">
+            {/* Screen Glass Container (Light Theme App Screen Inside Phone) */}
+            <div className="w-full aspect-[9/18.5] rounded-[36px] overflow-hidden bg-slate-50 text-slate-900 flex flex-col justify-between p-4 border border-slate-200 relative select-none">
               {/* Top Status Bar */}
-              <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-3 px-2">
+              <div className="flex justify-between items-center text-[10px] text-slate-500 pt-3 px-2">
                 <span className="font-bold">09:41</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px]">5G</span>
-                  <div className="w-4 h-2 rounded-xs border border-muted-foreground/80 flex items-center p-0.5">
-                    <div className="w-full h-full bg-primary rounded-xs" />
+                  <span className="text-[9px] font-semibold">5G</span>
+                  <div className="w-4 h-2 rounded-xs border border-slate-500 flex items-center p-0.5">
+                    <div className="w-full h-full bg-emerald-600 rounded-xs" />
                   </div>
                 </div>
               </div>
 
               {/* Dynamic Screen Content */}
-              <div className="my-auto space-y-3 pt-2">
+              <div className="my-auto space-y-3 pt-4">
                 {activeScreen === 'match' && (
                   <div className="space-y-2.5 animate-in fade-in duration-200">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">Available Travelers</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-subtle text-primary font-semibold">
-                        3 Matches
+                      <span className="text-xs font-bold text-slate-900">Verified Matches</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                        3 Traveling Now
                       </span>
                     </div>
 
                     {/* Traveler Card */}
-                    <div className="p-3 rounded-2xl bg-surface border border-border shadow-xs space-y-2">
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
+                          <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">
                             RK
                           </div>
                           <div>
-                            <div className="text-xs font-bold text-foreground flex items-center gap-1">
-                              Rahul K. <ShieldCheck className="w-3 h-3 text-primary" />
+                            <div className="text-xs font-bold text-slate-900 flex items-center gap-1">
+                              Rahul K. <ShieldCheck className="w-3 h-3 text-emerald-600" />
                             </div>
-                            <div className="text-[10px] text-muted">Car • Leaving Today</div>
+                            <div className="text-[10px] text-slate-500">Car • Departs 4:30 PM</div>
                           </div>
                         </div>
-                        <span className="text-xs font-bold text-primary">₹380</span>
+                        <span className="text-xs font-bold text-emerald-700">₹380</span>
                       </div>
 
-                      <div className="text-[11px] font-medium text-foreground/80 flex items-center justify-between bg-surface-elevated p-1.5 rounded-xl">
+                      <div className="text-[11px] font-medium text-slate-700 flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100">
                         <span>Mumbai</span>
-                        <span className="text-muted">→</span>
+                        <span className="text-emerald-600 font-bold">→</span>
                         <span>Pune</span>
-                        <span className="text-[10px] text-muted">6 kg space</span>
+                        <span className="text-[10px] text-slate-500">6 kg space</span>
                       </div>
 
                       <button
                         type="button"
-                        className="w-full py-1.5 rounded-xl text-[11px] font-bold bg-primary text-primary-foreground text-center"
+                        className="w-full py-1.5 rounded-xl text-[11px] font-bold bg-emerald-600 text-white text-center shadow-xs"
                       >
-                        Request Delivery
+                        Book Baggage Space
                       </button>
                     </div>
                   </div>
@@ -204,29 +182,29 @@ export function MobileAppShowcase() {
 
                 {activeScreen === 'otp' && (
                   <div className="space-y-2.5 animate-in fade-in duration-200 text-center">
-                    <div className="inline-flex p-2 rounded-2xl bg-primary-subtle text-primary mx-auto">
-                      <KeyRound className="w-5 h-5" />
+                    <div className="inline-flex p-2 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 mx-auto">
+                      <KeyRound className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-foreground">Dual-OTP Security</div>
-                      <p className="text-[10px] text-muted">Handover verified in-person</p>
+                      <div className="text-xs font-bold text-slate-900">Dual-OTP Handover</div>
+                      <p className="text-[10px] text-slate-500">Protected in-person verification</p>
                     </div>
 
-                    <div className="p-3 rounded-2xl bg-surface border border-border shadow-xs space-y-2 text-left">
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2 text-left">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase text-muted">Pickup Code</span>
-                        <span className="text-xs font-mono font-bold text-primary tracking-widest bg-primary-subtle px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Pickup Code</span>
+                        <span className="text-xs font-mono font-bold text-emerald-800 tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                           7492
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase text-muted">Delivery OTP</span>
-                        <span className="text-xs font-mono font-bold text-accent tracking-widest bg-accent-subtle px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Delivery OTP</span>
+                        <span className="text-xs font-mono font-bold text-sky-800 tracking-widest bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
                           3815
                         </span>
                       </div>
-                      <div className="text-[9px] text-muted-foreground pt-1 flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-success" /> Recipient shares code to unlock payout
+                      <div className="text-[9px] text-slate-500 pt-1 flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-emerald-600" /> Funds held safely in Smart Escrow
                       </div>
                     </div>
                   </div>
@@ -234,39 +212,42 @@ export function MobileAppShowcase() {
 
                 {activeScreen === 'chat' && (
                   <div className="space-y-2 animate-in fade-in duration-200">
-                    <div className="text-xs font-bold text-foreground">Route Handover Chat</div>
+                    <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                      <span>Rahul (Traveler)</span>
+                      <span className="text-[10px] text-emerald-600 font-semibold">Online</span>
+                    </div>
 
                     <div className="space-y-1.5 text-[11px]">
-                      <div className="p-2 rounded-2xl rounded-tl-xs bg-surface border border-border text-foreground max-w-[85%]">
-                        Hi Rahul! I have a 1.5kg document package. Can we meet near Dadar station?
+                      <div className="p-2 rounded-2xl rounded-tl-xs bg-white border border-slate-200 text-slate-800 shadow-xs max-w-[85%]">
+                        Hi! I have a 1.5kg sealed parcel. Can we meet near Dadar Station?
                       </div>
-                      <div className="p-2 rounded-2xl rounded-tr-xs bg-primary text-primary-foreground ml-auto max-w-[85%]">
-                        Sure! I am reaching Dadar by 4:30 PM. I will enter the pickup OTP.
+                      <div className="p-2 rounded-2xl rounded-tr-xs bg-emerald-600 text-white font-medium ml-auto max-w-[85%] shadow-xs">
+                        Sure! I am reaching Dadar by 4:30 PM. I will enter pickup OTP.
                       </div>
                     </div>
 
-                    <div className="p-2 rounded-xl bg-surface border border-border text-[10px] text-muted flex items-center justify-between">
+                    <div className="p-2 rounded-xl bg-white border border-slate-200 text-[10px] text-slate-400 flex items-center justify-between shadow-xs">
                       <span>Type a message...</span>
-                      <Zap className="w-3.5 h-3.5 text-primary" />
+                      <Zap className="w-3.5 h-3.5 text-emerald-600" />
                     </div>
                   </div>
                 )}
 
                 {activeScreen === 'wallet' && (
                   <div className="space-y-2.5 animate-in fade-in duration-200">
-                    <div className="p-3 rounded-2xl bg-surface border border-border shadow-xs space-y-1.5 text-center">
-                      <span className="text-[10px] uppercase font-bold text-muted">Available Balance</span>
-                      <div className="text-2xl font-extrabold text-foreground tracking-tight">
+                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1.5 text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-500">Available Balance</span>
+                      <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
                         ₹3,450
                       </div>
-                      <span className="text-[10px] text-success font-semibold flex items-center justify-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> 8 Trips Completed
+                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center justify-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 8 Trips Completed
                       </span>
                     </div>
 
                     <button
                       type="button"
-                      className="w-full py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground text-center flex items-center justify-center gap-1"
+                      className="w-full py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white text-center flex items-center justify-center gap-1.5 shadow-xs"
                     >
                       <Wallet className="w-3.5 h-3.5" />
                       <span>Instant UPI Withdrawal</span>
@@ -276,11 +257,11 @@ export function MobileAppShowcase() {
               </div>
 
               {/* Bottom App Navigation Bar */}
-              <div className="pt-2 border-t border-border flex justify-around items-center text-[9px] text-muted">
-                <span className="text-primary font-bold">Home</span>
+              <div className="pt-2 border-t border-slate-200 flex justify-around items-center text-[9px] text-slate-500">
+                <span className="text-emerald-700 font-bold">Corridors</span>
                 <span>My Trips</span>
                 <span>Parcels</span>
-                <span>Profile</span>
+                <span>Wallet</span>
               </div>
             </div>
           </div>
