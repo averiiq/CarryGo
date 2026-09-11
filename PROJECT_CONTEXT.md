@@ -1,4 +1,4 @@
-yes# Project Context
+# Project Context
 
 ## Project Overview
 

@@ -1,5 +1,6 @@
+import { randomUUID } from 'crypto';
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { json, JsonResponse } from './response';
+import { json, JsonResponse, rateLimited } from './response';
 import { handleHealth } from '../modules/health/handler';
 import { handleReserveBooking } from '../modules/bookings/handler';
 import {
@@ -23,6 +24,10 @@ import {
   handleListRequestsByTrip,
   handleUpdateRequestStatus,
 } from '../modules/requests/handler';
+import {
+  globalApiRateLimiter,
+  mutationRateLimiter,
+} from '../lib/rate-limiter';
 
 const normalizePath = (rawPath: string): string => {
   if (rawPath.startsWith('/api/')) {
@@ -35,88 +40,100 @@ const normalizePath = (rawPath: string): string => {
 export const routeRequest = async (
   event: APIGatewayProxyEventV2,
 ): Promise<JsonResponse> => {
+  const startTime = performance.now();
+  const requestId =
+    event.requestContext?.requestId ??
+    event.headers['x-request-id'] ??
+    event.headers['X-Request-Id'] ??
+    randomUUID();
+
   const method = event.requestContext.http.method;
   const path = normalizePath(event.rawPath);
+  const sourceIp = event.requestContext.http.sourceIp ?? 'unknown';
+
+  // 1. Sliding window rate limit check (Defends against retry storms & flood attacks)
+  const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
+  const rateLimitKey = `${sourceIp}:${isMutation ? 'MUTATION' : 'READ'}`;
+  const limiter = isMutation ? mutationRateLimiter : globalApiRateLimiter;
+  const rateCheck = limiter.check(rateLimitKey);
+
+  if (!rateCheck.allowed) {
+    return rateLimited(rateCheck.retryAfterSeconds, requestId);
+  }
+
+  // 2. Dispatch to route handlers
+  let response: JsonResponse;
 
   if (method === 'GET' && path === '/health') {
-    return handleHealth();
+    response = await handleHealth();
+  } else if (method === 'POST' && path === '/bookings/reserve') {
+    response = await handleReserveBooking(event);
+  } else if (method === 'GET' && path === '/trips') {
+    response = await handleListTrips(event);
+  } else if (method === 'POST' && path === '/trips') {
+    response = await handleCreateTrip(event);
+  } else {
+    const tripStatusMatch = path.match(/^\/trips\/([^/]+)\/status$/);
+    if (method === 'PATCH' && tripStatusMatch) {
+      response = await handleUpdateTripStatus(tripStatusMatch[1], event);
+    } else {
+      const tripMatch = path.match(/^\/trips\/([^/]+)$/);
+      if (method === 'GET' && tripMatch) {
+        response = await handleGetTrip(tripMatch[1]);
+      } else if (method === 'GET' && path === '/parcels') {
+        response = await handleListParcels(event);
+      } else if (method === 'POST' && path === '/parcels') {
+        response = await handleCreateParcel(event);
+      } else {
+        const parcelStatusMatch = path.match(/^\/parcels\/([^/]+)\/status$/);
+        if (method === 'PATCH' && parcelStatusMatch) {
+          response = await handleUpdateParcelStatus(parcelStatusMatch[1], event);
+        } else {
+          const parcelMatch = path.match(/^\/parcels\/([^/]+)$/);
+          if (method === 'GET' && parcelMatch) {
+            response = await handleGetParcel(parcelMatch[1]);
+          } else if (method === 'GET' && path === '/requests') {
+            response = await handleListRequests(event);
+          } else if (method === 'POST' && path === '/requests') {
+            response = await handleCreateRequest(event);
+          } else if (method === 'GET' && path === '/admin/disputes') {
+            response = await handleDisputesOverview(event);
+          } else {
+            const requestByTripMatch = path.match(/^\/requests\/by-trip\/([^/]+)$/);
+            if (method === 'GET' && requestByTripMatch) {
+              response = await handleListRequestsByTrip(event, requestByTripMatch[1]);
+            } else {
+              const requestByParcelMatch = path.match(/^\/requests\/by-parcel\/([^/]+)$/);
+              if (method === 'GET' && requestByParcelMatch) {
+                response = await handleListRequestsByParcel(event, requestByParcelMatch[1]);
+              } else {
+                const requestStatusMatch = path.match(/^\/requests\/([^/]+)\/status$/);
+                if (method === 'PATCH' && requestStatusMatch) {
+                  response = await handleUpdateRequestStatus(requestStatusMatch[1], event);
+                } else {
+                  const requestMatch = path.match(/^\/requests\/([^/]+)$/);
+                  if (method === 'GET' && requestMatch) {
+                    response = await handleGetRequest(event, requestMatch[1]);
+                  } else {
+                    response = json(404, {
+                      message: 'Not found',
+                      method,
+                      path,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
-  if (method === 'POST' && path === '/bookings/reserve') {
-    return handleReserveBooking(event);
-  }
+  // 3. Inject Observability & Tracing headers (p50/p95/p99 tracking)
+  const durationMs = performance.now() - startTime;
+  response.headers['x-request-id'] = requestId;
+  response.headers['server-timing'] = `app;dur=${durationMs.toFixed(2)}`;
 
-  if (method === 'GET' && path === '/trips') {
-    return handleListTrips(event);
-  }
-
-  if (method === 'POST' && path === '/trips') {
-    return handleCreateTrip(event);
-  }
-
-  const tripStatusMatch = path.match(/^\/trips\/([^/]+)\/status$/);
-  if (method === 'PATCH' && tripStatusMatch) {
-    return handleUpdateTripStatus(tripStatusMatch[1], event);
-  }
-
-  const tripMatch = path.match(/^\/trips\/([^/]+)$/);
-  if (method === 'GET' && tripMatch) {
-    return handleGetTrip(tripMatch[1]);
-  }
-
-  if (method === 'GET' && path === '/parcels') {
-    return handleListParcels(event);
-  }
-
-  if (method === 'POST' && path === '/parcels') {
-    return handleCreateParcel(event);
-  }
-
-  const parcelStatusMatch = path.match(/^\/parcels\/([^/]+)\/status$/);
-  if (method === 'PATCH' && parcelStatusMatch) {
-    return handleUpdateParcelStatus(parcelStatusMatch[1], event);
-  }
-
-  const parcelMatch = path.match(/^\/parcels\/([^/]+)$/);
-  if (method === 'GET' && parcelMatch) {
-    return handleGetParcel(parcelMatch[1]);
-  }
-
-  if (method === 'GET' && path === '/requests') {
-    return handleListRequests(event);
-  }
-
-  if (method === 'POST' && path === '/requests') {
-    return handleCreateRequest(event);
-  }
-
-  if (method === 'GET' && path === '/admin/disputes') {
-    return handleDisputesOverview(event);
-  }
-
-  const requestByTripMatch = path.match(/^\/requests\/by-trip\/([^/]+)$/);
-  if (method === 'GET' && requestByTripMatch) {
-    return handleListRequestsByTrip(event, requestByTripMatch[1]);
-  }
-
-  const requestByParcelMatch = path.match(/^\/requests\/by-parcel\/([^/]+)$/);
-  if (method === 'GET' && requestByParcelMatch) {
-    return handleListRequestsByParcel(event, requestByParcelMatch[1]);
-  }
-
-  const requestStatusMatch = path.match(/^\/requests\/([^/]+)\/status$/);
-  if (method === 'PATCH' && requestStatusMatch) {
-    return handleUpdateRequestStatus(requestStatusMatch[1], event);
-  }
-
-  const requestMatch = path.match(/^\/requests\/([^/]+)$/);
-  if (method === 'GET' && requestMatch) {
-    return handleGetRequest(event, requestMatch[1]);
-  }
-
-  return json(404, {
-    message: 'Not found',
-    method,
-    path,
-  });
+  return response;
 };

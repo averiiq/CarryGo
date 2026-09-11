@@ -113,6 +113,20 @@ Everything non-critical should be asynchronous:
 
 Build the system so it can scale, but do not provision expensive capacity before there is demand.
 
+## 2.5 Capacity Planning & Little's Law Formulation
+
+High-scale throughput follows Little’s Law:
+
+```text
+Throughput (Requests / Sec) = Concurrency / Latency (Seconds)
+```
+
+- If an API request takes **400 ms (0.4 s)**, a concurrency of **100** yields **250 RPS**.
+- If latency is driven down to **40 ms (0.04 s)** via lean synchronous execution and L1 in-memory caching, the same **100 concurrency** handles **2,500 RPS** (a 10x throughput multiplier with zero added infrastructure cost).
+
+**Core Takeaway from the 1M RPS Deep Dive:**
+> Never try to scale by merely provisioning bigger instances. Keep synchronous latency as small as possible, eliminate hot-path database scans, offload side effects to asynchronous queues, and measure before adding infrastructure.
+
 ---
 
 # 3. AWS Service Selection
@@ -876,57 +890,88 @@ If a future private dependency requires VPC access, design the network path deli
 
 # 25. Caching Strategy
 
-Do not deploy Redis initially.
+Do not deploy a dedicated Redis cluster initially.
 
-Use caching in this order:
+Follow this **multi-tier caching hierarchy** (learned from the 1M RPS architecture):
 
 ```text
-1. CloudFront
-2. Browser/mobile cache
-3. DynamoDB efficient query patterns
-4. Short-lived application cache if truly useful
-5. Redis/ElastiCache only after measured need
+Tier 0: CloudFront Edge Cache
+  │     └─ Static assets, public GET feeds with stale-while-revalidate (15s–30s)
+  ▼
+Tier 1: Lambda In-Memory Container Cache (MemoryCache)
+  │     └─ Fast O(1) in-process cache with LRU eviction & SingleFlight deduplication
+  ▼
+Tier 2: DynamoDB Primary Store
+  │     └─ Single-table exact key queries (1–3ms read SLA)
+  ▼
+Tier 3: Distributed In-Memory Cache (DAX / ElastiCache Redis Cluster)
+        └─ Only provisioned after measured read contention justifies the fixed cost
 ```
 
-Caching should solve a measured bottleneck, not a hypothetical one.
+### Cache Stampede Defense (SingleFlight Pattern)
+When high concurrency hits an expired cache key simultaneously:
+- **Anti-pattern**: 1,000 concurrent requests all query DynamoDB simultaneously (Cache Stampede / Thundering Herd), spiking latency and exhausting read units.
+- **CarryGo Pattern**: Implement `SingleFlight` promise deduplication. The first incoming request initiates the DynamoDB query; all subsequent concurrent callers await the identical in-flight Promise. Only 1 query reaches DynamoDB.
+
+### Cache Invalidation
+- Feeds are invalidated immediately on mutations (e.g. `createTrip` invalidates `trips:active:*`, `createParcel` invalidates `parcels:active:*`).
 
 ---
 
-# 26. API Performance
+# 26. API Performance & Bottleneck Defenses
 
-Target structure:
+### The 4 Bottleneck Walls (from 1M RPS Deep Dive)
+
+1. **The CPU Wall**:
+   - *Risk*: Heavy JSON parsing, object cloning, synchronous cryptographic calculations, or event loop blocking.
+   - *Defense*: Keep handlers lean, stream large data directly to S3 via presigned URLs, avoid nested iteration over large datasets.
+
+2. **The Network Wall**:
+   - *Risk*: Response payload bloat, packet-per-second limits, lack of connection keep-alive.
+   - *Defense*: Cursor-based pagination (max 50 items), compact DTOs, HTTP/2 via CloudFront with Brotli/Gzip compression, AWS SDK v3 connection reuse.
+
+3. **The Database Wall**:
+   - *Risk*: Unindexed table scans, hot-path `COUNT(*)` operations, lock contention.
+   - *Defense*: Single-table design with GSIs, zero hot-path scans, pre-aggregated atomic metric counters (`METRIC#AGGREGATES`), atomic transactions (`TransactWriteItems`).
+
+4. **The Cache & Contention Wall**:
+   - *Risk*: Cache stampedes, hot partition keys (e.g., all traffic hitting a single DynamoDB partition).
+   - *Defense*: SingleFlight stampede protection, synthetic sharded keys when write volumes on a single partition exceed 1,000 WCU.
+
+### Target API Structure
 
 ```text
-Request
-  |
-  +--> authenticate
-  +--> validate
-  +--> 1–3 optimized DB operations
-  |
-  +--> return response
-  |
-  +--> asynchronous work via SQS/EventBridge
+Incoming Request
+  │
+  ├─► Rate Limit Check (Sliding Window: 120 req/min general, 30 req/min mutations)
+  ├─► Trace Context (Extract/Generate x-request-id)
+  ├─► Authenticate (Cognito JWT verified at edge or API Gateway)
+  ├─► Validate (Schema & boundary checks)
+  ├─► Data Layer (L1 Cache Check -> 1 atomic DynamoDB operation)
+  │
+  ├─► Return HTTP Response (with x-request-id & Server-Timing: app;dur=...)
+  │
+  └─► Asynchronous Queue (Offload notifications, matching, audits via SQS)
 ```
 
-Avoid:
+### Bottleneck Diagnostic Decision Tree
 
 ```text
-Request
-  |
-  +--> many DB calls
-  +--> external API calls
-  +--> notification
-  +--> analytics
-  +--> heavy computation
-  |
-  +--> response
+Performance Degradation Detected (p95 > 400ms)
+  │
+  ├─► Check CloudWatch Lambda Duration & Memory
+  │     └─ High CPU/Duration without DB latency? ──► Profile CPU / Event Loop bloat
+  │
+  ├─► Check DynamoDB ConsumedCapacity & SystemErrors
+  │     ├─ High Read/Write Latency? ──────────────► Check for Hot Partitions / Unindexed Filters
+  │     └─ TransactionConflictExceptions? ────────► Contention on conditional row lock
+  │
+  ├─► Check SQS Queue Depth & AgeOfOldestMessage
+  │     └─ Backlog growing? ──────────────────────► Worker concurrency starved or poison pill
+  │
+  └─► Check Client Network / CloudFront Origin Latency
+        └─ High Origin Latency? ──────────────────► Cold starts or VPC/NAT gateway overhead
 ```
-
-Keep Lambda bundles small and use AWS SDK v3 modular imports.
-
-Do not put Lambda in a VPC without a concrete requirement.
-
-Use Provisioned Concurrency only for measured latency-sensitive endpoints where cold starts materially affect user experience. Do not enable it globally.
 
 ---
 
@@ -934,19 +979,20 @@ Use Provisioned Concurrency only for measured latency-sensitive endpoints where 
 
 Return only what the client needs.
 
-Use cursor pagination:
+1. **Cursor Pagination**:
+   ```text
+   GET /trips?limit=20&cursor=...
+   ```
+   Never return thousands of records. Max page size enforced at 100 items.
 
-```text
-GET /trips?limit=20&cursor=...
-```
-
-Never return thousands of records.
-
-Avoid over-fetching large profiles, histories and nested objects.
+2. **Observability Headers**:
+   - `x-request-id`: End-to-end correlation ID.
+   - `server-timing: app;dur=...`: Precise server-side execution timing for p50/p95/p99 tracking.
+   - `cache-control`: Explicit caching directives (`public, max-age=15, stale-while-revalidate=30` for read feeds; `no-store` for mutations).
 
 ---
 
-# 28. Database Cost Rules
+# 28. Database Cost & Scaling Rules
 
 1. Prefer `Query` over `Scan`.
 2. Keep item sizes small.
@@ -958,6 +1004,8 @@ Avoid over-fetching large profiles, histories and nested objects.
 8. Use TTL for temporary data.
 9. Monitor consumed capacity.
 10. Re-evaluate capacity mode from real traffic.
+11. **Strict Elimination of `COUNT(*)` Scans on the Hot Path**: Never query up to 1,000 items and take `.length` on the request path. Use pre-aggregated atomic metric counters (`METRIC#AGGREGATES`) or `Select: 'COUNT'` backed by L1 cache.
+12. **Single-Table Atomic Transactions (`TransactWriteItems`)**: Multi-item state transitions (such as creating a request across user/trip/parcel lookup indexes) must execute in a single roundtrip `TransactWriteCommand` to guarantee atomicity and eliminate partial state failure.
 
 AWS documents on-demand capacity as a strong fit for variable workloads because billing follows actual read/write usage rather than idle provisioned capacity. citeturn0search13
 
@@ -1358,54 +1406,34 @@ The objective is:
 
 ---
 
-# 41. Scaling Roadmap
+# 41. Scaling Roadmap (Aligned with 1M RPS Evolutionary Blueprint)
 
-## Stage 1 — MVP / Early Production
+Do not jump straight to high-scale infrastructure. Evolve systematically across 5 measured stages:
 
-```text
-S3
-CloudFront
-Route 53
-ACM
-API Gateway HTTP API
-Cognito
-Lambda
-DynamoDB On-Demand
-SQS + DLQ
-EventBridge
-SES/SNS
-CloudWatch
-CloudTrail
-```
+### Stage 1 — Serverless Foundation & Correctness (Current Baseline)
+- **Stack**: CloudFront + API Gateway HTTP API + Cognito + Modular Monolith Lambda + DynamoDB On-Demand + SQS/DLQ + S3.
+- **Focus**: Business logic correctness, atomic conditional transactions, idempotent reservations, strict separation of synchronous request paths from asynchronous queue workers.
+- **Cost**: ~$20–$50/mo idle; scales strictly with real traffic.
 
-## Stage 2 — Growth
+### Stage 2 — In-Memory Acceleration & Stampede Defense (Active)
+- **Stack**: Lambda container L1 `MemoryCache` + SingleFlight promise deduplication + sliding-window rate limiting.
+- **Focus**: Eliminate cache stampedes on cold misses; drop p95 read latencies to < 50 ms on hot routes without paying for external cache clusters.
+- **Cost**: $0 extra infrastructure (uses container memory).
 
-Add only if metrics justify:
+### Stage 3 — Distributed In-Memory Hot Layer (When Cross-Container Cache Is Needed)
+- **Trigger**: Measured DynamoDB read contention across hundreds of concurrent Lambda instances on identical route queries.
+- **Stack**: DynamoDB Accelerator (DAX) or ElastiCache for Redis Cluster.
+- **Focus**: Sub-millisecond read layer, distributed rate limiting, and ephemeral session cache.
 
-```text
-WAF
-advanced alarms
-DynamoDB capacity tuning
-DynamoDB Streams
-WebSockets
-more sophisticated matching
-specialized background workers
-```
+### Stage 4 — Horizontal Scaling & Partition Sharding
+- **Trigger**: Single partition key write volume approaches 1,000 WCU (e.g., nationwide mega-route spike).
+- **Stack**: Synthetic partition key sharding (`ROUTE#DEL#BOM#<shard_0..N>`) + DynamoDB Global Tables.
+- **Focus**: Removing database partition write limits and enabling multi-region read replicas.
 
-## Stage 3 — High Scale
-
-Potentially evaluate:
-
-```text
-ElastiCache
-OpenSearch
-streaming infrastructure
-service extraction
-multi-region
-specialized data stores
-```
-
-These are **evolution options, not day-one dependencies**.
+### Stage 5 — Extreme Hot Path Microservice Extraction
+- **Trigger**: Node.js event loop saturation or CPU serialization bottleneck under 50,000+ RPS on a single computation-heavy path (e.g., real-time geospatial route matching).
+- **Stack**: Extract the hot route into a standalone containerized service (ECS Fargate / Fastify, or compiled C++/Drogon as demonstrated in the 1M RPS experiment).
+- **Rule**: Never rewrite everything. Only extract the specific measured hot bottleneck.
 
 ---
 
@@ -1424,20 +1452,20 @@ Until that requirement exists, DynamoDB keeps the architecture simpler and more 
 
 ---
 
-# 43. Performance Targets
+# 43. Performance Targets & Little's Law Capacity Budgets
 
-Initial engineering targets, to be validated by load tests:
+Engineering budgets to be validated by continuous benchmarking (AutoCannon / k6):
 
-| Metric | Initial target |
-|---|---:|
-| Simple API p50 | < 150 ms |
-| Normal API p95 | < 400 ms |
-| Normal write p95 | < 600 ms excluding external payment |
-| DynamoDB normal query | low tens of ms or better |
-| Static asset delivery | CloudFront cached |
-| Booking reservation | atomic |
-| Duplicate booking from retry | prevented |
-| Notification | asynchronous |
+| Metric | Target | Notes |
+|---|---:|---|
+| L1 Cached Read p50 | < 25 ms | Served from Lambda container memory |
+| L1 Cached Read p95 | < 50 ms | SingleFlight stampede protected |
+| DynamoDB Uncached Read p95 | < 120 ms | Exact PK/SK or GSI query |
+| Atomic Mutation p95 | < 350 ms | `TransactWriteItems` + SQS async enqueue |
+| External Payment p95 | < 800 ms | Razorpay gateway dependent |
+| Max Response Payload | < 25 KB | Gzip/Brotli compressed at CloudFront edge |
+| API Error Rate (5xx) | < 0.05% | Excluding client 4xx validation errors |
+| Throughput Capacity (100 Concurrency) | > 2,000 RPS | Calculated via Little's Law ($100 / 0.050s$) |
 
 These are **engineering targets, not guarantees**. Production measurements determine whether the targets are achieved.
 

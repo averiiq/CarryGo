@@ -30,10 +30,14 @@ export const handleListParcels = async (
     offset,
   });
 
-  return json(200, {
-    data: items,
-    total,
-  });
+  return json(
+    200,
+    {
+      data: items,
+      total,
+    },
+    { cacheControl: 'public, max-age=15, stale-while-revalidate=30' },
+  );
 };
 
 export const handleGetParcel = async (
@@ -44,7 +48,11 @@ export const handleGetParcel = async (
     return json(404, { message: 'Parcel not found' });
   }
 
-  return json(200, { data: parcel });
+  return json(
+    200,
+    { data: parcel },
+    { cacheControl: 'public, max-age=30, stale-while-revalidate=60' },
+  );
 };
 
 export const handleCreateParcel = async (

@@ -2,14 +2,16 @@ import { randomUUID } from 'crypto';
 import {
   BatchGetCommand,
   GetCommand,
-  PutCommand,
   QueryCommand,
+  TransactWriteCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../../lib/dynamo';
 import { config } from '../../config';
 import { getParcelById } from '../parcels/service';
 import { getTripById } from '../trips/service';
+import { l1Cache } from '../../lib/cache';
+import { enqueueDomainEvent } from '../../lib/queue';
 
 export type RequestStatus =
   | 'pending'
@@ -102,21 +104,29 @@ const toRequest = (item: Record<string, unknown>): RequestItem => ({
 });
 
 const getRequestMeta = async (requestId: string): Promise<RequestItem | null> => {
-  const { Item } = await ddb.send(
-    new GetCommand({
-      TableName: config.coreTableName,
-      Key: {
-        pk: `REQUEST#${requestId}`,
-        sk: 'META',
-      },
-    }),
+  const cacheKey = `request:${requestId}`;
+
+  return l1Cache.getOrFetch(
+    cacheKey,
+    async () => {
+      const { Item } = await ddb.send(
+        new GetCommand({
+          TableName: config.coreTableName,
+          Key: {
+            pk: `REQUEST#${requestId}`,
+            sk: 'META',
+          },
+        }),
+      );
+
+      if (!Item || Item.entityType !== 'request') {
+        return null;
+      }
+
+      return toRequest(Item as Record<string, unknown>);
+    },
+    15_000,
   );
-
-  if (!Item || Item.entityType !== 'request') {
-    return null;
-  }
-
-  return toRequest(Item as Record<string, unknown>);
 };
 
 const listByLookup = async (lookupKey: string): Promise<RequestItem[]> => {
@@ -210,21 +220,33 @@ export const listRequestsByStatus = async (
     .map((item) => toRequest(item as Record<string, unknown>));
 };
 
+/**
+ * Optimized Count: Uses Select: 'COUNT' + L1 Cache to avoid scanning
+ * large entity payload records over the network on the hot path.
+ */
 export const countRequestsByStatus = async (status: RequestStatus): Promise<number> => {
-  const { Items } = await ddb.send(
-    new QueryCommand({
-      TableName: config.coreTableName,
-      IndexName: 'gsi1',
-      KeyConditionExpression: 'gsi1pk = :pk',
-      ExpressionAttributeValues: {
-        ':pk': `REQUEST#STATUS#${status}`,
-      },
-      ScanIndexForward: false,
-      Limit: 1000,
-    }),
-  );
+  const cacheKey = `request_count:${status}`;
 
-  return (Items ?? []).filter((item) => item.entityType === 'request').length;
+  return l1Cache.getOrFetch(
+    cacheKey,
+    async () => {
+      const response = await ddb.send(
+        new QueryCommand({
+          TableName: config.coreTableName,
+          IndexName: 'gsi1',
+          KeyConditionExpression: 'gsi1pk = :pk',
+          ExpressionAttributeValues: {
+            ':pk': `REQUEST#STATUS#${status}`,
+          },
+          Select: 'COUNT',
+          Limit: 1000,
+        }),
+      );
+
+      return response.Count ?? 0;
+    },
+    10_000, // 10s TTL
+  );
 };
 
 export const getDisputeDashboardData = async (
@@ -241,6 +263,10 @@ export const getDisputeDashboardData = async (
   };
 };
 
+/**
+ * Creates request using a single atomic TransactWriteCommand.
+ * Prevents partial state corruption and collapses 5 network roundtrips into 1.
+ */
 export const createRequest = async (
   payload: Omit<RequestItem, 'id' | 'createdAt' | 'updatedAt' | 'status'> & {
     status?: RequestStatus;
@@ -279,8 +305,9 @@ export const createRequest = async (
     throw new Error('Trip is no longer active');
   }
 
-  const sameRoute = normalizeCity(parcel.fromCity) === normalizeCity(trip.fromCity)
-    && normalizeCity(parcel.toCity) === normalizeCity(trip.toCity);
+  const sameRoute =
+    normalizeCity(parcel.fromCity) === normalizeCity(trip.fromCity) &&
+    normalizeCity(parcel.toCity) === normalizeCity(trip.toCity);
   if (!sameRoute) {
     throw new Error('Parcel and trip routes must match exactly');
   }
@@ -299,78 +326,98 @@ export const createRequest = async (
     ...payload,
   };
 
+  // Atomic 5-item write in a single roundtrip transaction
   await ddb.send(
-    new PutCommand({
-      TableName: config.coreTableName,
-      Item: {
-        pk: `REQUEST#${id}`,
-        sk: 'META',
-        entityType: 'request',
-        ...item,
-        gsi1pk: `REQUEST#STATUS#${item.status}`,
-        gsi1sk: `REQUEST#${item.createdAt}#${id}`,
-        gsi2pk: `REQUEST#TRIP#${item.tripId}`,
-        gsi2sk: `REQUEST#${item.createdAt}#${id}`,
-      },
-      ConditionExpression: 'attribute_not_exists(pk)',
+    new TransactWriteCommand({
+      TransactItems: [
+        {
+          Put: {
+            TableName: config.coreTableName,
+            Item: {
+              pk: `REQUEST#${id}`,
+              sk: 'META',
+              entityType: 'request',
+              ...item,
+              gsi1pk: `REQUEST#STATUS#${item.status}`,
+              gsi1sk: `REQUEST#${item.createdAt}#${id}`,
+              gsi2pk: `REQUEST#TRIP#${item.tripId}`,
+              gsi2sk: `REQUEST#${item.createdAt}#${id}`,
+            },
+            ConditionExpression: 'attribute_not_exists(pk)',
+          },
+        },
+        {
+          Put: {
+            TableName: config.coreTableName,
+            Item: {
+              pk: `REQUEST#${id}`,
+              sk: `LOOKUP#USER#${item.senderId}`,
+              entityType: 'request_lookup',
+              requestId: id,
+              gsi1pk: `REQUEST#USER#${item.senderId}`,
+              gsi1sk: `REQUEST#${item.createdAt}#${id}`,
+            },
+          },
+        },
+        {
+          Put: {
+            TableName: config.coreTableName,
+            Item: {
+              pk: `REQUEST#${id}`,
+              sk: `LOOKUP#USER#${item.travellerId}`,
+              entityType: 'request_lookup',
+              requestId: id,
+              gsi1pk: `REQUEST#USER#${item.travellerId}`,
+              gsi1sk: `REQUEST#${item.createdAt}#${id}`,
+            },
+          },
+        },
+        {
+          Put: {
+            TableName: config.coreTableName,
+            Item: {
+              pk: `REQUEST#${id}`,
+              sk: `LOOKUP#TRIP#${item.tripId}`,
+              entityType: 'request_lookup',
+              requestId: id,
+              gsi1pk: `REQUEST#TRIP#${item.tripId}`,
+              gsi1sk: `REQUEST#${item.createdAt}#${id}`,
+            },
+          },
+        },
+        {
+          Put: {
+            TableName: config.coreTableName,
+            Item: {
+              pk: `REQUEST#${id}`,
+              sk: `LOOKUP#PARCEL#${item.parcelId}`,
+              entityType: 'request_lookup',
+              requestId: id,
+              gsi1pk: `REQUEST#PARCEL#${item.parcelId}`,
+              gsi1sk: `REQUEST#${item.createdAt}#${id}`,
+            },
+          },
+        },
+      ],
     }),
   );
 
-  await ddb.send(
-    new PutCommand({
-      TableName: config.coreTableName,
-      Item: {
-        pk: `REQUEST#${id}`,
-        sk: `LOOKUP#USER#${item.senderId}`,
-        entityType: 'request_lookup',
-        requestId: id,
-        gsi1pk: `REQUEST#USER#${item.senderId}`,
-        gsi1sk: `REQUEST#${item.createdAt}#${id}`,
-      },
-    }),
-  );
+  l1Cache.invalidate('request_count:pending');
 
-  await ddb.send(
-    new PutCommand({
-      TableName: config.coreTableName,
-      Item: {
-        pk: `REQUEST#${id}`,
-        sk: `LOOKUP#USER#${item.travellerId}`,
-        entityType: 'request_lookup',
-        requestId: id,
-        gsi1pk: `REQUEST#USER#${item.travellerId}`,
-        gsi1sk: `REQUEST#${item.createdAt}#${id}`,
-      },
-    }),
-  );
-
-  await ddb.send(
-    new PutCommand({
-      TableName: config.coreTableName,
-      Item: {
-        pk: `REQUEST#${id}`,
-        sk: `LOOKUP#TRIP#${item.tripId}`,
-        entityType: 'request_lookup',
-        requestId: id,
-        gsi1pk: `REQUEST#TRIP#${item.tripId}`,
-        gsi1sk: `REQUEST#${item.createdAt}#${id}`,
-      },
-    }),
-  );
-
-  await ddb.send(
-    new PutCommand({
-      TableName: config.coreTableName,
-      Item: {
-        pk: `REQUEST#${id}`,
-        sk: `LOOKUP#PARCEL#${item.parcelId}`,
-        entityType: 'request_lookup',
-        requestId: id,
-        gsi1pk: `REQUEST#PARCEL#${item.parcelId}`,
-        gsi1sk: `REQUEST#${item.createdAt}#${id}`,
-      },
-    }),
-  );
+  // Enqueue async event for push notifications & audit log
+  await enqueueDomainEvent({
+    topic: 'request.created',
+    actorId: item.senderId,
+    entityType: 'request',
+    entityId: id,
+    payload: {
+      parcelId: item.parcelId,
+      tripId: item.tripId,
+      senderId: item.senderId,
+      travellerId: item.travellerId,
+      price: item.price,
+    },
+  });
 
   return item;
 };
@@ -387,7 +434,10 @@ export const updateRequestStatus = async (
   }
 
   if (current.senderId !== userId && current.travellerId !== userId) {
-    return { updated: false, error: 'Only the sender or assigned traveller can update this request' };
+    return {
+      updated: false,
+      error: 'Only the sender or assigned traveller can update this request',
+    };
   }
   const transitionError = validateRequestTransition(current, status, userId);
   if (transitionError) {
@@ -425,6 +475,23 @@ export const updateRequestStatus = async (
       ConditionExpression: 'attribute_exists(pk)',
     }),
   );
+
+  l1Cache.invalidate(`request:${requestId}`);
+  l1Cache.invalidate(`request_count:${current.status}`);
+  l1Cache.invalidate(`request_count:${status}`);
+
+  await enqueueDomainEvent({
+    topic: 'request.status_changed',
+    actorId: userId,
+    entityType: 'request',
+    entityId: requestId,
+    payload: {
+      oldStatus: current.status,
+      newStatus: status,
+      senderId: current.senderId,
+      travellerId: current.travellerId,
+    },
+  });
 
   return {
     updated: true,

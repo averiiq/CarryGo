@@ -7,6 +7,8 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../../lib/dynamo';
 import { config } from '../../config';
+import { l1Cache } from '../../lib/cache';
+import { enqueueDomainEvent } from '../../lib/queue';
 
 export type TripStatus = 'active' | 'completed' | 'cancelled';
 
@@ -66,70 +68,92 @@ const toTrip = (item: Record<string, unknown>): TripItem => ({
   createdAt: String(item.createdAt),
 });
 
+/**
+ * List trips with L1 caching and SingleFlight stampede protection.
+ * Concurrently identical queries share a single DynamoDB fetch.
+ */
 export const listTrips = async (
   filters: ListTripsFilters,
 ): Promise<{ items: TripItem[]; total: number }> => {
-  const { Items } = await ddb.send(
-    new QueryCommand({
-      TableName: config.coreTableName,
-      IndexName: 'gsi1',
-      KeyConditionExpression: 'gsi1pk = :pk',
-      ExpressionAttributeValues: {
-        ':pk': 'TRIP#STATUS#active',
-      },
-      ScanIndexForward: false,
-      Limit: Math.min(filters.limit + filters.offset + 50, 500),
-    }),
-  );
-
   const fromCity = normalize(filters.fromCity);
   const toCity = normalize(filters.toCity);
   const userCity = normalize(filters.userCity);
 
-  const filtered = (Items ?? [])
-    .filter((item) => item.entityType === 'trip')
-    .map((item) => toTrip(item as Record<string, unknown>))
-    .filter((trip) => {
-      if (fromCity && !includesText(trip.fromCity, fromCity)) {
-        return false;
-      }
+  const cacheKey = `trips:active:${fromCity ?? '*'}:${toCity ?? '*'}:${userCity ?? '*'}:${filters.limit}:${filters.offset}`;
 
-      if (toCity && !includesText(trip.toCity, toCity)) {
-        return false;
-      }
+  return l1Cache.getOrFetch(
+    cacheKey,
+    async () => {
+      const { Items } = await ddb.send(
+        new QueryCommand({
+          TableName: config.coreTableName,
+          IndexName: 'gsi1',
+          KeyConditionExpression: 'gsi1pk = :pk',
+          ExpressionAttributeValues: {
+            ':pk': 'TRIP#STATUS#active',
+          },
+          ScanIndexForward: false,
+          Limit: Math.min(filters.limit + filters.offset + 50, 500),
+        }),
+      );
 
-      if (userCity && !fromCity && !toCity) {
-        return includesText(trip.fromCity, userCity) || includesText(trip.toCity, userCity);
-      }
+      const filtered = (Items ?? [])
+        .filter((item) => item.entityType === 'trip')
+        .map((item) => toTrip(item as Record<string, unknown>))
+        .filter((trip) => {
+          if (fromCity && !includesText(trip.fromCity, fromCity)) {
+            return false;
+          }
 
-      return true;
-    });
+          if (toCity && !includesText(trip.toCity, toCity)) {
+            return false;
+          }
 
-  return {
-    items: filtered.slice(filters.offset, filters.offset + filters.limit),
-    total: filtered.length,
-  };
+          if (userCity && !fromCity && !toCity) {
+            return includesText(trip.fromCity, userCity) || includesText(trip.toCity, userCity);
+          }
+
+          return true;
+        });
+
+      return {
+        items: filtered.slice(filters.offset, filters.offset + filters.limit),
+        total: filtered.length,
+      };
+    },
+    15_000, // 15s TTL (hot feed cache)
+  );
 };
 
 export const getTripById = async (tripId: string): Promise<TripItem | null> => {
-  const { Item } = await ddb.send(
-    new GetCommand({
-      TableName: config.coreTableName,
-      Key: {
-        pk: `TRIP#${tripId}`,
-        sk: 'META',
-      },
-    }),
+  const cacheKey = `trip:${tripId}`;
+
+  return l1Cache.getOrFetch(
+    cacheKey,
+    async () => {
+      const { Item } = await ddb.send(
+        new GetCommand({
+          TableName: config.coreTableName,
+          Key: {
+            pk: `TRIP#${tripId}`,
+            sk: 'META',
+          },
+        }),
+      );
+
+      if (!Item || Item.entityType !== 'trip') {
+        return null;
+      }
+
+      return toTrip(Item as Record<string, unknown>);
+    },
+    30_000, // 30s TTL
   );
-
-  if (!Item || Item.entityType !== 'trip') {
-    return null;
-  }
-
-  return toTrip(Item as Record<string, unknown>);
 };
 
-export const createTrip = async (payload: Omit<TripItem, 'id' | 'createdAt'>): Promise<TripItem> => {
+export const createTrip = async (
+  payload: Omit<TripItem, 'id' | 'createdAt'>,
+): Promise<TripItem> => {
   const id = randomUUID();
   const createdAt = new Date().toISOString();
   const item: TripItem = {
@@ -154,6 +178,25 @@ export const createTrip = async (payload: Omit<TripItem, 'id' | 'createdAt'>): P
       ConditionExpression: 'attribute_not_exists(pk)',
     }),
   );
+
+  // Invalidate feed cache immediately
+  l1Cache.invalidatePrefix('trips:active:');
+
+  // Enqueue async event (route subscriber notifications, analytics) off the hot path
+  await enqueueDomainEvent({
+    topic: 'trip.created',
+    actorId: item.userId,
+    entityType: 'trip',
+    entityId: id,
+    payload: {
+      fromCity: item.fromCity,
+      toCity: item.toCity,
+      date: item.date,
+      vehicleType: item.vehicleType,
+      availableCapacity: item.availableCapacity,
+      pricePerKg: item.pricePerKg,
+    },
+  });
 
   return item;
 };
@@ -191,6 +234,20 @@ export const updateTripStatus = async (
     }),
   );
 
+  // Invalidate both the item and list caches
+  l1Cache.invalidate(`trip:${tripId}`);
+  l1Cache.invalidatePrefix('trips:active:');
+
+  await enqueueDomainEvent({
+    topic: 'trip.status_changed',
+    actorId: userId,
+    entityType: 'trip',
+    entityId: tripId,
+    payload: {
+      oldStatus: current.status,
+      newStatus: status,
+    },
+  });
+
   return { updated: true };
 };
-

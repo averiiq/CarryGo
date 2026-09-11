@@ -7,6 +7,8 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../../lib/dynamo';
 import { config } from '../../config';
+import { l1Cache } from '../../lib/cache';
+import { enqueueDomainEvent } from '../../lib/queue';
 
 export type ParcelStatus =
   | 'open'
@@ -101,59 +103,78 @@ const queryByStatus = async (status: ParcelStatus, max: number): Promise<ParcelI
     .map((item) => toParcel(item as Record<string, unknown>));
 };
 
+/**
+ * List parcels with L1 caching and SingleFlight stampede protection.
+ */
 export const listParcels = async (
   filters: ListParcelsFilters,
 ): Promise<{ items: ParcelItem[]; total: number }> => {
-  const maxRead = Math.min(filters.limit + filters.offset + 50, 500);
-  const [openItems, matchedItems] = await Promise.all([
-    queryByStatus('open', maxRead),
-    queryByStatus('matched', maxRead),
-  ]);
-
   const fromCity = normalize(filters.fromCity);
   const toCity = normalize(filters.toCity);
   const userCity = normalize(filters.userCity);
 
-  const filtered = [...openItems, ...matchedItems]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .filter((parcel) => {
-      if (fromCity && !includesText(parcel.fromCity, fromCity)) {
-        return false;
-      }
+  const cacheKey = `parcels:active:${fromCity ?? '*'}:${toCity ?? '*'}:${userCity ?? '*'}:${filters.limit}:${filters.offset}`;
 
-      if (toCity && !includesText(parcel.toCity, toCity)) {
-        return false;
-      }
+  return l1Cache.getOrFetch(
+    cacheKey,
+    async () => {
+      const maxRead = Math.min(filters.limit + filters.offset + 50, 500);
+      const [openItems, matchedItems] = await Promise.all([
+        queryByStatus('open', maxRead),
+        queryByStatus('matched', maxRead),
+      ]);
 
-      if (userCity && !fromCity && !toCity) {
-        return includesText(parcel.fromCity, userCity) || includesText(parcel.toCity, userCity);
-      }
+      const filtered = [...openItems, ...matchedItems]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .filter((parcel) => {
+          if (fromCity && !includesText(parcel.fromCity, fromCity)) {
+            return false;
+          }
 
-      return true;
-    });
+          if (toCity && !includesText(parcel.toCity, toCity)) {
+            return false;
+          }
 
-  return {
-    items: filtered.slice(filters.offset, filters.offset + filters.limit),
-    total: filtered.length,
-  };
+          if (userCity && !fromCity && !toCity) {
+            return includesText(parcel.fromCity, userCity) || includesText(parcel.toCity, userCity);
+          }
+
+          return true;
+        });
+
+      return {
+        items: filtered.slice(filters.offset, filters.offset + filters.limit),
+        total: filtered.length,
+      };
+    },
+    15_000, // 15s TTL (hot feed cache)
+  );
 };
 
 export const getParcelById = async (parcelId: string): Promise<ParcelItem | null> => {
-  const { Item } = await ddb.send(
-    new GetCommand({
-      TableName: config.coreTableName,
-      Key: {
-        pk: `PARCEL#${parcelId}`,
-        sk: 'META',
-      },
-    }),
+  const cacheKey = `parcel:${parcelId}`;
+
+  return l1Cache.getOrFetch(
+    cacheKey,
+    async () => {
+      const { Item } = await ddb.send(
+        new GetCommand({
+          TableName: config.coreTableName,
+          Key: {
+            pk: `PARCEL#${parcelId}`,
+            sk: 'META',
+          },
+        }),
+      );
+
+      if (!Item || Item.entityType !== 'parcel') {
+        return null;
+      }
+
+      return toParcel(Item as Record<string, unknown>);
+    },
+    30_000, // 30s TTL
   );
-
-  if (!Item || Item.entityType !== 'parcel') {
-    return null;
-  }
-
-  return toParcel(Item as Record<string, unknown>);
 };
 
 export const createParcel = async (
@@ -183,6 +204,24 @@ export const createParcel = async (
       ConditionExpression: 'attribute_not_exists(pk)',
     }),
   );
+
+  // Invalidate feed cache immediately
+  l1Cache.invalidatePrefix('parcels:active:');
+
+  // Enqueue async smart matching off the synchronous HTTP path
+  await enqueueDomainEvent({
+    topic: 'parcel.created',
+    actorId: item.userId,
+    entityType: 'parcel',
+    entityId: id,
+    payload: {
+      fromCity: item.fromCity,
+      toCity: item.toCity,
+      weight: item.weight,
+      category: item.category,
+      priceOffer: item.priceOffer,
+    },
+  });
 
   return item;
 };
@@ -220,6 +259,19 @@ export const updateParcelStatus = async (
     }),
   );
 
+  l1Cache.invalidate(`parcel:${parcelId}`);
+  l1Cache.invalidatePrefix('parcels:active:');
+
+  await enqueueDomainEvent({
+    topic: 'parcel.status_changed',
+    actorId: userId,
+    entityType: 'parcel',
+    entityId: parcelId,
+    payload: {
+      oldStatus: current.status,
+      newStatus: status,
+    },
+  });
+
   return { updated: true };
 };
-
