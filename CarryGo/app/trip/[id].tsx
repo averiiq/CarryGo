@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
@@ -21,16 +21,22 @@ import { RequestItem } from '@/components/feature/RequestItem';
 import { styles } from '@/styles/trip/[id].styles';
 
 const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-  bike: 'two-wheeler', car: 'directions-car', bus: 'directions-bus',
-  train: 'train', flight: 'flight',
+  bike: 'two-wheeler',
+  car: 'directions-car',
+  bus: 'directions-bus',
+  train: 'train',
+  flight: 'flight',
 };
+
 const vehicleGradients: Record<string, [string, string]> = {
-  bike: ['#D97706', '#B45309'],
-  car: ['#2563EB', '#1D4ED8'],
-  bus: ['#7C3AED', '#6D28D9'],
-  train: ['#0F766E', '#0D9488'],
-  flight: ['#16A34A', '#15803D'],
+  bike: ['#D97706', '#92400E'],
+  car: ['#4F46E5', '#312E81'],
+  bus: ['#7C3AED', '#5B21B6'],
+  train: ['#0F766E', '#115E59'],
+  flight: ['#0284C7', '#075985'],
 };
+
+type TabFilter = 'all' | 'pending' | 'active' | 'done';
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,6 +45,7 @@ export default function TripDetailScreen() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
+
   const tripQuery = useTripQuery(id);
   const requestsQuery = useRequestsByTripQuery(id);
   const conversationsQuery = useConversationsQuery(user?.id);
@@ -47,20 +54,24 @@ export default function TripDetailScreen() {
   const updateTripStatusMutation = useUpdateTripStatusMutation(user?.id);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<TabFilter>('all');
 
   const trip = (tripQuery.data ?? undefined) as Trip | undefined;
   const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   const isOwner = trip?.userId === user?.id;
+
   const visibleRequests = useMemo(() => {
     if (isOwner) return requests;
     return requests.filter(request => request.senderId === user?.id);
   }, [isOwner, requests, user?.id]);
+
   const viewerRole: 'traveller' | 'sender' | 'observer' = isOwner
     ? 'traveller'
     : visibleRequests.length > 0
       ? 'sender'
       : 'observer';
+
   const requestedParcelIds = useMemo(
     () => [...new Set(visibleRequests.map(request => request.parcelId))].sort(),
     [visibleRequests]
@@ -68,8 +79,10 @@ export default function TripDetailScreen() {
   const parcelsQuery = useParcelsByIdsQuery(requestedParcelIds);
   const parcels = parcelsQuery.data ?? [];
   const loading = tripQuery.isLoading || requestsQuery.isLoading || parcelsQuery.isLoading;
-  const vGradient: [string, string] = trip ? (vehicleGradients[trip.vehicleType] || ['#52525B', '#18181B']) : ['#52525B', '#18181B'];
-  const vColor = vGradient[0];
+
+  const vGradient: [string, string] = trip
+    ? (vehicleGradients[trip.vehicleType] || ['#4F46E5', '#312E81'])
+    : ['#4F46E5', '#312E81'];
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -170,280 +183,363 @@ export default function TripDetailScreen() {
     ]);
   };
 
+  const handleShareTrip = async () => {
+    if (!trip) return;
+    try {
+      await Share.share({
+        message: `CarryGo Trip: Travelling from ${trip.fromCity} to ${trip.toCity} on ${trip.date} at ${trip.time}. Space available for parcels! Connect with me on CarryGo.`,
+      });
+    } catch {
+      // Ignored
+    }
+  };
+
   const pending = visibleRequests.filter(r => r.status === 'pending');
   const active = visibleRequests.filter(r => r.status === 'accepted');
-  const done = visibleRequests.filter(r => r.status === 'completed' || r.status === 'rejected' || r.status === 'cancelled' || r.status === 'failed');
+  const done = visibleRequests.filter(r => ['completed', 'rejected', 'cancelled', 'failed'].includes(r.status));
   const totalEarnings = visibleRequests.filter(r => r.status === 'completed').reduce((s, r) => s + r.price, 0);
+
+  // Compute booked weight
+  const bookedWeight = useMemo(() => {
+    const acceptedRequests = visibleRequests.filter(r => r.status === 'accepted');
+    return acceptedRequests.reduce((acc, req) => {
+      const p = parcels.find(item => item.id === req.parcelId);
+      return acc + (p?.weight || 0);
+    }, 0);
+  }, [visibleRequests, parcels]);
+
+  const capacityRatio = trip?.availableCapacity ? Math.min(1, bookedWeight / trip.availableCapacity) : 0;
+  const remainingWeight = trip?.availableCapacity ? Math.max(0, trip.availableCapacity - bookedWeight) : 0;
+
+  const displayedRequests = useMemo(() => {
+    if (selectedTab === 'pending') return pending;
+    if (selectedTab === 'active') return active;
+    if (selectedTab === 'done') return done;
+    return visibleRequests;
+  }, [selectedTab, visibleRequests, pending, active, done]);
 
   if (!trip) {
     return (
       <View style={[styles.center, { backgroundColor: C.background }]}>
-        <ActivityIndicator color={C.primary} />
+        <ActivityIndicator color={C.primary} size="large" />
       </View>
     );
   }
 
+  const isTripActive = trip.status === 'active';
+
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <LinearGradient
-          colors={[vColor + '12', 'transparent']}
-          style={styles.headerGradient}
-        />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      {/* Top Floating App Bar */}
+      <View style={[styles.topNavBar, { paddingTop: insets.top + 8 }]}>
         <Pressable
           onPress={() => router.back()}
-          style={[styles.backBtn, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}
+          style={({ pressed }) => [
+            styles.roundNavBtn,
+            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.75 }
+          ]}
           hitSlop={8}
         >
           <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
         </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{trip.fromCity} → {trip.toCity}</Text>
-          <Text style={[styles.headerSub, { color: C.textMuted }]}>{trip.date} • {trip.time}</Text>
+
+        <View style={styles.navTitleContainer}>
+          <Text style={[styles.navTitle, { color: C.textPrimary }]}>
+            {isOwner ? 'Manage Trip' : 'Trip Details'}
+          </Text>
+          <View style={styles.navSubRow}>
+            <View style={[
+              styles.navStatusDot,
+              { backgroundColor: isTripActive ? C.success : C.textMuted }
+            ]} />
+            <Text style={[styles.navSubtitle, { color: C.textMuted }]}>
+              {trip.status.toUpperCase()}
+            </Text>
+          </View>
         </View>
-        {isOwner && trip.status === 'active' ? (
+
+        <View style={styles.navRightRow}>
           <Pressable
-            onPress={handleCancelTrip}
-            style={({ pressed }) => [styles.cancelHeaderBtn, { backgroundColor: C.errorSubtle, borderColor: C.error + '30' }, pressed && { opacity: 0.7 }]}
+            onPress={handleShareTrip}
+            style={({ pressed }) => [
+              styles.roundNavBtn,
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.75 }
+            ]}
             hitSlop={6}
           >
-            <MaterialIcons name="close" size={16} color={C.error} />
+            <MaterialIcons name="share" size={18} color={C.textSecondary} />
           </Pressable>
-        ) : null}
-        <View style={styles.vehicleBadge}>
-          <LinearGradient colors={vGradient} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 14 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-          <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'directions-car'} size={18} color="#fff" />
+
+          {isOwner && isTripActive ? (
+            <Pressable
+              onPress={handleCancelTrip}
+              style={({ pressed }) => [
+                styles.roundNavBtn,
+                { backgroundColor: C.errorSubtle, borderColor: C.error + '30' },
+                pressed && { opacity: 0.75 }
+              ]}
+              hitSlop={6}
+            >
+              <MaterialIcons name="delete-outline" size={18} color={C.error} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[styles.scrollBody, { paddingBottom: insets.bottom + 36 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
       >
-        {/* Trip Hero Card */}
-        <View style={[styles.tripCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <LinearGradient
-            colors={[vColor + '10', 'transparent']}
-            style={styles.cardGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
+        {/* Travel Ticket Board Card */}
+        <View style={[styles.ticketCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          {/* Header Ticket Zone with Vehicle Gradient */}
+          <View style={styles.ticketHeader}>
+            <LinearGradient
+              colors={vGradient}
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
 
-          {/* Route visualization */}
-          <View style={styles.routeSection}>
-            <View style={styles.routeVisual}>
-              <View style={[styles.originDot, { backgroundColor: '#10B981' }]} />
-              <View style={[styles.routeDash, { borderColor: C.surfaceBorderLight }]} />
-              <View style={[styles.destDot, { backgroundColor: C.error }]} />
+            <View style={styles.ticketTopRow}>
+              <View style={styles.vehicleChip}>
+                <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'directions-car'} size={14} color="#fff" />
+                <Text style={styles.vehicleChipText}>{trip.vehicleType.toUpperCase()}</Text>
+              </View>
+
+              <View style={styles.statusChip}>
+                <View style={[styles.statusDot, { backgroundColor: isTripActive ? '#10B981' : '#E2E8F0' }]} />
+                <Text style={styles.statusChipText}>{trip.status.toUpperCase()}</Text>
+              </View>
             </View>
-            <View style={styles.routeText}>
-              <Text style={[styles.fromCity, { color: C.textPrimary }]}>{trip.fromCity}</Text>
-              <Text style={[styles.toCity, { color: C.textPrimary }]}>{trip.toCity}</Text>
+
+            {/* Ticket Route */}
+            <View style={styles.ticketRouteRow}>
+              <View style={styles.routeCityCol}>
+                <Text style={styles.routeLabel}>DEPARTURE</Text>
+                <Text style={styles.routeCityText} numberOfLines={1}>{trip.fromCity}</Text>
+              </View>
+
+              <View style={styles.transportCapsule}>
+                <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'arrow-forward'} size={22} color="#fff" />
+              </View>
+
+              <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
+                <Text style={styles.routeLabel}>DESTINATION</Text>
+                <Text style={styles.routeCityText} numberOfLines={1}>{trip.toCity}</Text>
+              </View>
+            </View>
+
+            {/* Departure Time Ribbon */}
+            <View style={styles.departureStrip}>
+              <Text style={styles.departureStripText}>
+                {trip.date} • {trip.time}
+              </Text>
+              <Text style={styles.departureConfirmedBadge}>CONFIRMED</Text>
             </View>
           </View>
 
-          {/* Vehicle pill */}
-          <View style={styles.vehiclePill}>
-            <LinearGradient colors={vGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-            <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'directions-car'} size={14} color="#fff" />
-            <Text style={styles.vehiclePillText}>
-              {trip.vehicleType.charAt(0).toUpperCase() + trip.vehicleType.slice(1)}
-            </Text>
-          </View>
+          {/* Ticket Body with Luggage Trunk & Stats */}
+          <View style={styles.ticketBody}>
+            {/* Capacity Trunk Meter */}
+            <View style={[styles.capacityWidget, { backgroundColor: C.surfaceElevated }]}>
+              <View style={styles.capacityHeader}>
+                <View style={styles.capacityTitleRow}>
+                  <MaterialIcons name="luggage" size={16} color={C.primary} />
+                  <Text style={[styles.capacityTitle, { color: C.textPrimary }]}>
+                    Luggage Capacity
+                  </Text>
+                </View>
+                <Text style={[styles.capacityRemaining, { color: C.textPrimary }]}>
+                  {remainingWeight > 0 ? `${remainingWeight.toFixed(1)} kg available` : 'Full'}
+                </Text>
+              </View>
 
-          {/* Stats */}
-          <View style={[styles.tripStats, { backgroundColor: C.surfaceElevated }]}> 
-            <View style={styles.tripStat}>
-              <MaterialIcons name="scale" size={16} color={C.textMuted} />
-              <Text style={[styles.tripStatValue, { color: C.textPrimary }]}>{trip.availableCapacity}kg</Text>
-              <Text style={[styles.tripStatLabel, { color: C.textMuted }]}>Capacity</Text>
+              <View style={[styles.capacityTrack, { backgroundColor: C.background }]}>
+                <View
+                  style={[
+                    styles.capacityFill,
+                    {
+                      width: `${Math.max(6, Math.min(100, capacityRatio * 100))}%`,
+                      backgroundColor: capacityRatio > 0.85 ? C.warning : C.primary,
+                    }
+                  ]}
+                />
+              </View>
+
+              <View style={styles.capacityFooter}>
+                <Text style={[styles.capacityFooterText, { color: C.textMuted }]}>
+                  {bookedWeight.toFixed(1)} kg / {trip.availableCapacity} kg booked
+                </Text>
+                <View style={[styles.rateHighlightPill, { backgroundColor: C.successSubtle }]}>
+                  <Text style={[styles.rateHighlightText, { color: C.success }]}>
+                    ₹{trip.pricePerKg}/kg
+                  </Text>
+                </View>
+              </View>
             </View>
-            <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
-            <View style={styles.tripStat}>
-              <MaterialIcons name="payments" size={16} color={vColor} />
-              <Text style={[styles.tripStatValue, { color: vColor }]}>Rs {trip.pricePerKg}</Text>
-              <Text style={[styles.tripStatLabel, { color: C.textMuted }]}>Per kg</Text>
-            </View>
-            <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
-            <View style={styles.tripStat}>
-              <MaterialIcons name="swap-horiz" size={16} color={C.textMuted} />
-              <Text style={[styles.tripStatValue, { color: C.textPrimary }]}>{visibleRequests.length}</Text>
-              <Text style={[styles.tripStatLabel, { color: C.textMuted }]}>Requests</Text>
-            </View>
-            <View style={[styles.statDiv, { backgroundColor: C.surfaceBorder }]} />
-            <View style={styles.tripStat}>
-              <MaterialIcons name="verified" size={16} color={C.success} />
-              <Text style={[styles.tripStatValue, { color: C.success }]}>Rs {totalEarnings}</Text>
-              <Text style={[styles.tripStatLabel, { color: C.textMuted }]}>Earned</Text>
+
+            {/* Highlights Row */}
+            <View style={styles.highlightsRow}>
+              <View style={styles.highlightItem}>
+                <Text style={[styles.highlightVal, { color: C.textPrimary }]}>{trip.availableCapacity} kg</Text>
+                <Text style={[styles.highlightLbl, { color: C.textMuted }]}>Total Space</Text>
+              </View>
+
+              <View style={[styles.highlightDiv, { backgroundColor: C.surfaceBorder }]} />
+
+              <View style={styles.highlightItem}>
+                <Text style={[styles.highlightVal, { color: C.primary }]}>{visibleRequests.length}</Text>
+                <Text style={[styles.highlightLbl, { color: C.textMuted }]}>Requests</Text>
+              </View>
+
+              <View style={[styles.highlightDiv, { backgroundColor: C.surfaceBorder }]} />
+
+              <View style={styles.highlightItem}>
+                <Text style={[styles.highlightVal, { color: C.success }]}>₹{totalEarnings}</Text>
+                <Text style={[styles.highlightLbl, { color: C.textMuted }]}>Earned</Text>
+              </View>
             </View>
           </View>
+        </View>
 
-          {/* Status + traveller */}
-          <View style={styles.tripStatusRow}>
-            <View style={[
-              styles.tripStatusBadge,
-              trip.status === 'active' ? { backgroundColor: C.successSubtle, borderColor: C.success + '44' } :
-              trip.status === 'completed' ? { backgroundColor: C.infoSubtle, borderColor: C.info + '44' } :
-              { backgroundColor: C.errorSubtle, borderColor: C.error + '44' }
-            ]}>
-              <View style={[
-                styles.tripStatusDot,
-                { backgroundColor: trip.status === 'active' ? C.success : trip.status === 'completed' ? C.info : C.error }
-              ]} />
-              <Text style={[
-                styles.tripStatusText,
-                { color: trip.status === 'active' ? C.success : trip.status === 'completed' ? C.info : C.error }
-              ]}>
-                {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+        {/* Find Parcels Smart Action Card (when open & owned) */}
+        {isOwner && isTripActive ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.matchingBanner,
+              pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }
+            ]}
+            onPress={() => router.push({
+              pathname: '/search',
+              params: {
+                fromCity: trip.fromCity,
+                toCity: trip.toCity,
+                mode: 'parcels',
+              }
+            })}
+          >
+            <LinearGradient
+              colors={[C.primary, C.primaryDark]}
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0.5 }}
+            />
+            <View style={styles.matchingIconWrap}>
+              <MaterialIcons name="search" size={24} color="#fff" />
+            </View>
+            <View style={styles.matchingTextWrap}>
+              <Text style={styles.matchingHeading}>Find Parcels to Carry</Text>
+              <Text style={styles.matchingSubheading}>
+                Pick up parcels along your route from {trip.fromCity} to {trip.toCity}
               </Text>
             </View>
-            <View style={styles.travellerRow}>
-              <View style={styles.travellerAvatar}>
-                <LinearGradient colors={vGradient} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-                <Text style={styles.travellerAvatarText}>{trip.userName.charAt(0).toUpperCase()}</Text>
-              </View>
-              <Text style={[styles.travellerName, { color: C.textPrimary }]}>{trip.userName}</Text>
-              <Ionicons name="star" size={12} color={C.warning} />
-              <Text style={[styles.travellerRating, { color: C.textMuted }]}>{trip.userRating.toFixed(1)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* CTA */}
-        {!isOwner ? (
-          <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="info-outline" size={28} color={C.primary} />
-            <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>Sender View</Text>
-            <Text style={[styles.emptySubtext, { color: C.textMuted }]}>Use your parcel listing to send request on this route.</Text>
-          </View>
+            <MaterialIcons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />
+          </Pressable>
         ) : null}
 
-        {/* Summary chips */}
-        <View style={styles.summaryChips}>
-          <SummaryChip count={pending.length} label="Pending" color={C.warning} icon="hourglass-empty" C={C} />
-          <SummaryChip count={active.length} label="Active" color={C.success} icon="check-circle" C={C} />
-          <SummaryChip count={done.filter(r => r.status === 'completed').length} label="Done" color={C.info} icon="verified" C={C} />
-          <SummaryChip count={done.filter(r => r.status === 'rejected').length} label="Rejected" color={C.error} icon="cancel" C={C} />
+        {/* Requests Feed */}
+        <View style={styles.requestsSection}>
+          <View style={styles.requestsHeaderRow}>
+            <View style={styles.requestsTitleRow}>
+              <Text style={[styles.requestsTitle, { color: C.textPrimary }]}>
+                Parcel Requests
+              </Text>
+              <View style={[styles.requestsCountBadge, { backgroundColor: C.primarySubtle }]}>
+                <Text style={[styles.requestsCountText, { color: C.primary }]}>
+                  {visibleRequests.length}
+                </Text>
+              </View>
+            </View>
+
+            {/* Filter Pills */}
+            <View style={styles.filterPillsRow}>
+              {[
+                { key: 'all' as TabFilter, label: 'All' },
+                { key: 'pending' as TabFilter, label: `Pending (${pending.length})` },
+                { key: 'active' as TabFilter, label: `Active (${active.length})` },
+              ].map((tab) => {
+                const isSelected = selectedTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: isSelected ? C.primary : C.surface,
+                        borderColor: isSelected ? C.primary : C.surfaceBorder,
+                      }
+                    ]}
+                    onPress={() => {
+                      Haptic.select();
+                      setSelectedTab(tab.key);
+                    }}
+                  >
+                    <Text style={[
+                      styles.filterPillText,
+                      { color: isSelected ? '#fff' : C.textMuted }
+                    ]}>
+                      {tab.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Requests Feed */}
+          {loading ? (
+            <ActivityIndicator color={C.primary} style={{ marginVertical: 32 }} />
+          ) : displayedRequests.length === 0 ? (
+            <View style={[styles.emptyRequestsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <View style={[styles.emptyIconCircle, { backgroundColor: C.surfaceElevated }]}>
+                <MaterialIcons name="inbox" size={32} color={C.primary} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Parcel Requests Yet</Text>
+              <Text style={[styles.emptySub, { color: C.textMuted }]}>
+                {isOwner
+                  ? 'Senders will send requests when they see your trip in the marketplace.'
+                  : 'No requests submitted on this trip.'}
+              </Text>
+              {isOwner && isTripActive ? (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.findParcelsEmptyBtn,
+                    { backgroundColor: C.primary },
+                    pressed && { opacity: 0.85 }
+                  ]}
+                  onPress={() => router.push({
+                    pathname: '/search',
+                    params: { fromCity: trip.fromCity, toCity: trip.toCity, mode: 'parcels' }
+                  })}
+                >
+                  <MaterialIcons name="explore" size={16} color="#fff" />
+                  <Text style={styles.findParcelsEmptyText}>Browse Parcels on Route</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : (
+            <View style={styles.requestsList}>
+              {displayedRequests.map((req) => (
+                <RequestItem
+                  key={req.id}
+                  request={req}
+                  parcel={parcels.find(p => p.id === req.parcelId)}
+                  viewerRole={viewerRole}
+                  onAccept={() => handleAccept(req)}
+                  onReject={() => handleReject(req)}
+                  onChat={() => handleChat(req)}
+                  onDelivery={() => handleDelivery(req)}
+                  onPayment={() => handlePayment(req)}
+                />
+              ))}
+            </View>
+          )}
         </View>
-
-        {loading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator color={C.primary} size="large" />
-            <Text style={[styles.loadingText, { color: C.textMuted }]}>Loading requests...</Text>
-          </View>
-        ) : visibleRequests.length === 0 ? (
-          <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="inbox" size={56} color={C.surfaceBorderLight} />
-            <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No requests yet</Text>
-            <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
-              {isOwner
-                ? 'Senders will send requests when they see your trip in the feed.'
-                : 'Use your parcel listing to send request to this traveller.'}
-            </Text>
-          </View>
-        ) : (
-          <>
-            {pending.length > 0 && (
-              <Section title="Pending Requests" icon="hourglass-empty" color={C.warning} count={pending.length} C={C}>
-                {pending.map((req, i) => (
-                  <React.Fragment key={req.id}>
-                    <RequestItem
-                      request={req}
-                      parcel={parcels.find(p => p.id === req.parcelId)}
-                      viewerRole={viewerRole}
-                      onAccept={() => handleAccept(req)}
-                      onReject={() => handleReject(req)}
-                      onChat={() => handleChat(req)}
-                      onDelivery={() => handleDelivery(req)}
-                      onPayment={() => handlePayment(req)}
-                    />
-                    {i < pending.length - 1 && <View style={[styles.itemSpacer, { backgroundColor: C.surfaceBorder }]} />}
-                  </React.Fragment>
-                ))}
-              </Section>
-            )}
-
-            {active.length > 0 && (
-              <Section title="In Progress" icon="local-shipping" color={C.primary} count={active.length} C={C}>
-                {active.map((req, i) => (
-                  <React.Fragment key={req.id}>
-                    <RequestItem
-                      request={req}
-                      parcel={parcels.find(p => p.id === req.parcelId)}
-                      viewerRole={viewerRole}
-                      onAccept={() => handleAccept(req)}
-                      onReject={() => handleReject(req)}
-                      onChat={() => handleChat(req)}
-                      onDelivery={() => handleDelivery(req)}
-                      onPayment={() => handlePayment(req)}
-                    />
-                    {i < active.length - 1 && <View style={[styles.itemSpacer, { backgroundColor: C.surfaceBorder }]} />}
-                  </React.Fragment>
-                ))}
-              </Section>
-            )}
-
-            {done.length > 0 && (
-              <Section title="History" icon="history" color={C.textMuted} count={done.length} C={C}>
-                {done.map((req, i) => (
-                  <React.Fragment key={req.id}>
-                    <RequestItem
-                      request={req}
-                      parcel={parcels.find(p => p.id === req.parcelId)}
-                      viewerRole={viewerRole}
-                      onAccept={() => handleAccept(req)}
-                      onReject={() => handleReject(req)}
-                      onChat={() => handleChat(req)}
-                      onDelivery={() => handleDelivery(req)}
-                      onPayment={() => handlePayment(req)}
-                    />
-                    {i < done.length - 1 && <View style={[styles.itemSpacer, { backgroundColor: C.surfaceBorder }]} />}
-                  </React.Fragment>
-                ))}
-              </Section>
-            )}
-          </>
-        )}
       </ScrollView>
-    </View>
-  );
-}
-
-function SummaryChip({ count, label, color, icon, C }: {
-  count: number; label: string; color: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  C: any;
-}) {
-  return (
-    <View style={[styles.chip, { backgroundColor: color + '12', borderColor: color + '30' }]}>
-      <MaterialIcons name={icon} size={13} color={color} />
-      <Text style={[styles.chipCount, { color }]}>{count}</Text>
-      <Text style={[styles.chipLabel, { color: color + 'CC' }]}>{label}</Text>
-    </View>
-  );
-}
-
-function Section({ title, icon, color, count, children, C }: {
-  title: string; icon: keyof typeof MaterialIcons.glyphMap;
-  color: string; count: number; children: React.ReactNode;
-  C: any;
-}) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <View style={[styles.sectionIconWrap, { backgroundColor: color + '15' }]}>
-          <MaterialIcons name={icon} size={16} color={color} />
-        </View>
-        <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{title}</Text>
-        <View style={[styles.sectionBadge, { backgroundColor: color + '20' }]}>
-          <Text style={[styles.sectionBadgeText, { color }]}>{count}</Text>
-        </View>
-      </View>
-      <View style={[styles.sectionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder, borderLeftColor: color + '55' }]}>
-        {children}
-      </View>
     </View>
   );
 }

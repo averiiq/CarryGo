@@ -293,8 +293,10 @@ export const RequestCard = React.memo(function RequestCard({
                     onPress={() => { Haptic.tap(); onDelivery?.(); }}
                     hitSlop={TouchTarget.smallHitSlop}
                   >
-                    <MaterialIcons name="local-shipping" size={15} color="#FFFFFF" />
-                    <Text style={styles.primaryActionText}>Track</Text>
+                    <MaterialIcons name={isIncoming ? "fact-check" : "radar"} size={15} color="#FFFFFF" />
+                    <Text style={styles.primaryActionText}>
+                      {isIncoming ? "Process Delivery" : "Track Parcel"}
+                    </Text>
                   </Pressable>
                 </>
               ) : null}
@@ -632,7 +634,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#059669',
+    backgroundColor: '#4F46E5',
   },
   primaryActionText: {
     fontSize: 12,

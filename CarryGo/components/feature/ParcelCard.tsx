@@ -2,26 +2,26 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Parcel } from '@/types';
+import { Parcel, Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { formatScheduleDate } from './SevenDaySchedulePicker';
+import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
 
 const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   documents: 'description',
   electronics: 'devices',
   clothing: 'checkroom',
   food: 'restaurant',
-  medicine: 'local-pharmacy',
+  medicine: 'medical-services',
   other: 'inventory-2',
 };
 
 const categoryGradients: Record<string, [string, string]> = {
-  documents: ['#475569', '#334155'],
-  electronics: ['#0F766E', '#0D9488'],
-  clothing: ['#BE185D', '#9D174D'],
+  documents: ['#D97706', '#B45309'],
+  electronics: ['#2563EB', '#1D4ED8'],
+  clothing: ['#7C3AED', '#6D28D9'],
   food: ['#EA580C', '#C2410C'],
-  medicine: ['#16A34A', '#15803D'],
+  medicine: ['#DC2626', '#B91C1C'],
   other: ['#4F46E5', '#4338CA'],
 };
 
@@ -32,6 +32,10 @@ interface ParcelCardProps {
   onPress?: () => void;
   showCarryButton?: boolean;
   onCarry?: () => void;
+  isOwner?: boolean;
+  existingRequest?: Request | null;
+  onTrackDelivery?: (requestId: string) => void;
+  onViewRequest?: (requestId: string) => void;
 }
 
 export const ParcelCard = React.memo(function ParcelCard({
@@ -41,6 +45,10 @@ export const ParcelCard = React.memo(function ParcelCard({
   onPress,
   showCarryButton,
   onCarry,
+  isOwner,
+  existingRequest,
+  onTrackDelivery,
+  onViewRequest,
 }: ParcelCardProps) {
   const { C } = useThemeColors();
   const cGradient = categoryGradients[parcel.category] || ['#0F766E', '#0D9488'];
@@ -67,7 +75,7 @@ export const ParcelCard = React.memo(function ParcelCard({
           styles.card,
           {
             backgroundColor: C.surface,
-            borderColor: C.surfaceBorder,
+            borderColor: isOwner ? C.primary + '44' : C.surfaceBorder,
             transform: [{ scale }],
           },
         ]}
@@ -85,9 +93,24 @@ export const ParcelCard = React.memo(function ParcelCard({
               </Text>
             </LinearGradient>
             <View style={styles.senderMeta}>
-              <Text style={[styles.senderName, { color: C.textPrimary }]} numberOfLines={1}>
-                {parcel.userName}
-              </Text>
+              <View style={styles.nameBadgeRow}>
+                <Text style={[styles.senderName, { color: C.textPrimary }]} numberOfLines={1}>
+                  {isOwner ? 'You' : parcel.userName}
+                </Text>
+                {isOwner ? (
+                  <View style={[styles.ownerBadge, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
+                    <Text style={[styles.ownerBadgeText, { color: C.primary }]}>Your Parcel</Text>
+                  </View>
+                ) : existingRequest?.status === 'accepted' ? (
+                  <View style={[styles.ownerBadge, { backgroundColor: '#10B98118', borderColor: '#10B98144' }]}>
+                    <Text style={[styles.ownerBadgeText, { color: '#10B981' }]}>Accepted</Text>
+                  </View>
+                ) : existingRequest?.status === 'pending' ? (
+                  <View style={[styles.ownerBadge, { backgroundColor: '#F59E0B18', borderColor: '#F59E0B44' }]}>
+                    <Text style={[styles.ownerBadgeText, { color: '#F59E0B' }]}>Offer Sent</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={[styles.categorySubtitle, { color: C.textMuted }]}>
                 {parcel.category.toUpperCase()}
               </Text>
@@ -173,17 +196,65 @@ export const ParcelCard = React.memo(function ParcelCard({
           <View style={styles.priceContainer}>
             <Text style={[styles.priceLabel, { color: C.textMuted }]}>REWARD OFFER</Text>
             <View style={styles.priceValueRow}>
-              <Text style={[styles.priceAmount, { color: C.primaryDark }]}>
+              <Text style={[styles.priceAmount, { color: C.primary }]}>
                 ₹{parcel.priceOffer}
               </Text>
             </View>
           </View>
 
-          {showCarryButton ? (
+          {isOwner ? (
             <Pressable
               style={({ pressed }) => [
                 styles.actionButton,
-                { backgroundColor: C.primaryDark },
+                { backgroundColor: C.primarySubtle, borderColor: C.primary + '55', borderWidth: 1 },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={onPress}
+            >
+              <MaterialIcons name="tune" size={14} color={C.primary} />
+              <Text style={[styles.actionButtonText, { color: C.primary }]}>Manage Parcel</Text>
+            </Pressable>
+          ) : existingRequest?.status === 'accepted' ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: '#10B981' },
+                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
+            >
+              <MaterialIcons name="local-shipping" size={14} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Process Delivery</Text>
+            </Pressable>
+          ) : existingRequest?.status === 'pending' ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: C.surfaceElevated, borderColor: '#F59E0B77', borderWidth: 1 },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => (onViewRequest ? onViewRequest(existingRequest.id) : onPress?.())}
+            >
+              <MaterialIcons name="schedule" size={14} color="#F59E0B" />
+              <Text style={[styles.actionButtonText, { color: '#F59E0B' }]}>Offer Sent</Text>
+            </Pressable>
+          ) : existingRequest?.status === 'completed' ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
+            >
+              <MaterialIcons name="check-circle" size={14} color={C.textSecondary} />
+              <Text style={[styles.actionButtonText, { color: C.textSecondary }]}>Delivered</Text>
+            </Pressable>
+          ) : showCarryButton ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: C.primary },
                 pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
               ]}
               onPress={onCarry}
@@ -240,6 +311,24 @@ const styles = StyleSheet.create({
   },
   senderMeta: {
     gap: 2,
+    flex: 1,
+  },
+  nameBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  ownerBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  ownerBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.2,
   },
   senderName: {
     fontSize: FontSize.sm,

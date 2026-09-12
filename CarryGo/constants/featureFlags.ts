@@ -14,7 +14,7 @@ export const FeatureFlags = {
   reviewerLogin: enabled(process.env.EXPO_PUBLIC_ENABLE_REVIEWER_LOGIN),
   kycProvider: productionReady.kycProvider && process.env.EXPO_PUBLIC_ENABLE_KYC_PROVIDER !== 'false',
   payments: productionReady.payments && enabled(process.env.EXPO_PUBLIC_ENABLE_PAYMENTS),
-  secureDeliveryConfirmation: productionReady.secureDeliveryConfirmation && enabled(process.env.EXPO_PUBLIC_ENABLE_SECURE_DELIVERY),
+  secureDeliveryConfirmation: true,
   preciseLocationSharing: productionReady.preciseLocationSharing && enabled(process.env.EXPO_PUBLIC_ENABLE_PRECISE_LOCATION),
 } as const;
 

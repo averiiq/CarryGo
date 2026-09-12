@@ -25,9 +25,9 @@ export default function DeliveryMap({ travellerName, lat, lng, updatedAt, C }: D
     <View style={[styles.mapCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
       <LinearGradient colors={[C.primary + '0A', 'transparent']} style={StyleSheet.absoluteFillObject} />
       <View style={styles.mapHeader}>
-        <View style={[styles.liveBadge, { backgroundColor: C.successSubtle, borderColor: C.success + '44' }]}>
-          <View style={[styles.liveDot, { backgroundColor: C.success }]} />
-          <Text style={[styles.liveText, { color: C.success }]}>Live Tracking</Text>
+        <View style={[styles.liveBadge, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
+          <View style={[styles.liveDot, { backgroundColor: C.primary }]} />
+          <Text style={[styles.liveText, { color: C.primary }]}>Live Tracking</Text>
         </View>
         <Text style={[styles.mapUpdated, { color: C.textMuted }]}>Updated {formatAge(updatedAt)}</Text>
       </View>

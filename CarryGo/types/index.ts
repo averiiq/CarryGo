@@ -99,6 +99,10 @@ export interface Delivery {
   travellerLat?: number;
   travellerLng?: number;
   locationUpdatedAt?: string;
+  pickupOtp?: string;
+  tripNote?: string;
+  tripStatus?: string;
+  etaText?: string;
   createdAt: string;
 }
 

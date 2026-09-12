@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Trip } from '@/types';
+import { Trip, Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
@@ -30,6 +30,10 @@ interface TripCardProps {
   showRequestButton?: boolean;
   onRequest?: () => void;
   compact?: boolean;
+  isOwner?: boolean;
+  existingRequest?: Request | null;
+  onTrackDelivery?: (requestId: string) => void;
+  onViewRequest?: (requestId: string) => void;
 }
 
 export const TripCard = React.memo(function TripCard({
@@ -39,6 +43,10 @@ export const TripCard = React.memo(function TripCard({
   onPress,
   showRequestButton,
   onRequest,
+  isOwner,
+  existingRequest,
+  onTrackDelivery,
+  onViewRequest,
 }: TripCardProps) {
   const { C } = useThemeColors();
   const vGradient = vehicleColors[trip.vehicleType] || ['#059669', '#064E3B'];
@@ -62,7 +70,7 @@ export const TripCard = React.memo(function TripCard({
           styles.card,
           {
             backgroundColor: C.surface,
-            borderColor: C.surfaceBorder,
+            borderColor: isOwner ? C.primary + '44' : C.surfaceBorder,
             transform: [{ scale }],
           },
         ]}
@@ -80,9 +88,24 @@ export const TripCard = React.memo(function TripCard({
               </Text>
             </LinearGradient>
             <View style={styles.userMeta}>
-              <Text style={[styles.userName, { color: C.textPrimary }]} numberOfLines={1}>
-                {trip.userName}
-              </Text>
+              <View style={styles.nameBadgeRow}>
+                <Text style={[styles.userName, { color: C.textPrimary }]} numberOfLines={1}>
+                  {isOwner ? 'You' : trip.userName}
+                </Text>
+                {isOwner ? (
+                  <View style={[styles.ownerBadge, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
+                    <Text style={[styles.ownerBadgeText, { color: C.primary }]}>Your Trip</Text>
+                  </View>
+                ) : existingRequest?.status === 'accepted' ? (
+                  <View style={[styles.ownerBadge, { backgroundColor: '#10B98118', borderColor: '#10B98144' }]}>
+                    <Text style={[styles.ownerBadgeText, { color: '#10B981' }]}>Accepted</Text>
+                  </View>
+                ) : existingRequest?.status === 'pending' ? (
+                  <View style={[styles.ownerBadge, { backgroundColor: '#F59E0B18', borderColor: '#F59E0B44' }]}>
+                    <Text style={[styles.ownerBadgeText, { color: '#F59E0B' }]}>Requested</Text>
+                  </View>
+                ) : null}
+              </View>
               <View style={styles.ratingBadge}>
                 <Ionicons name="star" size={11} color="#F59E0B" />
                 <Text style={[styles.ratingText, { color: C.textSecondary }]}>
@@ -159,18 +182,66 @@ export const TripCard = React.memo(function TripCard({
           <View style={styles.priceContainer}>
             <Text style={[styles.priceLabel, { color: C.textMuted }]}>PRICE</Text>
             <View style={styles.priceValueRow}>
-              <Text style={[styles.priceAmount, { color: C.primaryDark }]}>
+              <Text style={[styles.priceAmount, { color: C.primary }]}>
                 ₹{trip.pricePerKg}
               </Text>
               <Text style={[styles.priceUnit, { color: C.textMuted }]}>/kg</Text>
             </View>
           </View>
 
-          {showRequestButton ? (
+          {isOwner ? (
             <Pressable
               style={({ pressed }) => [
                 styles.actionButton,
-                { backgroundColor: C.primaryDark },
+                { backgroundColor: C.primarySubtle, borderColor: C.primary + '55', borderWidth: 1 },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={onPress}
+            >
+              <MaterialIcons name="tune" size={14} color={C.primary} />
+              <Text style={[styles.actionButtonText, { color: C.primary }]}>Manage Trip</Text>
+            </Pressable>
+          ) : existingRequest?.status === 'accepted' ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: '#10B981' },
+                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
+            >
+              <MaterialIcons name="radar" size={14} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Track Delivery</Text>
+            </Pressable>
+          ) : existingRequest?.status === 'pending' ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: C.surfaceElevated, borderColor: '#F59E0B77', borderWidth: 1 },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => (onViewRequest ? onViewRequest(existingRequest.id) : onPress?.())}
+            >
+              <MaterialIcons name="schedule" size={14} color="#F59E0B" />
+              <Text style={[styles.actionButtonText, { color: '#F59E0B' }]}>Request Sent</Text>
+            </Pressable>
+          ) : existingRequest?.status === 'completed' ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
+            >
+              <MaterialIcons name="check-circle" size={14} color={C.textSecondary} />
+              <Text style={[styles.actionButtonText, { color: C.textSecondary }]}>Completed</Text>
+            </Pressable>
+          ) : showRequestButton ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: C.primary },
                 pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
               ]}
               onPress={onRequest}
@@ -227,6 +298,24 @@ const styles = StyleSheet.create({
   },
   userMeta: {
     gap: 2,
+    flex: 1,
+  },
+  nameBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  ownerBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  ownerBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.2,
   },
   userName: {
     fontSize: FontSize.sm,

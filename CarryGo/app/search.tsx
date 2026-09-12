@@ -8,12 +8,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { TripCard, ParcelCard } from '@/components';
-import { Trip, Parcel } from '@/types';
+import { Trip, Parcel, Request } from '@/types';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { Haptic } from '@/services/haptics.service';
 import { createSubscription } from '@/services/subscriptions.service';
 import { useAlert } from '@/template';
 import { flattenInfiniteData, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
+import { useRequestsQuery } from '@/features/requests/queries';
+import { FeatureFlags } from '@/constants/featureFlags';
 import { CityDropdown } from '@/components/feature/CityDropdown';
 import { HistoryChip, SearchHistoryEntry } from '@/components/feature/HistoryChip';
 import { RouteMapView } from '@/components/feature/RouteMapView';
@@ -56,6 +58,7 @@ export default function SearchScreen() {
   const { isSmallDevice, isTablet } = useResponsive();
   const tripsQuery = useTripsQuery(Boolean(user));
   const parcelsQuery = useParcelsQuery(Boolean(user));
+  const requestsQuery = useRequestsQuery(user?.id);
   const { showAlert } = useAlert();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -118,6 +121,34 @@ export default function SearchScreen() {
 
   const trips: Trip[] = user ? flattenInfiniteData(tripsQuery.data) : [];
   const parcels: Parcel[] = user ? flattenInfiniteData(parcelsQuery.data) : [];
+  const userRequests = requestsQuery.data || [];
+
+  const requestsByTripId = useMemo(() => {
+    const map = new Map<string, Request>();
+    userRequests.forEach((req) => {
+      if (req.tripId) {
+        const prev = map.get(req.tripId);
+        if (!prev || req.status === 'accepted' || (req.status === 'pending' && prev.status !== 'accepted')) {
+          map.set(req.tripId, req);
+        }
+      }
+    });
+    return map;
+  }, [userRequests]);
+
+  const requestsByParcelId = useMemo(() => {
+    const map = new Map<string, Request>();
+    userRequests.forEach((req) => {
+      if (req.parcelId) {
+        const prev = map.get(req.parcelId);
+        if (!prev || req.status === 'accepted' || (req.status === 'pending' && prev.status !== 'accepted')) {
+          map.set(req.parcelId, req);
+        }
+      }
+    });
+    return map;
+  }, [userRequests]);
+
   const sourceTrips = useMemo(
     () => trips.filter((t: Trip) => t.status === 'active' && t.userId !== user?.id),
     [trips, user?.id]
@@ -242,10 +273,24 @@ export default function SearchScreen() {
     }
   };
 
+  const handleTrackDelivery = useCallback((requestId: string) => {
+    Haptic.tap();
+    router.push({
+      pathname: '/delivery/[id]',
+      params: { id: requestId },
+    });
+  }, [router]);
+
+  const handleViewRequest = useCallback((_requestId: string) => {
+    Haptic.tap();
+    router.push('/(tabs)/requests');
+  }, [router]);
+
   const handleRefresh = useCallback(() => {
     tripsQuery.refetch();
     parcelsQuery.refetch();
-  }, [tripsQuery, parcelsQuery]);
+    requestsQuery.refetch();
+  }, [tripsQuery, parcelsQuery, requestsQuery]);
 
   const canSearch = fromCity.trim().length > 0 || toCity.trim().length > 0;
 
@@ -550,21 +595,45 @@ export default function SearchScreen() {
               {/* List View */}
               {viewMode === 'list' && displayResults.length > 0 ? (
                 <View style={[styles.resultsList, isTablet && styles.tabletContainer]}>
-                  {displayResults.map((item: SearchItem, idx: number) => (
-                    <View key={`${item.type}-${item.data.id}-${idx}`} style={styles.resultItem}>
-                      {item.type === 'trip' ? (
-                        <TripCard
-                          trip={item.data as Trip}
-                          onPress={() => { Haptic.tap(); router.push({ pathname: '/trip/[id]', params: { id: item.data.id } }); }}
-                        />
-                      ) : (
-                        <ParcelCard
-                          parcel={item.data as Parcel}
-                          onPress={() => { Haptic.tap(); router.push({ pathname: '/parcel/[id]', params: { id: item.data.id } }); }}
-                        />
-                      )}
-                    </View>
-                  ))}
+                  {displayResults.map((item: SearchItem, idx: number) => {
+                    const isItemOwner = Boolean(user?.id && item.data.userId === user.id);
+                    const existingReq = item.type === 'trip'
+                      ? requestsByTripId.get(item.data.id)
+                      : requestsByParcelId.get(item.data.id);
+                    return (
+                      <View key={`${item.type}-${item.data.id}-${idx}`} style={styles.resultItem}>
+                        {item.type === 'trip' ? (
+                          <TripCard
+                            trip={item.data as Trip}
+                            isOwner={isItemOwner}
+                            existingRequest={existingReq}
+                            showRequestButton={!isItemOwner && FeatureFlags.payments && !existingReq}
+                            onRequest={() => {
+                              Haptic.tap();
+                              router.push({ pathname: '/trip/[id]', params: { id: item.data.id } });
+                            }}
+                            onTrackDelivery={handleTrackDelivery}
+                            onViewRequest={handleViewRequest}
+                            onPress={() => { Haptic.tap(); router.push({ pathname: '/trip/[id]', params: { id: item.data.id } }); }}
+                          />
+                        ) : (
+                          <ParcelCard
+                            parcel={item.data as Parcel}
+                            isOwner={isItemOwner}
+                            existingRequest={existingReq}
+                            showCarryButton={!isItemOwner && !existingReq}
+                            onCarry={() => {
+                              Haptic.tap();
+                              router.push({ pathname: '/parcel/[id]', params: { id: item.data.id } });
+                            }}
+                            onTrackDelivery={handleTrackDelivery}
+                            onViewRequest={handleViewRequest}
+                            onPress={() => { Haptic.tap(); router.push({ pathname: '/parcel/[id]', params: { id: item.data.id } }); }}
+                          />
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
               ) : viewMode === 'list' && displayResults.length === 0 ? (
                 <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>

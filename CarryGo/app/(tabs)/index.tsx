@@ -12,13 +12,14 @@ import { ProductIllustration } from '@/components/illustrations';
 import { BorderRadius, FontSize, FontWeight, Gradients, Spacing, TouchTarget } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
+import { useRequestsQuery } from '@/features/requests/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
-import { FilterOptions, Parcel, Trip } from '@/types';
+import { FilterOptions, Parcel, Trip, Request } from '@/types';
 
 const DEFAULT_FILTERS: FilterOptions = { fromCity: '', toCity: '', vehicleType: '', dateFrom: '', dateTo: '' };
 type FeedItem = { type: 'trip'; data: Trip } | { type: 'parcel'; data: Parcel };
@@ -128,8 +129,8 @@ function QuickActions() {
         ]}
       >
         <View style={styles.quickActionTop}>
-          <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-            <MaterialIcons name="inventory-2" size={22} color="#34D399" />
+          <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
+            <MaterialIcons name="inventory-2" size={22} color="#FFFFFF" />
           </View>
           <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.7)" />
         </View>
@@ -254,13 +255,21 @@ function EmptyMarketplace({
 const FeedTripItem = React.memo(function FeedTripItem({
   trip,
   isTablet,
+  isOwner,
   onPress,
   onRequest,
+  existingRequest,
+  onTrackDelivery,
+  onViewRequest,
 }: {
   trip: Trip;
   isTablet: boolean;
+  isOwner: boolean;
   onPress: (id: string) => void;
   onRequest: (fromCity: string, toCity: string) => void;
+  existingRequest?: Request | null;
+  onTrackDelivery?: (requestId: string) => void;
+  onViewRequest?: (requestId: string) => void;
 }) {
   const handlePress = useCallback(() => onPress(trip.id), [onPress, trip.id]);
   const handleRequest = useCallback(
@@ -272,9 +281,13 @@ const FeedTripItem = React.memo(function FeedTripItem({
     <View style={isTablet ? styles.tabletCardWrap : undefined}>
       <TripCard
         trip={trip}
+        isOwner={isOwner}
+        existingRequest={existingRequest}
         onPress={handlePress}
-        showRequestButton={FeatureFlags.payments}
+        showRequestButton={!isOwner && FeatureFlags.payments && !existingRequest}
         onRequest={handleRequest}
+        onTrackDelivery={onTrackDelivery}
+        onViewRequest={onViewRequest}
       />
     </View>
   );
@@ -283,13 +296,21 @@ const FeedTripItem = React.memo(function FeedTripItem({
 const FeedParcelItem = React.memo(function FeedParcelItem({
   parcel,
   isTablet,
+  isOwner,
   onPress,
   onCarry,
+  existingRequest,
+  onTrackDelivery,
+  onViewRequest,
 }: {
   parcel: Parcel;
   isTablet: boolean;
+  isOwner: boolean;
   onPress: (id: string) => void;
   onCarry: (id: string) => void;
+  existingRequest?: Request | null;
+  onTrackDelivery?: (requestId: string) => void;
+  onViewRequest?: (requestId: string) => void;
 }) {
   const handlePress = useCallback(() => onPress(parcel.id), [onPress, parcel.id]);
   const handleCarry = useCallback(() => onCarry(parcel.id), [onCarry, parcel.id]);
@@ -298,9 +319,13 @@ const FeedParcelItem = React.memo(function FeedParcelItem({
     <View style={isTablet ? styles.tabletCardWrap : undefined}>
       <ParcelCard
         parcel={parcel}
+        isOwner={isOwner}
+        existingRequest={existingRequest}
         onPress={handlePress}
-        showCarryButton
+        showCarryButton={!isOwner && !existingRequest}
         onCarry={handleCarry}
+        onTrackDelivery={onTrackDelivery}
+        onViewRequest={onViewRequest}
       />
     </View>
   );
@@ -340,7 +365,36 @@ export default function HomeScreen() {
 
   const tripsQuery = useTripsQuery(true, user?.city);
   const parcelsQuery = useParcelsQuery(true, user?.city);
+  const requestsQuery = useRequestsQuery(user?.id);
   useListingsRealtime();
+
+  const userRequests = requestsQuery.data || [];
+
+  const requestsByTripId = useMemo(() => {
+    const map = new Map<string, Request>();
+    userRequests.forEach((req) => {
+      if (req.tripId) {
+        const prev = map.get(req.tripId);
+        if (!prev || req.status === 'accepted' || (req.status === 'pending' && prev.status !== 'accepted')) {
+          map.set(req.tripId, req);
+        }
+      }
+    });
+    return map;
+  }, [userRequests]);
+
+  const requestsByParcelId = useMemo(() => {
+    const map = new Map<string, Request>();
+    userRequests.forEach((req) => {
+      if (req.parcelId) {
+        const prev = map.get(req.parcelId);
+        if (!prev || req.status === 'accepted' || (req.status === 'pending' && prev.status !== 'accepted')) {
+          map.set(req.parcelId, req);
+        }
+      }
+    });
+    return map;
+  }, [userRequests]);
 
   const trips = flattenInfiniteData(tripsQuery.data);
   const parcels = flattenInfiniteData(parcelsQuery.data);
@@ -354,13 +408,13 @@ export default function HomeScreen() {
     return filteredParcels.map((parcel) => ({ type: 'parcel', data: parcel }));
   }, [activeTab, filteredParcels, filteredTrips]);
 
-  const isLoading = tripsQuery.isLoading || parcelsQuery.isLoading;
+  const isLoading = tripsQuery.isLoading || parcelsQuery.isLoading || requestsQuery.isLoading;
   const hasError = tripsQuery.error || parcelsQuery.error;
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([tripsQuery.refetch(), parcelsQuery.refetch()]);
+      await Promise.all([tripsQuery.refetch(), parcelsQuery.refetch(), requestsQuery.refetch()]);
     } finally {
       setRefreshing(false);
     }
@@ -382,14 +436,29 @@ export default function HomeScreen() {
     router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcelId } });
   }, [router]);
 
+  const handleTrackDelivery = useCallback((requestId: string) => {
+    Haptic.tap();
+    router.push({ pathname: '/delivery/[id]', params: { id: requestId } });
+  }, [router]);
+
+  const handleViewRequest = useCallback((_requestId: string) => {
+    Haptic.tap();
+    router.push('/(tabs)/requests');
+  }, [router]);
+
   const renderItem = useCallback(({ item }: { item: FeedItem }) => {
+    const isOwner = Boolean(user?.id && item.data.userId === user.id);
     if (item.type === 'trip') {
       return (
         <FeedTripItem
           trip={item.data}
           isTablet={isTablet}
+          isOwner={isOwner}
+          existingRequest={requestsByTripId.get(item.data.id)}
           onPress={handlePressTrip}
           onRequest={handleRequestTrip}
+          onTrackDelivery={handleTrackDelivery}
+          onViewRequest={handleViewRequest}
         />
       );
     }
@@ -398,11 +467,15 @@ export default function HomeScreen() {
       <FeedParcelItem
         parcel={item.data}
         isTablet={isTablet}
+        isOwner={isOwner}
+        existingRequest={requestsByParcelId.get(item.data.id)}
         onPress={handlePressParcel}
         onCarry={handleCarryParcel}
+        onTrackDelivery={handleTrackDelivery}
+        onViewRequest={handleViewRequest}
       />
     );
-  }, [handleCarryParcel, handlePressParcel, handlePressTrip, handleRequestTrip, isTablet]);
+  }, [handleCarryParcel, handlePressParcel, handlePressTrip, handleRequestTrip, handleTrackDelivery, handleViewRequest, isTablet, requestsByParcelId, requestsByTripId, user?.id]);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}> 

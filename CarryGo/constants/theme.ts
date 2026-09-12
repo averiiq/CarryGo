@@ -6,77 +6,77 @@ export type ThemeColors = Omit<typeof DarkColors, 'statusBarStyle'> & {
 
 // Dark palette (kept complete for future theme toggle enablement)
 export const DarkColors = {
-  background: '#0F141B',
-  surface: '#161D27',
-  surfaceElevated: '#1C2430',
-  surfaceHigh: '#232C39',
-  surfaceBorder: '#2F3A48',
-  surfaceBorderLight: '#3C495A',
+  background: '#0B0F15',
+  surface: '#121820',
+  surfaceElevated: '#1A222C',
+  surfaceHigh: '#222C38',
+  surfaceBorder: '#283442',
+  surfaceBorderLight: '#354354',
 
-  primary: '#79E38C',
-  primaryDark: '#42C45A',
-  primaryLight: '#9EF2AE',
-  primarySubtle: 'rgba(121, 227, 140, 0.14)',
-  primaryGlow: 'rgba(121, 227, 140, 0.28)',
+  primary: '#6366F1',
+  primaryDark: '#4F46E5',
+  primaryLight: '#818CF8',
+  primarySubtle: 'rgba(99, 102, 241, 0.14)',
+  primaryGlow: 'rgba(99, 102, 241, 0.30)',
 
-  accent: '#7AC5FF',
-  accentSubtle: 'rgba(122, 197, 255, 0.16)',
+  accent: '#6366F1',
+  accentSubtle: 'rgba(99, 102, 241, 0.12)',
 
   textPrimary: '#F8FAFC',
   textSecondary: '#D1D9E2',
   textMuted: '#94A3B8',
-  textInverse: '#0F141B',
+  textInverse: '#0B0F15',
 
-  success: '#4ADE80',
-  successSubtle: 'rgba(74, 222, 128, 0.14)',
+  success: '#10B981',
+  successSubtle: 'rgba(16, 185, 129, 0.14)',
   error: '#F87171',
   errorSubtle: 'rgba(248, 113, 113, 0.16)',
   warning: '#F59E0B',
   warningSubtle: 'rgba(245, 158, 11, 0.16)',
-  info: '#60A5FA',
-  infoSubtle: 'rgba(96, 165, 250, 0.16)',
+  info: '#38BDF8',
+  infoSubtle: 'rgba(56, 189, 248, 0.16)',
 
   locked: '#94A3B8',
   lockedSubtle: 'rgba(148, 163, 184, 0.16)',
-  released: '#4ADE80',
-  releasedSubtle: 'rgba(74, 222, 128, 0.14)',
+  released: '#10B981',
+  releasedSubtle: 'rgba(16, 185, 129, 0.14)',
 
   pending: '#F59E0B',
-  accepted: '#4ADE80',
+  accepted: '#6366F1',
   rejected: '#F87171',
-  inTransit: '#60A5FA',
-  delivered: '#4ADE80',
+  inTransit: '#818CF8',
+  delivered: '#10B981',
 
   overlay: 'rgba(2, 8, 23, 0.68)',
   overlayLight: 'rgba(2, 8, 23, 0.28)',
   overlayMedium: 'rgba(2, 8, 23, 0.48)',
 
-  tabBarBg: '#0F141B',
-  inputBg: '#1C2430',
+  tabBarBg: '#0E131A',
+  inputBg: '#1A222C',
   statusBarStyle: 'light' as const,
 };
 
-// Light palette (pure, calm, world-class light theme)
+// Light palette (pure, calm, minimalist modern electric indigo)
 export const LightColors: ThemeColors = {
-  background: '#F8FAFC',
+  background: '#F9FAFB',
   surface: '#FFFFFF',
-  surfaceElevated: '#F1F5F9',
-  surfaceHigh: '#E2E8F0',
-  surfaceBorder: '#E2E8F0',
-  surfaceBorderLight: '#F1F5F9',
+  surfaceElevated: '#F3F4F6',
+  surfaceHigh: '#E5E7EB',
+  surfaceBorder: '#E5E7EB',
+  surfaceBorderLight: '#F3F4F6',
 
-  primary: '#059669',
-  primaryDark: '#064E3B',
-  primaryLight: '#34D399',
-  primarySubtle: '#ECFDF5',
-  primaryGlow: 'rgba(5, 150, 105, 0.20)',
+  primary: '#4F46E5',
+  primaryDark: '#3730A3',
+  primaryLight: '#6366F1',
+  primarySubtle: '#EEF2FF',
+  primaryGlow: 'rgba(79, 70, 229, 0.18)',
 
-  accent: '#2563EB',
-  accentSubtle: '#EFF6FF',
+  accent: '#4F46E5',
+  accentSubtle: '#EEF2FF',
 
-  textPrimary: '#0F172A',
-  textSecondary: '#334155',
-  textMuted: '#64748B',
+  textPrimary: '#111827',
+  textSecondary: '#374151',
+  textMuted: '#6B7280',
   textInverse: '#FFFFFF',
 
   success: '#10B981',
@@ -85,26 +85,26 @@ export const LightColors: ThemeColors = {
   errorSubtle: '#FEF2F2',
   warning: '#F59E0B',
   warningSubtle: '#FFFBEB',
-  info: '#3B82F6',
-  infoSubtle: '#EFF6FF',
+  info: '#0EA5E9',
+  infoSubtle: '#F0F9FF',
 
-  locked: '#64748B',
-  lockedSubtle: 'rgba(100, 116, 139, 0.12)',
+  locked: '#6B7280',
+  lockedSubtle: 'rgba(107, 114, 128, 0.12)',
   released: '#10B981',
   releasedSubtle: '#ECFDF5',
 
   pending: '#F59E0B',
-  accepted: '#10B981',
+  accepted: '#4F46E5',
   rejected: '#EF4444',
-  inTransit: '#3B82F6',
+  inTransit: '#6366F1',
   delivered: '#10B981',
 
-  overlay: 'rgba(15, 23, 42, 0.52)',
-  overlayLight: 'rgba(15, 23, 42, 0.12)',
-  overlayMedium: 'rgba(15, 23, 42, 0.28)',
+  overlay: 'rgba(17, 24, 39, 0.52)',
+  overlayLight: 'rgba(17, 24, 39, 0.12)',
+  overlayMedium: 'rgba(17, 24, 39, 0.28)',
 
   tabBarBg: '#FFFFFF',
-  inputBg: '#F8FAFC',
+  inputBg: '#F9FAFB',
   statusBarStyle: 'dark' as const,
 };
 
@@ -160,9 +160,9 @@ export const Shadow = {
     elevation: 2,
   },
   glow: {
-    shadowColor: '#059669',
+    shadowColor: '#4F46E5',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.14,
+    shadowOpacity: 0.18,
     shadowRadius: 14,
     elevation: 3,
   },
@@ -188,7 +188,7 @@ export const Shadow = {
  */
 export const BoxShadow = {
   card: '0px 4px 12px rgba(15, 23, 42, 0.05)',
-  glow: '0px 6px 14px rgba(5, 150, 105, 0.14)',
+  glow: '0px 6px 16px rgba(79, 70, 229, 0.18)',
   sm: '0px 2px 6px rgba(15, 23, 42, 0.04)',
   float: '0px 8px 20px rgba(15, 23, 42, 0.08)',
 };
@@ -198,12 +198,12 @@ export const LightShadow = {
 };
 
 export const Gradients = {
-  primary: ['#059669', '#064E3B'] as [string, string],
-  primaryVibrant: ['#10B981', '#047857'] as [string, string],
-  accent: ['#3B82F6', '#1D4ED8'] as [string, string],
-  hero: ['#FFFFFF', '#F8FAFC', '#F1F5F9'] as [string, string, string],
-  card: ['rgba(5, 150, 105, 0.06)', 'rgba(5, 150, 105, 0.0)'] as [string, string],
-  success: ['#34D399', '#059669'] as [string, string],
+  primary: ['#4F46E5', '#3730A3'] as [string, string],
+  primaryVibrant: ['#6366F1', '#4338CA'] as [string, string],
+  accent: ['#4F46E5', '#2563EB'] as [string, string],
+  hero: ['#FFFFFF', '#F5F7FF', '#F9FAFB'] as [string, string, string],
+  card: ['rgba(79, 70, 229, 0.05)', 'rgba(79, 70, 229, 0.0)'] as [string, string],
+  success: ['#34D399', '#10B981'] as [string, string],
   warm: ['#FBBF24', '#D97706'] as [string, string],
 };
 

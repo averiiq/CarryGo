@@ -7,15 +7,16 @@ type DeliveryOtpEntryProps = {
   value: string;
   onChange: (v: string) => void;
   C: ThemeColors;
+  length?: number;
 };
 
-export function DeliveryOtpEntry({ value, onChange, C }: DeliveryOtpEntryProps) {
+export function DeliveryOtpEntry({ value, onChange, C, length = DELIVERY_OTP_LENGTH }: DeliveryOtpEntryProps) {
   const inputRef = useRef<TextInput>(null);
 
   return (
     <Pressable style={styles.otpEntryWrap} onPress={() => inputRef.current?.focus()}>
       <View style={styles.otpEntryDigits}>
-        {Array.from({ length: DELIVERY_OTP_LENGTH }).map((_, i) => (
+        {Array.from({ length }).map((_, i) => (
           <View
             key={i}
             style={[
@@ -38,9 +39,9 @@ export function DeliveryOtpEntry({ value, onChange, C }: DeliveryOtpEntryProps) 
         ref={inputRef}
         style={styles.hiddenInput}
         value={value}
-        onChangeText={v => onChange(v.replace(/\D/g, '').slice(0, DELIVERY_OTP_LENGTH))}
+        onChangeText={v => onChange(v.replace(/\D/g, '').slice(0, length))}
         keyboardType="number-pad"
-        maxLength={DELIVERY_OTP_LENGTH}
+        maxLength={length}
         accessibilityLabel="OTP entry"
         caretHidden
       />

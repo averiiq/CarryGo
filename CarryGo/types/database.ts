@@ -180,6 +180,7 @@ export type Database = {
           created_at: string
           delivery_confirmed: boolean
           delivery_confirmed_at: string | null
+          eta_text: string | null
           id: string
           location_updated_at: string | null
           otp_attempt_count: number
@@ -187,16 +188,20 @@ export type Database = {
           otp_locked_until: string | null
           pickup_confirmed: boolean
           pickup_confirmed_at: string | null
+          pickup_otp: string | null
           request_id: string
           status: Database["public"]["Enums"]["delivery_status"]
           traveller_lat: number | null
           traveller_lng: number | null
+          trip_note: string | null
+          trip_status: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           delivery_confirmed?: boolean
           delivery_confirmed_at?: string | null
+          eta_text?: string | null
           id?: string
           location_updated_at?: string | null
           otp_attempt_count?: number
@@ -204,16 +209,20 @@ export type Database = {
           otp_locked_until?: string | null
           pickup_confirmed?: boolean
           pickup_confirmed_at?: string | null
+          pickup_otp?: string | null
           request_id: string
           status?: Database["public"]["Enums"]["delivery_status"]
           traveller_lat?: number | null
           traveller_lng?: number | null
+          trip_note?: string | null
+          trip_status?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           delivery_confirmed?: boolean
           delivery_confirmed_at?: string | null
+          eta_text?: string | null
           id?: string
           location_updated_at?: string | null
           otp_attempt_count?: number
@@ -221,10 +230,13 @@ export type Database = {
           otp_locked_until?: string | null
           pickup_confirmed?: boolean
           pickup_confirmed_at?: string | null
+          pickup_otp?: string | null
           request_id?: string
           status?: Database["public"]["Enums"]["delivery_status"]
           traveller_lat?: number | null
           traveller_lng?: number | null
+          trip_note?: string | null
+          trip_status?: string | null
           updated_at?: string
         }
         Relationships: [
