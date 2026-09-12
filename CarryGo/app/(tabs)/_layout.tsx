@@ -207,7 +207,8 @@ export default function TabLayout() {
   const unreadMessages = conversations.filter(
     (conversation) => conversation.lastMessage && !conversation.lastMessage.read && conversation.lastMessage.senderId !== user.id,
   ).length;
-  const kycPending = FeatureFlags.kycProvider && (!user.kycStatus || user.kycStatus === 'pending');
+  const isKycApproved = user.kycStatus === 'approved' || Boolean(user.verified) || Boolean(user.isAadhaarVerified);
+  const kycPending = !isKycApproved && (!user.kycStatus || user.kycStatus === 'pending');
 
   const bottomPad = Platform.select({ ios: Math.max(insets.bottom, 10), android: Math.max(insets.bottom, 8), default: 10 });
 

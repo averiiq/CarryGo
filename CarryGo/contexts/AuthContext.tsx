@@ -269,8 +269,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persistUser, queryClient]);
 
   const updateUser = useCallback((updates: Partial<User>) => {
-    setUser(prev => prev ? { ...prev, ...updates } : null);
-  }, []);
+    setUser(prev => {
+      if (!prev) return null;
+      const next = { ...prev, ...updates };
+      persistUser(next);
+      return next;
+    });
+  }, [persistUser]);
 
   const refreshUser = useCallback(async () => {
     if (user) await loadUser(user.id, user.email);

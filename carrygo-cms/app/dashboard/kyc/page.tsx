@@ -23,7 +23,7 @@ export default async function KYCPage({ searchParams }: { searchParams: Promise<
 
   let sessionsQuery = supabase
     .from('kyc_sessions')
-    .select('id, user_id, full_name, id_type, status, submission_attempt, created_at', { count: 'exact' })
+    .select('id, user_id, full_name, id_type, status, submission_attempt, created_at, kyc_flow_version, aadhaar_verification_status, selfie_status, pan_verification_status', { count: 'exact' })
     .order('created_at', { ascending: false })
 
   if (activeTab !== 'all') sessionsQuery = sessionsQuery.eq('status', activeTab)
@@ -65,6 +65,10 @@ export default async function KYCPage({ searchParams }: { searchParams: Promise<
     submittedAt: session.created_at,
     attemptNumber: session.submission_attempt || 1,
     status: session.status,
+    kycFlowVersion: session.kyc_flow_version || 1,
+    aadhaarStatus: session.aadhaar_verification_status || null,
+    selfieStatus: session.selfie_status || null,
+    panStatus: session.pan_verification_status || null,
   }))
 
   const counts = {

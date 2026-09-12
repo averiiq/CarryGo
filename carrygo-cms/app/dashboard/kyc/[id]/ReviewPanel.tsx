@@ -28,6 +28,12 @@ type ReviewPanelProps = {
   currentStatus: string
   reviewerNotes: string | null
   reviewHistory: ReviewHistoryItem[]
+  kycFlowVersion?: number
+  verificationSummary?: {
+    aadhaarStatus?: string | null
+    selfieStatus?: string | null
+    panStatus?: string | null
+  }
 }
 
 function getStatusBadge(status: string) {
@@ -85,6 +91,8 @@ export default function ReviewPanel({
   currentStatus,
   reviewerNotes,
   reviewHistory,
+  kycFlowVersion = 1,
+  verificationSummary,
 }: ReviewPanelProps) {
   const [isPending, startTransition] = useTransition()
   const [rejectionReason, setRejectionReason] = useState('')
@@ -214,6 +222,58 @@ export default function ReviewPanel({
               {statusBadge.label}
             </span>
           </div>
+
+          {kycFlowVersion === 2 && verificationSummary && (
+            <div className="border-t border-border pt-3 space-y-2">
+              <span className="text-xs font-semibold text-muted uppercase tracking-wider block">
+                Automated Pipeline Signals (v2)
+              </span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Aadhaar (DigiLocker)</span>
+                <span
+                  className={`font-semibold ${
+                    verificationSummary.aadhaarStatus === 'verified'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                >
+                  {verificationSummary.aadhaarStatus === 'verified' ? 'Verified ✓' : 'Pending'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Live Selfie</span>
+                <span
+                  className={`font-semibold ${
+                    verificationSummary.selfieStatus === 'uploaded' || verificationSummary.selfieStatus === 'verified'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                >
+                  {verificationSummary.selfieStatus === 'uploaded' || verificationSummary.selfieStatus === 'verified'
+                    ? 'Uploaded ✓'
+                    : 'Pending'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">PAN (Optional)</span>
+                <span
+                  className={`font-semibold ${
+                    verificationSummary.panStatus === 'verified'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : verificationSummary.panStatus === 'skipped'
+                        ? 'text-muted'
+                        : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                >
+                  {verificationSummary.panStatus === 'verified'
+                    ? 'Verified ✓'
+                    : verificationSummary.panStatus === 'skipped'
+                      ? 'Skipped'
+                      : 'Not Provided'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

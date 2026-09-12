@@ -1,7 +1,21 @@
-﻿'use client'
+'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2, ImageOff, Eye } from 'lucide-react'
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Maximize2,
+  Minimize2,
+  ImageOff,
+  Eye,
+  ShieldCheck,
+  CheckCircle2,
+  MapPin,
+  Calendar,
+  User,
+  CreditCard,
+} from 'lucide-react'
 import { motion } from 'framer-motion'
 
 type DocumentType = 'id_front' | 'id_back' | 'selfie' | 'address_proof'
@@ -12,8 +26,37 @@ type DocumentData = {
   label: string
 }
 
+export type SandboxVerificationData = {
+  aadhaarStatus?: string | null
+  aadhaarRefId?: string | null
+  aadhaarVerifiedAt?: string | null
+  aadhaarName?: string | null
+  aadhaarDob?: string | null
+  aadhaarGender?: string | null
+  aadhaarAddress?: {
+    care_of?: string
+    line1?: string
+    line2?: string
+    street?: string
+    landmark?: string
+    locality?: string
+    city?: string
+    district?: string
+    state?: string
+    pincode?: string
+    country?: string
+  } | null
+  selfieStatus?: string | null
+  selfieUrl?: string | null
+  panStatus?: string | null
+  panRefId?: string | null
+  panVerifiedAt?: string | null
+}
+
 type DocumentViewerProps = {
   documents: DocumentData[]
+  kycFlowVersion?: number
+  sandboxData?: SandboxVerificationData
 }
 
 function isSafeDocUrl(url: string | null): boolean {
@@ -66,8 +109,8 @@ const TAB_LABELS: Record<DocumentType, string> = {
   address_proof: 'Address Proof',
 }
 
-export default function DocumentViewer({ documents }: DocumentViewerProps) {
-  const [activeTab, setActiveTab] = useState<DocumentType>('id_front')
+export default function DocumentViewer({ documents, kycFlowVersion = 1, sandboxData }: DocumentViewerProps) {
+  const [activeTab, setActiveTab] = useState<DocumentType>(kycFlowVersion === 2 ? 'selfie' : 'id_front')
   const [zoom, setZoom] = useState(1)
   const [rotation, setRotation] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -77,9 +120,9 @@ export default function DocumentViewer({ documents }: DocumentViewerProps) {
   const [imgError, setImgError] = useState<Set<string>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const activeDocument = documents.find((d) => d.type === activeTab) || null
   const selfieDoc = documents.find((d) => d.type === 'selfie') || null
   const idFrontDoc = documents.find((d) => d.type === 'id_front') || null
+  const activeDocument = documents.find((d) => d.type === activeTab) || selfieDoc
 
   const handleZoomIn = useCallback(() => {
     setZoom((prev) => Math.min(prev + 0.25, 4))
@@ -153,6 +196,250 @@ export default function DocumentViewer({ documents }: DocumentViewerProps) {
 
   const hasValidUrl = activeDocument && isSafeDocUrl(activeDocument.url) && !imgError.has(activeTab)
 
+  if (kycFlowVersion === 2) {
+    const addr = sandboxData?.aadhaarAddress
+    const formattedStreet = [addr?.line1, addr?.line2, addr?.street, addr?.locality].filter(Boolean).join(', ')
+    const formattedCity = [addr?.city, addr?.district].filter(Boolean).join(', ')
+    const formattedStatePin = [addr?.state, addr?.pincode].filter(Boolean).join(' - ')
+
+    return (
+      <div className="space-y-6">
+        {/* DigiLocker Verified Identity Banner */}
+        <div className="rounded-2xl bg-surface-elevated/70 border border-emerald-500/30 p-5 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  DigiLocker / Aadhaar Verification
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 inline" />
+                </h3>
+                <p className="text-xs text-muted">
+                  Official UIDAI verified identity via Sandbox API
+                </p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              {sandboxData?.aadhaarStatus === 'verified' ? 'Identity Verified' : 'Pending Verification'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div className="p-3 rounded-xl bg-background border border-border-subtle">
+              <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
+                <User className="w-3.5 h-3.5 text-primary" />
+                <span>Verified Full Name</span>
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                {sandboxData?.aadhaarName || 'Not available'}
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-background border border-border-subtle">
+              <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                <span>Date of Birth & Gender</span>
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                {sandboxData?.aadhaarDob || '—'} {sandboxData?.aadhaarGender ? `(${sandboxData.aadhaarGender})` : ''}
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-background border border-border-subtle">
+              <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+                <span>Aadhaar Reference Token</span>
+              </div>
+              <p className="text-xs font-mono font-medium text-foreground truncate">
+                {sandboxData?.aadhaarRefId || 'No token stored'}
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-background border border-border-subtle">
+              <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                <span>Verified Timestamp</span>
+              </div>
+              <p className="text-xs font-medium text-foreground">
+                {sandboxData?.aadhaarVerifiedAt
+                  ? new Date(sandboxData.aadhaarVerifiedAt).toLocaleString()
+                  : 'N/A'}
+              </p>
+            </div>
+          </div>
+
+          {/* Verified Address Card */}
+          <div className="p-4 rounded-xl bg-background border border-border-subtle space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <MapPin className="w-4 h-4 text-emerald-500" />
+              <span>DigiLocker Verified Address</span>
+            </div>
+            {addr ? (
+              <div className="text-xs space-y-1 text-foreground/80 pl-5">
+                {addr.care_of && <p className="font-medium text-foreground">C/O: {addr.care_of}</p>}
+                {formattedStreet && <p>{formattedStreet}</p>}
+                {formattedCity && <p>{formattedCity}</p>}
+                {formattedStatePin && <p className="font-semibold text-foreground">{formattedStatePin}</p>}
+              </div>
+            ) : (
+              <p className="text-xs text-muted pl-5">No address object returned.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Live Selfie Inspection Viewer */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Live User Selfie</h3>
+            </div>
+            <span
+              className={`px-2.5 py-0.5 text-xs font-semibold rounded-md ${
+                sandboxData?.selfieStatus === 'uploaded' || sandboxData?.selfieStatus === 'verified'
+                  ? 'bg-emerald-500/10 text-emerald-600'
+                  : 'bg-amber-500/10 text-amber-600'
+              }`}
+            >
+              {sandboxData?.selfieStatus === 'uploaded' || sandboxData?.selfieStatus === 'verified'
+                ? 'Selfie Uploaded'
+                : 'Selfie Pending'}
+            </span>
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleZoomOut}
+                className="p-2 rounded-lg border border-border hover:bg-surface-elevated hover:border-border-strong transition-all"
+                title="Zoom out"
+              >
+                <ZoomOut className="w-3.5 h-3.5 text-muted" />
+              </button>
+              <span className="text-xs text-muted min-w-[3rem] text-center tabular-nums font-medium">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={handleZoomIn}
+                className="p-2 rounded-lg border border-border hover:bg-surface-elevated hover:border-border-strong transition-all"
+                title="Zoom in"
+              >
+                <ZoomIn className="w-3.5 h-3.5 text-muted" />
+              </button>
+              <button
+                onClick={handleRotate}
+                className="p-2 rounded-lg border border-border hover:bg-surface-elevated hover:border-border-strong transition-all"
+                title="Rotate 90°"
+              >
+                <RotateCw className="w-3.5 h-3.5 text-muted" />
+              </button>
+              <button
+                onClick={toggleFullscreen}
+                className="p-2 rounded-lg border border-border hover:bg-surface-elevated hover:border-border-strong transition-all"
+                title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-3.5 h-3.5 text-muted" />
+                ) : (
+                  <Maximize2 className="w-3.5 h-3.5 text-muted" />
+                )}
+              </button>
+            </div>
+            <button
+              onClick={resetView}
+              className="text-xs text-primary hover:text-primary-hover font-medium transition-colors"
+            >
+              Reset
+            </button>
+          </div>
+
+          {/* Image Display */}
+          <div
+            ref={containerRef}
+            className="relative rounded-xl border border-border bg-background overflow-hidden"
+            style={{ minHeight: '360px', height: isFullscreen ? '100vh' : '420px' }}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+          >
+            {selfieDoc && isSafeDocUrl(selfieDoc.url) && !imgError.has('selfie') ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="w-full h-full flex items-center justify-center p-4"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selfieDoc.url!}
+                  alt="Live Selfie"
+                  className="max-w-full max-h-full object-contain select-none rounded-lg"
+                  style={{
+                    transform: `scale(${zoom}) rotate(${rotation}deg) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
+                    transition: isPanning ? 'none' : 'transform 0.2s ease',
+                    cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+                  }}
+                  draggable={false}
+                  onError={() => setImgError((prev) => new Set(prev).add('selfie'))}
+                />
+              </motion.div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-surface-elevated border border-border-subtle flex items-center justify-center">
+                    <ImageOff className="w-6 h-6 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-sm text-muted font-medium">
+                    {imgError.has('selfie') ? 'Failed to load selfie' : 'No selfie uploaded'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Optional PAN Status Card */}
+        <div className="rounded-xl bg-surface-elevated/50 border border-border-subtle p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-primary" />
+              <h4 className="text-xs font-bold text-foreground">PAN Verification (Optional)</h4>
+            </div>
+            <span
+              className={`px-2 py-0.5 text-xs font-semibold rounded-md ${
+                sandboxData?.panStatus === 'verified'
+                  ? 'bg-blue-500/10 text-blue-600'
+                  : sandboxData?.panStatus === 'skipped'
+                    ? 'bg-surface-elevated text-muted'
+                    : 'bg-amber-500/10 text-amber-600'
+              }`}
+            >
+              {sandboxData?.panStatus === 'verified'
+                ? 'PAN Verified'
+                : sandboxData?.panStatus === 'skipped'
+                  ? 'Skipped by User'
+                  : 'Not Provided'}
+            </span>
+          </div>
+          {sandboxData?.panStatus === 'verified' ? (
+            <p className="text-xs text-foreground/80">
+              Ref ID: <span className="font-mono">{sandboxData.panRefId}</span>
+              {sandboxData.panVerifiedAt && ` • Verified on ${new Date(sandboxData.panVerifiedAt).toLocaleDateString()}`}
+            </p>
+          ) : (
+            <p className="text-xs text-muted">
+              PAN verification is optional and skipping does not affect KYC validity.
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* Tab Navigation */}
@@ -201,7 +488,7 @@ export default function DocumentViewer({ documents }: DocumentViewerProps) {
           <button
             onClick={handleRotate}
             className="p-2 rounded-lg border border-border hover:bg-surface-elevated hover:border-border-strong transition-all"
-            title="Rotate 90Â°"
+            title="Rotate 90°"
           >
             <RotateCw className="w-3.5 h-3.5 text-muted" />
           </button>

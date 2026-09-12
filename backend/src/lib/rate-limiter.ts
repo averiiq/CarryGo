@@ -79,3 +79,7 @@ export const globalApiRateLimiter = new SlidingWindowRateLimiter(60_000, 120);
 
 // 2. Sensitive mutation limiter (trips, parcels, requests, bookings): 30 requests/minute per client
 export const mutationRateLimiter = new SlidingWindowRateLimiter(60_000, 30);
+
+// 3. Sensitive KYC limiter (Aadhaar initiation, OTP/DigiLocker polling, PAN checks): 6 requests/minute per client
+export const kycRateLimiter = new SlidingWindowRateLimiter(60_000, 6);
+

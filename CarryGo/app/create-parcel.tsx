@@ -22,13 +22,14 @@ import KycOnboarding from '@/components/feature/KycOnboarding';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateParcelMutation } from '@/features/listings/queries';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
 import { DocumentsIllustration, ElectronicsIllustration, ClothingIllustration, FoodIllustration, MedicineIllustration, OtherIllustration, ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
 
 const STEPS = [
-  { label: 'Route & Date' },
-  { label: 'Parcel Details' },
-  { label: 'Review & Send' },
+  { label: 'Route' },
+  { label: 'Details' },
+  { label: 'Review' },
 ];
 
 const CATEGORY_ILLUSTRATIONS: Record<ParcelCategory, React.FC<{ size?: number; color?: string; active?: boolean }>> = {
@@ -87,6 +88,7 @@ export default function CreateParcelScreen() {
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
@@ -214,44 +216,6 @@ export default function CreateParcelScreen() {
     }
   }, [isDraftRestored]);
 
-  const routeChecks = useMemo(() => ([
-    { label: 'Pickup city selected', done: Boolean(form.fromCity.trim()) },
-    { label: 'Delivery city selected', done: Boolean(form.toCity.trim()) },
-    { label: 'Route is valid', done: Boolean(form.fromCity && form.toCity && form.fromCity.toLowerCase() !== form.toCity.toLowerCase()) },
-    { label: 'Send-by date selected', done: Boolean(form.deliveryDate) },
-  ]), [form.fromCity, form.toCity, form.deliveryDate]);
-
-  const detailChecks = useMemo(() => {
-    const parcelWeight = Number(form.weight);
-    const offerAmount = Number(form.priceOffer);
-    return [
-      { label: 'At least one photo added', done: form.images.length > 0 },
-      { label: 'Weight set (0.1-100 kg)', done: Number.isFinite(parcelWeight) && parcelWeight > 0 && parcelWeight <= 100 },
-      { label: 'Offer set (Rs 1-1,00,000)', done: Number.isFinite(offerAmount) && offerAmount >= 1 && offerAmount <= 100000 },
-    ];
-  }, [form.images.length, form.weight, form.priceOffer]);
-
-  const currentChecks = step === 0 ? routeChecks : step === 1 ? detailChecks : [];
-  const pendingChecks = currentChecks.filter((item) => !item.done);
-  const nextHintAnim = useRef(new Animated.Value(1)).current;
-  const wasStepCompleteRef = useRef(pendingChecks.length === 0);
-
-
-  useEffect(() => {
-    const isStepComplete = pendingChecks.length === 0;
-    if (isStepComplete && !wasStepCompleteRef.current) {
-      Haptic.success();
-    }
-    wasStepCompleteRef.current = isStepComplete;
-
-    nextHintAnim.setValue(0.86);
-    Animated.spring(nextHintAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 170,
-      friction: 12,
-    }).start();
-  }, [pendingChecks.length, nextHintAnim]);
   const undoDraftRestore = () => {
     setForm(EMPTY_DRAFT);
     setFieldErrors({});
@@ -278,12 +242,6 @@ export default function CreateParcelScreen() {
 
   const goNext = () => {
     if (!canMoveToStep(Math.min(step + 1, 2))) {
-      const pending = (step === 0 ? routeChecks : detailChecks)
-        .filter((item) => !item.done)
-        .map((item) => item.label);
-      if (pending.length > 0) {
-        showAlert('Complete this step', pending.join(' - '));
-      }
       return;
     }
     setFieldErrors({});
@@ -350,12 +308,13 @@ export default function CreateParcelScreen() {
       setShowSafety(true);
       return;
     }
-    if (!FeatureFlags.kycProvider) {
-      Haptic.warning();
-      showAlert('Parcel Listing Unavailable', `${disabledFeatureMessage.kyc} Parcel listing stays paused in this build.`);
-      return;
-    }
-    if (!(FeatureFlags.kycProvider && user?.kycStatus === 'approved')) {
+    const isKycApproved = user?.kycStatus === 'approved' || Boolean(user?.verified) || Boolean(user?.isAadhaarVerified);
+    if (!isKycApproved) {
+      if (!FeatureFlags.kycProvider) {
+        Haptic.warning();
+        showAlert('Parcel Listing Unavailable', `${disabledFeatureMessage.kyc} Parcel listing stays paused in this build.`);
+        return;
+      }
       Haptic.warning();
       showAlert('KYC Required', 'You need to complete identity verification before sending a parcel.', [
         { text: 'Cancel', style: 'cancel' },
@@ -453,24 +412,15 @@ export default function CreateParcelScreen() {
         direction={direction}
       >
         {showDraftBanner ? (
-          <View style={[styles.draftBanner, { backgroundColor: C.warningSubtle, borderColor: C.warning + '55' }]}>
-            <MaterialIcons name="restore" size={16} color={C.warning} />
-            <Text style={[styles.draftBannerText, { color: C.textSecondary }]}>Draft restored from your last session.</Text>
-            <Pressable onPress={undoDraftRestore} hitSlop={6}>
-              <Text style={[styles.draftBannerAction, { color: C.warning }]}>Start fresh</Text>
+          <View style={[styles.draftBanner, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <MaterialIcons name="restore" size={15} color={C.primary} />
+            <Text style={[styles.draftBannerText, { color: C.textSecondary }]}>Draft restored from last session</Text>
+            <Pressable onPress={undoDraftRestore} hitSlop={8}>
+              <Text style={[styles.draftBannerAction, { color: C.primary }]}>Clear</Text>
             </Pressable>
-          </View>
-        ) : null}
-
-        {step < 2 ? (
-          <View style={[styles.checklistCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <Text style={[styles.checklistTitle, { color: C.textPrimary }]}>Step checklist</Text>
-            {currentChecks.map((item) => (
-              <View key={item.label} style={styles.checklistRow}>
-                <MaterialIcons name={item.done ? 'check-circle' : 'radio-button-unchecked'} size={16} color={item.done ? C.success : C.textMuted} />
-                <Text style={[styles.checklistText, { color: item.done ? C.textPrimary : C.textSecondary }]}>{item.label}</Text>
-              </View>
-            ))}
+            <Pressable onPress={() => setShowDraftBanner(false)} hitSlop={8} style={{ marginLeft: 4 }}>
+              <MaterialIcons name="close" size={15} color={C.textMuted} />
+            </Pressable>
           </View>
         ) : null}
 
@@ -489,17 +439,7 @@ export default function CreateParcelScreen() {
         {step === 1 && <StepDetails form={form} updateField={updateField} fieldErrors={fieldErrors} C={C} />}
         {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} />}
 
-        <View style={styles.footer}>
-          {step < 2 ? (
-            <Animated.View style={[styles.nextHintBar, { backgroundColor: pendingChecks.length > 0 ? C.warningSubtle : C.successSubtle, borderColor: pendingChecks.length > 0 ? C.warning + '55' : C.success + '55', opacity: nextHintAnim, transform: [{ translateY: nextHintAnim.interpolate({ inputRange: [0.86, 1], outputRange: [4, 0] }) }, { scale: nextHintAnim }] }]}>
-              <MaterialIcons name={pendingChecks.length > 0 ? 'info-outline' : 'check-circle'} size={15} color={pendingChecks.length > 0 ? C.warning : C.success} />
-              <Text style={[styles.nextHintText, { color: C.textSecondary }]} numberOfLines={1}>
-                {pendingChecks.length > 0
-                  ? `Before next: ${pendingChecks.slice(0, 2).map((item) => item.label).join(' • ')}`
-                  : 'Looks good - you can continue to the next step.'}
-              </Text>
-            </Animated.View>
-          ) : null}
+        <View style={[styles.footer, { backgroundColor: C.background, borderTopColor: C.surfaceBorder, paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
           {step > 0 && (
             <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
           )}
@@ -830,7 +770,7 @@ function StepHeader({
 }) {
   return (
     <View style={styles.stepHeaderWrap}>
-      <View style={[styles.stepHeaderIcon, { backgroundColor: C.primarySubtle }]}>
+      <View style={[styles.stepHeaderIcon, { backgroundColor: C.primarySubtle, borderColor: C.primary + '25', borderWidth: 1 }]}>
         <MaterialIcons name={icon} size={22} color={C.primary} />
       </View>
       <View style={{ flex: 1 }}>
@@ -853,7 +793,7 @@ const styles = StyleSheet.create({
   stepHeaderIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -946,31 +886,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   draftBannerText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  draftBannerAction: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  checklistCard: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  checklistTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  checklistRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  checklistText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  nextHintBar: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    minHeight: 40,
-    paddingHorizontal: Spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    position: 'absolute',
-    left: Spacing.md,
-    right: Spacing.md,
-    top: -48,
-  },
-  nextHintText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.medium },
+  draftBannerAction: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   footer: {
     flexDirection: 'row', gap: Spacing.md,
     position: 'absolute', bottom: 0, left: 0, right: 0,

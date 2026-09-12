@@ -10,6 +10,7 @@ export type RateLimitAction =
   | 'release_payment'
   | 'refund_payment'
   | 'kyc_upload'
+  | 'kyc_initiate'
   | 'confirm_delivery';
 
 export async function enforceRateLimit(userId: string, action: RateLimitAction): Promise<{ allowed: boolean; error?: string }> {

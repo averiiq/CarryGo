@@ -24,6 +24,10 @@ type KycSession = {
   submittedAt: string
   attemptNumber: number
   status: string
+  kycFlowVersion?: number
+  aadhaarStatus?: string | null
+  selfieStatus?: string | null
+  panStatus?: string | null
 }
 
 type TabKey = 'all' | 'submitted' | 'under_review' | 'approved' | 'rejected'
@@ -387,12 +391,57 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-primary-subtle text-primary">
-                          {session.idType}
-                        </span>
+                        {session.kycFlowVersion === 2 ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            DigiLocker / Aadhaar
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-primary-subtle text-primary">
+                            {session.idType}
+                          </span>
+                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/70">
-                        {session.documentsCount}/4
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {session.kycFlowVersion === 2 ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                                session.aadhaarStatus === 'verified'
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : 'bg-amber-500/10 text-amber-600'
+                              }`}
+                              title={`Aadhaar: ${session.aadhaarStatus || 'pending'}`}
+                            >
+                              UID: {session.aadhaarStatus === 'verified' ? '✓' : '⋯'}
+                            </span>
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                                session.selfieStatus === 'uploaded' || session.selfieStatus === 'verified'
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : 'bg-amber-500/10 text-amber-600'
+                              }`}
+                              title={`Selfie: ${session.selfieStatus || 'pending'}`}
+                            >
+                              Selfie: {session.selfieStatus === 'uploaded' || session.selfieStatus === 'verified' ? '✓' : '⋯'}
+                            </span>
+                            {session.panStatus && session.panStatus !== 'not_started' && (
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                                  session.panStatus === 'verified'
+                                    ? 'bg-blue-500/10 text-blue-600'
+                                    : 'bg-surface-elevated text-muted'
+                                }`}
+                                title={`PAN: ${session.panStatus}`}
+                              >
+                                PAN: {session.panStatus === 'verified' ? '✓' : 'skip'}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-foreground/70">
+                            {session.documentsCount}/4
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                         {new Date(session.submittedAt).toLocaleDateString()}

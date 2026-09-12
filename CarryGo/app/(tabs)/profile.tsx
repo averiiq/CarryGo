@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
@@ -85,7 +85,7 @@ function StatPill({
 }
 
 export default function ProfileScreen() {
-  const { user, logout, deleteAccount } = useAuth();
+  const { user, logout, deleteAccount, refreshUser } = useAuth();
   const { showAlert } = useAlert();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -102,6 +102,13 @@ export default function ProfileScreen() {
   const parcelsQuery = useParcelsQuery(Boolean(user));
   const requestsQuery = useRequestsQuery(user?.id);
   const scrollRef = useRef<ScrollView | null>(null);
+
+  // Automatically refresh profile from database whenever returning to profile tab
+  useFocusEffect(
+    useCallback(() => {
+      refreshUser();
+    }, [refreshUser])
+  );
 
   const trips = user ? flattenInfiniteData(tripsQuery.data) : [];
   const parcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
@@ -156,10 +163,10 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   const displayName = user.fullName || user.name || user.email?.split('@')[0] || 'User';
+  const isKycApproved = Boolean(user.kycStatus === 'approved' || user.verified || user.isAadhaarVerified);
+  const isKycSubmitted = !isKycApproved && user.kycStatus === 'submitted';
   const isKycAvailable = FeatureFlags.kycProvider;
-  const isKycApproved = isKycAvailable && user.kycStatus === 'approved';
-  const isKycSubmitted = isKycAvailable && user.kycStatus === 'submitted';
-  const canOpenKycBanner = !isKycApproved && !isKycSubmitted;
+  const canOpenKycBanner = isKycAvailable && !isKycApproved && !isKycSubmitted;
 
   const heroTranslateY = scrollY.interpolate({
     inputRange: [0, 190],
@@ -173,15 +180,36 @@ export default function ProfileScreen() {
     extrapolate: 'clamp',
   });
 
-  const kycColor = !isKycAvailable ? C.warning : isKycApproved ? C.success : isKycSubmitted ? C.warning : C.error;
-  const kycBg = !isKycAvailable ? C.warningSubtle : isKycApproved ? C.successSubtle : isKycSubmitted ? C.warningSubtle : C.errorSubtle;
-  const kycTitle = !isKycAvailable ? 'Identity Verification Unavailable' : isKycApproved ? 'Identity Verified' : isKycSubmitted ? 'KYC Under Review' : 'Verify Your Identity';
-  const kycBody = !isKycAvailable
-    ? disabledFeatureMessage.kyc
-    : isKycApproved
-    ? 'You can send and carry parcels freely.'
+  const kycColor = isKycApproved
+    ? C.success
+    : isKycSubmitted
+    ? C.warning
+    : !isKycAvailable
+    ? C.warning
+    : C.error;
+
+  const kycBg = isKycApproved
+    ? C.successSubtle
+    : isKycSubmitted
+    ? C.warningSubtle
+    : !isKycAvailable
+    ? C.warningSubtle
+    : C.errorSubtle;
+
+  const kycTitle = isKycApproved
+    ? 'Identity Verified'
+    : isKycSubmitted
+    ? 'KYC Under Review'
+    : !isKycAvailable
+    ? 'Identity Verification Unavailable'
+    : 'Verify Your Identity';
+
+  const kycBody = isKycApproved
+    ? 'You are 100% verified to send and carry parcels freely.'
     : isKycSubmitted
     ? 'Usually approved within 24 hours.'
+    : !isKycAvailable
+    ? disabledFeatureMessage.kyc
     : 'Needed to send or carry parcels - 2 min process.';
 
   return (
@@ -338,11 +366,11 @@ export default function ProfileScreen() {
             </View>
           ) : isKycApproved ? (
             <MaterialIcons name="check-circle" size={20} color={C.success} />
-          ) : (
+          ) : isKycSubmitted ? (
             <View style={[styles.pendingChip, { backgroundColor: C.warning + '20' }]}>
-              <Text style={[styles.pendingChipText, { color: C.warning }]}>Pending</Text>
+              <Text style={[styles.pendingChipText, { color: C.warning }]}>In Review</Text>
             </View>
-          )}
+          ) : null}
         </Pressable>
 
         {/* Sections */}
@@ -393,9 +421,10 @@ export default function ProfileScreen() {
             <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Account</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem C={C}
-                icon={<MaterialIcons name="verified-user" size={17} color={!isKycAvailable ? C.warning : isKycApproved ? C.success : C.error} />}
+                icon={<MaterialIcons name={isKycApproved ? 'verified' : 'verified-user'} size={17} color={isKycApproved ? C.success : isKycSubmitted ? C.warning : !isKycAvailable ? C.warning : C.error} />}
                 label="KYC Verification"
-                subtitle={!isKycAvailable ? 'Provider required' : isKycApproved ? 'Approved' : isKycSubmitted ? 'Under Review' : 'Not started'}
+                subtitle={isKycApproved ? '100% Officially Verified' : isKycSubmitted ? 'Under Review' : !isKycAvailable ? 'Provider required' : 'Not started'}
+                right={isKycApproved ? <MaterialIcons name="check-circle" size={18} color={C.success} /> : undefined}
                 onPress={!isKycAvailable || isKycApproved ? undefined : () => setShowKyc(true)}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />

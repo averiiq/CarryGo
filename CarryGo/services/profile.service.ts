@@ -28,9 +28,13 @@ interface ProfileRow {
   role?: string | null;
   city?: string | null;
   profile_completed_at?: string | null;
+  is_aadhaar_verified?: boolean | null;
+  is_address_verified?: boolean | null;
+  verified_address?: string | null;
 }
 
 function mapProfileRow(data: ProfileRow): User {
+  const isApproved = data.kyc_status === 'approved' || Boolean(data.verified) || Boolean(data.is_aadhaar_verified);
   return {
     id: data.id,
     name: data.full_name || data.username || data.email?.split('@')[0] || 'User',
@@ -41,13 +45,16 @@ function mapProfileRow(data: ProfileRow): User {
     totalDeliveries: data.total_deliveries || 0,
     totalTrips: data.total_trips || 0,
     joinedAt: data.joined_at || data.created_at || new Date().toISOString(),
-    verified: data.verified || false,
+    verified: isApproved || Boolean(data.verified),
     pushToken: data.push_token || undefined,
-    kycStatus: (data.kyc_status as User['kycStatus']) || 'pending',
+    kycStatus: isApproved ? 'approved' : ((data.kyc_status as User['kycStatus']) || 'pending'),
     fullName: data.full_name || undefined,
     role: data.role as User['role'],
     city: data.city || undefined,
     profileCompletedAt: data.profile_completed_at || undefined,
+    isAadhaarVerified: isApproved || Boolean(data.is_aadhaar_verified),
+    isAddressVerified: Boolean(data.is_address_verified),
+    verifiedAddress: data.verified_address || undefined,
   };
 }
 

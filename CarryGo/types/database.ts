@@ -315,6 +315,13 @@ export type Database = {
       }
       kyc_sessions: {
         Row: {
+          aadhaar_address: Json | null
+          aadhaar_dob: string | null
+          aadhaar_gender: string | null
+          aadhaar_name: string | null
+          aadhaar_reference_id: string | null
+          aadhaar_verification_status: string | null
+          aadhaar_verified_at: string | null
           address_proof_url: string | null
           created_at: string
           document_url: string | null
@@ -322,18 +329,30 @@ export type Database = {
           id: string
           id_back_url: string | null
           id_type: string
+          kyc_flow_version: number
+          pan_reference_id: string | null
+          pan_verification_status: string | null
+          pan_verified_at: string | null
           provider: string
           provider_session_id: string | null
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           reviewer_notes: string | null
+          selfie_status: string | null
           selfie_url: string | null
           status: Database["public"]["Enums"]["kyc_status"]
           submission_attempt: number
           user_id: string
         }
         Insert: {
+          aadhaar_address?: Json | null
+          aadhaar_dob?: string | null
+          aadhaar_gender?: string | null
+          aadhaar_name?: string | null
+          aadhaar_reference_id?: string | null
+          aadhaar_verification_status?: string | null
+          aadhaar_verified_at?: string | null
           address_proof_url?: string | null
           created_at?: string
           document_url?: string | null
@@ -341,18 +360,30 @@ export type Database = {
           id?: string
           id_back_url?: string | null
           id_type: string
+          kyc_flow_version?: number
+          pan_reference_id?: string | null
+          pan_verification_status?: string | null
+          pan_verified_at?: string | null
           provider?: string
           provider_session_id?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           reviewer_notes?: string | null
+          selfie_status?: string | null
           selfie_url?: string | null
           status?: Database["public"]["Enums"]["kyc_status"]
           submission_attempt?: number
           user_id: string
         }
         Update: {
+          aadhaar_address?: Json | null
+          aadhaar_dob?: string | null
+          aadhaar_gender?: string | null
+          aadhaar_name?: string | null
+          aadhaar_reference_id?: string | null
+          aadhaar_verification_status?: string | null
+          aadhaar_verified_at?: string | null
           address_proof_url?: string | null
           created_at?: string
           document_url?: string | null
@@ -360,12 +391,17 @@ export type Database = {
           id?: string
           id_back_url?: string | null
           id_type?: string
+          kyc_flow_version?: number
+          pan_reference_id?: string | null
+          pan_verification_status?: string | null
+          pan_verified_at?: string | null
           provider?: string
           provider_session_id?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           reviewer_notes?: string | null
+          selfie_status?: string | null
           selfie_url?: string | null
           status?: Database["public"]["Enums"]["kyc_status"]
           submission_attempt?: number
@@ -1331,6 +1367,35 @@ export type Database = {
       }
       set_trip_status: {
         Args: { p_status: Database["public"]["Enums"]["trip_status"]; p_trip_id: string }
+        Returns: undefined
+      }
+      complete_sandbox_kyc: {
+        Args: { p_session_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      verify_aadhaar_sandbox: {
+        Args: {
+          p_session_id: string
+          p_user_id: string
+          p_reference_id: string
+          p_name: string
+          p_dob?: string
+          p_gender?: string
+          p_address?: Record<string, unknown>
+        }
+        Returns: undefined
+      }
+      register_kyc_selfie: {
+        Args: { p_session_id: string; p_user_id: string; p_selfie_url: string }
+        Returns: undefined
+      }
+      update_kyc_pan_status: {
+        Args: {
+          p_session_id: string
+          p_user_id: string
+          p_pan_status: string
+          p_pan_reference_id?: string
+        }
         Returns: undefined
       }
       submit_kyc_session: {

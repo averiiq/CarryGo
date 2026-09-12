@@ -25,8 +25,18 @@ import {
   handleUpdateRequestStatus,
 } from '../modules/requests/handler';
 import {
+  handleInitiateAadhaar,
+  handleVerifyAadhaar,
+  handleRegisterSelfie,
+  handleVerifyPan,
+  handleSkipPan,
+  handleGetKycStatus,
+  handleSandboxWebhook,
+} from '../modules/kyc/handler';
+import {
   globalApiRateLimiter,
   mutationRateLimiter,
+  kycRateLimiter,
 } from '../lib/rate-limiter';
 
 const normalizePath = (rawPath: string): string => {
@@ -52,6 +62,14 @@ export const routeRequest = async (
   const sourceIp = event.requestContext.http.sourceIp ?? 'unknown';
 
   // 1. Sliding window rate limit check (Defends against retry storms & flood attacks)
+  // Dedicated stricter rate limit for KYC operations to prevent credential harvesting / abuse
+  if (path.startsWith('/kyc/') && path !== '/kyc/sandbox/webhook') {
+    const kycCheck = kycRateLimiter.check(`${sourceIp}:KYC`);
+    if (!kycCheck.allowed) {
+      return rateLimited(kycCheck.retryAfterSeconds, requestId);
+    }
+  }
+
   const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
   const rateLimitKey = `${sourceIp}:${isMutation ? 'MUTATION' : 'READ'}`;
   const limiter = isMutation ? mutationRateLimiter : globalApiRateLimiter;
@@ -60,6 +78,7 @@ export const routeRequest = async (
   if (!rateCheck.allowed) {
     return rateLimited(rateCheck.retryAfterSeconds, requestId);
   }
+
 
   // 2. Dispatch to route handlers
   let response: JsonResponse;
@@ -72,6 +91,30 @@ export const routeRequest = async (
     response = await handleListTrips(event);
   } else if (method === 'POST' && path === '/trips') {
     response = await handleCreateTrip(event);
+  } else if (method === 'GET' && path === '/parcels') {
+    response = await handleListParcels(event);
+  } else if (method === 'POST' && path === '/parcels') {
+    response = await handleCreateParcel(event);
+  } else if (method === 'GET' && path === '/requests') {
+    response = await handleListRequests(event);
+  } else if (method === 'POST' && path === '/requests') {
+    response = await handleCreateRequest(event);
+  } else if (method === 'GET' && path === '/admin/disputes') {
+    response = await handleDisputesOverview(event);
+  } else if (method === 'POST' && path === '/kyc/aadhaar/initiate') {
+    response = await handleInitiateAadhaar(event);
+  } else if (method === 'POST' && path === '/kyc/aadhaar/verify') {
+    response = await handleVerifyAadhaar(event);
+  } else if (method === 'POST' && path === '/kyc/selfie') {
+    response = await handleRegisterSelfie(event);
+  } else if (method === 'POST' && path === '/kyc/pan/verify') {
+    response = await handleVerifyPan(event);
+  } else if (method === 'POST' && path === '/kyc/pan/skip') {
+    response = await handleSkipPan(event);
+  } else if (method === 'GET' && path === '/kyc/status') {
+    response = await handleGetKycStatus(event);
+  } else if (method === 'POST' && path === '/kyc/sandbox/webhook') {
+    response = await handleSandboxWebhook(event);
   } else {
     const tripStatusMatch = path.match(/^\/trips\/([^/]+)\/status$/);
     if (method === 'PATCH' && tripStatusMatch) {
@@ -80,10 +123,6 @@ export const routeRequest = async (
       const tripMatch = path.match(/^\/trips\/([^/]+)$/);
       if (method === 'GET' && tripMatch) {
         response = await handleGetTrip(tripMatch[1]);
-      } else if (method === 'GET' && path === '/parcels') {
-        response = await handleListParcels(event);
-      } else if (method === 'POST' && path === '/parcels') {
-        response = await handleCreateParcel(event);
       } else {
         const parcelStatusMatch = path.match(/^\/parcels\/([^/]+)\/status$/);
         if (method === 'PATCH' && parcelStatusMatch) {
@@ -92,12 +131,6 @@ export const routeRequest = async (
           const parcelMatch = path.match(/^\/parcels\/([^/]+)$/);
           if (method === 'GET' && parcelMatch) {
             response = await handleGetParcel(parcelMatch[1]);
-          } else if (method === 'GET' && path === '/requests') {
-            response = await handleListRequests(event);
-          } else if (method === 'POST' && path === '/requests') {
-            response = await handleCreateRequest(event);
-          } else if (method === 'GET' && path === '/admin/disputes') {
-            response = await handleDisputesOverview(event);
           } else {
             const requestByTripMatch = path.match(/^\/requests\/by-trip\/([^/]+)$/);
             if (method === 'GET' && requestByTripMatch) {

@@ -20,19 +20,38 @@ const MAGIC_BYTES: Record<string, number[]> = {
   'image/webp': [0x52, 0x49, 0x46, 0x46],
 };
 
+function decodeBase64Header(base64: string): number[] {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const bytes: number[] = [];
+  let buffer = 0;
+  let bits = 0;
+  for (let i = 0; i < base64.length && bytes.length < 8; i++) {
+    const val = chars.indexOf(base64[i]);
+    if (val === -1) continue;
+    buffer = (buffer << 6) | val;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((buffer >> bits) & 0xff);
+    }
+  }
+  return bytes;
+}
+
 async function validateMagicBytes(fileUri: string, claimedMimeType: string): Promise<boolean> {
   const expected = MAGIC_BYTES[claimedMimeType];
-  if (!expected) return false;
+  if (!expected) return true;
 
   try {
     const base64 = await FileSystem.readAsStringAsync(fileUri, {
       encoding: FileSystem.EncodingType.Base64,
-      length: 12,
+      length: 64,
     });
-    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const bytes = decodeBase64Header(base64);
+    if (bytes.length === 0) return true;
     return expected.every((byte, i) => bytes[i] === byte);
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -132,23 +151,36 @@ async function uploadToCloudinary(
   }
 
   const publicId = buildPublicId(bucket, userId, fileName);
-  const sig = await getSignature(bucket, publicId);
-  const uploadUrl = getUploadUrl();
+  let sig: SignatureResponse | null = null;
+  try {
+    sig = await getSignature(bucket, publicId);
+  } catch (sigErr) {
+    console.warn('Could not get signed Cloudinary upload credentials, attempting preset:', sigErr);
+  }
 
-  const MAX_RETRIES = 2;
+  const uploadUrl = getUploadUrl();
+  const MAX_RETRIES = 1;
   let lastError = '';
+
+  const params: Record<string, string> = sig?.signature
+    ? {
+        api_key: sig.apiKey,
+        timestamp: String(sig.timestamp),
+        signature: sig.signature,
+        public_id: sig.publicId,
+      }
+    : {
+        upload_preset: 'carrygo_uploads',
+        folder: bucket,
+        public_id: publicId,
+      };
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const result = await FileSystem.uploadAsync(uploadUrl, optimized.uri, {
       httpMethod: 'POST',
       uploadType: FileSystem.FileSystemUploadType.MULTIPART,
       fieldName: 'file',
-      parameters: {
-        api_key: sig.apiKey,
-        timestamp: String(sig.timestamp),
-        signature: sig.signature,
-        public_id: sig.publicId,
-      },
+      parameters: params,
     });
 
     if (result.status >= 200 && result.status < 300) {

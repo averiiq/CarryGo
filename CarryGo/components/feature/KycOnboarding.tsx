@@ -49,7 +49,7 @@ export default function KycOnboarding({ visible, onClose, onComplete }: KycOnboa
             <View style={[styles.notice, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
               <MaterialIcons name="info-outline" size={20} color={C.primary} />
               <Text style={[styles.noticeText, { color: C.textSecondary }]}>
-                Verify your identity to send parcels, accept trips, and access all CarryGo features. You will need a government-issued ID and a selfie.
+                Verify your identity instantly using your 12-digit Aadhaar number with official UIDAI OTP and a quick selfie. No physical document upload required.
               </Text>
             </View>
             <Pressable

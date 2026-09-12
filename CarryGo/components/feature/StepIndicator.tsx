@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Haptic } from '@/services/haptics.service';
 
 type Step = {
   label: string;
@@ -17,52 +17,44 @@ type StepIndicatorProps = {
   onStepPress?: (index: number) => void;
 };
 
-function getStepHint(label: string) {
-  const normalized = label.toLowerCase();
-  if (normalized.includes('route')) return 'Choose cities and schedule with confidence.';
-  if (normalized.includes('capacity') || normalized.includes('parcel') || normalized.includes('detail')) return 'Add the essentials so matching is accurate.';
-  if (normalized.includes('review') || normalized.includes('publish') || normalized.includes('send')) return 'Do a final check before you publish.';
-  return 'Complete this step to continue smoothly.';
-}
-
 export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicatorProps) {
   const { C } = useThemeColors();
   const { isSmallDevice, isTablet } = useResponsive();
   const progress = (currentStep + 1) / steps.length;
   const percent = Math.round(progress * 100);
 
-  const hint = useMemo(() => getStepHint(steps[currentStep]?.label ?? ''), [currentStep, steps]);
-
   const progressStyle = useAnimatedStyle(() => {
     return {
-      width: withSpring(`${progress * 100}%`, { damping: 20, stiffness: 120 }),
+      width: withSpring(`${progress * 100}%`, { damping: 22, stiffness: 140 }),
     };
   }, [progress]);
 
   return (
     <View style={[styles.container, isTablet && styles.containerTablet]}>
-      <View style={[styles.heroStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
-        <LinearGradient
-          colors={[C.primarySubtle, 'transparent']}
-          style={StyleSheet.absoluteFillObject}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <View style={styles.heroTopRow}>
-          <Text style={[styles.stepText, { color: C.textMuted }]}>Step {currentStep + 1} of {steps.length}</Text>
-          <View style={[styles.percentPill, { backgroundColor: C.primarySubtle }]}> 
-            <Text style={[styles.percentText, { color: C.primaryDark }]}>{percent}%</Text>
-          </View>
+      {/* Sleek Top Status Row */}
+      <View style={styles.topStatusRow}>
+        <View style={styles.topStatusLeft}>
+          <View style={[styles.stepDot, { backgroundColor: C.primary }]} />
+          <Text style={[styles.stepCounterText, { color: C.textMuted }]}>
+            Step {currentStep + 1} of {steps.length}
+          </Text>
+          <Text style={[styles.dotDivider, { color: C.surfaceBorder }]}>•</Text>
+          <Text style={[styles.activeStepTitle, { color: C.textPrimary }]} numberOfLines={1}>
+            {steps[currentStep]?.label}
+          </Text>
         </View>
 
-        <Text style={[styles.label, { color: C.textPrimary }]}>{steps[currentStep]?.label}</Text>
-        <Text style={[styles.hintText, { color: C.textSecondary }]}>{hint}</Text>
-
-        <View style={[styles.progressBarBg, { backgroundColor: C.surfaceBorderLight }]}> 
-          <Animated.View style={[styles.progressBarFill, progressStyle, { backgroundColor: C.primary }]} />
+        <View style={[styles.percentBadge, { backgroundColor: C.primarySubtle }]}>
+          <Text style={[styles.percentBadgeText, { color: C.primaryDark }]}>{percent}%</Text>
         </View>
       </View>
 
+      {/* Progress Track */}
+      <View style={[styles.progressBarBg, { backgroundColor: C.surfaceBorderLight }]}>
+        <Animated.View style={[styles.progressBarFill, progressStyle, { backgroundColor: C.primary }]} />
+      </View>
+
+      {/* Step Pills Row */}
       <View style={styles.stepsRow}>
         {steps.map((step, index) => {
           const isComplete = index < currentStep;
@@ -74,27 +66,38 @@ export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicator
               accessibilityRole="button"
               accessibilityLabel={`Step ${index + 1}: ${step.label}`}
               accessibilityState={{ selected: isActive }}
-              onPress={() => onStepPress?.(index)}
+              onPress={() => {
+                if (onStepPress) {
+                  Haptic.select();
+                  onStepPress(index);
+                }
+              }}
               disabled={!onStepPress}
               hitSlop={TouchTarget.smallHitSlop}
               style={({ pressed }) => [
                 styles.stepChip,
                 {
                   backgroundColor: isActive ? C.primarySubtle : C.surface,
-                  borderColor: isActive || isComplete ? C.primary + '55' : C.surfaceBorder,
-                  opacity: pressed ? 0.72 : 1,
-                  paddingHorizontal: isSmallDevice ? 4 : Spacing.sm,
+                  borderColor: isActive ? C.primary : isComplete ? C.primary + '55' : C.surfaceBorder,
+                  opacity: pressed ? 0.75 : 1,
+                  paddingHorizontal: isSmallDevice ? 6 : Spacing.sm + 2,
                 },
               ]}
             >
-              <View style={[styles.stepNumber, { backgroundColor: isActive || isComplete ? C.primary : C.surfaceElevated }]}> 
+              <View style={[styles.stepNumber, { backgroundColor: isActive || isComplete ? C.primary : C.surfaceElevated }]}>
                 {isComplete ? (
-                  <MaterialIcons name="check" size={11} color={C.textInverse} />
+                  <MaterialIcons name="check" size={12} color={C.textInverse} />
                 ) : (
                   <Text style={[styles.stepNumberText, { color: isActive ? C.textInverse : C.textMuted }]}>{index + 1}</Text>
                 )}
               </View>
-              <Text style={[styles.stepChipText, { color: isActive ? C.primaryDark : C.textMuted }]} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.stepChipText,
+                  { color: isActive ? C.primaryDark : isComplete ? C.textPrimary : C.textMuted },
+                ]}
+                numberOfLines={1}
+              >
                 {step.label}
               </Text>
             </Pressable>
@@ -108,78 +111,92 @@ export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicator
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-    gap: 10,
+    paddingTop: Spacing.sm + 2,
+    paddingBottom: Spacing.xs,
+    gap: 8,
   },
   containerTablet: {
     maxWidth: 620,
     width: '100%',
     alignSelf: 'center',
   },
-  heroStrip: {
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.mdl,
-    paddingVertical: Spacing.smd,
-    gap: 6,
-  },
-  heroTopRow: {
+  topStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  stepText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  topStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
   },
-  percentPill: {
-    minWidth: 44,
+  stepDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  stepCounterText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.2,
+  },
+  dotDivider: {
+    fontSize: FontSize.xs,
+  },
+  activeStepTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  percentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
   },
-  percentText: {
+  percentBadgeText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
   },
-  label: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.35,
-  },
-  hintText: {
-    fontSize: FontSize.sm,
-    lineHeight: 20,
-  },
   progressBarBg: {
-    height: 5,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
     width: '100%',
-    marginTop: 3,
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
   },
-  stepsRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: 2 },
+  stepsRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs + 2,
+    marginTop: 2,
+  },
   stepChip: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: BorderRadius.sm,
+    minHeight: 38,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
-    paddingHorizontal: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 6,
   },
-  stepNumber: { width: 19, height: 19, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  stepNumberText: { fontSize: 10, fontWeight: FontWeight.bold },
-  stepChipText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  stepNumber: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumberText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
+  stepChipText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
 });
