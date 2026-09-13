@@ -39,7 +39,10 @@
         "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "true",
         "EXPO_PUBLIC_ENABLE_PAYMENTS": "false",
         "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "false",
-        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "true"
+        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "true",
+        "EXPO_PUBLIC_SANDBOX_API_KEY": "key_live_416614ac6953471ebf15142f75db722e",
+        "EXPO_PUBLIC_SANDBOX_API_SECRET": "secret_live_fac826b1d2c74cd0b021ec72e84c04ad",
+        "EXPO_PUBLIC_SANDBOX_BASE_URL": "https://api.sandbox.co.in"
       }
     },
     "production": {
@@ -54,7 +57,10 @@
         "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "true",
         "EXPO_PUBLIC_ENABLE_PAYMENTS": "true",
         "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "true",
-        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "true"
+        "EXPO_PUBLIC_ENABLE_PRECISE_LOCATION": "true",
+        "EXPO_PUBLIC_SANDBOX_API_KEY": "key_live_416614ac6953471ebf15142f75db722e",
+        "EXPO_PUBLIC_SANDBOX_API_SECRET": "secret_live_fac826b1d2c74cd0b021ec72e84c04ad",
+        "EXPO_PUBLIC_SANDBOX_BASE_URL": "https://api.sandbox.co.in"
       }
     }
   },

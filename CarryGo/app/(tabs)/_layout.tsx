@@ -1,23 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform, View, Text, Pressable, Animated, StyleSheet, Easing } from 'react-native';
+import { View, Text, Pressable, Animated, StyleSheet, Easing } from 'react-native';
 import { useRef, useEffect, useMemo, useState } from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { BlurView } from 'expo-blur';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
-import { FeatureFlags } from '@/constants/featureFlags';
 import { useConversationsQuery } from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
-import { ThemeColors, Motion, Spacing, TouchTarget } from '@/constants/theme';
+import { ThemeColors, TouchTarget } from '@/constants/theme';
 
-function TabBadge({ count, C }: { count: number; C: ThemeColors }) {
+function TabBadge({ count, C, isFocused }: { count: number; C: ThemeColors; isFocused?: boolean }) {
   if (count === 0) return null;
   return (
-    <View style={[styles.badge, { backgroundColor: C.error, borderColor: C.tabBarBg }]}>
+    <View style={[styles.badge, { backgroundColor: C.error, borderColor: isFocused ? C.primary : C.card }]}>
       <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
     </View>
   );
@@ -54,85 +52,122 @@ function FloatingCapsuleTabBar({
   unreadMessages,
   kycPending,
   C,
-  bottomPad,
+  insetsBottom,
 }: BottomTabBarProps & {
   pendingRequests: number;
   unreadMessages: number;
   kycPending: boolean;
   C: ThemeColors;
-  bottomPad: number;
+  insetsBottom: number;
 }) {
-  const { isSmallDevice, isTablet, width: screenWidth } = useResponsive();
+  const { isSmallDevice, isTablet, isLandscape, width: screenWidth } = useResponsive();
   const indexAnim = useRef(new Animated.Value(state.index)).current;
-  const [barWidth, setBarWidth] = useState(0);
+
+  // Responsive geometry calculations across device classes
+  const isConstrained = isTablet || isLandscape;
+  const barHeight = isSmallDevice ? 58 : isTablet ? 66 : 64;
+  const bottomOffset = insetsBottom > 0 ? insetsBottom + (isSmallDevice ? 2 : 4) : (isSmallDevice ? 10 : 14);
+  const horizontalMargin = isSmallDevice ? 12 : 16;
+  const targetBarWidth = isConstrained
+    ? Math.min(500, screenWidth - 48)
+    : screenWidth - horizontalMargin * 2;
+
+  const [measuredBarWidth, setMeasuredBarWidth] = useState(targetBarWidth);
+  const barWidth = measuredBarWidth > 0 ? measuredBarWidth : targetBarWidth;
+
+  // Keep bar width synchronized across window resizes/orientation changes
+  useEffect(() => {
+    setMeasuredBarWidth(targetBarWidth);
+  }, [targetBarWidth]);
 
   useEffect(() => {
     Animated.timing(indexAnim, {
       toValue: state.index,
-      duration: 240,
+      duration: 220,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, [indexAnim, state.index]);
 
   const tabCount = state.routes.length;
-  const slotWidth = barWidth > 0 ? barWidth / tabCount : 0;
-  const sliderWidth = slotWidth > 0 ? Math.max(isSmallDevice ? 48 : 54, slotWidth - (isSmallDevice ? 8 : 12)) : (isSmallDevice ? 48 : 54);
+  const H_PAD = 6;
+  const usableWidth = Math.max(0, barWidth - 2 * H_PAD);
+  const slotWidth = tabCount > 0 ? usableWidth / tabCount : 0;
+  const sliderWidth = Math.max(isSmallDevice ? 52 : 58, Math.min(slotWidth - 6, isTablet ? 96 : 76));
+  const sliderHeight = barHeight - (isSmallDevice ? 12 : 14);
+  const sliderTop = Math.round((barHeight - sliderHeight) / 2);
 
+  // Exact pixel-perfect horizontal translation range for each tab
   const outputRange = useMemo(
-    () => state.routes.map((_, i) => i * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2)),
+    () =>
+      state.routes.map((_, i) =>
+        Math.round(H_PAD + i * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2))
+      ),
     [sliderWidth, slotWidth, state.routes]
   );
 
-  const sliderTranslateX = outputRange.length > 1
-    ? indexAnim.interpolate({
-        inputRange: state.routes.map((_, i) => i),
-        outputRange,
-        extrapolate: 'clamp',
-      })
-    : new Animated.Value(0);
+  const sliderTranslateX =
+    outputRange.length > 1
+      ? indexAnim.interpolate({
+          inputRange: state.routes.map((_, i) => i),
+          outputRange,
+          extrapolate: 'clamp',
+        })
+      : new Animated.Value(0);
 
-  const horizontalMargin = isSmallDevice
-    ? 12
-    : isTablet
-    ? Math.max(24, Math.round((screenWidth - 520) / 2))
-    : 18;
+  const containerStyle = useMemo(() => {
+    if (isConstrained) {
+      return {
+        bottom: bottomOffset,
+        left: (screenWidth - targetBarWidth) / 2,
+        width: targetBarWidth,
+        height: barHeight,
+      };
+    }
+    return {
+      bottom: bottomOffset,
+      left: horizontalMargin,
+      right: horizontalMargin,
+      height: barHeight,
+    };
+  }, [isConstrained, bottomOffset, screenWidth, targetBarWidth, barHeight, horizontalMargin]);
 
   return (
     <View
       style={[
         styles.tabBarContainer,
+        containerStyle,
         {
-          bottom: 16,
-          left: horizontalMargin,
-          right: horizontalMargin,
-          height: (isSmallDevice ? 60 : 64) + bottomPad,
-          paddingBottom: bottomPad,
-          backgroundColor: C.surface,
-          borderColor: C.surfaceBorder,
+          backgroundColor: C.card,
+          borderColor: C.cardBorder,
         },
       ]}
-      onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
+      onLayout={(event) => {
+        const measured = Math.round(event.nativeEvent.layout.width);
+        if (measured > 0 && Math.abs(measured - barWidth) > 1) {
+          setMeasuredBarWidth(measured);
+        }
+      }}
     >
-      {barWidth > 0 ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.activeSlider,
-            {
-              width: sliderWidth,
-              transform: [{ translateX: sliderTranslateX }],
-              backgroundColor: C.primary,
-            },
-          ]}
-        />
-      ) : null}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.activeSlider,
+          {
+            top: sliderTop,
+            height: sliderHeight,
+            width: sliderWidth,
+            transform: [{ translateX: sliderTranslateX }],
+            backgroundColor: C.primary,
+          },
+        ]}
+      />
 
       <View style={styles.tabRow}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
-          const tintColor = isFocused ? '#FFFFFF' : C.textMuted;
+          const tintColor = isFocused ? '#FFFFFF' : C.textSecondary;
           const meta = getTabMeta(route.name, pendingRequests, unreadMessages, kycPending);
 
           const onPress = () => {
@@ -167,14 +202,32 @@ function FloatingCapsuleTabBar({
             >
               <View style={styles.tabItem}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name={isFocused ? meta.icon : meta.outlineIcon} size={20} color={tintColor} />
-                  {(meta.badge ?? 0) > 0 ? <TabBadge count={meta.badge ?? 0} C={C} /> : null}
+                  <Ionicons
+                    name={isFocused ? meta.icon : meta.outlineIcon}
+                    size={isSmallDevice ? 19 : 20}
+                    color={tintColor}
+                  />
+                  {(meta.badge ?? 0) > 0 ? (
+                    <TabBadge count={meta.badge ?? 0} C={C} isFocused={isFocused} />
+                  ) : null}
                   {meta.dotAlert && (meta.badge ?? 0) === 0 ? (
-                    <View style={[styles.alertDot, { backgroundColor: C.error, borderColor: C.surface }]} />
+                    <View
+                      style={[
+                        styles.alertDot,
+                        { backgroundColor: C.error, borderColor: isFocused ? C.primary : C.card },
+                      ]}
+                    />
                   ) : null}
                 </View>
                 <Text
-                  style={[styles.tabLabel, { color: tintColor }, isFocused && styles.tabLabelActive]}
+                  style={[
+                    styles.tabLabel,
+                    {
+                      color: tintColor,
+                      fontSize: isSmallDevice ? 9.5 : 10.5,
+                    },
+                    isFocused && styles.tabLabelActive,
+                  ]}
                   numberOfLines={1}
                 >
                   {meta.label}
@@ -210,8 +263,6 @@ export default function TabLayout() {
   const isKycApproved = user.kycStatus === 'approved' || Boolean(user.verified) || Boolean(user.isAadhaarVerified);
   const kycPending = !isKycApproved && (!user.kycStatus || user.kycStatus === 'pending');
 
-  const bottomPad = Platform.select({ ios: Math.max(insets.bottom, 10), android: Math.max(insets.bottom, 8), default: 10 });
-
   return (
     <Tabs
       screenOptions={{
@@ -224,7 +275,7 @@ export default function TabLayout() {
           unreadMessages={unreadMessages}
           kycPending={kycPending}
           C={C}
-          bottomPad={bottomPad}
+          insetsBottom={insets.bottom}
         />
       )}
     >
@@ -240,11 +291,11 @@ const styles = StyleSheet.create({
   tabBarContainer: {
     position: 'absolute',
     borderWidth: 1,
-    elevation: 12,
+    elevation: 8,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
     borderRadius: 999,
   },
   tabRow: {
@@ -256,20 +307,18 @@ const styles = StyleSheet.create({
   },
   activeSlider: {
     position: 'absolute',
-    top: 8,
-    height: 48,
     borderRadius: 999,
     shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
     shadowRadius: 8,
     elevation: 3,
   },
   tabButton: {
     flex: 1,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 2,
     zIndex: 2,
   },
   tabItem: {
@@ -277,11 +326,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     width: '100%',
-    minHeight: 44,
-    borderRadius: 999,
-    paddingHorizontal: 2,
-    paddingVertical: 2,
-    position: 'relative',
+    height: '100%',
   },
   iconContainer: {
     position: 'relative',
