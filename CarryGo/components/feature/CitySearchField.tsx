@@ -33,12 +33,17 @@ export function CitySearchField({
   currentLocationLabel = 'Use Current Location',
 }: CitySearchFieldProps) {
   const { C } = useThemeColors();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(value || '');
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  const filteredCities = query.length > 0
-    ? ALL_CITY_NAMES.filter((c) => c.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
+  // Sync internal query when value prop changes from outside (e.g. location auto-detect)
+  React.useEffect(() => {
+    setQuery(value || '');
+  }, [value]);
+
+  const filteredCities = query.trim().length > 0
+    ? ALL_CITY_NAMES.filter((c) => c.toLowerCase().includes(query.toLowerCase().trim())).slice(0, 6)
     : [];
 
   const showCustomOption = query.trim().length >= 2 &&
@@ -48,19 +53,30 @@ export function CitySearchField({
 
   const handleSelect = useCallback((city: string) => {
     onSelect(city);
-    setQuery('');
+    setQuery(city);
     setIsOpen(false);
     Haptic.select();
     inputRef.current?.blur();
   }, [onSelect]);
 
+  const handleLocationPress = useCallback(() => {
+    if (isDetectingCurrentLocation) return;
+    Haptic.tap();
+    setIsOpen(false);
+    inputRef.current?.blur();
+    onUseCurrentLocation?.();
+  }, [isDetectingCurrentLocation, onUseCurrentLocation]);
+
   const handleFocus = () => {
     setIsOpen(true);
-    if (value) setQuery(value);
+    setQuery(value || '');
   };
 
   const handleBlur = () => {
-    setTimeout(() => setIsOpen(false), 150);
+    setTimeout(() => {
+      setIsOpen(false);
+      setQuery(value || '');
+    }, 200);
   };
 
   const handleClear = () => {
@@ -71,7 +87,31 @@ export function CitySearchField({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: error ? C.error : C.textSecondary }]}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={[styles.label, { color: error ? C.error : C.textSecondary }]}>{label}</Text>
+        {showCurrentLocationOption && !value && (
+          <Pressable
+            onPress={handleLocationPress}
+            disabled={isDetectingCurrentLocation}
+            style={({ pressed }) => [
+              styles.quickGpsBtn,
+              { backgroundColor: C.primarySubtle },
+              pressed && { opacity: 0.7 },
+            ]}
+            hitSlop={6}
+          >
+            {isDetectingCurrentLocation ? (
+              <ActivityIndicator size="small" color={C.primary} style={{ transform: [{ scale: 0.75 }] }} />
+            ) : (
+              <MaterialIcons name="my-location" size={12} color={C.primary} />
+            )}
+            <Text style={[styles.quickGpsText, { color: C.primary }]}>
+              {isDetectingCurrentLocation ? 'Detecting GPS...' : 'Use GPS'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
       <View
         style={[
           styles.inputWrapper,
@@ -86,7 +126,11 @@ export function CitySearchField({
           ref={inputRef}
           style={[styles.input, { color: C.textPrimary }]}
           value={isOpen ? query : value}
-          onChangeText={setQuery}
+          onChangeText={(text) => {
+            setQuery(text);
+            if (!isOpen) setIsOpen(true);
+            if (!text) onSelect('');
+          }}
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
@@ -94,9 +138,30 @@ export function CitySearchField({
           selectionColor={C.primary}
           autoCorrect={false}
         />
-        {(value || query) && (
+
+        {Boolean(value || query) && (
           <Pressable onPress={handleClear} style={styles.clearBtn} hitSlop={8}>
             <MaterialIcons name="close" size={16} color={C.textMuted} />
+          </Pressable>
+        )}
+
+        {showCurrentLocationOption && (
+          <Pressable
+            onPress={handleLocationPress}
+            disabled={isDetectingCurrentLocation}
+            style={({ pressed }) => [
+              styles.locationIconBtn,
+              { backgroundColor: isDetectingCurrentLocation ? C.primarySubtle : C.surfaceElevated },
+              pressed && { opacity: 0.7 },
+            ]}
+            hitSlop={8}
+            accessibilityLabel="Use current location"
+          >
+            {isDetectingCurrentLocation ? (
+              <ActivityIndicator size="small" color={C.primary} />
+            ) : (
+              <MaterialIcons name="my-location" size={16} color={C.primary} />
+            )}
           </Pressable>
         )}
       </View>
@@ -113,16 +178,16 @@ export function CitySearchField({
                 styles.option,
                 { backgroundColor: pressed && !isDetectingCurrentLocation ? C.surfaceElevated : 'transparent' },
               ]}
-              onPress={() => onUseCurrentLocation?.()}
+              onPress={handleLocationPress}
               disabled={isDetectingCurrentLocation}
             >
               {isDetectingCurrentLocation ? (
-                <ActivityIndicator size="small" color={dotColor} />
+                <ActivityIndicator size="small" color={C.primary} />
               ) : (
-                <MaterialIcons name="my-location" size={16} color={dotColor} />
+                <MaterialIcons name="my-location" size={17} color={C.primary} />
               )}
-              <Text style={[styles.optionText, { color: C.textPrimary, fontWeight: FontWeight.semibold }]}>
-                {isDetectingCurrentLocation ? 'Detecting location...' : currentLocationLabel}
+              <Text style={[styles.optionText, { color: C.primary, fontWeight: FontWeight.semibold }]}>
+                {isDetectingCurrentLocation ? 'Detecting current city...' : currentLocationLabel}
               </Text>
             </Pressable>
           )}
@@ -163,10 +228,27 @@ export function CitySearchField({
 
 const styles = StyleSheet.create({
   container: { gap: 6, zIndex: 10 },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
   label: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
-    marginLeft: 2,
+  },
+  quickGpsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  quickGpsText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -184,6 +266,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 4,
   },
   clearBtn: { padding: 4 },
+  locationIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dropdown: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,

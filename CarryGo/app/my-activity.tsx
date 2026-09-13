@@ -20,6 +20,7 @@ import { useRequestsQuery } from '@/features/requests/queries';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { Trip, Parcel, Request } from '@/types';
 import { Haptic } from '@/services/haptics.service';
+import { getUserErrorMessage } from '@/lib/error-handler';
 import { ActivityTripsList } from '@/components/feature/ActivityTripsList';
 import { ActivityParcelsList } from '@/components/feature/ActivityParcelsList';
 import { UNMATCHED_LISTING_EXPIRY_HOURS } from '@/constants/listingFlow';
@@ -117,7 +118,7 @@ export default function MyActivityScreen() {
       { text: 'Keep', style: 'cancel' },
       { text: 'Cancel Trip', style: 'destructive', onPress: async () => {
         try { await updateTripStatusMutation.mutateAsync({ tripId: trip.id, status: 'cancelled' }); Haptic.success(); }
-        catch (error) { Haptic.error(); showAlert('Trip Not Cancelled', error instanceof Error ? error.message : 'Please try again.'); }
+        catch (error) { Haptic.error(); showAlert('Trip Not Cancelled', getUserErrorMessage(error, 'Could not cancel trip. Please try again.')); }
       }},
     ]);
   };
@@ -127,7 +128,7 @@ export default function MyActivityScreen() {
       { text: 'Keep', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try { await updateTripStatusMutation.mutateAsync({ tripId: trip.id, status: 'cancelled' }); Haptic.success(); }
-        catch (error) { Haptic.error(); showAlert('Trip Not Removed', error instanceof Error ? error.message : 'Please try again.'); }
+        catch (error) { Haptic.error(); showAlert('Trip Not Removed', getUserErrorMessage(error, 'Could not remove trip. Please try again.')); }
       }},
     ]);
   };
@@ -137,7 +138,7 @@ export default function MyActivityScreen() {
       { text: 'Keep', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: async () => {
         try { await updateParcelStatusMutation.mutateAsync({ parcelId: parcel.id, status: 'failed' }); Haptic.success(); }
-        catch (error) { Haptic.error(); showAlert('Parcel Not Removed', error instanceof Error ? error.message : 'Please try again.'); }
+        catch (error) { Haptic.error(); showAlert('Parcel Not Removed', getUserErrorMessage(error, 'Could not remove parcel. Please try again.')); }
       }},
     ]);
   };

@@ -1,18 +1,28 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet,
-  ActivityIndicator, Animated, Platform, KeyboardAvoidingView,
-  AppState, Pressable,
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Animated,
+  Platform,
+  KeyboardAvoidingView,
+  AppState,
+  Pressable,
+  ScrollView,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import DeliveryMap from '@/components/feature/DeliveryMap';
 import { useAuth } from '@/hooks/useAuth';
 import { useRequestQuery } from '@/features/requests/queries';
 import { useConversationsQuery } from '@/features/conversations/queries';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { getUserErrorMessage, getErrorTitle } from '@/lib/error-handler';
 import { RatingModal } from '@/components/feature/RatingModal';
 import { DeliveryTimeline, DeliveryStep, STEPS, stepIndex } from '@/components/feature/DeliveryTimeline';
 import {
@@ -24,16 +34,16 @@ import {
   SenderOtpCard,
   DeliverySuccessCard,
 } from '@/components/feature/DeliveryActionCards';
-import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import {
   fetchDelivery,
   fetchOrCreateDelivery,
-  createDelivery,
   getOrIssuePickupOtp,
   confirmPickupWithOtp,
   updateTripProgress,
   confirmDelivery,
   issueDeliveryOtp,
+  getOrIssueDeliveryOtp,
 } from '@/services/deliveries.service';
 import { getCurrentLocation, updateDeliveryLocation, fetchDeliveryLocation } from '@/services/location.service';
 import { Delivery } from '@/types';
@@ -44,9 +54,10 @@ export default function DeliveryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { C } = useThemeColors();
+  const { C, S } = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const requestQuery = useRequestQuery(id);
   const conversationsQuery = useConversationsQuery(user?.id);
 
@@ -74,7 +85,7 @@ export default function DeliveryScreen() {
   const deliveryId = delivery?.id;
   const step: DeliveryStep = (delivery?.status as DeliveryStep) || 'awaiting_pickup';
 
-  // Find active chat conversation for this request
+  // Active chat conversation for this delivery request
   const conversation = conversationsQuery.data?.find(c => c.requestId === id);
 
   const initDelivery = useCallback(async () => {
@@ -91,13 +102,19 @@ export default function DeliveryScreen() {
         setPickupOtpLoading(false);
         if (otpRes.data) setPickupOtp(otpRes.data);
       }
+      if (data.deliveryOtp) {
+        setDeliveryOtp(data.deliveryOtp);
+      } else if (isSender && (data.status as DeliveryStep) === 'in_transit') {
+        const otpRes = await getOrIssueDeliveryOtp(data.id || id);
+        if (otpRes.data) setDeliveryOtp(otpRes.data);
+      }
     }
   }, [id, isParticipant, isSender, request, user?.id]);
 
   useEffect(() => {
     if (!id || !request || !isParticipant) return;
     void initDelivery();
-    Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
     return () => {
       if (locationInterval.current) clearInterval(locationInterval.current);
       if (pollInterval.current) clearInterval(pollInterval.current);
@@ -126,7 +143,27 @@ export default function DeliveryScreen() {
     };
   }, [delivery?.id, id, isSender, step, pickupOtp]);
 
-  // Poll traveller location (sender side) with AppState awareness
+  // If sender and in transit, ensure 6-digit delivery OTP is ready to show
+  useEffect(() => {
+    if (!isSender || step !== 'in_transit') return;
+    if (deliveryOtp) return;
+
+    let isMounted = true;
+    void (async () => {
+      const targetId = delivery?.id || id;
+      if (!targetId) return;
+      const res = await getOrIssueDeliveryOtp(targetId);
+      if (isMounted && res.data) {
+        setDeliveryOtp(res.data);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [delivery?.id, id, isSender, step, deliveryOtp]);
+
+  // Poll traveller location (sender side)
   useEffect(() => {
     if (!FeatureFlags.preciseLocationSharing || !deliveryId || !isSender || step === 'delivered') return;
     let consecutiveFailures = 0;
@@ -169,7 +206,55 @@ export default function DeliveryScreen() {
     };
   }, [deliveryId, isSender, step]);
 
-  // Handle location sharing toggle for traveller
+  // Auto-poll delivery status every 3.5s so sender's screen reflects traveller's OTP confirmation instantly
+  useEffect(() => {
+    if (!id || !isParticipant || step === 'delivered') return;
+    const poll = async () => {
+      const { data } = await fetchDelivery(id);
+      if (data) {
+        setDelivery(prev => {
+          if (!prev) return data;
+          if (
+            prev.status !== data.status ||
+            prev.tripStatus !== data.tripStatus ||
+            prev.deliveryOtp !== data.deliveryOtp ||
+            prev.pickupOtp !== data.pickupOtp
+          ) {
+            return data;
+          }
+          return prev;
+        });
+
+        if (data.deliveryOtp && !deliveryOtp) {
+          setDeliveryOtp(data.deliveryOtp);
+        }
+
+        // If delivery just became 'delivered', invalidate caches and offer rating
+        if (data.status === 'delivered') {
+          queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+          queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
+          queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
+          queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
+          queryClient.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
+          if (request?.senderId) queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.senderId) });
+          if (request?.travellerId) queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.travellerId) });
+          queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
+          await requestQuery.refetch();
+
+          if (isSender && request) {
+            Haptic.success();
+            const target = { userId: request.travellerId, name: request.travellerName };
+            setRatingTarget(target);
+            setTimeout(() => setShowRating(true), 600);
+          }
+        }
+      }
+    };
+    const intervalId = setInterval(poll, 3500);
+    return () => clearInterval(intervalId);
+  }, [deliveryOtp, id, isParticipant, isSender, queryClient, request, requestQuery, step]);
+
+  // Location sharing toggle for traveller
   const handleToggleLocation = async (enabled: boolean) => {
     if (!isTraveller || step !== 'in_transit') {
       showAlert('Not Allowed', 'Only the assigned traveller can share live location during transit.');
@@ -225,7 +310,7 @@ export default function DeliveryScreen() {
     }, 30000);
   };
 
-  // SENDER: Refresh Pickup OTP
+  // Refresh Pickup OTP (Sender)
   const handleRefreshPickupOtp = async () => {
     if (!isSender) return;
     const targetId = delivery?.id || id;
@@ -242,7 +327,7 @@ export default function DeliveryScreen() {
     }
   };
 
-  // TRAVELLER: Confirm Pickup with entered 4-digit code
+  // Confirm Pickup with 4-digit code (Traveller)
   const handleConfirmPickupWithOtp = async () => {
     if (!isTraveller || step !== 'awaiting_pickup') {
       showAlert('Not Allowed', 'Only the assigned traveller can confirm pickup.');
@@ -267,7 +352,7 @@ export default function DeliveryScreen() {
     showAlert('Pickup Confirmed!', 'The parcel has been securely handed over. You can now start transit.');
   };
 
-  // TRAVELLER: Update Trip Progress & Notes
+  // Update Trip Progress & Notes (Traveller)
   const handleUpdateTripDetails = async (statusText: string, noteText: string, etaText: string) => {
     const targetId = delivery?.id || id;
     if (!isTraveller || !targetId) return;
@@ -278,11 +363,10 @@ export default function DeliveryScreen() {
 
     if (res.error) {
       Haptic.error();
-      showAlert('Update Failed', res.error);
+      showAlert('Update Failed', getUserErrorMessage(res.error, 'Failed to update progress.'));
       return;
     }
 
-    // Refresh local delivery data
     setDelivery(prev => prev ? {
       ...prev,
       tripStatus: statusText,
@@ -293,7 +377,7 @@ export default function DeliveryScreen() {
     showAlert('Progress Updated', 'The sender can now see your latest transit stage & notes.');
   };
 
-  // TRAVELLER: Confirm Final Delivery with 6-digit Delivery OTP
+  // Confirm Final Delivery with 6-digit OTP (Traveller)
   const handleDeliveryOTP = async () => {
     if (!request) return;
     if (!isTraveller || step !== 'in_transit') {
@@ -309,10 +393,18 @@ export default function DeliveryScreen() {
     if (!result.success || !result.data) {
       setLoading(false);
       Haptic.error();
-      showAlert('Delivery Not Confirmed', result.error || 'The delivery code could not be verified.');
+      showAlert('Delivery Not Confirmed', getUserErrorMessage(result.error, 'The delivery code could not be verified.'));
       return;
     }
     setDelivery(result.data);
+    queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.senderId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.travellerId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
     await requestQuery.refetch();
     setLoading(false);
     Haptic.success();
@@ -325,7 +417,7 @@ export default function DeliveryScreen() {
     setTimeout(() => setShowRating(true), 800);
   };
 
-  // SENDER: Generate or Retrieve 6-digit Delivery OTP
+  // Issue Delivery OTP (Sender)
   const handleIssueDeliveryOtp = async () => {
     if (!isSender || step !== 'in_transit') return;
     const targetId = delivery?.id || id;
@@ -336,7 +428,7 @@ export default function DeliveryScreen() {
     const result = await issueDeliveryOtp(targetId);
     setLoading(false);
     if (result.error || !result.data) {
-      showAlert('Code Unavailable', result.error || 'Could not generate a delivery code.');
+      showAlert('Code Unavailable', getUserErrorMessage(result.error, 'Could not generate a delivery code.'));
       return;
     }
     setDeliveryOtp(result.data);
@@ -358,7 +450,7 @@ export default function DeliveryScreen() {
     if (conversation?.id) {
       router.push(`/chat/${encodeURIComponent(String(conversation.id))}` as never);
     } else {
-      showAlert('Chat', 'Open Messages tab to reach out.');
+      showAlert('Chat', 'Open the Messages tab to reach out directly.');
     }
   };
 
@@ -366,6 +458,27 @@ export default function DeliveryScreen() {
     return (
       <View style={[styles.centerState, { backgroundColor: C.background }]}>
         <ActivityIndicator size="large" color={C.primary} />
+        <Text style={[styles.loadingText, { color: C.textMuted }]}>Loading tracking information...</Text>
+      </View>
+    );
+  }
+
+  if (requestQuery.isError) {
+    return (
+      <View style={[styles.centerState, { backgroundColor: C.background }]}>
+        <Feather name="wifi-off" size={36} color={C.error} />
+        <Text style={[styles.emptyStateTitle, { color: C.textPrimary }]}>
+          {getErrorTitle(requestQuery.error, 'Connection Error')}
+        </Text>
+        <Text style={[styles.emptyStateSub, { color: C.textMuted }]}>
+          {getUserErrorMessage(requestQuery.error, 'Unable to load delivery tracking details.')}
+        </Text>
+        <Pressable
+          style={[styles.backOutlineBtn, { borderColor: C.primary, backgroundColor: C.primarySubtle, marginTop: Spacing.md }]}
+          onPress={() => requestQuery.refetch()}
+        >
+          <Text style={[styles.backOutlineText, { color: C.primary, fontWeight: '600' }]}>Try Again</Text>
+        </Pressable>
       </View>
     );
   }
@@ -373,9 +486,15 @@ export default function DeliveryScreen() {
   if (!request) {
     return (
       <View style={[styles.centerState, { backgroundColor: C.background }]}>
-        <MaterialIcons name="error-outline" size={32} color={C.warning} />
+        <Feather name="alert-circle" size={36} color={C.warning} />
         <Text style={[styles.emptyStateTitle, { color: C.textPrimary }]}>Delivery Not Found</Text>
-        <Text style={[styles.emptyStateSub, { color: C.textMuted }]}>This delivery journey is unavailable.</Text>
+        <Text style={[styles.emptyStateSub, { color: C.textMuted }]}>This delivery journey is unavailable or has expired.</Text>
+        <Pressable
+          style={[styles.backOutlineBtn, { borderColor: C.surfaceBorder }]}
+          onPress={() => router.back()}
+        >
+          <Text style={[styles.backOutlineText, { color: C.textPrimary }]}>Go Back</Text>
+        </Pressable>
       </View>
     );
   }
@@ -383,15 +502,51 @@ export default function DeliveryScreen() {
   if (!isParticipant) {
     return (
       <View style={[styles.centerState, { backgroundColor: C.background }]}>
-        <MaterialIcons name="lock-outline" size={32} color={C.warning} />
+        <Feather name="lock" size={36} color={C.warning} />
         <Text style={[styles.emptyStateTitle, { color: C.textPrimary }]}>Access Restricted</Text>
-        <Text style={[styles.emptyStateSub, { color: C.textMuted }]}>Only sender and traveller can view this delivery flow.</Text>
+        <Text style={[styles.emptyStateSub, { color: C.textMuted }]}>
+          Only the verified sender and assigned traveller can access this tracking dashboard.
+        </Text>
+        <Pressable
+          style={[styles.backOutlineBtn, { borderColor: C.surfaceBorder }]}
+          onPress={() => router.back()}
+        >
+          <Text style={[styles.backOutlineText, { color: C.textPrimary }]}>Go Back</Text>
+        </Pressable>
       </View>
     );
   }
 
+  // Formatting helpers
+  const categoryTitle = request.parcelCategory
+    ? `${request.parcelCategory.charAt(0).toUpperCase() + request.parcelCategory.slice(1)} Parcel`
+    : 'Parcel Delivery';
+
+  const counterpartyName = isSender ? request.travellerName : request.senderName;
+  const counterpartyRole = isSender ? 'Traveller' : 'Sender';
+  const counterpartyInitial = (counterpartyName || 'U').charAt(0).toUpperCase();
+
+  const getStatusBadge = () => {
+    switch (step) {
+      case 'awaiting_pickup':
+        return { label: 'Pickup Ready', bg: C.warningSubtle, text: C.warning, dot: C.warning };
+      case 'picked_up':
+        return { label: 'Picked Up', bg: C.primarySubtle, text: C.primary, dot: C.primary };
+      case 'in_transit':
+        return { label: 'In Transit', bg: C.primarySubtle, text: C.primary, dot: C.primary };
+      case 'delivered':
+        return { label: 'Delivered', bg: C.successSubtle, text: C.success, dot: C.success };
+      default:
+        return { label: 'Active', bg: C.surfaceElevated, text: C.textSecondary, dot: C.primary };
+    }
+  };
+
+  const statusBadge = getStatusBadge();
+
   return (
     <>
+      <Stack.Screen options={{ headerShown: false }} />
+
       {showRating && ratingTarget && request ? (
         <RatingModal
           visible={showRating}
@@ -407,57 +562,183 @@ export default function DeliveryScreen() {
         style={{ flex: 1, backgroundColor: C.background }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {/* ========================================================================= */}
+        {/* TOP FLOATING NAV BAR                                                      */}
+        {/* ========================================================================= */}
+        <View style={[styles.topNavBar, { paddingTop: insets.top + (Platform.OS === 'ios' ? 8 : 12), backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
+          <View style={styles.topNavRow}>
+            {/* Back Button */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              onPress={() => {
+                Haptic.tap();
+                router.back();
+              }}
+              style={({ pressed }) => [
+                styles.navRoundBtn,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                pressed && { opacity: 0.7 },
+              ]}
+              hitSlop={10}
+            >
+              <Feather name="arrow-left" size={18} color={C.textPrimary} />
+            </Pressable>
+
+            {/* Nav Title & Subtitle */}
+            <View style={styles.navTitleCenter}>
+              <Text style={[styles.navTitle, { color: C.textPrimary }]} numberOfLines={1}>
+                {categoryTitle}
+              </Text>
+              <Text style={[styles.navSub, { color: C.textMuted }]}>
+                Tracking #{String(request.id || id || '').slice(-6).toUpperCase()}
+              </Text>
+            </View>
+
+            {/* Quick Chat Button */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Chat"
+              onPress={handleOpenChat}
+              style={({ pressed }) => [
+                styles.navRoundBtn,
+                { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' },
+                pressed && { opacity: 0.7 },
+              ]}
+              hitSlop={10}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color={C.primary} />
+            </Pressable>
+          </View>
+        </View>
+
         <Animated.ScrollView
-          style={[styles.container, { backgroundColor: C.background }]}
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+          style={[styles.container, { opacity: fadeAnim }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + Spacing.xxl },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header Card customized per Role */}
-          <View style={[styles.headerCard, { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}>
-            <View style={styles.headerTopRow}>
-              <View style={[styles.headerIconWrap, { backgroundColor: C.primarySubtle }]}>
-                <MaterialIcons
-                  name={isSender ? 'radar' : 'local-shipping'}
-                  size={24}
-                  color={C.primary}
-                />
+          {/* ========================================================================= */}
+          {/* 1. UNIFIED ROUTE HERO CARD                                               */}
+          {/* ========================================================================= */}
+          <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.sm]}>
+            {/* Live Status Pill & Role Badge */}
+            <View style={styles.heroTopRow}>
+              <View style={[styles.heroBadge, { backgroundColor: statusBadge.bg }]}>
+                <View style={[styles.heroBadgeDot, { backgroundColor: statusBadge.dot }]} />
+                <Text style={[styles.heroBadgeText, { color: statusBadge.text }]}>
+                  {statusBadge.label}
+                </Text>
               </View>
-              <View style={[styles.headerBadge, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-                <View style={[styles.pulseDot, { backgroundColor: C.primary }]} />
-                <Text style={[styles.headerBadgeText, { color: C.primary }]}>
-                  {isSender ? 'Live Tracking' : 'Delivery Operations'}
+
+              <Text style={[styles.heroRoleTag, { color: C.textMuted }]}>
+                Viewing as {isSender ? 'Sender' : 'Traveller'}
+              </Text>
+            </View>
+
+            {/* Origin -> Destination Route */}
+            <View style={styles.heroRouteRow}>
+              <View style={styles.heroCityBox}>
+                <Text style={[styles.heroCityLabel, { color: C.textMuted }]}>ORIGIN</Text>
+                <Text style={[styles.heroCityName, { color: C.textPrimary }]} numberOfLines={1}>
+                  {request.fromCity || 'Pickup City'}
+                </Text>
+              </View>
+
+              <View style={styles.heroRouteArrowBox}>
+                <View style={[styles.heroRouteLine, { backgroundColor: C.surfaceBorder }]} />
+                <View style={[styles.heroRouteArrowCircle, { backgroundColor: C.primarySubtle }]}>
+                  <Feather name="arrow-right" size={14} color={C.primary} />
+                </View>
+              </View>
+
+              <View style={[styles.heroCityBox, { alignItems: 'flex-end' }]}>
+                <Text style={[styles.heroCityLabel, { color: C.textMuted }]}>DESTINATION</Text>
+                <Text style={[styles.heroCityName, { color: C.textPrimary }]} numberOfLines={1}>
+                  {request.toCity || 'Destination'}
                 </Text>
               </View>
             </View>
 
-            <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
-              {isSender ? 'Track Parcel Delivery' : 'Process Delivery & Trip'}
-            </Text>
+            {/* Divider */}
+            <View style={[styles.heroDivider, { backgroundColor: C.surfaceBorder }]} />
 
-            <Text style={[styles.headerSubtitle, { color: C.textSecondary }]}>
-              {isSender
-                ? `Tracking parcel carried by ${request.travellerName}`
-                : `Managing parcel for sender ${request.senderName}`}
-            </Text>
+            {/* Counterparty Strip */}
+            <View style={styles.heroCounterpartyRow}>
+              <View style={styles.heroUserLeft}>
+                <View style={[styles.heroAvatar, { backgroundColor: C.primarySubtle }]}>
+                  <Text style={[styles.heroAvatarText, { color: C.primary }]}>
+                    {counterpartyInitial}
+                  </Text>
+                </View>
+                <View style={styles.heroUserInfo}>
+                  <Text style={[styles.heroUserName, { color: C.textPrimary }]} numberOfLines={1}>
+                    {counterpartyName}
+                  </Text>
+                  <Text style={[styles.heroUserRole, { color: C.textMuted }]}>
+                    Assigned {counterpartyRole}
+                  </Text>
+                </View>
+              </View>
 
-            <View style={[styles.routeRow, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-              <Ionicons name="location" size={14} color={C.primary} />
-              <Text style={[styles.routeText, { color: C.textPrimary }]} numberOfLines={1}>
-                {request.senderName} ↔ {request.travellerName}
-              </Text>
+              {/* Chat Quick Action */}
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleOpenChat}
+                style={({ pressed }) => [
+                  styles.heroChatBtn,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Ionicons name="chatbubble-outline" size={14} color={C.primary} />
+                <Text style={[styles.heroChatBtnText, { color: C.textPrimary }]}>Chat</Text>
+              </Pressable>
+            </View>
+
+            {/* Bottom Key Metrics Strip */}
+            <View style={[styles.heroMetricsStrip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <View style={styles.metricItem}>
+                <Text style={[styles.metricLabel, { color: C.textMuted }]}>Agreed Fee</Text>
+                <Text style={[styles.metricValue, { color: C.success }]}>₹{request.price}</Text>
+              </View>
+
+              <View style={[styles.metricDivider, { backgroundColor: C.surfaceBorder }]} />
+
+              <View style={styles.metricItem}>
+                <Text style={[styles.metricLabel, { color: C.textMuted }]}>Package</Text>
+                <Text style={[styles.metricValue, { color: C.textPrimary }]}>
+                  {request.parcelWeight ? `${request.parcelWeight} kg` : 'Standard'}
+                </Text>
+              </View>
+
+              <View style={[styles.metricDivider, { backgroundColor: C.surfaceBorder }]} />
+
+              <View style={styles.metricItem}>
+                <Text style={[styles.metricLabel, { color: C.textMuted }]}>Live Status</Text>
+                <Text style={[styles.metricValue, { color: C.primary }]} numberOfLines={1}>
+                  {step === 'in_transit' && delivery?.etaText ? delivery.etaText : STEPS[stepIndex(step)].label}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Progress Timeline */}
+          {/* ========================================================================= */}
+          {/* 2. PROGRESS TIMELINE (HORIZONTAL STEPPER)                                  */}
+          {/* ========================================================================= */}
           <DeliveryTimeline step={step} C={C} />
 
           {/* ========================================================================= */}
-          {/* SENDER SCREEN VIEWS & FLOWS                                              */}
+          {/* 3. ACTIVE FOCUSED ACTION CARD (ROLE-BASED)                                 */}
           {/* ========================================================================= */}
+
+          {/* SENDER FLOWS */}
           {isSender && (
             <>
-              {/* Stage 1: Awaiting Pickup -> Display 4-digit Pickup OTP for sender */}
+              {/* Stage 1: Awaiting Pickup -> Display 4-digit Pickup Handover Code */}
               {step === 'awaiting_pickup' && (
                 <SenderPickupOtpCard
                   code={pickupOtp}
@@ -467,7 +748,7 @@ export default function DeliveryScreen() {
                 />
               )}
 
-              {/* Stage 2: In Transit -> Live Journey Status & Updates */}
+              {/* Stage 2: In Transit -> Live Journey Status & 6-Digit Delivery Code */}
               {step === 'in_transit' && (
                 <>
                   <SenderLiveJourneyCard
@@ -479,7 +760,7 @@ export default function DeliveryScreen() {
                     C={C}
                   />
 
-                  {/* Live GPS Map */}
+                  {/* Live GPS Map or subtle standby banner */}
                   {FeatureFlags.preciseLocationSharing && travellerLocation ? (
                     <DeliveryMap
                       travellerName={request.travellerName}
@@ -489,21 +770,21 @@ export default function DeliveryScreen() {
                       C={C}
                     />
                   ) : FeatureFlags.preciseLocationSharing ? (
-                    <View style={[styles.locationCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-                      <View style={[styles.locationIconBox, { backgroundColor: C.primarySubtle }]}>
-                        <MaterialIcons name="location-searching" size={18} color={C.primary} />
+                    <View style={[styles.gpsStandbyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                      <View style={[styles.gpsIconCircle, { backgroundColor: C.primarySubtle }]}>
+                        <Feather name="navigation" size={16} color={C.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.locationTitle, { color: C.textPrimary }]}>Awaiting Live GPS</Text>
-                        <Text style={[styles.locationSub, { color: C.textMuted }]}>
-                          Traveller has not enabled GPS broadcast yet. Auto-checks every 15s.
+                        <Text style={[styles.gpsStandbyTitle, { color: C.textPrimary }]}>Live GPS Standby</Text>
+                        <Text style={[styles.gpsStandbySub, { color: C.textMuted }]}>
+                          Traveller hasn't broadcast live location yet. Updates will automatically render here.
                         </Text>
                       </View>
                       <ActivityIndicator size="small" color={C.primary} />
                     </View>
                   ) : null}
 
-                  {/* 6-Digit Delivery OTP Card for final handoff */}
+                  {/* 6-Digit Delivery Release Code for final handoff */}
                   <SenderOtpCard
                     code={deliveryOtp}
                     onGenerate={handleIssueDeliveryOtp}
@@ -515,12 +796,10 @@ export default function DeliveryScreen() {
             </>
           )}
 
-          {/* ========================================================================= */}
-          {/* TRAVELLER SCREEN VIEWS & FLOWS                                           */}
-          {/* ========================================================================= */}
+          {/* TRAVELLER FLOWS */}
           {isTraveller && (
             <>
-              {/* Stage 1: Awaiting Pickup -> Enter 4-digit Pickup OTP from sender */}
+              {/* Stage 1: Awaiting Pickup -> Enter 4-digit Pickup Code */}
               {step === 'awaiting_pickup' && (
                 <TravellerPickupActionCard
                   enteredOtp={enteredPickupOtp}
@@ -531,7 +810,7 @@ export default function DeliveryScreen() {
                 />
               )}
 
-              {/* Stage 2: In Transit -> Trip Status Controls, Notes, ETA & Live GPS */}
+              {/* Stage 2: In Transit -> Status Controls & 6-Digit Delivery Verification */}
               {step === 'in_transit' && (
                 <>
                   <TravellerTripControlsCard
@@ -545,7 +824,6 @@ export default function DeliveryScreen() {
                     C={C}
                   />
 
-                  {/* Stage 2b: Enter 6-digit Delivery Code to complete delivery */}
                   <DeliveryOtpActionCard
                     enteredOtp={enteredDeliveryOtp}
                     onOtpChange={setEnteredDeliveryOtp}
@@ -558,9 +836,7 @@ export default function DeliveryScreen() {
             </>
           )}
 
-          {/* ========================================================================= */}
-          {/* COMMON: Delivered Success Card                                            */}
-          {/* ========================================================================= */}
+          {/* DELIVERED CELEBRATION CARD */}
           {step === 'delivered' && (
             <DeliverySuccessCard
               onRate={handleRateFromSuccess}
@@ -570,34 +846,52 @@ export default function DeliveryScreen() {
             />
           )}
 
-          {/* Journey Summary Details Card */}
-          <View style={[styles.detailCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <View style={styles.detailCardHeader}>
-              <View style={[styles.detailCardIcon, { backgroundColor: C.primarySubtle }]}>
-                <MaterialIcons name="info-outline" size={16} color={C.primary} />
+          {/* ========================================================================= */}
+          {/* 4. STREAMLINED JOURNEY SPECIFICATIONS CARD                                 */}
+          {/* ========================================================================= */}
+          <View style={[styles.specsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <View style={styles.specsHeader}>
+              <View style={[styles.specsIconBox, { backgroundColor: C.primarySubtle }]}>
+                <Feather name="shield" size={14} color={C.primary} />
               </View>
-              <Text style={[styles.detailCardTitle, { color: C.textPrimary }]}>Journey Details</Text>
+              <Text style={[styles.specsTitle, { color: C.textPrimary }]}>Delivery Protection & Specs</Text>
             </View>
 
-            {[
-              { label: 'Sender', value: request.senderName, icon: 'person' as const, color: C.textSecondary },
-              { label: 'Traveller', value: request.travellerName, icon: 'directions-car' as const, color: C.textSecondary },
-              { label: 'Agreed Price', value: `₹${request.price}`, icon: 'payments' as const, color: C.success },
-              {
-                label: 'Status',
-                value: step.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-                icon: 'flag' as const,
-                color: STEPS[stepIndex(step)]?.color || C.primary,
-              },
-            ].map((row, idx) => (
-              <View key={idx} style={[styles.detailRow, { borderBottomColor: C.surfaceBorder }]}>
-                <View style={styles.detailRowLeft}>
-                  <MaterialIcons name={row.icon} size={14} color={C.textMuted} />
-                  <Text style={[styles.detailLabel, { color: C.textMuted }]}>{row.label}</Text>
-                </View>
-                <Text style={[styles.detailValue, { color: row.color }]}>{row.value}</Text>
+            <View style={styles.specsGrid}>
+              <View style={[styles.specItem, { borderBottomColor: C.surfaceBorder }]}>
+                <Text style={[styles.specKey, { color: C.textMuted }]}>Category</Text>
+                <Text style={[styles.specVal, { color: C.textPrimary }]}>
+                  {request.parcelCategory ? request.parcelCategory.toUpperCase() : 'GENERAL'}
+                </Text>
               </View>
-            ))}
+
+              <View style={[styles.specItem, { borderBottomColor: C.surfaceBorder }]}>
+                <Text style={[styles.specKey, { color: C.textMuted }]}>Package Weight</Text>
+                <Text style={[styles.specVal, { color: C.textPrimary }]}>
+                  {request.parcelWeight ? `${request.parcelWeight} kg` : 'Standard'}
+                </Text>
+              </View>
+
+              <View style={[styles.specItem, { borderBottomColor: C.surfaceBorder }]}>
+                <Text style={[styles.specKey, { color: C.textMuted }]}>Security Escrow</Text>
+                <Text style={[styles.specVal, { color: C.success }]}>Active & Protected</Text>
+              </View>
+
+              <View style={[styles.specItem, { borderBottomWidth: 0 }]}>
+                <Text style={[styles.specKey, { color: C.textMuted }]}>Tracking Ref</Text>
+                <Text style={[styles.specVal, { color: C.textSecondary }]}>
+                  {request.id.slice(0, 8)}...
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Minimal 24/7 Security Assurance Badge */}
+          <View style={styles.supportFooter}>
+            <Feather name="lock" size={12} color={C.textMuted} />
+            <Text style={[styles.supportFooterText, { color: C.textMuted }]}>
+              Hizli 2-Factor OTP verification guarantees safe handoff and payout release.
+            </Text>
           </View>
         </Animated.ScrollView>
       </KeyboardAvoidingView>
@@ -606,120 +900,329 @@ export default function DeliveryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.mdl, gap: Spacing.mdl },
-  headerCard: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+  container: {
+    flex: 1,
   },
-  headerTopRow: {
+  scrollContent: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    gap: Spacing.md,
+  },
+
+  // Top Nav Bar
+  topNavBar: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    zIndex: 10,
+  },
+  topNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
+  navRoundBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navTitleCenter: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+  },
+  navTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  navSub: {
+    fontSize: FontSize.xs - 1,
+    fontWeight: FontWeight.medium,
+    marginTop: 1,
+  },
+
+  // 1. Hero Card
+  heroCard: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+  heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerBadge: {
+  heroBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
     paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 5,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
   },
-  pulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+  heroBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  headerBadgeText: {
+  heroBadgeText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
   },
-  headerTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.3,
-    marginTop: 2,
+  heroRoleTag: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
   },
-  headerSubtitle: {
-    fontSize: FontSize.sm,
-    lineHeight: 20,
-  },
-  routeRow: {
+
+  // Hero Route
+  heroRouteRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 4,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    marginTop: 4,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xs,
   },
-  routeText: {
+  heroCityBox: {
+    flex: 1,
+    gap: 2,
+  },
+  heroCityLabel: {
+    fontSize: FontSize.xs - 2,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  heroCityName: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
+  },
+  heroRouteArrowBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.sm,
+    position: 'relative',
+    width: 70,
+  },
+  heroRouteLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+  },
+  heroRouteArrowCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  heroDivider: {
+    height: 1,
+    opacity: 0.6,
+  },
+
+  // Hero Counterparty Row
+  heroCounterpartyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroUserLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm + 2,
+    flex: 1,
+  },
+  heroAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroAvatarText: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  heroUserInfo: {
+    flex: 1,
+  },
+  heroUserName: {
+    fontSize: FontSize.sm + 1,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  heroUserRole: {
+    fontSize: FontSize.xs,
+    marginTop: 1,
+  },
+  heroChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  heroChatBtnText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
 
-  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg },
-  emptyStateTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  emptyStateSub: { fontSize: FontSize.sm, textAlign: 'center' },
+  // Hero Metrics Strip
+  heroMetricsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  metricItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  metricLabel: {
+    fontSize: FontSize.xs - 2,
+    fontWeight: FontWeight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  metricValue: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  metricDivider: {
+    width: 1,
+    height: 22,
+    opacity: 0.6,
+  },
 
-  alertCard: {
+  // GPS Standby Card
+  gpsStandbyCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    padding: Spacing.mdl,
-  },
-  alertIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  alertTitle: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-  alertSub: { fontSize: FontSize.xs, marginTop: 3, lineHeight: 18 },
-
-  locationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    padding: Spacing.mdl,
-  },
-  locationIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  locationTitle: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, letterSpacing: -0.2 },
-  locationSub: { fontSize: FontSize.xs, marginTop: 3, lineHeight: 18 },
-
-  detailCard: {
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
-    padding: Spacing.mdl,
-    gap: Spacing.sm,
-    overflow: 'hidden',
+    padding: Spacing.md,
   },
-  detailCardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 4 },
-  detailCardIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  detailCardTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, letterSpacing: -0.2 },
-  detailRow: {
+  gpsIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gpsStandbyTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  gpsStandbySub: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+
+  // Specs Card
+  specsCard: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.xs,
+  },
+  specsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+    marginBottom: Spacing.xs,
+  },
+  specsIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  specsTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  specsGrid: {
+    gap: 0,
+  },
+  specItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
+    paddingVertical: Spacing.sm - 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  detailRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailLabel: { fontSize: FontSize.sm },
-  detailValue: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  specKey: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  specVal: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+
+  // Support Footer
+  supportFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  supportFooterText: {
+    fontSize: FontSize.xs - 1,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+
+  // Center / Empty States
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  loadingText: {
+    fontSize: FontSize.sm,
+    marginTop: Spacing.xs,
+  },
+  emptyStateTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    marginTop: Spacing.xs,
+  },
+  emptyStateSub: {
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  backOutlineBtn: {
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  backOutlineText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
 });

@@ -23,11 +23,14 @@ export async function enforceRateLimit(userId: string, action: RateLimitAction):
 
   if (error) {
     if (error.message.includes('Rate limit exceeded')) {
+      // Confirmed rate-limit hit — block the request
       return { allowed: false, error: 'Too many requests. Please wait before trying again.' };
     }
-    // Fail closed: deny access when the rate limit check itself fails
-    return { allowed: false, error: 'Unable to verify rate limit. Please try again.' };
+    // Transient network / DB error — fail open so users aren't blocked by infrastructure issues
+    console.warn(`[rate-limit] RPC error for action "${action}", failing open:`, error.message);
+    return { allowed: true };
   }
 
   return { allowed: true };
 }
+

@@ -123,7 +123,7 @@ export async function sendDeliveryNotification(type: 'otp_generated' | 'pickup_c
   const configs = {
     otp_generated: {
       title: '🔐 Delivery OTP Generated',
-      body: 'A delivery confirmation code is ready. Open CarryGo to continue.',
+      body: 'A delivery confirmation code is ready. Open Hizli to continue.',
     },
     pickup_confirmed: {
       title: '🚗 Parcel Picked Up!',

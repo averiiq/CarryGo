@@ -1,10 +1,13 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { captureException } from '@/lib/monitoring';
+import { getUserErrorMessage, getErrorTitle } from '@/lib/error-handler';
 
 type Props = {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  onReset?: () => void;
 };
 
 type State = {
@@ -28,21 +31,37 @@ export class AppErrorBoundary extends React.Component<Props, State> {
 
   handleReset = () => {
     this.setState({ hasError: false, error: null });
+    this.props.onReset?.();
   };
 
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
 
+      const title = getErrorTitle(this.state.error, 'Something went wrong');
+      const userMessage = getUserErrorMessage(
+        this.state.error,
+        'An unexpected error occurred while displaying this content.'
+      );
+
       return (
         <View style={s.container}>
-          <Text style={s.title}>Something went wrong</Text>
-          <Text style={s.message}>
-            {this.state.error?.message ?? 'An unexpected error occurred'}
-          </Text>
-          <Pressable style={s.button} onPress={this.handleReset}>
-            <Text style={s.buttonText}>Try Again</Text>
-          </Pressable>
+          <View style={s.card}>
+            <View style={s.iconWrap}>
+              <MaterialIcons name="error-outline" size={36} color="#DC2626" />
+            </View>
+            <Text style={s.title}>{title}</Text>
+            <Text style={s.message}>{userMessage}</Text>
+            <Pressable
+              style={({ pressed }) => [s.button, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+              onPress={this.handleReset}
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
+            >
+              <MaterialIcons name="refresh" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={s.buttonText}>Try Again</Text>
+            </Pressable>
+          </View>
         </View>
       );
     }
@@ -56,31 +75,60 @@ const s = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    backgroundColor: '#fafafa',
+    padding: 24,
+    backgroundColor: '#F8FAFC',
+  },
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    padding: 28,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: '#0F172A',
     marginBottom: 8,
+    textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: '#666',
+    color: '#64748B',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
   },
   button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#4F46E5',
+    borderRadius: 12,
+    backgroundColor: '#059669',
+    minWidth: 140,
   },
   buttonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: '#FFFFFF',
   },
 });

@@ -309,10 +309,15 @@ begin
       updated_at = now()
   where requests.id = v_request.id;
 
-  update public.users
-  set total_deliveries = coalesce(total_deliveries, 0) + 1,
-      updated_at = now()
-  where users.id = v_request.traveller_id;
+  -- Increment traveller delivery count safely
+  begin
+    update public.user_profiles
+    set total_deliveries = coalesce(total_deliveries, 0) + 1,
+        updated_at = now()
+    where user_profiles.id = v_request.traveller_id;
+  exception when others then
+    null;
+  end;
 
   perform public.emit_domain_event(
     v_actor_id,

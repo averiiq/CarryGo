@@ -9,8 +9,8 @@ export interface SavedRoute {
   useCount: number;
 }
 
-const STORAGE_KEY = '@carrygo:saved_routes';
-const RECENT_KEY = '@carrygo:recent_routes';
+const STORAGE_KEY = '@hizli:saved_routes';
+const RECENT_KEY = '@hizli:recent_routes';
 const MAX_SAVED = 20;
 const MAX_RECENT = 5;
 

@@ -22,6 +22,7 @@ import KycOnboarding from '@/components/feature/KycOnboarding';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateParcelMutation } from '@/features/listings/queries';
+import { getUserErrorMessage } from '@/lib/error-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
 import { DocumentsIllustration, ElectronicsIllustration, ClothingIllustration, FoodIllustration, MedicineIllustration, OtherIllustration, ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
@@ -103,13 +104,32 @@ export default function CreateParcelScreen() {
 
   const { hasAgreed: hasSafetyAgreed, markAgreed: markSafetyAgreed } = useSafetyAgreement(user?.id);
 
-  const setFormValues = useCallback((values: ParcelDraft) => setForm(values), []);
+  const hasExternalPrefill = Boolean(
+    params.fromCity ||
+    params.toCity ||
+    params.category ||
+    params.repost === '1'
+  );
+
+  const setFormValues = useCallback((values: ParcelDraft) => {
+    setForm((prev) => {
+      const fromCity = typeof params.fromCity === 'string' && params.fromCity ? normalizeCity(params.fromCity) : (values.fromCity || prev.fromCity);
+      const toCity = typeof params.toCity === 'string' && params.toCity ? normalizeCity(params.toCity) : (values.toCity || prev.toCity);
+      return {
+        ...values,
+        fromCity,
+        toCity,
+      };
+    });
+  }, [params.fromCity, params.toCity]);
+
   const { clearDraft, isDraftRestored } = useFormDraft('create_parcel', form, setFormValues);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const hasAppliedPrefill = useRef(false);
 
   useEffect(() => {
-    if (hasAppliedPrefill.current || params.repost !== '1') return;
+    if (hasAppliedPrefill.current) return;
+    if (!hasExternalPrefill) return;
 
     const prefillCategory = params.category;
     const isValidCategory = prefillCategory && CATEGORIES.some((entry) => entry.type === prefillCategory);
@@ -139,7 +159,7 @@ export default function CreateParcelScreen() {
     }
 
     hasAppliedPrefill.current = true;
-  }, [params]);
+  }, [hasExternalPrefill, params]);
 
   const updateField = <K extends keyof ParcelDraft>(key: K, value: ParcelDraft[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -266,14 +286,14 @@ export default function CreateParcelScreen() {
   const handleUseCurrentLocation = async () => {
     if (isDetectingCurrentLocation) return;
     Haptic.tap();
-    setLocationHint(null);
+    setLocationHint('Detecting your current location via GPS...');
     setIsDetectingCurrentLocation(true);
     const { data, error } = await detectCurrentCity();
     setIsDetectingCurrentLocation(false);
 
     if (error || !data) {
       Haptic.warning();
-      setLocationHint(error || 'Could not detect your current city.');
+      setLocationHint(error || 'Could not detect your current city. Please choose from the list.');
       return;
     }
 
@@ -371,7 +391,7 @@ export default function CreateParcelScreen() {
       Haptic.error();
       showAlert(
         'Parcel Not Listed',
-        error instanceof Error ? error.message : 'Failed to list parcel. Please try again.',
+        getUserErrorMessage(error, 'Failed to list parcel. Please try again.'),
       );
     } finally {
       setIsSubmitting(false);
@@ -500,7 +520,18 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
           placeholder="Delivery city..."
         />
         {locationHint ? (
-          <Text style={[styles.locationHint, { color: locationHint.startsWith('Using ') ? C.success : C.textMuted }]}>
+          <Text
+            style={[
+              styles.locationHint,
+              {
+                color: locationHint.startsWith('Using ')
+                  ? C.success
+                  : locationHint.startsWith('Detecting')
+                    ? C.primary
+                    : C.error,
+              },
+            ]}
+          >
             {locationHint}
           </Text>
         ) : null}

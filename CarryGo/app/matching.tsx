@@ -120,12 +120,13 @@ export default function MatchingScreen() {
         return 0;
       })
   ), [matchingTrips, sortBy]);
+
   const tripMatchBreakdowns = useMemo(() => {
     if (!currentParcel) return new Map<string, MatchScore>();
     return new Map(sortedTrips.map(trip => [trip.id, scoreMatch(trip, currentParcel)]));
   }, [sortedTrips, currentParcel]);
 
-  // ── Send request: sender → traveller ──────────────────────────────────────
+  // ── Send request: sender or traveller ──────────────────────────────────────
   const handleSendRequest = useCallback((trip: Trip) => {
     if (!currentParcel) return;
     if (!user) {
@@ -133,9 +134,12 @@ export default function MatchingScreen() {
       showAlert('Sign In Required', 'Please sign in before sending a delivery request.');
       return;
     }
-    if (currentParcel.userId !== user.id) {
+    const isSender = currentParcel.userId === user.id;
+    const isTraveller = trip.userId === user.id;
+
+    if (!isSender && !isTraveller) {
       Haptic.warning();
-      showAlert('Sender Only', 'Only the parcel owner can send request to a traveller.');
+      showAlert('Participation Error', 'You must be either the parcel owner or the trip traveller to connect this delivery.');
       return;
     }
     if (isCreatingRequest) {
@@ -143,42 +147,38 @@ export default function MatchingScreen() {
       return;
     }
     if (sentRequests.has(trip.id)) {
-      showAlert('Already Sent', 'You have already sent a request to this traveller for this parcel.');
+      showAlert('Already Sent', 'You have already sent a request to this counterparty for this parcel.');
       return;
     }
     const price = Math.round(trip.pricePerKg * currentParcel.weight);
     Haptic.warning();
     showAlert(
-      'Send Delivery Request',
-      `Ask ${trip.userName} to carry your ${currentParcel.category} (${currentParcel.weight}kg) for Rs ${price}?`,
+      isSender ? 'Send Delivery Request' : 'Offer to Carry Parcel',
+      isSender
+        ? `Ask ${trip.userName} to carry your ${currentParcel.category} (${currentParcel.weight}kg) for Rs ${price}?`
+        : `Offer to carry ${currentParcel.userName}'s ${currentParcel.category} (${currentParcel.weight}kg) for Rs ${price}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Send Request',
+          text: isSender ? 'Send Request' : 'Send Offer',
           onPress: async () => {
             Haptic.confirm();
             try {
               const result = await createRequestAsync({
                 parcelId: currentParcel.id,
                 tripId: trip.id,
-                senderId: user.id,
-                senderName: user.name,
+                senderId: currentParcel.userId,
+                senderName: currentParcel.userName,
                 travellerId: trip.userId,
                 travellerName: trip.userName,
                 status: 'pending',
                 price,
-                message: `Hi! I need to send my ${currentParcel.category} from ${currentParcel.fromCity} to ${currentParcel.toCity}. It weighs ${currentParcel.weight}kg.`,
+                message: isSender
+                  ? `Hi! I need to send my ${currentParcel.category} from ${currentParcel.fromCity} to ${currentParcel.toCity}. It weighs ${currentParcel.weight}kg.`
+                  : `Hi! I can carry your ${currentParcel.category} package (${currentParcel.weight}kg) on my trip from ${trip.fromCity} to ${trip.toCity}.`,
               });
               if (result) {
                 setSentRequests(prev => new Set([...prev, trip.id]));
-                // Notify the traveller
-                /* await createNotification({
-                  userId: trip.userId,
-                  title: 'New Delivery Request!',
-                  body: `${user.name} wants you to carry a ${currentParcel.category} (${currentParcel.weight}kg) ${currentParcel.fromCity} → ${currentParcel.toCity} for Rs ${price}`,
-                  type: 'new_request',
-                  relatedId: result.id,
-                }); */
                 await sendLocalNotification('Request Sent!', `Your request was sent to ${trip.userName}`);
                 Haptic.success();
                 showAlert(
@@ -268,9 +268,9 @@ export default function MatchingScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.sourceRouteRow}>
-              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{fromCity}</Text>
+              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{fromCity || 'Route'}</Text>
               <MaterialIcons name="arrow-forward" size={14} color={C.primary} />
-              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{toCity}</Text>
+              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{toCity || 'Details'}</Text>
             </View>
             {currentParcel ? (
               <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
@@ -278,7 +278,7 @@ export default function MatchingScreen() {
               </Text>
             ) : currentTrip ? (
               <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
-                {currentTrip.date} · {currentTrip.vehicleType} · {currentTrip.availableCapacity}kg capacity
+                {currentTrip.date || 'Scheduled'} · {(currentTrip.vehicleType || 'car').toUpperCase()} · {currentTrip.availableCapacity || 0}kg capacity
               </Text>
             ) : (
               <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
@@ -295,6 +295,7 @@ export default function MatchingScreen() {
             )}
           </View>
         </Animated.View>
+
         {/* ── What's being shown ── */}
         <View style={styles.sectionHeader}>
           <View style={{ flex: 1 }}>
@@ -340,6 +341,7 @@ export default function MatchingScreen() {
             </ScrollView>
           ) : null}
         </View>
+
         {/* ── Content ── */}
         {loading ? (
           <View style={styles.loadingWrap}>
@@ -400,9 +402,15 @@ export default function MatchingScreen() {
           <EmptyMatches
             icon="directions-car"
             title="Trip posted successfully"
-            sub="Senders with matching routes will send requests to you. If no match happens in 24 hours, this listing auto-disables and you can repost."
-            cta="Repost Now"
-            onCta={handleRepostNow}
+            sub="Senders with matching routes will send requests to you. You can review your trip details and find parcels to carry anytime."
+            cta="Manage Trip"
+            onCta={() => {
+              if (id) {
+                router.replace({ pathname: '/trip/[id]', params: { id } });
+              } else {
+                router.replace('/(tabs)');
+              }
+            }}
             C={C}
           />
         )}

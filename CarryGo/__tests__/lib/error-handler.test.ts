@@ -1,4 +1,4 @@
-import { AppError, ErrorCode, handleServiceError, isNetworkError, isAuthError } from '@/lib/error-handler';
+import { AppError, ErrorCode, handleServiceError, isNetworkError, isAuthError, getUserErrorMessage, getErrorTitle } from '@/lib/error-handler';
 
 jest.mock('@/lib/monitoring', () => ({
   captureException: jest.fn(),
@@ -104,9 +104,53 @@ describe('handleServiceError', () => {
     expect(result.code).toBe(ErrorCode.AUTH_UNAUTHORIZED);
   });
 
+  it('maps string pattern for RLS violation', () => {
+    const result = handleServiceError(new Error('new row violates row-level security policy for table "ratings"'));
+    expect(result.code).toBe(ErrorCode.AUTH_UNAUTHORIZED);
+    expect(result.userMessage).toContain('permission');
+  });
+
+  it('maps string pattern for missing table or relation', () => {
+    const result = handleServiceError(new Error('relation "public.users" does not exist'));
+    expect(result.code).toBe(ErrorCode.SERVER_ERROR);
+    expect(result.userMessage).toContain('maintenance');
+  });
+
   it('wraps unknown errors safely', () => {
     const result = handleServiceError('random string error');
     expect(result.code).toBe(ErrorCode.UNKNOWN);
-    expect(result.userMessage).toContain('Something went wrong');
+    expect(result.userMessage).toBe('random string error');
+  });
+});
+
+describe('getUserErrorMessage', () => {
+  it('returns friendly message for network failure', () => {
+    const msg = getUserErrorMessage(new TypeError('Network request failed'));
+    expect(msg).toContain('internet connection');
+  });
+
+  it('sanitizes raw database errors', () => {
+    const msg = getUserErrorMessage(new Error('new row violates row-level security policy for table "ratings"'));
+    expect(msg).not.toContain('row-level security');
+    expect(msg).toContain('permission');
+  });
+
+  it('returns fallback for null or undefined', () => {
+    expect(getUserErrorMessage(null, 'Default fallback')).toBe('Default fallback');
+    expect(getUserErrorMessage(undefined, 'Default fallback')).toBe('Default fallback');
+  });
+});
+
+describe('getErrorTitle', () => {
+  it('returns Connection Issue for network offline', () => {
+    expect(getErrorTitle(new TypeError('Network request failed'))).toBe('Connection Issue');
+  });
+
+  it('returns Permission Denied for auth/RLS error', () => {
+    expect(getErrorTitle(new Error('permission denied'))).toBe('Permission Denied');
+  });
+
+  it('returns fallback for unknown error', () => {
+    expect(getErrorTitle(new Error('some random text'), 'Custom Title')).toBe('Custom Title');
   });
 });

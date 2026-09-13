@@ -1,23 +1,23 @@
 {
   "expo": {
-    "name": "CarryGo",
-    "slug": "carrygo",
+    "name": "Hizli",
+    "slug": "hizli",
     "version": "1.2.2",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
-    "scheme": "carrygo",
+    "icon": "./assets/images/icon.png",
+    "scheme": "hizli",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "in.averiq.carrygo",
+      "bundleIdentifier": "in.averiq.hizli",
       "newArchEnabled": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "CarryGo uses the camera to capture parcel photos, delivery proof, and KYC verification documents.",
-        "NSPhotoLibraryUsageDescription": "CarryGo lets you upload parcel and verification images from your photo library.",
-        "NSLocationWhenInUseUsageDescription": "CarryGo uses your location to match routes and support live trip and parcel tracking when enabled."
+        "NSCameraUsageDescription": "Hizli uses the camera to capture parcel photos, delivery proof, and KYC verification documents.",
+        "NSPhotoLibraryUsageDescription": "Hizli lets you upload parcel and verification images from your photo library.",
+        "NSLocationWhenInUseUsageDescription": "Hizli uses your location to match routes and support live trip and parcel tracking when enabled."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -34,7 +34,7 @@
       }
     },
     "android": {
-      "package": "in.averiq.carrygo",
+      "package": "in.averiq.hizli",
       "versionCode": 12,
       "allowBackup": false,
       "blockedPermissions": [
@@ -51,7 +51,7 @@
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "newArchEnabled": true
@@ -59,7 +59,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/logo.png"
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",

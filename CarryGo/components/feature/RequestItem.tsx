@@ -64,18 +64,39 @@ export function RequestItem({
         </View>
       </View>
 
-      {/* Parcel Details Chip */}
-      {parcel ? (
-        <View style={[styles.parcelPill, { backgroundColor: C.surfaceElevated }]}>
-          <MaterialIcons name="inventory-2" size={16} color={C.primary} />
-          <Text style={[styles.parcelDesc, { color: C.textPrimary }]} numberOfLines={1}>
-            {parcel.description}
-          </Text>
-          <Text style={[styles.parcelWeight, { color: C.textMuted }]}>
-            • {parcel.weight}kg
-          </Text>
-        </View>
-      ) : null}
+      {/* Route & Parcel Details */}
+      {(() => {
+        const fromCity = parcel?.fromCity || request.fromCity;
+        const toCity = parcel?.toCity || request.toCity;
+        const desc = parcel?.description || request.parcelCategory || 'Parcel Delivery';
+        const weight = parcel?.weight ?? request.parcelWeight;
+
+        return (
+          <View style={styles.routePillRow}>
+            {fromCity && toCity ? (
+              <View style={[styles.routeBadge, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <View style={[styles.dot, { backgroundColor: C.primary }]} />
+                <Text style={[styles.routeCity, { color: C.textPrimary }]} numberOfLines={1}>{fromCity}</Text>
+                <MaterialIcons name="arrow-forward" size={12} color={C.textMuted} />
+                <View style={[styles.dot, { backgroundColor: C.error }]} />
+                <Text style={[styles.routeCity, { color: C.textPrimary }]} numberOfLines={1}>{toCity}</Text>
+              </View>
+            ) : null}
+
+            <View style={[styles.parcelPill, { backgroundColor: C.surfaceElevated }]}>
+              <MaterialIcons name="inventory-2" size={14} color={C.primary} />
+              <Text style={[styles.parcelDesc, { color: C.textPrimary }]} numberOfLines={1}>
+                {desc}
+              </Text>
+              {weight ? (
+                <Text style={[styles.parcelWeight, { color: C.textMuted }]}>
+                  • {weight}kg
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        );
+      })()}
 
       {/* Message if provided */}
       {request.message ? (
@@ -231,6 +252,27 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: FontWeight.medium,
     textTransform: 'uppercase',
+  },
+  routePillRow: {
+    gap: 6,
+  },
+  routeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  routeCity: {
+    fontSize: 12.5,
+    fontWeight: FontWeight.bold,
   },
   parcelPill: {
     flexDirection: 'row',

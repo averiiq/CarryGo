@@ -43,8 +43,24 @@ export function toLocalDateKey(date: Date) {
 
 export function formatScheduleDate(dateKey: string) {
   if (!dateKey) return '';
-  const [year, month, day] = dateKey.split('-').map(Number);
-  return FULL_DATE_FORMATTER.format(new Date(year, month - 1, day));
+  try {
+    const cleaned = dateKey.split('T')[0];
+    const parts = cleaned.split('-').map(Number);
+    if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+      const [year, month, day] = parts;
+      const d = new Date(year, month - 1, day);
+      if (!isNaN(d.getTime())) {
+        return FULL_DATE_FORMATTER.format(d);
+      }
+    }
+    const fallback = new Date(dateKey);
+    if (!isNaN(fallback.getTime())) {
+      return FULL_DATE_FORMATTER.format(fallback);
+    }
+  } catch {
+    // Fallback to returning raw string if formatting fails
+  }
+  return dateKey;
 }
 
 function getNextSevenDays() {

@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, PanResponder } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Request } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Motion, TouchTarget } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Motion, TouchTarget, LetterSpacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
@@ -19,13 +19,32 @@ interface RequestCardProps {
 }
 
 const STATUS_CONFIG = (C: ThemeColors): Record<string, { color: string; bg: string; border: string; label: string; icon: keyof typeof Ionicons.glyphMap }> => ({
-  pending: { color: '#D97706', bg: '#FEF3C7', border: '#FDE68A', label: 'Pending', icon: 'time-outline' },
-  accepted: { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', label: 'Accepted', icon: 'checkmark-circle' },
-  rejected: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', label: 'Declined', icon: 'close-circle' },
-  cancelled: { color: '#64748B', bg: '#F1F5F9', border: '#E2E8F0', label: 'Cancelled', icon: 'ban' },
-  completed: { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', label: 'Completed', icon: 'trophy' },
-  failed: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', label: 'Failed', icon: 'alert-circle' },
+  pending: { color: C.pending, bg: C.warningSubtle, border: C.warningBorder, label: 'Pending', icon: 'time-outline' },
+  accepted: { color: C.accepted, bg: C.successSubtle, border: C.successBorder, label: 'Accepted', icon: 'checkmark-circle' },
+  rejected: { color: C.rejected, bg: C.errorSubtle, border: C.errorBorder, label: 'Declined', icon: 'close-circle' },
+  cancelled: { color: C.textMuted, bg: C.surfaceElevated, border: C.surfaceBorder, label: 'Cancelled', icon: 'ban' },
+  completed: { color: C.delivered, bg: C.successSubtle, border: C.successBorder, label: 'Completed', icon: 'trophy' },
+  failed: { color: C.error, bg: C.errorSubtle, border: C.errorBorder, label: 'Failed', icon: 'alert-circle' },
 });
+
+function getRouteLocations(req: Request) {
+  let pickup = req.fromCity?.trim() || '';
+  let drop = req.toCity?.trim() || '';
+
+  if ((!pickup || !drop) && req.message) {
+    const match = req.message.match(/from\s+([A-Za-z\s]+?)\s+to\s+([A-Za-z\s]+?)(?:\.|\s+by|\s+with|\s+it|,|$)/i);
+    if (match) {
+      if (!pickup && match[1]) pickup = match[1].trim();
+      if (!drop && match[2]) drop = match[2].trim();
+    }
+  }
+
+  return {
+    pickup: pickup || 'Pickup Point',
+    drop: drop || 'Drop-off Point',
+    hasExactRoute: Boolean(pickup && drop),
+  };
+}
 
 export const RequestCard = React.memo(function RequestCard({
   request,
@@ -46,6 +65,7 @@ export const RequestCard = React.memo(function RequestCard({
   const personName = type === 'incoming' ? request.senderName : request.travellerName;
   const isIncoming = type === 'incoming';
   const showSwipeHint = isIncoming && request.status === 'pending';
+  const { pickup, drop } = getRouteLocations(request);
 
   // Calibrated swipe gesture with directional lock: only trigger on clear horizontal drag
   const panResponder = useRef(PanResponder.create({
@@ -80,9 +100,6 @@ export const RequestCard = React.memo(function RequestCard({
     extrapolate: 'clamp',
   });
 
-  const onPressIn = () => Animated.spring(pressScale, { toValue: Motion.cardScale, useNativeDriver: true, ...Motion.springFast }).start();
-  const onPressOut = () => Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
-
   const rejectOpacity = translateX.interpolate({ inputRange: [-80, 0], outputRange: [1, 0], extrapolate: 'clamp' });
   const acceptOpacity = translateX.interpolate({ inputRange: [0, 80], outputRange: [0, 1], extrapolate: 'clamp' });
 
@@ -114,69 +131,94 @@ export const RequestCard = React.memo(function RequestCard({
       <Animated.View
         style={[
           styles.card,
-          S.sm,
+          S.card,
           isTablet && styles.cardTablet,
-          { backgroundColor: showSwipeHint ? bgColor : '#FFFFFF', borderColor: '#E2E8F0' },
-          { transform: [{ translateX }, { scale: pressScale }] },
+          { backgroundColor: showSwipeHint ? bgColor : C.card, borderColor: C.cardBorder },
+          { transform: [{ translateX }] },
         ]}
         {...(showSwipeHint ? panResponder.panHandlers : {})}
       >
-        <Pressable
-          style={styles.inner}
-          onPressIn={onPressIn}
-          onPressOut={onPressOut}
-          accessibilityRole="button"
-          accessibilityLabel={`${isIncoming ? 'Incoming' : 'Outgoing'} request from ${personName}, Rs ${request.price}, ${sc.label}`}
-          accessibilityHint={showSwipeHint ? 'Swipe right to accept, left to decline' : undefined}
-        >
+        <View style={styles.inner}>
           {/* Card Top: Title / Route + Type Pill + Price & Vehicle Icon */}
           <View style={styles.cardHeader}>
             <View style={styles.headerTitleRow}>
-              <Text style={styles.cardTitle} numberOfLines={1}>
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]} numberOfLines={1}>
                 {isIncoming ? `${personName}'s Request` : 'Delivery Request'}
               </Text>
-              <View style={styles.typePill}>
-                <MaterialIcons name="inventory-2" size={11} color="#475569" />
-                <Text style={styles.typePillText}>Parcel</Text>
+              <View style={[styles.typePill, { backgroundColor: C.badgeBg, borderColor: C.badgeBorder }]}>
+                <MaterialIcons name="inventory-2" size={11} color={C.textSecondary} />
+                <Text style={[styles.typePillText, { color: C.textSecondary }]}>{request.parcelCategory || 'Parcel'}</Text>
               </View>
             </View>
 
             <View style={styles.headerRightRow}>
-              <Text style={styles.priceTag}>₹{request.price}</Text>
-              <View style={styles.vehicleIconPill}>
-                <MaterialIcons name="local-shipping" size={15} color="#475569" />
+              <Text style={[styles.priceTag, { color: C.primary }]}>₹{request.price}</Text>
+              <View style={[styles.vehicleIconPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 }]}>
+                <MaterialIcons name="local-shipping" size={15} color={C.textSecondary} />
               </View>
             </View>
           </View>
 
-          {/* Route line: Pickup ┄┄ Drop point + Optional Message Tooltip */}
-          <View style={styles.routeSection}>
-            <View style={styles.routeIndicatorRow}>
-              <View style={styles.pickupDot} />
-              <Text style={styles.routeLabel}>Pickup</Text>
-              <View style={styles.dottedLine} />
-              <View style={styles.dropDot} />
-              <Text style={styles.routeLabel}>Drop point</Text>
+          {/* Route Section: Explicit Pickup and Drop Locations */}
+          <View style={[styles.routeContainer, { backgroundColor: C.cardSubtle, borderColor: C.surfaceBorder }]}>
+            <View style={styles.routeRow}>
+              {/* Pickup location */}
+              <View style={styles.locationCol}>
+                <View style={styles.locBadgeRow}>
+                  <View style={[styles.pickupDot, { backgroundColor: C.primary }]} />
+                  <Text style={[styles.locTypeLabel, { color: C.primary }]}>PICKUP</Text>
+                </View>
+                <Text style={[styles.locCityText, { color: C.textPrimary }]} numberOfLines={1}>{pickup}</Text>
+              </View>
+
+              {/* Route connecting arrow */}
+              <View style={styles.routeConnector}>
+                <View style={[styles.dottedLine, { borderColor: C.surfaceBorder }]} />
+                <View style={[styles.arrowIconWrap, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
+                  <MaterialIcons name="arrow-forward" size={13} color={C.primary} />
+                </View>
+                <View style={[styles.dottedLine, { borderColor: C.surfaceBorder }]} />
+              </View>
+
+              {/* Drop location */}
+              <View style={[styles.locationCol, styles.locationColRight]}>
+                <View style={[styles.locBadgeRow, { justifyContent: 'flex-end' }]}>
+                  <Text style={[styles.locTypeLabel, { color: C.error }]}>DROP</Text>
+                  <View style={[styles.dropDot, { backgroundColor: C.error }]} />
+                </View>
+                <Text style={[styles.locCityText, { color: C.textPrimary, textAlign: 'right' }]} numberOfLines={1}>{drop}</Text>
+              </View>
             </View>
 
-            {request.message ? (
-              <View style={styles.messageTooltip}>
-                <Text style={styles.tooltipLabel}>Message</Text>
-                <Text style={styles.tooltipText} numberOfLines={1}>{request.message}</Text>
+            {/* Optional parcel specs or message row */}
+            {(request.parcelWeight || request.parcelCategory || request.message) ? (
+              <View style={[styles.detailsRow, { borderTopColor: C.surfaceBorderLight }]}>
+                {request.parcelWeight ? (
+                  <View style={[styles.specChip, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
+                    <MaterialIcons name="scale" size={11} color={C.primary} />
+                    <Text style={[styles.specChipText, { color: C.primary }]}>{request.parcelWeight} kg</Text>
+                  </View>
+                ) : null}
+                {request.message ? (
+                  <View style={styles.messageTooltip}>
+                    <MaterialIcons name="notes" size={11} color={C.textMuted} />
+                    <Text style={[styles.tooltipText, { color: C.textSecondary }]} numberOfLines={1}>{request.message}</Text>
+                  </View>
+                ) : null}
               </View>
             ) : null}
           </View>
 
           {/* Metadata Chips Row: Date, Escrow Protected, Status Pill */}
           <View style={styles.metaRow}>
-            <View style={styles.metaChip}>
-              <Ionicons name="calendar-outline" size={11} color="#64748B" />
-              <Text style={styles.metaChipText}>{formattedDate}</Text>
+            <View style={[styles.metaChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <Ionicons name="calendar-outline" size={11} color={C.textMuted} />
+              <Text style={[styles.metaChipText, { color: C.textSecondary }]}>{formattedDate}</Text>
             </View>
 
-            <View style={[styles.metaChip, styles.escrowChip]}>
-              <MaterialIcons name="security" size={11} color="#059669" />
-              <Text style={styles.escrowChipText}>Escrow Protected</Text>
+            <View style={[styles.metaChip, styles.escrowChip, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
+              <MaterialIcons name="security" size={11} color={C.primary} />
+              <Text style={[styles.escrowChipText, { color: C.primary }]}>Escrow Protected</Text>
             </View>
 
             <View style={[styles.statusChip, { backgroundColor: sc.bg, borderColor: sc.border }]}>
@@ -186,27 +228,27 @@ export const RequestCard = React.memo(function RequestCard({
           </View>
 
           {/* Clean Divider */}
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: C.surfaceBorderLight }]} />
 
           {/* User Info & Actions Bar (Matching reference image) */}
           <View style={styles.userFooterRow}>
             {/* User on Left */}
             <View style={styles.userBlock}>
               <View style={styles.avatarWrap}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{personName.charAt(0).toUpperCase()}</Text>
+                <View style={[styles.avatar, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
+                  <Text style={[styles.avatarText, { color: C.primaryDark }]}>{personName.charAt(0).toUpperCase()}</Text>
                 </View>
-                <View style={styles.avatarVerifiedBadge}>
+                <View style={[styles.avatarVerifiedBadge, { backgroundColor: C.primary }]}>
                   <MaterialIcons name="check" size={8} color="#FFFFFF" />
                 </View>
               </View>
 
               <View style={styles.userMeta}>
                 <View style={styles.userNameRow}>
-                  <Text style={styles.userName} numberOfLines={1}>{personName}</Text>
-                  <MaterialIcons name="verified" size={13} color="#0284C7" />
+                  <Text style={[styles.userName, { color: C.textPrimary }]} numberOfLines={1}>{personName}</Text>
+                  <MaterialIcons name="verified" size={13} color={C.info} />
                 </View>
-                <Text style={styles.userSubText}>
+                <Text style={[styles.userSubText, { color: C.textMuted }]}>
                   4.8 ★ · {isIncoming ? 'Sender' : 'Traveler'}
                 </Text>
               </View>
@@ -218,13 +260,14 @@ export const RequestCard = React.memo(function RequestCard({
               <Pressable
                 style={({ pressed }) => [
                   styles.squareActionBtn,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                   pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
                 ]}
                 onPress={() => { Haptic.tap(); onChat?.(); }}
                 hitSlop={TouchTarget.smallHitSlop}
                 accessibilityLabel="Chat"
               >
-                <Ionicons name="chatbubble-outline" size={17} color="#334155" />
+                <Ionicons name="chatbubble-outline" size={17} color={C.textSecondary} />
               </Pressable>
 
               {/* Status Action Buttons */}
@@ -232,24 +275,33 @@ export const RequestCard = React.memo(function RequestCard({
                 <>
                   <Pressable
                     style={({ pressed }) => [
-                      styles.squareActionBtn,
-                      styles.declineSquareBtn,
+                      styles.declineActionPill,
+                      { backgroundColor: C.errorSubtle, borderColor: C.errorBorder },
                       pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
                     ]}
-                    onPress={() => { Haptic.tap(); onReject?.(); }}
+                    onPress={() => {
+                      Haptic.warning();
+                      onReject?.();
+                    }}
                     hitSlop={TouchTarget.smallHitSlop}
-                    accessibilityLabel="Decline"
+                    accessibilityLabel="Decline Request"
                   >
-                    <Ionicons name="close" size={17} color="#DC2626" />
+                    <Ionicons name="close" size={15} color={C.error} />
+                    <Text style={[styles.declineActionText, { color: C.error }]}>Decline</Text>
                   </Pressable>
 
                   <Pressable
                     style={({ pressed }) => [
                       styles.primaryActionPill,
+                      { backgroundColor: C.primary },
                       pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
                     ]}
-                    onPress={() => { Haptic.tap(); onAccept?.(); }}
+                    onPress={() => {
+                      Haptic.success();
+                      onAccept?.();
+                    }}
                     hitSlop={TouchTarget.smallHitSlop}
+                    accessibilityLabel="Accept Request"
                   >
                     <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                     <Text style={styles.primaryActionText}>Accept</Text>
@@ -261,12 +313,13 @@ export const RequestCard = React.memo(function RequestCard({
                 <Pressable
                   style={({ pressed }) => [
                     styles.cancelPill,
+                    { backgroundColor: C.errorSubtle, borderColor: C.errorBorder },
                     pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                   ]}
                   onPress={() => { Haptic.tap(); onCancel?.(); }}
                   hitSlop={TouchTarget.smallHitSlop}
                 >
-                  <Text style={styles.cancelPillText}>Cancel</Text>
+                  <Text style={[styles.cancelPillText, { color: C.error }]}>Cancel</Text>
                 </Pressable>
               ) : null}
 
@@ -276,18 +329,20 @@ export const RequestCard = React.memo(function RequestCard({
                     <Pressable
                       style={({ pressed }) => [
                         styles.payPill,
+                        { backgroundColor: C.warningSubtle, borderColor: C.warningBorder },
                         pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                       ]}
                       onPress={() => { Haptic.tap(); onPayment?.(); }}
                       hitSlop={TouchTarget.smallHitSlop}
                     >
-                      <Text style={styles.payPillText}>Pay</Text>
+                      <Text style={[styles.payPillText, { color: C.warning }]}>Pay</Text>
                     </Pressable>
                   ) : null}
 
                   <Pressable
                     style={({ pressed }) => [
                       styles.primaryActionPill,
+                      { backgroundColor: C.primary },
                       pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
                     ]}
                     onPress={() => { Haptic.tap(); onDelivery?.(); }}
@@ -302,20 +357,36 @@ export const RequestCard = React.memo(function RequestCard({
               ) : null}
 
               {request.status === 'completed' ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.receiptPill,
-                    pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-                  ]}
-                  onPress={() => { Haptic.tap(); onPayment?.(); }}
-                  hitSlop={TouchTarget.smallHitSlop}
-                >
-                  <Text style={styles.receiptPillText}>Receipt</Text>
-                </Pressable>
+                <>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.receiptPill,
+                      { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder },
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                    ]}
+                    onPress={() => { Haptic.tap(); onPayment?.(); }}
+                    hitSlop={TouchTarget.smallHitSlop}
+                  >
+                    <Text style={[styles.receiptPillText, { color: C.primary }]}>Receipt</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.primaryActionPill,
+                      { backgroundColor: C.primary },
+                      pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                    ]}
+                    onPress={() => { Haptic.tap(); onDelivery?.(); }}
+                    hitSlop={TouchTarget.smallHitSlop}
+                  >
+                    <MaterialIcons name="grade" size={15} color="#FFFFFF" />
+                    <Text style={styles.primaryActionText}>Review</Text>
+                  </Pressable>
+                </>
               ) : null}
             </View>
           </View>
-        </Pressable>
+        </View>
       </Animated.View>
     </View>
   );
@@ -428,62 +499,114 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Route Section: Pickup ┄┄ Drop point + Message Tooltip
-  routeSection: {
+  // Route Section: Explicit Pickup and Drop locations
+  routeContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  routeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 2,
   },
-  routeIndicatorRow: {
+  locationCol: {
+    flex: 1,
+    gap: 3,
+  },
+  locationColRight: {
+    alignItems: 'flex-end',
+  },
+  locBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    flex: 1,
+  },
+  locTypeLabel: {
+    fontSize: 9.5,
+    fontWeight: FontWeight.bold,
+    color: '#059669',
+    letterSpacing: 0.5,
+  },
+  locCityText: {
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+    color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  routeConnector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    gap: 4,
+  },
+  arrowIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
   pickupDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#059669',
   },
   dropDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#EF4444',
   },
-  routeLabel: {
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
-    color: '#475569',
-  },
   dottedLine: {
-    width: 28,
+    width: 14,
     height: 1,
     borderWidth: 0.8,
     borderColor: '#94A3B8',
     borderStyle: 'dashed',
   },
-  messageTooltip: {
-    maxWidth: 150,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 1,
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F6',
   },
-  tooltipLabel: {
-    fontSize: 8,
+  specChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+  },
+  specChipText: {
+    fontSize: 10,
     fontWeight: FontWeight.bold,
-    color: '#64748B',
-    textTransform: 'uppercase',
+    color: '#059669',
+  },
+  messageTooltip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   tooltipText: {
-    fontSize: 10,
-    color: '#334155',
+    fontSize: 10.5,
+    color: '#475569',
+    flex: 1,
   },
 
   // Metadata Chips Row
@@ -627,6 +750,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     borderColor: '#FECACA',
   },
+  declineActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  declineActionText: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+    color: '#DC2626',
+  },
   primaryActionPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -634,7 +773,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#059669',
   },
   primaryActionText: {
     fontSize: 12,

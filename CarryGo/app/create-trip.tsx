@@ -19,6 +19,7 @@ import { detectCurrentCity } from '@/services/location.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateTripMutation } from '@/features/listings/queries';
+import { getUserErrorMessage } from '@/lib/error-handler';
 import { BikeIllustration, CarIllustration, BusIllustration, TrainIllustration, FlightIllustration, ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
 
 const STEPS = [
@@ -100,24 +101,45 @@ export default function CreateTripScreen() {
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
   const [locationHint, setLocationHint] = useState<string | null>(null);
 
-  const setFormValues = useCallback((values: TripDraft) => setForm(values), []);
+  const hasExternalPrefill = Boolean(
+    params.fromCity ||
+    params.toCity ||
+    params.capacity ||
+    params.repost === '1'
+  );
+
+  const setFormValues = useCallback((values: TripDraft) => {
+    setForm((prev) => {
+      const fromCity = typeof params.fromCity === 'string' && params.fromCity ? normalizeCity(params.fromCity) : (values.fromCity || prev.fromCity);
+      const toCity = typeof params.toCity === 'string' && params.toCity ? normalizeCity(params.toCity) : (values.toCity || prev.toCity);
+      const capacity = typeof params.capacity === 'string' && params.capacity ? params.capacity : (values.capacity || prev.capacity);
+      return {
+        ...values,
+        fromCity,
+        toCity,
+        capacity,
+      };
+    });
+  }, [params.fromCity, params.toCity, params.capacity]);
+
   const { clearDraft, isDraftRestored } = useFormDraft('create_trip', form, setFormValues);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const hasAppliedPrefill = useRef(false);
 
   useEffect(() => {
-    if (hasAppliedPrefill.current || params.repost !== '1') return;
+    if (hasAppliedPrefill.current) return;
+    if (!hasExternalPrefill) return;
 
     const prefillVehicle = params.vehicle;
     const isValidVehicle = prefillVehicle && VEHICLES.some((item) => item.type === prefillVehicle);
     const nextForm: TripDraft = {
       fromCity: typeof params.fromCity === 'string' ? normalizeCity(params.fromCity) : '',
       toCity: typeof params.toCity === 'string' ? normalizeCity(params.toCity) : '',
-      date: typeof params.date === 'string' ? params.date : '',
-      time: typeof params.time === 'string' ? params.time : '',
+      date: typeof params.date === 'string' && params.date ? params.date : toLocalDateKey(new Date()),
+      time: typeof params.time === 'string' && params.time ? params.time : '10:00 AM',
       vehicle: isValidVehicle ? prefillVehicle : 'car',
-      capacity: typeof params.capacity === 'string' ? params.capacity : '',
-      price: typeof params.price === 'string' ? params.price : '',
+      capacity: typeof params.capacity === 'string' && params.capacity ? params.capacity : '10',
+      price: typeof params.price === 'string' && params.price ? params.price : '80',
     };
 
     if (
@@ -135,7 +157,7 @@ export default function CreateTripScreen() {
     }
 
     hasAppliedPrefill.current = true;
-  }, [params]);
+  }, [hasExternalPrefill, params]);
 
   const updateField = <K extends keyof TripDraft>(key: K, value: TripDraft[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -258,14 +280,14 @@ export default function CreateTripScreen() {
   const handleUseCurrentLocation = async () => {
     if (isDetectingCurrentLocation) return;
     Haptic.tap();
-    setLocationHint(null);
+    setLocationHint('Detecting your current location via GPS...');
     setIsDetectingCurrentLocation(true);
     const { data, error } = await detectCurrentCity();
     setIsDetectingCurrentLocation(false);
 
     if (error || !data) {
       Haptic.warning();
-      setLocationHint(error || 'Could not detect your current city.');
+      setLocationHint(error || 'Could not detect your origin city. Please choose from the list.');
       return;
     }
 
@@ -326,22 +348,26 @@ export default function CreateTripScreen() {
         pricePerKg: Number(prepared.price),
         status: 'active',
       });
-      await notifyRouteSubscribers({
-        listingType: 'trip',
-        listingId: result.id,
-        fromCity: prepared.fromCity,
-        toCity: prepared.toCity,
-        title: 'New Trip on Your Route!',
-        body: `${user?.name || 'Someone'} is travelling ${prepared.fromCity} to ${prepared.toCity} on ${formatScheduleDate(prepared.date)}.`,
-      });
+      try {
+        await notifyRouteSubscribers({
+          listingType: 'trip',
+          listingId: result.id,
+          fromCity: prepared.fromCity,
+          toCity: prepared.toCity,
+          title: 'New Trip on Your Route!',
+          body: `${user?.fullName || user?.name || 'Someone'} is travelling ${prepared.fromCity} to ${prepared.toCity} on ${formatScheduleDate(prepared.date)}.`,
+        });
+      } catch (notifyErr) {
+        console.warn('Failed to notify route subscribers:', notifyErr);
+      }
       clearDraft();
       Haptic.success();
-      router.replace({ pathname: '/matching', params: { mode: 'trip', id: result.id } });
+      router.replace({ pathname: '/trip/[id]', params: { id: result.id } });
     } catch (error) {
       Haptic.error();
       showAlert(
         'Trip Not Posted',
-        error instanceof Error ? error.message : 'Failed to post trip. Please try again.',
+        getUserErrorMessage(error, 'Failed to post trip. Please try again.'),
       );
     } finally {
       setIsSubmitting(false);
@@ -463,7 +489,18 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
           placeholder="Destination city..."
         />
         {locationHint ? (
-          <Text style={[styles.locationHint, { color: locationHint.startsWith('Using ') ? C.success : C.textMuted }]}>
+          <Text
+            style={[
+              styles.locationHint,
+              {
+                color: locationHint.startsWith('Using ')
+                  ? C.success
+                  : locationHint.startsWith('Detecting')
+                    ? C.primary
+                    : C.error,
+              },
+            ]}
+          >
             {locationHint}
           </Text>
         ) : null}

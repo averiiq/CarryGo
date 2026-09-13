@@ -3,13 +3,13 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import Reanimated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 export type DeliveryStep = 'awaiting_pickup' | 'picked_up' | 'in_transit' | 'delivered';
 
 export function stepIndex(status: DeliveryStep) {
   const steps: DeliveryStep[] = ['awaiting_pickup', 'picked_up', 'in_transit', 'delivered'];
-  return steps.indexOf(status);
+  const idx = steps.indexOf(status);
+  return idx >= 0 ? idx : 0;
 }
 
 export const STEPS: {
@@ -17,12 +17,11 @@ export const STEPS: {
   label: string;
   sub: string;
   icon: keyof typeof Feather.glyphMap;
-  color: string;
 }[] = [
-  { key: 'awaiting_pickup', label: 'Awaiting Pickup', sub: 'Traveller will collect parcel', icon: 'clock' as const, color: '#F59E0B' },
-  { key: 'picked_up',       label: 'Picked Up',       sub: 'Parcel collected from sender',   icon: 'package' as const, color: '#3B82F6' },
-  { key: 'in_transit',      label: 'In Transit',      sub: 'On the way to destination',      icon: 'truck' as const, color: '#4F46E5' },
-  { key: 'delivered',       label: 'Delivered',       sub: 'Delivery complete!',              icon: 'check-circle' as const, color: '#10B981' },
+  { key: 'awaiting_pickup', label: 'Pickup Pending', sub: 'Traveller collects parcel from sender', icon: 'clock' },
+  { key: 'picked_up',       label: 'Picked Up',      sub: 'Parcel inspected & securely handed over', icon: 'package' },
+  { key: 'in_transit',      label: 'In Transit',     sub: 'On journey to final destination', icon: 'truck' },
+  { key: 'delivered',       label: 'Delivered',      sub: 'Safely delivered and verified', icon: 'check-circle' },
 ];
 
 type DeliveryTimelineProps = {
@@ -37,170 +36,184 @@ export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
 
   useEffect(() => {
     if (step !== 'delivered') {
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.25, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.15, duration: 750, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 750, useNativeDriver: true }),
         ])
-      ).start();
+      );
+      loop.start();
+      return () => loop.stop();
     }
   }, [pulseAnim, step]);
 
-  const stepsData = STEPS.map(s => {
-    if (s.key === 'awaiting_pickup') return { ...s, color: C.warning, bg: C.warningSubtle };
-    if (s.key === 'picked_up') return { ...s, color: C.info, bg: C.infoSubtle };
-    if (s.key === 'in_transit') return { ...s, color: C.primary, bg: C.primarySubtle };
-    return { ...s, color: C.success, bg: C.successSubtle };
-  });
-
-  const progressStyle = useAnimatedStyle(() => {
-    const targetWidth = ((currentIdx) / (stepsData.length - 1)) * 100;
-    return {
-      width: withSpring(`${targetWidth}%`, { damping: 20, stiffness: 100 }),
-    };
-  }, [currentIdx]);
+  const currentStep = STEPS[currentIdx] || STEPS[0];
 
   return (
-    <View style={[styles.timelineCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.sm]}>
-      <View style={styles.timelineHeader}>
-        <View style={[styles.timelineIconBox, { backgroundColor: C.primarySubtle }]}>
-          <Feather name="truck" size={16} color={C.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.timelineTitle, { color: C.textPrimary }]}>Delivery Progress</Text>
-          <Text style={[styles.timelineSub, { color: C.textMuted }]}>
-            Step {currentIdx + 1} of {stepsData.length}
+    <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.sm]}>
+      {/* Top row: Minimal step label & pill */}
+      <View style={styles.topRow}>
+        <View style={styles.statusInfo}>
+          <Text style={[styles.statusEyebrow, { color: C.textMuted }]}>
+            STATUS · STEP {currentIdx + 1} OF {STEPS.length}
+          </Text>
+          <Text style={[styles.statusTitle, { color: C.textPrimary }]}>
+            {currentStep.label}
           </Text>
         </View>
-        <View style={[styles.progressPill, { backgroundColor: stepsData[currentIdx].bg, borderColor: stepsData[currentIdx].color + '33' }]}>
-          <Text style={[styles.progressPillText, { color: stepsData[currentIdx].color }]}>
-            {stepsData[currentIdx].label}
+
+        <View style={[styles.statusPill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
+          <View style={[styles.liveDot, { backgroundColor: C.primary }]} />
+          <Text style={[styles.statusPillText, { color: C.primary }]}>
+            {step === 'delivered' ? 'Completed' : 'Active'}
           </Text>
         </View>
       </View>
 
-      {/* Linear progress bar */}
-      <View style={[styles.progressBarBg, { backgroundColor: C.surfaceElevated }]}>
-        <Reanimated.View
-          style={[
-            styles.progressBarFill,
-            progressStyle,
-            {
-              backgroundColor: stepsData[currentIdx].color,
-            },
-          ]}
-        />
-      </View>
+      {/* Horizontal Segmented Progress Indicator */}
+      <View style={styles.segmentsRow}>
+        {STEPS.map((s, idx) => {
+          const isDone = idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          const isPending = idx > currentIdx;
 
-      {/* Step rows */}
-      {stepsData.map((s, idx) => {
-        const isDone = idx < currentIdx;
-        const isCurrent = idx === currentIdx;
-        const isPending = idx > currentIdx;
-        const dotColor = isDone ? s.color : isCurrent ? s.color : C.surfaceBorderLight;
-
-        return (
-          <View key={s.key} style={styles.stepRow}>
-            {/* Connector + dot */}
-            <View style={styles.stepLeft}>
-              <View style={[
-                styles.stepDot,
-                { backgroundColor: isPending ? C.surfaceElevated : dotColor, borderColor: isPending ? C.surfaceBorder : dotColor },
-              ]}>
-                {isDone ? (
-                  <Feather name="check" size={10} color="#fff" />
-                ) : isCurrent ? (
-                  <Animated.View style={[styles.pulseDot, { transform: [{ scale: pulseAnim }] }]}>
-                    <Feather name={s.icon} size={10} color="#fff" />
-                  </Animated.View>
-                ) : (
-                  <View style={[styles.pendingDot, { backgroundColor: C.textMuted + '80' }]} />
-                )}
+          return (
+            <React.Fragment key={s.key}>
+              {/* Step Node */}
+              <View style={styles.nodeWrapper}>
+                <View
+                  style={[
+                    styles.nodeCircle,
+                    isDone && { backgroundColor: C.primary, borderColor: C.primary },
+                    isCurrent && { backgroundColor: C.primary, borderColor: C.primary },
+                    isPending && { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  ]}
+                >
+                  {isDone ? (
+                    <Feather name="check" size={12} color="#FFFFFF" />
+                  ) : isCurrent ? (
+                    <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                      <Feather name={s.icon} size={12} color="#FFFFFF" />
+                    </Animated.View>
+                  ) : (
+                    <View style={[styles.pendingDot, { backgroundColor: C.textMuted + '66' }]} />
+                  )}
+                </View>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.nodeLabel,
+                    {
+                      color: isCurrent ? C.primary : isDone ? C.textPrimary : C.textMuted,
+                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.medium,
+                    },
+                  ]}
+                >
+                  {s.label.split(' ')[0]}
+                </Text>
               </View>
-              {idx < stepsData.length - 1 ? (
-                <View style={[
-                  styles.stepLine,
-                  { backgroundColor: isDone ? s.color : C.surfaceBorderLight },
-                ]} />
+
+              {/* Connecting Bar (except after last step) */}
+              {idx < STEPS.length - 1 ? (
+                <View
+                  style={[
+                    styles.segmentConnector,
+                    { backgroundColor: isDone ? C.primary : C.surfaceBorder },
+                  ]}
+                />
               ) : null}
-            </View>
+            </React.Fragment>
+          );
+        })}
+      </View>
 
-            {/* Content */}
-            <View style={[styles.stepContent, isCurrent && { backgroundColor: s.color + '05', borderColor: s.color + '22', borderWidth: 1 }]}>
-              <View style={styles.stepContentInner}>
-                <View style={[styles.stepIconWrap, { backgroundColor: dotColor + (isPending ? '00' : '12') }]}>
-                  <Feather name={s.icon} size={14} color={isPending ? C.textMuted : dotColor} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[
-                    styles.stepLabel,
-                    { color: isPending ? C.textMuted : C.textPrimary },
-                    isCurrent && { fontWeight: FontWeight.bold },
-                  ]}>
-                    {s.label}
-                  </Text>
-                  <Text style={[styles.stepSub, { color: isCurrent ? s.color + 'dd' : C.textMuted }]}>
-                    {isCurrent ? 'Current step' : s.sub}
-                  </Text>
-                </View>
-                {isDone ? (
-                  <View style={[styles.doneChip, { backgroundColor: s.color + '12' }]}>
-                    <Feather name="check-circle" size={11} color={s.color} />
-                    <Text style={[styles.doneChipText, { color: s.color }]}>Done</Text>
-                  </View>
-                ) : isCurrent ? (
-                  <View style={[styles.activeChip, { backgroundColor: s.color }]}>
-                    <Text style={styles.activeChipText}>Now</Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        );
-      })}
+      {/* Micro subtext description */}
+      <Text style={[styles.subtext, { color: C.textSecondary }]} numberOfLines={1}>
+        {currentStep.sub}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  timelineCard: {
-    borderRadius: BorderRadius.xl, borderWidth: 1,
-    padding: Spacing.md, gap: Spacing.md, overflow: 'hidden',
+  card: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.mdl,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm + 2,
   },
-  timelineHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  timelineIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  timelineTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  timelineSub: { fontSize: FontSize.xs, marginTop: 2 },
-  progressPill: {
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: BorderRadius.full, borderWidth: 1, flexShrink: 0,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  progressPillText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-  progressBarBg: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  progressBarFill: { height: 6, borderRadius: 3 },
-
-  stepRow: { flexDirection: 'row', gap: 0, alignItems: 'flex-start' },
-  stepLeft: { width: 48, alignItems: 'center' },
-  stepDot: {
-    width: 30, height: 30, borderRadius: 15,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2,
+  statusInfo: {
+    gap: 2,
   },
-  pulseDot: { alignItems: 'center', justifyContent: 'center' },
-  pendingDot: { width: 8, height: 8, borderRadius: 4 },
-  stepLine: { width: 2, flex: 1, minHeight: 16, marginVertical: 3 },
-  stepContent: { flex: 1, borderRadius: BorderRadius.md, marginBottom: 8, padding: 10 },
-  stepContentInner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  stepIconWrap: {
-    width: 32, height: 32, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  statusEyebrow: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
   },
-  stepLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  stepSub: { fontSize: FontSize.xs, marginTop: 2 },
-  doneChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 7, paddingVertical: 4, borderRadius: BorderRadius.full,
+  statusTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
   },
-  doneChipText: { fontSize: 10, fontWeight: FontWeight.bold },
-  activeChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.full },
-  activeChipText: { fontSize: 10, fontWeight: FontWeight.bold, color: '#fff' },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  segmentsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.xs,
+  },
+  nodeWrapper: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  nodeCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  segmentConnector: {
+    flex: 1,
+    height: 2,
+    marginHorizontal: 4,
+    marginBottom: 16,
+    borderRadius: 1,
+  },
+  nodeLabel: {
+    fontSize: 11,
+  },
+  subtext: {
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+  },
 });

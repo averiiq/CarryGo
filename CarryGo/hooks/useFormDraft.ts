@@ -1,7 +1,7 @@
-﻿import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const DRAFT_PREFIX = 'CARRYGO_DRAFT_';
+const DRAFT_PREFIX = 'HIZLI_DRAFT_';
 
 type DraftOptions<T> = {
   onRestore?: (values: T) => void;

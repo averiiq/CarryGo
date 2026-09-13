@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SAFETY_KEY_PREFIX = 'CARRYGO_SAFETY_AGREED_';
+const SAFETY_KEY_PREFIX = 'HIZLI_SAFETY_AGREED_';
 
 export function useSafetyAgreement(userId: string | undefined) {
   const [hasAgreed, setHasAgreed] = useState(false);

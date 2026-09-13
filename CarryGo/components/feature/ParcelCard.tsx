@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Parcel, Request } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
 
@@ -22,7 +22,7 @@ const categoryGradients: Record<string, [string, string]> = {
   clothing: ['#7C3AED', '#6D28D9'],
   food: ['#EA580C', '#C2410C'],
   medicine: ['#DC2626', '#B91C1C'],
-  other: ['#4F46E5', '#4338CA'],
+  other: ['#059669', '#047857'],
 };
 
 interface ParcelCardProps {
@@ -50,8 +50,8 @@ export const ParcelCard = React.memo(function ParcelCard({
   onTrackDelivery,
   onViewRequest,
 }: ParcelCardProps) {
-  const { C } = useThemeColors();
-  const cGradient = categoryGradients[parcel.category] || ['#0F766E', '#0D9488'];
+  const { C, S } = useThemeColors();
+  const cGradient = categoryGradients[parcel.category] || ['#059669', '#047857'];
   const cColor = cGradient[0];
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -60,8 +60,19 @@ export const ParcelCard = React.memo(function ParcelCard({
   const onPressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
-  const statusColor = parcel.status === 'open' ? C.success : parcel.status === 'in_transit' ? C.primary : C.textMuted;
-  const statusLabel = parcel.status === 'in_transit' ? 'In Transit' : parcel.status.charAt(0).toUpperCase() + parcel.status.slice(1);
+  const isParcelOpen = parcel.status === 'open';
+  const statusColor = isParcelOpen
+    ? C.success
+    : parcel.status === 'in_transit'
+      ? C.info
+      : parcel.status === 'matched'
+        ? '#7C3AED'
+        : C.textMuted;
+  const statusLabel = parcel.status === 'in_transit'
+    ? 'In Transit'
+    : parcel.status === 'open'
+      ? 'Open'
+      : parcel.status.charAt(0).toUpperCase() + parcel.status.slice(1);
 
   return (
     <Pressable
@@ -73,9 +84,10 @@ export const ParcelCard = React.memo(function ParcelCard({
       <Animated.View
         style={[
           styles.card,
+          S.card,
           {
-            backgroundColor: C.surface,
-            borderColor: isOwner ? C.primary + '44' : C.surfaceBorder,
+            backgroundColor: C.card,
+            borderColor: isOwner ? C.primaryBorder : C.surfaceBorder,
             transform: [{ scale }],
           },
         ]}
@@ -98,16 +110,17 @@ export const ParcelCard = React.memo(function ParcelCard({
                   {isOwner ? 'You' : parcel.userName}
                 </Text>
                 {isOwner ? (
-                  <View style={[styles.ownerBadge, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
+                  <View style={[styles.ownerBadge, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
+                    <MaterialIcons name="person" size={10} color={C.primary} style={{ marginRight: 2 }} />
                     <Text style={[styles.ownerBadgeText, { color: C.primary }]}>Your Parcel</Text>
                   </View>
                 ) : existingRequest?.status === 'accepted' ? (
-                  <View style={[styles.ownerBadge, { backgroundColor: '#10B98118', borderColor: '#10B98144' }]}>
-                    <Text style={[styles.ownerBadgeText, { color: '#10B981' }]}>Accepted</Text>
+                  <View style={[styles.ownerBadge, { backgroundColor: C.successSubtle, borderColor: C.successBorder }]}>
+                    <Text style={[styles.ownerBadgeText, { color: C.success }]}>Accepted</Text>
                   </View>
                 ) : existingRequest?.status === 'pending' ? (
-                  <View style={[styles.ownerBadge, { backgroundColor: '#F59E0B18', borderColor: '#F59E0B44' }]}>
-                    <Text style={[styles.ownerBadgeText, { color: '#F59E0B' }]}>Offer Sent</Text>
+                  <View style={[styles.ownerBadge, { backgroundColor: C.warningSubtle, borderColor: C.warningBorder }]}>
+                    <Text style={[styles.ownerBadgeText, { color: C.warning }]}>Offer Sent</Text>
                   </View>
                 ) : null}
               </View>
@@ -206,7 +219,7 @@ export const ParcelCard = React.memo(function ParcelCard({
             <Pressable
               style={({ pressed }) => [
                 styles.actionButton,
-                { backgroundColor: C.primarySubtle, borderColor: C.primary + '55', borderWidth: 1 },
+                { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder, borderWidth: 1 },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
               onPress={onPress}
@@ -218,7 +231,7 @@ export const ParcelCard = React.memo(function ParcelCard({
             <Pressable
               style={({ pressed }) => [
                 styles.actionButton,
-                { backgroundColor: '#10B981' },
+                { backgroundColor: C.primary },
                 pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
               ]}
               onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
@@ -230,13 +243,13 @@ export const ParcelCard = React.memo(function ParcelCard({
             <Pressable
               style={({ pressed }) => [
                 styles.actionButton,
-                { backgroundColor: C.surfaceElevated, borderColor: '#F59E0B77', borderWidth: 1 },
+                { backgroundColor: C.warningSubtle, borderColor: C.warningBorder, borderWidth: 1 },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
               onPress={() => (onViewRequest ? onViewRequest(existingRequest.id) : onPress?.())}
             >
-              <MaterialIcons name="schedule" size={14} color="#F59E0B" />
-              <Text style={[styles.actionButtonText, { color: '#F59E0B' }]}>Offer Sent</Text>
+              <MaterialIcons name="schedule" size={14} color={C.warning} />
+              <Text style={[styles.actionButtonText, { color: C.warning }]}>Offer Sent</Text>
             </Pressable>
           ) : existingRequest?.status === 'completed' ? (
             <Pressable
@@ -250,6 +263,11 @@ export const ParcelCard = React.memo(function ParcelCard({
               <MaterialIcons name="check-circle" size={14} color={C.textSecondary} />
               <Text style={[styles.actionButtonText, { color: C.textSecondary }]}>Delivered</Text>
             </Pressable>
+          ) : !isParcelOpen ? (
+            <View style={[styles.closedChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <View style={[styles.closedDot, { backgroundColor: statusColor }]} />
+              <Text style={[styles.closedText, { color: C.textSecondary }]}>{statusLabel}</Text>
+            </View>
           ) : showCarryButton ? (
             <Pressable
               style={({ pressed }) => [
@@ -259,7 +277,7 @@ export const ParcelCard = React.memo(function ParcelCard({
               ]}
               onPress={onCarry}
             >
-              <MaterialIcons name="local-shipping" size={13} color="#FFFFFF" />
+              <MaterialIcons name="local-shipping" size={14} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Carry Parcel</Text>
             </Pressable>
           ) : (
@@ -276,15 +294,10 @@ export const ParcelCard = React.memo(function ParcelCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.md,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
   },
   topRow: {
     flexDirection: 'row',
@@ -298,11 +311,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   avatarLetter: {
     color: '#FFFFFF',
@@ -320,32 +338,32 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   ownerBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 1.5,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
   ownerBadgeText: {
     fontSize: 10,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.2,
+    letterSpacing: LetterSpacing.wide,
   },
   senderName: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.sm + 0.5,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
+    letterSpacing: LetterSpacing.tight,
   },
   categorySubtitle: {
     fontSize: 10,
     fontWeight: FontWeight.semibold,
-    letterSpacing: 0.4,
+    letterSpacing: LetterSpacing.wider,
   },
   statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingVertical: 4.5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -355,29 +373,29 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   statusLabel: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.2,
+    letterSpacing: LetterSpacing.wide,
   },
   routeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: 4,
   },
   cityBlock: {
     flex: 1,
     gap: 2,
   },
   cityLabel: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.5,
+    letterSpacing: LetterSpacing.wider,
   },
   cityName: {
     fontSize: FontSize.lg,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.4,
+    fontWeight: FontWeight.bold,
+    letterSpacing: LetterSpacing.tight,
   },
   arrowBlock: {
     flexDirection: 'row',
@@ -395,16 +413,16 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   arrowIconCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
   },
   descriptionText: {
     fontSize: FontSize.sm,
-    lineHeight: 18,
+    lineHeight: 19,
     marginTop: -2,
   },
   specsRow: {
@@ -416,24 +434,24 @@ const styles = StyleSheet.create({
   specItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
+    gap: 4.5,
+    paddingHorizontal: 10,
+    paddingVertical: 5.5,
+    borderRadius: 9,
   },
   matchItem: {
     borderWidth: 1,
     borderColor: 'rgba(5, 150, 105, 0.25)',
   },
   specText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: FontWeight.medium,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.sm + 2,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   priceContainer: {
@@ -442,7 +460,7 @@ const styles = StyleSheet.create({
   priceLabel: {
     fontSize: 9,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.5,
+    letterSpacing: LetterSpacing.wider,
   },
   priceValueRow: {
     flexDirection: 'row',
@@ -450,17 +468,17 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   priceAmount: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.5,
+    letterSpacing: LetterSpacing.tight,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: Spacing.md + 2,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 10.5,
+    borderRadius: 12,
   },
   actionButtonText: {
     color: '#FFFFFF',
@@ -475,5 +493,24 @@ const styles = StyleSheet.create({
   viewDetailsText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
+  },
+  closedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  closedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  closedText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+    letterSpacing: LetterSpacing.wide,
   },
 });

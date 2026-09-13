@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,11 +17,12 @@ import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
 import { EmptyRequestsSVG } from '@/components/ui/EmptyState';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
-import { flattenInfiniteData, useParcelsQuery } from '@/features/listings/queries';
+import { flattenInfiniteData, useParcelsQuery, useParcelsByIdsQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useUpdateRequestStatusMutation } from '@/features/requests/queries';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useStaggeredList } from '@/hooks/useAnimations';
+import { getUserErrorMessage } from '@/lib/error-handler';
 import { ProductIllustration } from '@/components/illustrations';
 import { Request } from '@/types';
 
@@ -114,9 +115,55 @@ export default function RequestsScreen() {
   const headerEntrance = useFadeIn(0, 420);
   const controlsEntrance = useFadeIn(120, 420);
 
-  const requests = user ? requestsQuery.data ?? [] : [];
+  const requestsRefetchRef = React.useRef(requestsQuery.refetch);
+  requestsRefetchRef.current = requestsQuery.refetch;
+  const conversationsRefetchRef = React.useRef(conversationsQuery.refetch);
+  conversationsRefetchRef.current = conversationsQuery.refetch;
+  const parcelsRefetchRef = React.useRef(parcelsQuery.refetch);
+  parcelsRefetchRef.current = parcelsQuery.refetch;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        void requestsRefetchRef.current();
+      }
+    }, [user?.id])
+  );
+
+  const rawRequests = user ? requestsQuery.data ?? [] : [];
   const conversations = user ? conversationsQuery.data ?? [] : [];
-  const parcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
+  const marketplaceParcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
+
+  const requestedParcelIds = useMemo(() => {
+    return Array.from(new Set(rawRequests.map(r => r.parcelId).filter(Boolean)));
+  }, [rawRequests]);
+
+  const requestedParcelsQuery = useParcelsByIdsQuery(requestedParcelIds);
+  const requestedParcels = requestedParcelsQuery.data ?? [];
+  const requestedParcelsRefetchRef = React.useRef(requestedParcelsQuery.refetch);
+  requestedParcelsRefetchRef.current = requestedParcelsQuery.refetch;
+
+  // Parcel lookup map prioritizing requestedParcelsQuery, then marketplace parcels
+  const parcelMap = useMemo(() => {
+    const map = new Map<string, typeof marketplaceParcels[0]>();
+    marketplaceParcels.forEach(p => map.set(p.id, p));
+    requestedParcels.forEach(p => map.set(p.id, p));
+    return map;
+  }, [marketplaceParcels, requestedParcels]);
+
+  // Enrich requests with resolved route, category, and weight
+  const requests = useMemo(() => {
+    return rawRequests.map(req => {
+      const p = parcelMap.get(req.parcelId);
+      return {
+        ...req,
+        fromCity: req.fromCity || p?.fromCity,
+        toCity: req.toCity || p?.toCity,
+        parcelCategory: req.parcelCategory || p?.category,
+        parcelWeight: req.parcelWeight || p?.weight,
+      };
+    });
+  }, [rawRequests, parcelMap]);
 
   const incoming = requests.filter(r => r.travellerId === user?.id);
   const outgoing = requests.filter(r => r.senderId === user?.id);
@@ -174,16 +221,17 @@ export default function RequestsScreen() {
     setRefreshing(true);
     try {
       await Promise.all([
-        requestsQuery.refetch(),
-        conversationsQuery.refetch(),
-        parcelsQuery.refetch(),
+        requestsRefetchRef.current(),
+        conversationsRefetchRef.current(),
+        parcelsRefetchRef.current(),
+        requestedParcelIds.length > 0 ? requestedParcelsRefetchRef.current() : Promise.resolve(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [conversationsQuery, parcelsQuery, requestsQuery, user]);
+  }, [requestedParcelIds.length, user]);
 
-  const handleAccept = (requestId: string, req: typeof requests[0]) => {
+  const handleAccept = (requestId: string, req: Request) => {
     if (!user || req.travellerId !== user.id) {
       Haptic.warning();
       showAlert('Not Allowed', 'Only the selected traveller can accept this request.');
@@ -198,8 +246,8 @@ export default function RequestsScreen() {
           if (!user) return;
           try {
             await updateRequestStatusMutation.mutateAsync({ requestId, status: 'accepted' });
-            const parcel = parcels.find(p => p.id === req.parcelId);
-            const route = parcel ? `${parcel.fromCity} to ${parcel.toCity}` : 'Route';
+            const parcel = parcelMap.get(req.parcelId);
+            const route = parcel ? `${parcel.fromCity} to ${parcel.toCity}` : `${req.fromCity || 'Pickup'} to ${req.toCity || 'Drop'}`;
             const existing = conversations.find(c => c.requestId === requestId);
             if (!existing) {
               await createConversationMutation.mutateAsync({
@@ -213,13 +261,14 @@ export default function RequestsScreen() {
             await createDelivery(requestId);
             await sendRequestNotification('received', req.senderName, req.price);
             await sendLocalNotification('Accepted', `Delivery from ${req.senderName} accepted!`);
+            await requestsQuery.refetch();
             Haptic.success();
             showAlert('Accepted!', 'A chat has opened to coordinate pickup.');
           } catch (error) {
             Haptic.error();
             showAlert(
               'Could Not Accept',
-              error instanceof Error ? error.message : 'The request could not be accepted. Please try again.',
+              getUserErrorMessage(error, 'The request could not be accepted. Please try again.'),
             );
           }
         },
@@ -227,7 +276,7 @@ export default function RequestsScreen() {
     ]);
   };
 
-  const handleReject = (requestId: string, _req: typeof requests[0]) => {
+  const handleReject = (requestId: string, _req: Request) => {
     const req = _req;
     if (!user || req.travellerId !== user.id) {
       Haptic.warning();
@@ -236,18 +285,20 @@ export default function RequestsScreen() {
     }
 
     Haptic.warning();
-    showAlert('Reject Request?', 'Reject this delivery request?', [
-      { text: 'Cancel', style: 'cancel' },
+    showAlert('Decline Request?', `Are you sure you want to decline this delivery request from ${req.senderName}?`, [
+      { text: 'Keep', style: 'cancel' },
       {
-        text: 'Reject', style: 'destructive', onPress: async () => {
+        text: 'Decline', style: 'destructive', onPress: async () => {
           try {
             await updateRequestStatusMutation.mutateAsync({ requestId, status: 'rejected' });
+            await requestsQuery.refetch();
             Haptic.error();
+            showAlert('Declined', 'The delivery request has been declined.');
           } catch (error) {
             Haptic.error();
             showAlert(
-              'Could Not Reject',
-              error instanceof Error ? error.message : 'The request could not be rejected. Please try again.',
+              'Could Not Decline',
+              getUserErrorMessage(error, 'The request could not be declined. Please try again.'),
             );
           }
         },
@@ -255,7 +306,7 @@ export default function RequestsScreen() {
     ]);
   };
 
-  const handleCancel = (requestId: string, req: typeof requests[0]) => {
+  const handleCancel = (requestId: string, req: Request) => {
     if (!user || req.senderId !== user.id) {
       Haptic.warning();
       showAlert('Not Allowed', 'Only the parcel sender can cancel this request.');
@@ -274,7 +325,7 @@ export default function RequestsScreen() {
             Haptic.error();
             showAlert(
               'Could Not Cancel',
-              error instanceof Error ? error.message : 'The request could not be cancelled. Please try again.',
+              getUserErrorMessage(error, 'The request could not be cancelled. Please try again.'),
             );
           }
         },
@@ -282,19 +333,19 @@ export default function RequestsScreen() {
     ]);
   };
 
-  const handleChat = (req: typeof requests[0]) => {
+  const handleChat = (req: Request) => {
     Haptic.tap();
     const conv = conversations.find(c => c.requestId === req.id);
     if (conv?.id) router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
     else showAlert('No Chat Yet', 'Chat opens automatically once the request is accepted.');
   };
 
-  const handleDelivery = (req: typeof requests[0]) => {
+  const handleDelivery = (req: Request) => {
     Haptic.tap();
     router.push({ pathname: '/delivery/[id]', params: { id: req.id } });
   };
 
-  const handlePayment = (req: typeof requests[0]) => {
+  const handlePayment = (req: Request) => {
     Haptic.tap();
     router.push({ pathname: '/payment/[id]', params: { id: req.id } });
   };
@@ -471,7 +522,7 @@ export default function RequestsScreen() {
                   C={C}
                   icon="cloud-off"
                   title="Could not load requests"
-                  message={requestsQuery.error instanceof Error ? requestsQuery.error.message : 'Refresh and try again.'}
+                  message={getUserErrorMessage(requestsQuery.error, 'Refresh and try again.')}
                   actionLabel="Retry"
                   onAction={() => { void requestsQuery.refetch(); }}
                 />

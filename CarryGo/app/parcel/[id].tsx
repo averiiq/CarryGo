@@ -10,13 +10,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversationsQuery } from '@/features/conversations/queries';
-import { useParcelQuery, useUpdateParcelStatusMutation } from '@/features/listings/queries';
-import { useRequestsByParcelQuery, useUpdateRequestStatusMutation } from '@/features/requests/queries';
+import { useParcelQuery, useUpdateParcelStatusMutation, useTripsQuery, useCreateTripMutation, flattenInfiniteData } from '@/features/listings/queries';
+import { useRequestsByParcelQuery, useUpdateRequestStatusMutation, useCreateRequestMutation } from '@/features/requests/queries';
+import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Parcel } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import { getUserErrorMessage } from '@/lib/error-handler';
 
 const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   documents: 'description',
@@ -29,11 +31,11 @@ const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 
 const categoryGradients: Record<string, [string, string]> = {
   documents: ['#475569', '#1E293B'],
-  electronics: ['#4F46E5', '#312E81'],
+  electronics: ['#0284C7', '#0369A1'],
   clothing: ['#BE185D', '#831843'],
   food: ['#EA580C', '#9A3412'],
   medicine: ['#059669', '#064E3B'],
-  other: ['#4338CA', '#1E1B4B'],
+  other: ['#059669', '#064E3B'],
 };
 
 type TabFilter = 'all' | 'pending' | 'active' | 'done';
@@ -207,14 +209,21 @@ export default function ParcelDetailScreen() {
   const conversationsQuery = useConversationsQuery(user?.id);
   const { mutateAsync: updateRequestStatusAsync } = useUpdateRequestStatusMutation(user?.id);
   const updateParcelStatusMutation = useUpdateParcelStatusMutation(user?.id);
+  const tripsQuery = useTripsQuery(true);
+  const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
+  const createTripMutation = useCreateTripMutation();
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<TabFilter>('all');
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showCarryModal, setShowCarryModal] = useState(false);
 
   const parcel = (parcelQuery.data ?? undefined) as Parcel | undefined;
   const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
+  const allTrips = flattenInfiniteData(tripsQuery.data);
+  const userTrips = useMemo(() => allTrips.filter(t => t.userId === user?.id && t.status === 'active'), [allTrips, user?.id]);
+  const myRequest = useMemo(() => requests.find(r => r.travellerId === user?.id && ['pending', 'accepted'].includes(r.status)), [requests, user?.id]);
   const loading = parcelQuery.isLoading || requestsQuery.isLoading;
 
   const isSender = parcel?.userId === user?.id;
@@ -230,8 +239,8 @@ export default function ParcelDetailScreen() {
       : 'observer';
 
   const catGradient: [string, string] = parcel
-    ? (categoryGradients[parcel.category] || ['#4F46E5', '#312E81'])
-    : ['#4F46E5', '#312E81'];
+    ? (categoryGradients[parcel.category] || ['#059669', '#064E3B'])
+    : ['#059669', '#064E3B'];
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -239,8 +248,107 @@ export default function ParcelDetailScreen() {
       parcelQuery.refetch(),
       requestsQuery.refetch(),
       conversationsQuery.refetch(),
+      tripsQuery.refetch(),
     ]);
     setRefreshing(false);
+  };
+
+  const handleConfirmCarry = async (tripId: string, targetParcel: Parcel) => {
+    if (!user) return;
+    const chosenTrip = userTrips.find(t => t.id === tripId);
+    if (!chosenTrip) return;
+
+    try {
+      const result = await createRequestAsync({
+        parcelId: targetParcel.id,
+        tripId: chosenTrip.id,
+        senderId: targetParcel.userId,
+        senderName: targetParcel.userName,
+        travellerId: user.id,
+        travellerName: user.name || 'Traveller',
+        status: 'pending',
+        price: targetParcel.priceOffer,
+        message: `Hi ${targetParcel.userName}! I am travelling on ${chosenTrip.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
+      });
+
+      if (result) {
+        setShowCarryModal(false);
+        Haptic.success();
+        showAlert(
+          'Offer Sent! 🎉',
+          `Your offer to carry this parcel for ₹${targetParcel.priceOffer} was sent to ${targetParcel.userName}.`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await requestsQuery.refetch();
+      } else {
+        showAlert('Error', 'Could not send offer. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Could not send offer. Please try again.');
+    }
+  };
+
+  const handlePostTripForParcel = (fromCity: string, toCity: string, minCapacity: number) => {
+    router.push({
+      pathname: '/create-trip',
+      params: { fromCity, toCity, capacity: String(minCapacity) },
+    });
+  };
+
+  const handleQuickCreateAndCarry = async (quickParams: QuickCarryTripParams, targetParcel: Parcel) => {
+    if (!user) return;
+    try {
+      // 1. Post trip for the exact parcel route automatically
+      const newTrip = await createTripMutation.mutateAsync({
+        userId: user.id,
+        userName: user.fullName || user.name || 'Traveller',
+        userRating: user.rating || 4.5,
+        fromCity: targetParcel.fromCity,
+        toCity: targetParcel.toCity,
+        date: quickParams.date,
+        time: quickParams.time,
+        vehicleType: quickParams.vehicleType,
+        availableCapacity: quickParams.capacity,
+        pricePerKg: Math.max(50, Math.round(targetParcel.priceOffer / Math.max(1, targetParcel.weight))),
+        status: 'active',
+      });
+
+      // 2. Immediately send carry offer
+      const result = await createRequestAsync({
+        parcelId: targetParcel.id,
+        tripId: newTrip.id,
+        senderId: targetParcel.userId,
+        senderName: targetParcel.userName,
+        travellerId: user.id,
+        travellerName: user.name || 'Traveller',
+        status: 'pending',
+        price: targetParcel.priceOffer,
+        message: `Hi ${targetParcel.userName}! I am travelling from ${targetParcel.fromCity} to ${targetParcel.toCity} on ${quickParams.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
+      });
+
+      if (result) {
+        setShowCarryModal(false);
+        Haptic.success();
+        showAlert(
+          'Trip Posted & Offer Sent! 🎉',
+          `Your trip for ${targetParcel.fromCity} ➔ ${targetParcel.toCity} was posted and your offer (₹${targetParcel.priceOffer}) was sent to ${targetParcel.userName}!`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await Promise.all([requestsQuery.refetch(), tripsQuery.refetch()]);
+      } else {
+        showAlert('Error', 'Could not send carry offer. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Could not post trip and send offer.');
+    }
   };
 
   const handleCancel = (req: Request) => {
@@ -275,7 +383,7 @@ export default function ParcelDetailScreen() {
             showAlert('Parcel Cancelled', 'Your parcel listing has been removed.');
           } catch (error) {
             Haptic.error();
-            showAlert('Error', error instanceof Error ? error.message : 'Could not cancel parcel. Please try again.');
+            showAlert('Parcel Not Cancelled', getUserErrorMessage(error, 'Could not cancel parcel. Please try again.'));
           }
         },
       },
@@ -501,6 +609,63 @@ export default function ParcelDetailScreen() {
           </Pressable>
         ) : null}
 
+        {/* Carry Action Card for Travellers */}
+        {!isSender && isParcelOpen ? (
+          myRequest ? (
+            <View style={[styles.matchingCard, { backgroundColor: C.surface, borderColor: myRequest.status === 'accepted' ? '#10B98155' : '#F59E0B55' }]}>
+              <View style={[styles.matchingIconCircle, { backgroundColor: myRequest.status === 'accepted' ? '#10B98120' : '#F59E0B20' }]}>
+                <MaterialIcons
+                  name={myRequest.status === 'accepted' ? 'check-circle' : 'schedule'}
+                  size={24}
+                  color={myRequest.status === 'accepted' ? '#10B981' : '#F59E0B'}
+                />
+              </View>
+              <View style={styles.matchingTextCol}>
+                <Text style={[styles.matchingTitle, { color: C.textPrimary }]}>
+                  {myRequest.status === 'accepted' ? 'Your Offer Was Accepted!' : 'Carry Offer Sent'}
+                </Text>
+                <Text style={[styles.matchingSub, { color: C.textMuted }]}>
+                  {myRequest.status === 'accepted'
+                    ? 'Coordinate with sender in chat to begin pickup.'
+                    : `Waiting for ${parcel.userName} to accept your offer for ₹${myRequest.price}.`}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.matchingCard,
+                pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }
+              ]}
+              onPress={() => {
+                if (!user) {
+                  Haptic.warning();
+                  showAlert('Sign In Required', 'Please sign in to carry parcels.');
+                  return;
+                }
+                setShowCarryModal(true);
+              }}
+            >
+              <LinearGradient
+                colors={[C.primary, C.primaryDark]}
+                style={StyleSheet.absoluteFillObject}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0.5 }}
+              />
+              <View style={styles.matchingIconCircle}>
+                <MaterialIcons name="local-shipping" size={24} color="#fff" />
+              </View>
+              <View style={styles.matchingTextCol}>
+                <Text style={styles.matchingTitle}>Offer to Carry This Parcel</Text>
+                <Text style={styles.matchingSub}>
+                  Earn ₹{parcel.priceOffer} delivering this parcel along your route
+                </Text>
+              </View>
+              <MaterialIcons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />
+            </Pressable>
+          )
+        ) : null}
+
         {/* Carrier Proposals Section */}
         <View style={styles.proposalsSection}>
           <View style={styles.proposalsHeaderRow}>
@@ -598,6 +763,17 @@ export default function ParcelDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <CarryParcelModal
+        visible={showCarryModal}
+        onClose={() => setShowCarryModal(false)}
+        parcel={parcel}
+        userTrips={userTrips}
+        onConfirmCarry={handleConfirmCarry}
+        onPostTrip={handlePostTripForParcel}
+        onQuickCreateAndCarry={handleQuickCreateAndCarry}
+        isSubmitting={isCreatingRequest || createTripMutation.isPending}
+      />
 
       {/* Full Photo Modal */}
       {parcel.imageUri ? (

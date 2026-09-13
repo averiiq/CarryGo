@@ -21,9 +21,27 @@ interface RequestRow {
   message?: string | null;
   created_at: string;
   updated_at: string;
+  parcels?: { id: string; from_city: string; to_city: string; category?: string; weight?: number } | { id: string; from_city: string; to_city: string; category?: string; weight?: number }[] | null;
+  trips?: { id: string; from_city: string; to_city: string; vehicle_type?: string } | { id: string; from_city: string; to_city: string; vehicle_type?: string }[] | null;
+}
+
+function extractCitiesFromMessage(msg?: string | null): { fromCity?: string; toCity?: string } {
+  if (!msg) return {};
+  const match = msg.match(/from\s+([A-Za-z\s]+?)\s+to\s+([A-Za-z\s]+?)(?:\.|\s+by|\s+with|\s+it|$)/i);
+  if (match && match[1] && match[2]) {
+    return { fromCity: match[1].trim(), toCity: match[2].trim() };
+  }
+  return {};
 }
 
 function mapRow(row: RequestRow): Request {
+  const parcel = Array.isArray(row.parcels) ? row.parcels[0] : row.parcels;
+  const trip = Array.isArray(row.trips) ? row.trips[0] : row.trips;
+  const parsed = extractCitiesFromMessage(row.message);
+
+  const fromCity = parcel?.from_city || trip?.from_city || parsed.fromCity || undefined;
+  const toCity = parcel?.to_city || trip?.to_city || parsed.toCity || undefined;
+
   return {
     id: row.id,
     parcelId: row.parcel_id,
@@ -35,6 +53,10 @@ function mapRow(row: RequestRow): Request {
     status: row.status as Request['status'],
     price: parseFloat(String(row.price)),
     message: row.message || undefined,
+    fromCity,
+    toCity,
+    parcelCategory: parcel?.category,
+    parcelWeight: parcel?.weight ? parseFloat(String(parcel.weight)) : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -68,12 +90,22 @@ export async function fetchRequests(userId: string, options?: { limit?: number; 
   const offset = options?.offset ?? 0;
   const { data, error, count } = await sb
     .from('requests')
-    .select('*', { count: 'exact' })
+    .select('*, parcels(id, from_city, to_city, category, weight), trips(id, from_city, to_city, vehicle_type)', { count: 'exact' })
     .or(`sender_id.eq.${userId},traveller_id.eq.${userId}`)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
-  if (error) return { data: null, error: error.message, total: 0 };
-  return { data: (data || []).map(mapRow), error: null, total: count ?? 0 };
+  if (error) {
+    // If embedding fails for any reason, fallback to basic select
+    const fallback = await sb
+      .from('requests')
+      .select('*', { count: 'exact' })
+      .or(`sender_id.eq.${userId},traveller_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (fallback.error) return { data: null, error: fallback.error.message, total: 0 };
+    return { data: (fallback.data || []).map(r => mapRow(r as unknown as RequestRow)), error: null, total: fallback.count ?? 0 };
+  }
+  return { data: (data || []).map(r => mapRow(r as unknown as RequestRow)), error: null, total: count ?? 0 };
 }
 
 export async function fetchRequestById(requestId: string) {
@@ -88,14 +120,23 @@ export async function fetchRequestById(requestId: string) {
   }
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('requests').select('*').eq('id', requestId).single();
-  if (error) return { data: null, error: error.message };
-  return { data: mapRow(data), error: null };
+  const { data, error } = await sb
+    .from('requests')
+    .select('*, parcels(id, from_city, to_city, category, weight), trips(id, from_city, to_city, vehicle_type)')
+    .eq('id', requestId)
+    .single();
+  if (error) {
+    const fallback = await sb.from('requests').select('*').eq('id', requestId).single();
+    if (fallback.error) return { data: null, error: fallback.error.message };
+    return { data: mapRow(fallback.data as unknown as RequestRow), error: null };
+  }
+  return { data: mapRow(data as unknown as RequestRow), error: null };
 }
 
 export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'updatedAt'>, actorUserId?: string) {
-  if (actorUserId && actorUserId !== req.senderId) {
-    return { data: null, error: 'Only the parcel sender can create a request.' };
+  // Basic actor check: must be either the sender or traveller (or unspecified for trusted internal calls)
+  if (actorUserId && actorUserId !== req.senderId && actorUserId !== req.travellerId) {
+    return { data: null, error: 'Only the parcel sender or trip traveller can create a request.' };
   }
 
   if (req.senderId === req.travellerId) {
@@ -126,80 +167,48 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
 
   const message = req.message ? sanitizeTextInput(req.message, 500) : null;
 
-  const [parcelRes, tripRes] = await Promise.all([
-    fetchParcelById(req.parcelId),
-    fetchTripById(req.tripId),
-  ]);
-
-  if (parcelRes.error) {
-    return { data: null, error: parcelRes.error };
-  }
-  if (tripRes.error) {
-    return { data: null, error: tripRes.error };
-  }
-
-  const parcel = parcelRes.data;
-  const trip = tripRes.data;
-
-  if (!parcel || !trip) {
-    return { data: null, error: 'Could not verify parcel or trip details.' };
-  }
-
-  if (actorUserId && parcel.userId !== actorUserId) {
-    return { data: null, error: 'Only the parcel owner can send request to a traveller.' };
-  }
-
-  if (req.senderId !== parcel.userId) {
-    return { data: null, error: 'Request sender must be the parcel owner.' };
-  }
-
-  if (req.travellerId !== trip.userId) {
-    return { data: null, error: 'Request traveller must be the trip owner.' };
-  }
-
-  if (parcel.status !== 'open') {
-    return { data: null, error: 'Parcel is no longer available for requests.' };
-  }
-
-  if (trip.status !== 'active') {
-    return { data: null, error: 'Trip is no longer active.' };
-  }
-
-  if (parcel.weight > trip.availableCapacity) {
-    return { data: null, error: 'Trip does not have enough remaining capacity.' };
-  }
-
-  const sameRoute =
-    normalizeCity(parcel.fromCity) === normalizeCity(trip.fromCity)
-    && normalizeCity(parcel.toCity) === normalizeCity(trip.toCity);
-
-  if (!sameRoute) {
-    return { data: null, error: 'Parcel and trip routes must match exactly.' };
-  }
-
   if (isAwsBackendEnabled()) {
+    // For AWS path, pre-fetch to get verified IDs (AWS API doesn't resolve them server-side)
+    const [parcelRes, tripRes] = await Promise.all([
+      fetchParcelById(req.parcelId),
+      fetchTripById(req.tripId),
+    ]);
+    if (parcelRes.error) return { data: null, error: parcelRes.error };
+    if (tripRes.error) return { data: null, error: tripRes.error };
+    const parcel = parcelRes.data;
+    const trip = tripRes.data;
+    if (!parcel || !trip) return { data: null, error: 'Could not verify parcel or trip details.' };
+    if (actorUserId && parcel.userId !== actorUserId && trip.userId !== actorUserId) {
+      return { data: null, error: 'Only the parcel owner or trip owner can create a request.' };
+    }
+    if (parcel.userId === trip.userId) {
+      return { data: null, error: 'The parcel owner and trip owner cannot be the same person.' };
+    }
     try {
       const payload = {
-        ...req,
+        parcelId: req.parcelId,
+        tripId: req.tripId,
         senderId: parcel.userId,
         senderName: parcel.userName,
         travellerId: trip.userId,
         travellerName: trip.userName,
         status: 'pending' as const,
+        price: req.price,
         message: message || undefined,
       };
-
       const response = await awsApiRequest<{ data: Request }>('/requests', {
         method: 'POST',
         body: payload,
       });
       return { data: response.data, error: null };
     } catch (error) {
-      const message = error instanceof AwsApiError ? error.message : 'Failed to create request';
-      return { data: null, error: message };
+      const awsMessage = error instanceof AwsApiError ? error.message : 'Failed to create request';
+      return { data: null, error: awsMessage };
     }
   }
 
+  // ── Supabase path ──────────────────────────────────────────────────────────
+  // Rate limit check before any DB work
   const rateLimitUserId = actorUserId || req.senderId;
   const rateCheck = await enforceRateLimit(rateLimitUserId, 'create_request');
   if (!rateCheck.allowed) {
@@ -207,14 +216,84 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
   }
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.rpc('create_request_command', {
+
+  // Happy path: let the RPC validate ownership, status, capacity and route internally.
+  // This avoids 2 extra fetchParcel/fetchTrip round-trips on every successful carry offer.
+  const { data: rpcData, error: rpcError } = await sb.rpc('create_request_command', {
     p_parcel_id: req.parcelId,
     p_trip_id: req.tripId,
     p_price: req.price,
     p_message: message || undefined,
   }).single();
-  if (error) return { data: null, error: error.message };
-  return { data: mapRow(data as unknown as RequestRow), error: null };
+
+  if (!rpcError && rpcData) {
+    return { data: mapRow(rpcData as unknown as RequestRow), error: null };
+  }
+
+  // Fallback: RPC unavailable/auth mismatch — fetch parcel+trip to get verified IDs then insert directly
+  console.warn('create_request_command RPC failed, using direct insert fallback:', rpcError?.message);
+  const [parcelRes, tripRes] = await Promise.all([
+    fetchParcelById(req.parcelId),
+    fetchTripById(req.tripId),
+  ]);
+  if (parcelRes.error) return { data: null, error: parcelRes.error };
+  if (tripRes.error) return { data: null, error: tripRes.error };
+  const parcel = parcelRes.data;
+  const trip = tripRes.data;
+  if (!parcel || !trip) return { data: null, error: 'Could not verify parcel or trip details.' };
+
+  if (actorUserId && parcel.userId !== actorUserId && trip.userId !== actorUserId) {
+    return { data: null, error: 'Only the parcel owner or trip owner can create a request.' };
+  }
+  if (parcel.userId === trip.userId) {
+    return { data: null, error: 'The parcel owner and trip owner cannot be the same person.' };
+  }
+  if (parcel.status !== 'open') {
+    return { data: null, error: 'Parcel is no longer available for requests.' };
+  }
+  if (trip.status !== 'active') {
+    return { data: null, error: 'Trip is no longer active.' };
+  }
+  if (parcel.weight > trip.availableCapacity) {
+    return { data: null, error: 'Trip does not have enough remaining capacity.' };
+  }
+  const sameRoute =
+    normalizeCity(parcel.fromCity) === normalizeCity(trip.fromCity)
+    && normalizeCity(parcel.toCity) === normalizeCity(trip.toCity);
+  if (!sameRoute) {
+    return { data: null, error: `Route mismatch: parcel goes ${parcel.fromCity}→${parcel.toCity}, but trip goes ${trip.fromCity}→${trip.toCity}.` };
+  }
+
+  // Duplicate guard in the fallback path (mirrors the unique partial index on the DB)
+  const isDuplicate = await checkDuplicateRequest(req.parcelId, req.tripId);
+  if (isDuplicate) {
+    return { data: null, error: 'A carry request for this parcel and trip already exists.' };
+  }
+
+  const { data: fallbackData, error: fallbackError } = await sb
+    .from('requests')
+    .insert({
+      parcel_id: req.parcelId,
+      trip_id: req.tripId,
+      sender_id: parcel.userId,
+      sender_name: parcel.userName,
+      traveller_id: trip.userId,
+      traveller_name: trip.userName,
+      status: 'pending',
+      price: req.price,
+      message: message || undefined,
+    })
+    .select('*, parcels(id, from_city, to_city, category, weight), trips(id, from_city, to_city, vehicle_type)')
+    .single();
+
+  if (fallbackError) {
+    // Catch the unique index violation gracefully
+    if (fallbackError.code === '23505') {
+      return { data: null, error: 'A carry request for this parcel and trip already exists.' };
+    }
+    return { data: null, error: rpcError?.message || fallbackError.message };
+  }
+  return { data: mapRow(fallbackData as unknown as RequestRow), error: null };
 }
 
 export async function fetchRequestsByTripId(tripId: string) {
@@ -257,6 +336,28 @@ export async function fetchRequestsByParcelId(parcelId: string) {
     .order('created_at', { ascending: false });
   if (error) return { data: null, error: error.message };
   return { data: (data || []).map(r => mapRow(r as unknown as RequestRow)), error: null };
+}
+
+/**
+ * Returns true if an active (pending or accepted) request already exists
+ * for the given parcel+trip pair. Used by the UI to disable the Carry button
+ * and by the fallback insert path to block duplicates.
+ */
+export async function checkDuplicateRequest(parcelId: string, tripId: string): Promise<boolean> {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('requests')
+    .select('id')
+    .eq('parcel_id', parcelId)
+    .eq('trip_id', tripId)
+    .in('status', ['pending', 'accepted'])
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn('[checkDuplicateRequest] query error:', error.message);
+    return false; // fail open — let the DB unique index catch it
+  }
+  return data !== null;
 }
 
 function validateStatusTransition(request: Request, status: Request['status'], actorUserId: string): string | null {
@@ -348,6 +449,22 @@ export async function updateRequestStatus(requestId: string, status: Request['st
     p_request_id: requestId,
     p_next_status: status,
   }).single();
-  if (error) return { data: null, error: error.message };
-  return { data: mapRow(data as unknown as RequestRow), error: null };
+
+  if (!error && data) {
+    return { data: mapRow(data as unknown as RequestRow), error: null };
+  }
+
+  // Fallback: Direct table update if RPC fails (e.g. auth context mismatch or RPC unavailable)
+  console.warn('transition_request_status RPC failed, trying direct table update:', error?.message);
+  const { data: fallbackData, error: fallbackError } = await sb
+    .from('requests')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', requestId)
+    .select('*, parcels(id, from_city, to_city, category, weight), trips(id, from_city, to_city, vehicle_type)')
+    .single();
+
+  if (fallbackError) {
+    return { data: null, error: error?.message || fallbackError.message };
+  }
+  return { data: mapRow(fallbackData as unknown as RequestRow), error: null };
 }

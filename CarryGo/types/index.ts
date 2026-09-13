@@ -82,6 +82,10 @@ export interface Request {
   status: RequestStatus;
   price: number;
   message?: string;
+  fromCity?: string;
+  toCity?: string;
+  parcelCategory?: string;
+  parcelWeight?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -100,6 +104,7 @@ export interface Delivery {
   travellerLng?: number;
   locationUpdatedAt?: string;
   pickupOtp?: string;
+  deliveryOtp?: string;
   tripNote?: string;
   tripStatus?: string;
   etaText?: string;

@@ -38,14 +38,44 @@ export async function submitRating(rating: {
   const comment = rating.comment ? sanitizeTextInput(rating.comment, 500) : null;
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.rpc('submit_rating_command', {
-    p_request_id: rating.requestId,
-    p_to_user_id: rating.toUserId,
-    p_rating: rating.rating,
-    p_comment: comment || undefined,
-  }).single();
-  if (error) return { data: null, error: error.message };
-  return { data: mapRow(data as unknown as RatingRow), error: null };
+  let rpcError: string | null = null;
+  try {
+    const res = await sb.rpc('submit_rating_command', {
+      p_request_id: rating.requestId,
+      p_to_user_id: rating.toUserId,
+      p_rating: rating.rating,
+      p_comment: comment || undefined,
+    });
+    const data = Array.isArray(res.data) ? res.data[0] : res.data;
+    if (!res.error && data) return { data: mapRow(data as unknown as RatingRow), error: null };
+    if (res.error) {
+      rpcError = res.error.message;
+      console.warn('submit_rating_command error, attempting fallback insert:', res.error.message);
+    }
+  } catch (err: any) {
+    rpcError = err?.message || 'RPC exception';
+    console.warn('submit_rating_command exception:', err);
+  }
+
+  // Fallback direct insert
+  try {
+    const { data, error } = await sb
+      .from('ratings')
+      .insert({
+        from_user_id: rating.fromUserId,
+        to_user_id: rating.toUserId,
+        request_id: rating.requestId,
+        rating: rating.rating,
+        comment: comment || null,
+      })
+      .select('*')
+      .single();
+
+    if (error) return { data: null, error: rpcError || error.message };
+    return { data: mapRow(data as unknown as RatingRow), error: null };
+  } catch (err: any) {
+    return { data: null, error: rpcError || err?.message || 'Could not submit rating.' };
+  }
 }
 
 export async function hasRated(fromUserId: string, requestId: string): Promise<boolean> {

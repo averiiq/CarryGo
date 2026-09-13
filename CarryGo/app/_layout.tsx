@@ -11,12 +11,14 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { ActivityIndicator, View, Text, Pressable, LogBox, StyleSheet } from 'react-native';
 import { AppErrorBoundary } from '@/components/ui/AppErrorBoundary';
-import { captureException, initMonitoring } from '@/lib/monitoring';
+import { captureException, initMonitoring, setupGlobalErrorHandlers } from '@/lib/monitoring';
+import { getUserErrorMessage, getErrorTitle } from '@/lib/error-handler';
 import { LightColors, BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 
 initMonitoring();
+setupGlobalErrorHandlers();
 
 LogBox.ignoreLogs([
   'shadow* style props are deprecated. Use boxShadow.',
@@ -56,10 +58,11 @@ function AppShell() {
   }
 
   if (sessionError && !user) {
+    const errorMsg = getUserErrorMessage(sessionError, 'Unable to connect to the authentication service.');
     return (
       <View style={[styles.centerError, { backgroundColor: C.background }]}>
-        <Text style={[styles.errorTitle, { color: C.error }]}>Unable to connect</Text>
-        <Text style={[styles.errorMessage, { color: C.textSecondary }]}>{sessionError}</Text>
+        <Text style={[styles.errorTitle, { color: C.error }]}>{getErrorTitle(sessionError, 'Unable to connect')}</Text>
+        <Text style={[styles.errorMessage, { color: C.textSecondary }]}>{errorMsg}</Text>
         <Pressable
           onPress={refreshUser}
           accessibilityRole="button"
@@ -163,11 +166,13 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => voi
   captureException(error, { source: 'ExpoRouterErrorBoundary' });
 
   const C = LightColors;
+  const title = getErrorTitle(error, 'Oops, something went wrong');
+  const userMessage = getUserErrorMessage(error, 'An unexpected error occurred while loading this screen.');
 
   return (
     <View style={[styles.centerError, { backgroundColor: C.background }]}>
-      <Text style={[styles.errorTitle, { color: C.error }]}>Oops, something went wrong</Text>
-      <Text style={[styles.errorMessage, { color: C.textSecondary }]}>{error.message}</Text>
+      <Text style={[styles.errorTitle, { color: C.error }]}>{title}</Text>
+      <Text style={[styles.errorMessage, { color: C.textSecondary }]}>{userMessage}</Text>
       <Pressable
         onPress={retry}
         accessibilityRole="button"

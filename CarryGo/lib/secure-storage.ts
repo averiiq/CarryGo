@@ -6,8 +6,8 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SECURE_PREFIX = 'carrygo_secure_';
-const STORAGE_PREFIX = 'carrygo_';
+const SECURE_PREFIX = 'hizli_secure_';
+const STORAGE_PREFIX = 'hizli_';
 
 /**
  * Store a value securely using device keychain/keystore.

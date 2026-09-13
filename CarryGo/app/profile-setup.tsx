@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -30,6 +30,7 @@ import {
 } from '@/services/profile.service';
 import { UserRole } from '@/types';
 import { getCityNames } from '@/constants/indian-cities';
+import { detectCurrentCity } from '@/services/location.service';
 
 const { width: W } = Dimensions.get('window');
 
@@ -85,6 +86,11 @@ export default function ProfileSetupScreen() {
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Live city detection state
+  const [detectingCity, setDetectingCity] = useState(false);
+  const [detectedLiveCity, setDetectedLiveCity] = useState<string | null>(null);
+  const [detectionError, setDetectionError] = useState<string | null>(null);
+
   const slideAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const usernameRef = useRef<TextInput>(null);
@@ -113,9 +119,9 @@ export default function ProfileSetupScreen() {
   };
 
   const slideTo = (nextStep: Step, direction: 'next' | 'prev' = 'next') => {
-    const out = direction === 'next' ? -W : W;
+    const outgoing = direction === 'next' ? -W : W;
     const incoming = direction === 'next' ? W : -W;
-    Animated.timing(slideAnim, { toValue: out, duration: 200, useNativeDriver: true }).start(() => {
+    Animated.timing(slideAnim, { toValue: outgoing, duration: 160, useNativeDriver: true }).start(() => {
       setStep(nextStep);
       slideAnim.setValue(incoming);
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
@@ -180,18 +186,52 @@ export default function ProfileSetupScreen() {
     slideTo('city');
   };
 
+  // Live GPS City Fetcher
+  const fetchLiveCity = useCallback(async (silent = false) => {
+    setDetectingCity(true);
+    setDetectionError(null);
+    if (!silent) Haptic.tap();
+    try {
+      const { data, error } = await detectCurrentCity();
+      if (data) {
+        setCity(data);
+        setCitySearch(data);
+        setDetectedLiveCity(data);
+        Haptic.success();
+      } else {
+        setDetectionError(error || 'Could not detect live location.');
+      }
+    } catch (err: any) {
+      setDetectionError(err?.message || 'Location detection failed.');
+    } finally {
+      setDetectingCity(false);
+    }
+  }, []);
+
+  // Auto-detect live city when reaching the city step if not already set
+  useEffect(() => {
+    if (step === 'city' && !city && !detectedLiveCity) {
+      void fetchLiveCity(true);
+    }
+  }, [step, city, detectedLiveCity, fetchLiveCity]);
+
   const handleCityNext = () => {
-    if (!city.trim()) {
-      fail('City Required', 'Please select the city you live in. This helps show you relevant trips and parcels.');
+    const finalCity = (city || citySearch).trim();
+    if (!finalCity) {
+      fail('City Required', 'Please enter or detect your current city.');
       return;
     }
+    setCity(finalCity);
     Haptic.confirm();
     slideTo('role');
   };
 
-  const filteredCities = citySearch.trim()
-    ? ALL_CITIES.filter(c => c.toLowerCase().includes(citySearch.toLowerCase().trim())).slice(0, 8)
-    : ALL_CITIES.slice(0, 12);
+  const trimmedSearch = citySearch.trim();
+  const filteredCities = trimmedSearch.length >= 2
+    ? ALL_CITIES.filter(c => c.toLowerCase().includes(trimmedSearch.toLowerCase())).slice(0, 5)
+    : [];
+  const hasExactMatch = ALL_CITIES.some(c => c.toLowerCase() === trimmedSearch.toLowerCase());
+  const showCustomOption = trimmedSearch.length >= 2 && !hasExactMatch && trimmedSearch.toLowerCase() !== city.toLowerCase();
 
   const handleBack = () => {
     const current = STEPS.indexOf(step);
@@ -213,7 +253,7 @@ export default function ProfileSetupScreen() {
       username,
       fullName,
       phone,
-      city,
+      city: (city || citySearch).trim(),
       role,
     });
     setLoading(false);
@@ -236,6 +276,7 @@ export default function ProfileSetupScreen() {
   const usernameValue = normalizeUsername(username);
   const usernameReady = usernameValue.length > 0 && !validateUsername(usernameValue);
   const phoneReady = Boolean(normalizeIndianMobile(phone));
+  const activeCity = (city || citySearch).trim();
 
   return (
     <>
@@ -424,69 +465,151 @@ export default function ProfileSetupScreen() {
               <View style={styles.stepContent}>
                 <Hero
                   C={C}
-                  icon="location-city"
+                  icon="my-location"
                   color="#8B5CF6"
                   title="Where are you based?"
-                  subtitle="We'll show you trips and parcels relevant to your city. Only users in your area see your listings."
+                  subtitle="We use your live location to show you relevant trips, parcels, and nearby matches."
                 />
 
+                {/* Live Location Card */}
+                {detectingCity ? (
+                  <View style={[styles.liveDetectCard, { backgroundColor: '#8B5CF612', borderColor: '#8B5CF640' }]}>
+                    <ActivityIndicator size="small" color="#8B5CF6" />
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={[styles.liveDetectTitle, { color: C.textPrimary }]}>Detecting live city via GPS...</Text>
+                      <Text style={[styles.liveDetectSub, { color: C.textMuted }]}>Acquiring coordinates & reverse geocoding</Text>
+                    </View>
+                  </View>
+                ) : (city || detectedLiveCity) ? (
+                  <View style={[styles.liveDetectCard, { backgroundColor: '#8B5CF612', borderColor: '#8B5CF6' }]}>
+                    <View style={styles.liveBadgeRow}>
+                      <View style={[styles.pulseDot, { backgroundColor: '#22C55E' }]} />
+                      <Text style={[styles.liveBadgeText, { color: '#8B5CF6' }]}>LIVE LOCATION DETECTED</Text>
+                    </View>
+                    <View style={styles.liveCityRow}>
+                      <View style={[styles.liveCityIconWrap, { backgroundColor: '#8B5CF6' }]}>
+                        <MaterialIcons name="location-on" size={22} color="#FFFFFF" />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[styles.liveCityName, { color: C.textPrimary }]}>{city || detectedLiveCity}</Text>
+                        <Text style={[styles.liveDetectSub, { color: C.textMuted }]}>Auto-detected via device GPS</Text>
+                      </View>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.reDetectBtn,
+                          { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+                          pressed && { opacity: 0.7 },
+                        ]}
+                        onPress={() => void fetchLiveCity(false)}
+                        hitSlop={8}
+                      >
+                        <MaterialIcons name="refresh" size={16} color={C.textPrimary} />
+                        <Text style={[styles.reDetectText, { color: C.textPrimary }]}>Refresh</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.detectActionBtn,
+                      { backgroundColor: '#8B5CF614', borderColor: '#8B5CF6' },
+                      pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                    ]}
+                    onPress={() => void fetchLiveCity(false)}
+                  >
+                    <View style={[styles.liveCityIconWrap, { backgroundColor: '#8B5CF6' }]}>
+                      <MaterialIcons name="gps-fixed" size={20} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[styles.detectActionTitle, { color: '#8B5CF6' }]}>Detect Live City via GPS</Text>
+                      <Text style={[styles.detectActionSub, { color: C.textMuted }]}>
+                        {detectionError ? detectionError : 'Tap to automatically set your live city'}
+                      </Text>
+                    </View>
+                    <MaterialIcons name="arrow-forward" size={18} color="#8B5CF6" />
+                  </Pressable>
+                )}
+
+                {/* Manual City Input */}
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: C.textMuted }]}>Your City</Text>
-                  <View style={[styles.inputWrap, { backgroundColor: C.inputBg, borderColor: city ? '#8B5CF6' : C.surfaceBorder }]}>
-                    <MaterialIcons name="search" size={18} color={city ? '#8B5CF6' : C.textMuted} />
+                  <Text style={[styles.inputLabel, { color: C.textMuted }]}>Or Type Any City</Text>
+                  <View style={[styles.inputWrap, { backgroundColor: C.inputBg, borderColor: activeCity ? '#8B5CF6' : C.surfaceBorder }]}>
+                    <MaterialIcons name="search" size={18} color={activeCity ? '#8B5CF6' : C.textMuted} />
                     <TextInput
                       style={[styles.inputField, { color: C.textPrimary }]}
-                      placeholder="Search your city..."
+                      placeholder="Enter your town or city..."
                       placeholderTextColor={C.textMuted}
                       value={citySearch}
                       onChangeText={(text) => {
                         setCitySearch(text);
-                        if (city && !text.toLowerCase().includes(city.toLowerCase())) {
-                          setCity('');
-                        }
+                        setCity(text.trim());
                       }}
                       autoCapitalize="words"
                       autoCorrect={false}
-                      returnKeyType="next"
+                      returnKeyType="done"
+                      onSubmitEditing={handleCityNext}
                     />
-                    {city ? <MaterialIcons name="check-circle" size={18} color="#8B5CF6" /> : null}
+                    {activeCity ? <MaterialIcons name="check-circle" size={18} color="#8B5CF6" /> : null}
                   </View>
                 </View>
 
-                <View style={styles.roleGrid}>
-                  {filteredCities.map(cityName => (
-                    <Pressable
-                      key={cityName}
-                      style={({ pressed }) => [
-                        styles.roleCard,
-                        {
-                          backgroundColor: city === cityName ? '#8B5CF614' : C.surface,
-                          borderColor: city === cityName ? '#8B5CF6' : C.surfaceBorder,
-                          borderWidth: city === cityName ? 2 : 1,
-                        },
-                        pressed && { transform: [{ scale: 0.97 }] },
-                      ]}
-                      onPress={() => {
-                        Haptic.select();
-                        setCity(cityName);
-                        setCitySearch(cityName);
-                      }}
-                    >
-                      <View style={[styles.roleIconWrap, { backgroundColor: '#8B5CF618', width: 36, height: 36, borderRadius: 10 }]}>
-                        <MaterialIcons name="location-on" size={18} color="#8B5CF6" />
-                      </View>
-                      <Text style={[styles.roleTitle, { color: C.textPrimary, fontSize: 14 }]}>{cityName}</Text>
-                      {city === cityName ? (
-                        <MaterialIcons name="check-circle" size={18} color="#8B5CF6" />
-                      ) : null}
-                    </Pressable>
-                  ))}
-                </View>
+                {/* Custom City Chip if typed */}
+                {showCustomOption ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.customCityChip,
+                      { backgroundColor: '#8B5CF618', borderColor: '#8B5CF6' },
+                      pressed && { opacity: 0.8 },
+                    ]}
+                    onPress={() => {
+                      Haptic.select();
+                      setCity(trimmedSearch);
+                    }}
+                  >
+                    <MaterialIcons name="add-location-alt" size={18} color="#8B5CF6" />
+                    <Text style={[styles.customCityChipText, { color: '#8B5CF6' }]}>
+                      Set city to "{trimmedSearch}"
+                    </Text>
+                  </Pressable>
+                ) : null}
+
+                {/* Matching Suggestions */}
+                {filteredCities.length > 0 ? (
+                  <View style={styles.suggestionRow}>
+                    {filteredCities.map(cityName => (
+                      <Pressable
+                        key={cityName}
+                        style={({ pressed }) => [
+                          styles.citySuggestionChip,
+                          {
+                            backgroundColor: city.toLowerCase() === cityName.toLowerCase() ? '#8B5CF6' : C.surface,
+                            borderColor: city.toLowerCase() === cityName.toLowerCase() ? '#8B5CF6' : C.surfaceBorder,
+                          },
+                          pressed && { opacity: 0.8 },
+                        ]}
+                        onPress={() => {
+                          Haptic.select();
+                          setCity(cityName);
+                          setCitySearch(cityName);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.citySuggestionText,
+                            { color: city.toLowerCase() === cityName.toLowerCase() ? '#FFFFFF' : C.textPrimary },
+                          ]}
+                        >
+                          {cityName}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
 
                 <PrimaryButton
                   color="#8B5CF6"
-                  disabled={!city}
-                  label="Continue"
+                  disabled={!activeCity}
+                  label={activeCity ? `Continue with ${activeCity}` : 'Continue'}
                   onPress={handleCityNext}
                 />
               </View>
@@ -525,54 +648,42 @@ export default function ProfileSetupScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.roleTitle, { color: C.textPrimary }]}>{item.title}</Text>
-                        <Text style={[styles.roleSub, { color: C.textSecondary }]}>{item.sub}</Text>
+                        <Text style={[styles.roleSub, { color: C.textMuted }]}>{item.sub}</Text>
                       </View>
-                      {role === item.id ? (
-                        <MaterialIcons name="check-circle" size={20} color={item.color} />
-                      ) : (
-                        <View style={[styles.roleRadio, { borderColor: C.surfaceBorderLight }]} />
-                      )}
+                      <View
+                        style={[
+                          styles.roleRadio,
+                          {
+                            borderColor: role === item.id ? item.color : C.surfaceBorder,
+                            backgroundColor: role === item.id ? item.color : 'transparent',
+                          },
+                        ]}
+                      />
                     </Pressable>
                   ))}
                 </View>
 
-                {role ? (
+                {username && fullName && city ? (
                   <View style={[styles.summaryCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                    <MaterialIcons name="person-pin" size={16} color={C.primary} />
+                    <MaterialIcons name="person-pin" size={24} color={C.primary} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.summaryLine, { color: C.textPrimary }]}>
-                        @{usernameValue} - {fullName}
+                        @{username} · {fullName}
                       </Text>
-                      <Text style={[styles.summaryLineSub, { color: C.textSecondary }]}>
-                        {normalizeIndianMobile(phone)} · {city} · {ROLES.find(item => item.id === role)?.title}
+                      <Text style={[styles.summaryLineSub, { color: C.textMuted }]}>
+                        Based in {city} · +91 {phone}
                       </Text>
                     </View>
-                    <MaterialIcons name="check-circle" size={18} color="#22C55E" />
                   </View>
                 ) : null}
 
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.ctaBtn,
-                    { overflow: 'hidden', opacity: (!role || loading || pressed) ? 0.6 : 1 },
-                    pressed && { transform: [{ scale: 0.98 }] },
-                  ]}
-                  onPress={handleFinish}
+                <PrimaryButton
+                  color="#F59E0B"
                   disabled={!role || loading}
-                >
-                  <LinearGradient
-                    colors={[C.primary, '#1D4ED8']}
-                    style={StyleSheet.absoluteFillObject}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  />
-                  {loading ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <MaterialIcons name="rocket-launch" size={18} color="#fff" />
-                  )}
-                  <Text style={styles.ctaBtnText}>{loading ? 'Setting up your account...' : 'Enter CarryGo'}</Text>
-                </Pressable>
+                  loading={loading}
+                  label="Complete Setup"
+                  onPress={handleFinish}
+                />
               </View>
             ) : null}
           </Animated.View>
@@ -777,4 +888,106 @@ const styles = StyleSheet.create({
   },
   summaryLine: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   summaryLineSub: { fontSize: FontSize.xs, marginTop: 2 },
+
+  // Live Location and City Styles
+  liveDetectCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    gap: 8,
+  },
+  liveBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  liveBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.8,
+  },
+  liveCityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  liveCityIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveCityName: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+  },
+  liveDetectTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+  },
+  liveDetectSub: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  reDetectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+  },
+  reDetectText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  detectActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+  },
+  detectActionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  detectActionSub: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  customCityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  customCityChipText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  citySuggestionChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  citySuggestionText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
 });

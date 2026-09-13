@@ -8,16 +8,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AsyncStateCard, FeedSkeletonList, OfflineBanner, ParcelCard, TripCard } from '@/components';
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
+import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
+import { SendRequestModal } from '@/components/feature/SendRequestModal';
 import { ProductIllustration } from '@/components/illustrations';
 import { BorderRadius, FontSize, FontWeight, Gradients, Spacing, TouchTarget } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
-import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
-import { useRequestsQuery } from '@/features/requests/queries';
+import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation } from '@/features/listings/queries';
+import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useAlert } from '@/template';
 import { Haptic } from '@/services/haptics.service';
 import { FilterOptions, Parcel, Trip, Request } from '@/types';
 
@@ -266,15 +269,15 @@ const FeedTripItem = React.memo(function FeedTripItem({
   isTablet: boolean;
   isOwner: boolean;
   onPress: (id: string) => void;
-  onRequest: (fromCity: string, toCity: string) => void;
+  onRequest: (tripId: string) => void;
   existingRequest?: Request | null;
   onTrackDelivery?: (requestId: string) => void;
   onViewRequest?: (requestId: string) => void;
 }) {
   const handlePress = useCallback(() => onPress(trip.id), [onPress, trip.id]);
   const handleRequest = useCallback(
-    () => onRequest(trip.fromCity, trip.toCity),
-    [onRequest, trip.fromCity, trip.toCity]
+    () => onRequest(trip.id),
+    [onRequest, trip.id]
   );
 
   return (
@@ -284,7 +287,7 @@ const FeedTripItem = React.memo(function FeedTripItem({
         isOwner={isOwner}
         existingRequest={existingRequest}
         onPress={handlePress}
-        showRequestButton={!isOwner && FeatureFlags.payments && !existingRequest}
+        showRequestButton={!isOwner && trip.status === 'active' && FeatureFlags.payments && !existingRequest}
         onRequest={handleRequest}
         onTrackDelivery={onTrackDelivery}
         onViewRequest={onViewRequest}
@@ -322,7 +325,7 @@ const FeedParcelItem = React.memo(function FeedParcelItem({
         isOwner={isOwner}
         existingRequest={existingRequest}
         onPress={handlePress}
-        showCarryButton={!isOwner && !existingRequest}
+        showCarryButton={!isOwner && parcel.status === 'open' && !existingRequest}
         onCarry={handleCarry}
         onTrackDelivery={onTrackDelivery}
         onViewRequest={onViewRequest}
@@ -336,6 +339,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { C } = useThemeColors();
+  const { showAlert } = useAlert();
   const { isOnline } = useNetworkStatus();
   const { notifications, unreadCount, markAllRead, markNotificationsAsRead, openNotification } = useNotifications();
   const { isSmallDevice, isTablet } = useResponsive();
@@ -345,6 +349,9 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<'trips' | 'parcels'>('trips');
   const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
   const [refreshing, setRefreshing] = useState(false);
+  const [carryParcelTarget, setCarryParcelTarget] = useState<Parcel | null>(null);
+  const [requestTripTarget, setRequestTripTarget] = useState<Trip | null>(null);
+
   const heroFade = useRef(new Animated.Value(0)).current;
   const heroTranslateY = useRef(new Animated.Value(8)).current;
 
@@ -363,9 +370,11 @@ export default function HomeScreen() {
     ]).start();
   }, [heroFade, heroTranslateY]);
 
-  const tripsQuery = useTripsQuery(true, user?.city);
-  const parcelsQuery = useParcelsQuery(true, user?.city);
+  const tripsQuery = useTripsQuery(true);
+  const parcelsQuery = useParcelsQuery(true);
   const requestsQuery = useRequestsQuery(user?.id);
+  const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
+  const createTripMutation = useCreateTripMutation();
   useListingsRealtime();
 
   const userRequests = requestsQuery.data || [];
@@ -424,16 +433,205 @@ export default function HomeScreen() {
     router.push({ pathname: '/trip/[id]', params: { id: tripId } });
   }, [router]);
 
-  const handleRequestTrip = useCallback((fromCity: string, toCity: string) => {
-    router.push({ pathname: '/matching', params: { mode: 'browse_trips', fromCity, toCity } });
-  }, [router]);
+  const handleRequestTrip = useCallback((tripId: string) => {
+    if (!user) {
+      Haptic.warning();
+      showAlert('Sign In Required', 'Please sign in to send delivery requests.');
+      return;
+    }
+    const target = trips.find(t => t.id === tripId);
+    if (!target) return;
+    if (target.userId === user.id) {
+      router.push({ pathname: '/trip/[id]', params: { id: tripId } });
+      return;
+    }
+    if (target.status !== 'active') {
+      showAlert('Trip Not Active', 'This trip is no longer active.');
+      return;
+    }
+    setRequestTripTarget(target);
+  }, [router, showAlert, trips, user]);
 
   const handlePressParcel = useCallback((parcelId: string) => {
     router.push({ pathname: '/parcel/[id]', params: { id: parcelId } });
   }, [router]);
 
   const handleCarryParcel = useCallback((parcelId: string) => {
-    router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcelId } });
+    if (!user) {
+      Haptic.warning();
+      showAlert('Sign In Required', 'Please sign in to carry parcels.');
+      return;
+    }
+    const target = parcels.find(p => p.id === parcelId);
+    if (!target) return;
+    if (target.userId === user.id) {
+      router.push({ pathname: '/parcel/[id]', params: { id: parcelId } });
+      return;
+    }
+    if (target.status !== 'open') {
+      showAlert('Parcel Not Available', 'This parcel is already matched, in transit, or closed.');
+      return;
+    }
+    setCarryParcelTarget(target);
+  }, [parcels, router, showAlert, user]);
+
+  const handleConfirmCarry = useCallback(async (tripId: string, targetParcel: Parcel) => {
+    if (!user) return;
+    const chosenTrip = trips.find(t => t.id === tripId);
+    if (!chosenTrip) return;
+
+    try {
+      const result = await createRequestAsync({
+        parcelId: targetParcel.id,
+        tripId: chosenTrip.id,
+        senderId: targetParcel.userId,
+        senderName: targetParcel.userName,
+        travellerId: user.id,
+        travellerName: user.name || 'Traveller',
+        status: 'pending',
+        price: targetParcel.priceOffer,
+        message: `Hi ${targetParcel.userName}! I am travelling on ${chosenTrip.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
+      });
+
+      if (result) {
+        setCarryParcelTarget(null);
+        Haptic.success();
+        showAlert(
+          'Offer Sent! 🎉',
+          `Your offer to carry this parcel for ₹${targetParcel.priceOffer} was sent to ${targetParcel.userName}. You can track it in Requests.`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await Promise.all([requestsQuery.refetch(), parcelsQuery.refetch()]);
+      } else {
+        showAlert('Error', 'Could not send offer. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Could not send offer. Please try again.');
+    }
+  }, [createRequestAsync, parcelsQuery, requestsQuery, router, showAlert, trips, user]);
+
+  const handleConfirmTripRequest = useCallback(async (parcelId: string, targetTrip: Trip, calculatedPrice: number) => {
+    if (!user) return;
+    const chosenParcel = parcels.find(p => p.id === parcelId);
+    if (!chosenParcel) return;
+
+    try {
+      const result = await createRequestAsync({
+        parcelId: chosenParcel.id,
+        tripId: targetTrip.id,
+        senderId: user.id,
+        senderName: user.name || 'Sender',
+        travellerId: targetTrip.userId,
+        travellerName: targetTrip.userName,
+        status: 'pending',
+        price: calculatedPrice,
+        message: `Hi ${targetTrip.userName}! Could you please carry my ${chosenParcel.category} package (${chosenParcel.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity} on ${targetTrip.date}?`,
+      });
+
+      if (result) {
+        setRequestTripTarget(null);
+        Haptic.success();
+        showAlert(
+          'Request Sent! 🎉',
+          `Your delivery request was sent to ${targetTrip.userName}. You can track it in Requests.`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await Promise.all([requestsQuery.refetch(), tripsQuery.refetch()]);
+      } else {
+        showAlert('Error', 'Could not send request. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Could not send request. Please try again.');
+    }
+  }, [createRequestAsync, parcels, requestsQuery, router, showAlert, tripsQuery, user]);
+
+  const handlePostTripForParcel = useCallback((fromCity: string, toCity: string, minCapacity: number) => {
+    router.push({
+      pathname: '/create-trip',
+      params: {
+        fromCity,
+        toCity,
+        capacity: String(minCapacity),
+      },
+    });
+  }, [router]);
+
+  const handleQuickCreateAndCarry = useCallback(async (
+    quickParams: QuickCarryTripParams,
+    targetParcel: Parcel
+  ) => {
+    if (!user) {
+      Haptic.warning();
+      showAlert('Sign In Required', 'Please sign in to carry parcels.');
+      return;
+    }
+
+    try {
+      // 1. Post trip for the exact parcel route automatically
+      const newTrip = await createTripMutation.mutateAsync({
+        userId: user.id,
+        userName: user.fullName || user.name || 'Traveller',
+        userRating: user.rating || 4.5,
+        fromCity: targetParcel.fromCity,
+        toCity: targetParcel.toCity,
+        date: quickParams.date,
+        time: quickParams.time,
+        vehicleType: quickParams.vehicleType,
+        availableCapacity: quickParams.capacity,
+        pricePerKg: Math.max(50, Math.round(targetParcel.priceOffer / Math.max(1, targetParcel.weight))),
+        status: 'active',
+      });
+
+      // 2. Immediately dispatch carry offer with parcel's reward
+      const result = await createRequestAsync({
+        parcelId: targetParcel.id,
+        tripId: newTrip.id,
+        senderId: targetParcel.userId,
+        senderName: targetParcel.userName,
+        travellerId: user.id,
+        travellerName: user.name || 'Traveller',
+        status: 'pending',
+        price: targetParcel.priceOffer,
+        message: `Hi ${targetParcel.userName}! I am travelling ${targetParcel.fromCity} to ${targetParcel.toCity} on ${quickParams.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
+      });
+
+      if (result) {
+        setCarryParcelTarget(null);
+        Haptic.success();
+        showAlert(
+          'Trip Posted & Offer Sent! 🎉',
+          `Your trip for ${targetParcel.fromCity} ➔ ${targetParcel.toCity} was posted and your offer (₹${targetParcel.priceOffer}) was sent to ${targetParcel.userName}!`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await Promise.all([requestsQuery.refetch(), parcelsQuery.refetch(), tripsQuery.refetch()]);
+      } else {
+        showAlert('Error', 'Could not send carry offer. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Failed to post trip and send offer.');
+    }
+  }, [createRequestAsync, createTripMutation, parcelsQuery, requestsQuery, router, showAlert, tripsQuery, user]);
+
+  const handleCreateParcelForTrip = useCallback((fromCity: string, toCity: string) => {
+    router.push({
+      pathname: '/create-parcel',
+      params: {
+        fromCity,
+        toCity,
+      },
+    });
   }, [router]);
 
   const handleTrackDelivery = useCallback((requestId: string) => {
@@ -502,6 +700,27 @@ export default function HomeScreen() {
         filters={filters}
         onApply={(nextFilters) => setFilters(nextFilters)}
         C={C}
+      />
+
+      <CarryParcelModal
+        visible={Boolean(carryParcelTarget)}
+        onClose={() => setCarryParcelTarget(null)}
+        parcel={carryParcelTarget}
+        userTrips={trips.filter(t => t.userId === user?.id)}
+        onConfirmCarry={handleConfirmCarry}
+        onPostTrip={handlePostTripForParcel}
+        onQuickCreateAndCarry={handleQuickCreateAndCarry}
+        isSubmitting={isCreatingRequest || createTripMutation.isPending}
+      />
+
+      <SendRequestModal
+        visible={Boolean(requestTripTarget)}
+        onClose={() => setRequestTripTarget(null)}
+        trip={requestTripTarget}
+        userParcels={parcels.filter(p => p.userId === user?.id)}
+        onConfirmRequest={handleConfirmTripRequest}
+        onCreateParcel={handleCreateParcelForTrip}
+        isSubmitting={isCreatingRequest}
       />
 
       <FlashList

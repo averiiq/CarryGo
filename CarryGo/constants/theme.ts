@@ -4,107 +4,137 @@ export type ThemeColors = Omit<typeof DarkColors, 'statusBarStyle'> & {
   statusBarStyle: 'light' | 'dark';
 };
 
-// Dark palette (kept complete for future theme toggle enablement)
+// Dark palette (modern dark slate/zinc with crisp contrast)
 export const DarkColors = {
-  background: '#0B0F15',
-  surface: '#121820',
-  surfaceElevated: '#1A222C',
-  surfaceHigh: '#222C38',
-  surfaceBorder: '#283442',
-  surfaceBorderLight: '#354354',
+  background: '#090D16',
+  surface: '#111827',
+  surfaceElevated: '#1F2937',
+  surfaceHigh: '#374151',
+  surfaceBorder: '#1F2937',
+  surfaceBorderLight: '#2D3748',
 
-  primary: '#6366F1',
-  primaryDark: '#4F46E5',
-  primaryLight: '#818CF8',
-  primarySubtle: 'rgba(99, 102, 241, 0.14)',
-  primaryGlow: 'rgba(99, 102, 241, 0.30)',
+  card: '#111827',
+  cardSubtle: '#1F2937',
+  cardBorder: '#1F2937',
 
-  accent: '#6366F1',
-  accentSubtle: 'rgba(99, 102, 241, 0.12)',
+  primary: '#10B981',
+  primaryDark: '#059669',
+  primaryLight: '#34D399',
+  primarySubtle: 'rgba(16, 185, 129, 0.14)',
+  primaryBorder: 'rgba(16, 185, 129, 0.30)',
+  primaryGlow: 'rgba(16, 185, 129, 0.32)',
+
+  accent: '#10B981',
+  accentSubtle: 'rgba(16, 185, 129, 0.12)',
 
   textPrimary: '#F8FAFC',
-  textSecondary: '#D1D9E2',
+  textSecondary: '#CBD5E1',
   textMuted: '#94A3B8',
-  textInverse: '#0B0F15',
+  textInverse: '#090D16',
 
   success: '#10B981',
   successSubtle: 'rgba(16, 185, 129, 0.14)',
-  error: '#F87171',
-  errorSubtle: 'rgba(248, 113, 113, 0.16)',
-  warning: '#F59E0B',
-  warningSubtle: 'rgba(245, 158, 11, 0.16)',
+  successBorder: 'rgba(16, 185, 129, 0.30)',
+
+  error: '#FB7185',
+  errorSubtle: 'rgba(251, 113, 133, 0.16)',
+  errorBorder: 'rgba(251, 113, 133, 0.32)',
+
+  warning: '#FBBF24',
+  warningSubtle: 'rgba(251, 191, 36, 0.16)',
+  warningBorder: 'rgba(251, 191, 36, 0.32)',
+
   info: '#38BDF8',
   infoSubtle: 'rgba(56, 189, 248, 0.16)',
+  infoBorder: 'rgba(56, 189, 248, 0.32)',
+
+  badgeBg: '#1F2937',
+  badgeBorder: '#374151',
 
   locked: '#94A3B8',
   lockedSubtle: 'rgba(148, 163, 184, 0.16)',
   released: '#10B981',
   releasedSubtle: 'rgba(16, 185, 129, 0.14)',
 
-  pending: '#F59E0B',
-  accepted: '#6366F1',
-  rejected: '#F87171',
-  inTransit: '#818CF8',
+  pending: '#FBBF24',
+  accepted: '#10B981',
+  rejected: '#FB7185',
+  inTransit: '#38BDF8',
   delivered: '#10B981',
 
-  overlay: 'rgba(2, 8, 23, 0.68)',
-  overlayLight: 'rgba(2, 8, 23, 0.28)',
-  overlayMedium: 'rgba(2, 8, 23, 0.48)',
+  overlay: 'rgba(3, 7, 18, 0.72)',
+  overlayLight: 'rgba(3, 7, 18, 0.30)',
+  overlayMedium: 'rgba(3, 7, 18, 0.52)',
 
-  tabBarBg: '#0E131A',
-  inputBg: '#1A222C',
+  tabBarBg: '#0B0F19',
+  inputBg: '#1A2332',
   statusBarStyle: 'light' as const,
 };
 
-// Light palette (pure, calm, minimalist modern electric indigo)
+// Light palette (pure, calm, signature CarryGo emerald green)
 export const LightColors: ThemeColors = {
-  background: '#F9FAFB',
+  background: '#F8FAFC',
   surface: '#FFFFFF',
-  surfaceElevated: '#F3F4F6',
-  surfaceHigh: '#E5E7EB',
-  surfaceBorder: '#E5E7EB',
-  surfaceBorderLight: '#F3F4F6',
+  surfaceElevated: '#F1F5F9',
+  surfaceHigh: '#E2E8F0',
+  surfaceBorder: '#E2E8F0',
+  surfaceBorderLight: '#F1F5F9',
 
-  primary: '#4F46E5',
-  primaryDark: '#3730A3',
-  primaryLight: '#6366F1',
-  primarySubtle: '#EEF2FF',
-  primaryGlow: 'rgba(79, 70, 229, 0.18)',
+  card: '#FFFFFF',
+  cardSubtle: '#F8FAFC',
+  cardBorder: '#E2E8F0',
 
-  accent: '#4F46E5',
-  accentSubtle: '#EEF2FF',
+  primary: '#059669',
+  primaryDark: '#047857',
+  primaryLight: '#10B981',
+  primarySubtle: '#ECFDF5',
+  primaryBorder: '#A7F3D0',
+  primaryGlow: 'rgba(5, 150, 105, 0.16)',
 
-  textPrimary: '#111827',
-  textSecondary: '#374151',
-  textMuted: '#6B7280',
+  accent: '#059669',
+  accentSubtle: '#ECFDF5',
+
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#64748B',
   textInverse: '#FFFFFF',
 
-  success: '#10B981',
+  success: '#059669',
   successSubtle: '#ECFDF5',
-  error: '#EF4444',
-  errorSubtle: '#FEF2F2',
-  warning: '#F59E0B',
-  warningSubtle: '#FFFBEB',
-  info: '#0EA5E9',
-  infoSubtle: '#F0F9FF',
+  successBorder: '#A7F3D0',
 
-  locked: '#6B7280',
-  lockedSubtle: 'rgba(107, 114, 128, 0.12)',
-  released: '#10B981',
+  error: '#DC2626',
+  errorSubtle: '#FEF2F2',
+  errorBorder: '#FECACA',
+
+  warning: '#D97706',
+  warningSubtle: '#FFFBEB',
+  warningBorder: '#FDE68A',
+
+  info: '#0284C7',
+  infoSubtle: '#F0F9FF',
+  infoBorder: '#BAE6FD',
+
+  badgeBg: '#F1F5F9',
+  badgeBorder: '#E2E8F0',
+
+  locked: '#64748B',
+  lockedSubtle: '#F1F5F9',
+  released: '#059669',
   releasedSubtle: '#ECFDF5',
 
-  pending: '#F59E0B',
-  accepted: '#4F46E5',
-  rejected: '#EF4444',
-  inTransit: '#6366F1',
-  delivered: '#10B981',
+  pending: '#D97706',
+  accepted: '#059669',
+  rejected: '#DC2626',
+  inTransit: '#0284C7',
+  delivered: '#059669',
 
-  overlay: 'rgba(17, 24, 39, 0.52)',
-  overlayLight: 'rgba(17, 24, 39, 0.12)',
-  overlayMedium: 'rgba(17, 24, 39, 0.28)',
+  overlay: 'rgba(15, 23, 42, 0.55)',
+  overlayLight: 'rgba(15, 23, 42, 0.15)',
+  overlayMedium: 'rgba(15, 23, 42, 0.35)',
 
   tabBarBg: '#FFFFFF',
-  inputBg: '#F9FAFB',
+  inputBg: '#F8FAFC',
   statusBarStyle: 'dark' as const,
 };
 
@@ -133,6 +163,27 @@ export const FontSize = {
   display: 42,
 };
 
+export const LetterSpacing = {
+  tightest: -0.6,
+  tighter: -0.4,
+  tight: -0.2,
+  normal: 0,
+  wide: 0.2,
+  wider: 0.5,
+  widest: 1.0,
+};
+
+export const LineHeight = {
+  xs: 14,
+  sm: 18,
+  md: 22,
+  lg: 26,
+  xl: 30,
+  xxl: 36,
+  xxxl: 42,
+  display: 48,
+};
+
 export const FontWeight = {
   regular: '400' as const,
   medium: '500' as const,
@@ -155,30 +206,37 @@ export const Shadow = {
   card: {
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    shadowOpacity: 0.04,
+    shadowRadius: 14,
     elevation: 2,
   },
   glow: {
-    shadowColor: '#4F46E5',
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
     elevation: 3,
   },
   sm: {
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 1,
   },
+  md: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
+  },
   float: {
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 4,
+    shadowRadius: 24,
+    elevation: 5,
   },
 };
 
@@ -187,10 +245,11 @@ export const Shadow = {
  * Provides crisp cross-platform rendering across iOS, Android, and Web.
  */
 export const BoxShadow = {
-  card: '0px 4px 12px rgba(15, 23, 42, 0.05)',
-  glow: '0px 6px 16px rgba(79, 70, 229, 0.18)',
-  sm: '0px 2px 6px rgba(15, 23, 42, 0.04)',
-  float: '0px 8px 20px rgba(15, 23, 42, 0.08)',
+  card: '0px 4px 14px rgba(15, 23, 42, 0.04)',
+  glow: '0px 6px 16px rgba(5, 150, 105, 0.16)',
+  sm: '0px 2px 6px rgba(15, 23, 42, 0.03)',
+  md: '0px 6px 16px rgba(15, 23, 42, 0.06)',
+  float: '0px 10px 24px rgba(15, 23, 42, 0.08)',
 };
 
 export const LightShadow = {
@@ -198,13 +257,17 @@ export const LightShadow = {
 };
 
 export const Gradients = {
-  primary: ['#4F46E5', '#3730A3'] as [string, string],
-  primaryVibrant: ['#6366F1', '#4338CA'] as [string, string],
-  accent: ['#4F46E5', '#2563EB'] as [string, string],
-  hero: ['#FFFFFF', '#F5F7FF', '#F9FAFB'] as [string, string, string],
-  card: ['rgba(79, 70, 229, 0.05)', 'rgba(79, 70, 229, 0.0)'] as [string, string],
-  success: ['#34D399', '#10B981'] as [string, string],
-  warm: ['#FBBF24', '#D97706'] as [string, string],
+  primary: ['#059669', '#047857'] as [string, string],
+  primaryVibrant: ['#10B981', '#059669'] as [string, string],
+  accent: ['#10B981', '#059669'] as [string, string],
+  hero: ['#FFFFFF', '#F0FDF4', '#F8FAFC'] as [string, string, string],
+  card: ['rgba(5, 150, 105, 0.05)', 'rgba(5, 150, 105, 0.0)'] as [string, string],
+  emeraldSoft: ['#ECFDF5', '#D1FAE5'] as [string, string],
+  success: ['#10B981', '#059669'] as [string, string],
+  warm: ['#F59E0B', '#D97706'] as [string, string],
+  sky: ['#0EA5E9', '#0284C7'] as [string, string],
+  rose: ['#F43F5E', '#E11D48'] as [string, string],
+  violet: ['#8B5CF6', '#7C3AED'] as [string, string],
 };
 
 export const Motion = {

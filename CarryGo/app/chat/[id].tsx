@@ -21,8 +21,10 @@ import {
   useMarkMessagesReadMutation,
   useSendMessageMutation,
 } from '@/features/conversations/queries';
+import { useRequestQuery } from '@/features/requests/queries';
 import { AppErrorBoundary, AsyncStateCard } from '@/components';
 import { formatTime } from '@/lib/dateFormat';
+import { getUserErrorMessage } from '@/lib/error-handler';
 
 function getDayLabel(ts: string): string {
   const d = new Date(ts);
@@ -246,6 +248,8 @@ export default function ChatScreen() {
 
   const conversations = user ? conversationsQuery.data ?? [] : [];
   const conversation = conversations.find(c => c.id === id);
+  const requestQuery = useRequestQuery(conversation?.requestId);
+  const isDeliveryCompleted = requestQuery.data?.status === 'completed';
   const chatMessages: ChatMessage[] = (messagesQuery.data?.pages ?? []).flatMap(page => page.items);
 
   const myId = user?.id || '';
@@ -290,6 +294,10 @@ export default function ChatScreen() {
   }, [safeScrollToEnd]);
 
   const handleSend = useCallback(async (msgText: string) => {
+    if (isDeliveryCompleted) {
+      showAlert('Chat Concluded', 'This delivery has been completed. Further messaging is closed.');
+      return;
+    }
     const trimmed = msgText.trim();
     if (!trimmed) return;
     if (!user?.id) {
@@ -312,11 +320,11 @@ export default function ChatScreen() {
       Haptic.error();
       showAlert(
         'Message Not Sent',
-        error instanceof Error ? error.message : 'Could not send this message. Please try again.',
+        getUserErrorMessage(error, 'Could not send this message. Please try again.'),
       );
       throw error;
     }
-  }, [user, id, sendMessageAsync, showAlert, safeScrollToEnd]);
+  }, [isDeliveryCompleted, user, id, sendMessageAsync, showAlert, safeScrollToEnd]);
 
   const showScrollBtnRef = useRef(false);
 
@@ -447,14 +455,35 @@ export default function ChatScreen() {
 
       {conversation ? (
         <Pressable
-          style={[styles.deliveryCTA, { backgroundColor: C.primarySubtle, borderBottomColor: C.surfaceBorder }]}
+          style={[
+            styles.deliveryCTA,
+            {
+              backgroundColor: isDeliveryCompleted ? C.successSubtle : C.primarySubtle,
+              borderBottomColor: C.surfaceBorder,
+            },
+          ]}
           onPress={() => router.push({ pathname: '/delivery/[id]', params: { id: conversation.requestId } })}
         >
-          <MaterialIcons name="local-shipping" size={14} color={C.primary} />
-          <Text style={[styles.deliveryCTAText, { color: C.primary }]}>
-            {conversation.route || 'Track Delivery Status'}
+          <MaterialIcons
+            name={isDeliveryCompleted ? 'verified' : 'local-shipping'}
+            size={15}
+            color={isDeliveryCompleted ? C.success : C.primary}
+          />
+          <Text
+            style={[
+              styles.deliveryCTAText,
+              { color: isDeliveryCompleted ? C.success : C.primary },
+            ]}
+          >
+            {isDeliveryCompleted
+              ? `${conversation.route || 'Delivery'} · Concluded`
+              : conversation.route || 'Track Delivery Status'}
           </Text>
-          <MaterialIcons name="chevron-right" size={14} color={C.primary} />
+          <MaterialIcons
+            name="chevron-right"
+            size={14}
+            color={isDeliveryCompleted ? C.success : C.primary}
+          />
         </Pressable>
       ) : null}
 
@@ -508,15 +537,54 @@ export default function ChatScreen() {
         </Animated.View>
       ) : null}
 
-      {/* Input Bar */}
-      <ChatInputBar
-        onSend={handleSend}
-        isSending={isSending}
-        otherName={otherName}
-        C={C}
-        insetsBottom={insets.bottom}
-        onFocus={handleInputFocus}
-      />
+      {/* Input Bar or Concluded Notice */}
+      {isDeliveryCompleted ? (
+        <View
+          style={[
+            styles.concludedBanner,
+            {
+              backgroundColor: C.surface,
+              borderTopColor: C.surfaceBorder,
+              paddingBottom: Math.max(insets.bottom, Spacing.xs) + Spacing.sm,
+            },
+          ]}
+        >
+          <View style={styles.concludedHeaderRow}>
+            <MaterialIcons name="lock" size={15} color={C.textMuted} />
+            <Text style={[styles.concludedTitle, { color: C.textPrimary }]}>
+              Delivery Completed · Interaction Concluded
+            </Text>
+          </View>
+          <Text style={[styles.concludedSub, { color: C.textMuted }]}>
+            This delivery is completed and verified. Further messaging is closed until you both connect again for a new trip or parcel.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.concludedBtn,
+              { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' },
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={() => {
+              if (conversation?.requestId) {
+                router.push({ pathname: '/delivery/[id]', params: { id: conversation.requestId } });
+              }
+            }}
+            disabled={!conversation?.requestId}
+          >
+            <MaterialIcons name="receipt-long" size={15} color={C.primary} />
+            <Text style={[styles.concludedBtnText, { color: C.primary }]}>View Delivery Details</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <ChatInputBar
+          onSend={handleSend}
+          isSending={isSending}
+          otherName={otherName}
+          C={C}
+          insetsBottom={insets.bottom}
+          onFocus={handleInputFocus}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -604,5 +672,41 @@ const styles = StyleSheet.create({
   sendBtn: {
     width: 48, height: 48, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center',
+  },
+  concludedBanner: {
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    gap: 6,
+    alignItems: 'center',
+  },
+  concludedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  concludedTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  concludedSub: {
+    fontSize: FontSize.xs,
+    textAlign: 'center',
+    lineHeight: 17,
+    paddingHorizontal: Spacing.sm,
+  },
+  concludedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  concludedBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
   },
 });

@@ -9,14 +9,16 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
-import { useParcelsByIdsQuery, useTripQuery, useUpdateTripStatusMutation } from '@/features/listings/queries';
-import { useRequestsByTripQuery, useUpdateRequestStatusMutation } from '@/features/requests/queries';
+import { useParcelsByIdsQuery, useTripQuery, useUpdateTripStatusMutation, useParcelsQuery, flattenInfiniteData } from '@/features/listings/queries';
+import { useRequestsByTripQuery, useUpdateRequestStatusMutation, useCreateRequestMutation } from '@/features/requests/queries';
+import { SendRequestModal } from '@/components/feature/SendRequestModal';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { Request, Trip } from '@/types';
+import { Request, Trip, Parcel } from '@/types';
 import { createDelivery } from '@/services/deliveries.service';
 import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
+import { getUserErrorMessage } from '@/lib/error-handler';
 import { RequestItem } from '@/components/feature/RequestItem';
 import { styles } from '@/styles/trip/[id].styles';
 
@@ -30,7 +32,7 @@ const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 
 const vehicleGradients: Record<string, [string, string]> = {
   bike: ['#D97706', '#92400E'],
-  car: ['#4F46E5', '#312E81'],
+  car: ['#059669', '#064E3B'],
   bus: ['#7C3AED', '#5B21B6'],
   train: ['#0F766E', '#115E59'],
   flight: ['#0284C7', '#075985'],
@@ -49,12 +51,15 @@ export default function TripDetailScreen() {
   const tripQuery = useTripQuery(id);
   const requestsQuery = useRequestsByTripQuery(id);
   const conversationsQuery = useConversationsQuery(user?.id);
+  const allParcelsQuery = useParcelsQuery(true);
   const { mutateAsync: updateRequestStatusAsync } = useUpdateRequestStatusMutation(user?.id);
   const { mutateAsync: createConversationAsync } = useCreateConversationMutation(user?.id);
+  const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
   const updateTripStatusMutation = useUpdateTripStatusMutation(user?.id);
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<TabFilter>('all');
+  const [showRequestModal, setShowRequestModal] = useState(false);
 
   const trip = (tripQuery.data ?? undefined) as Trip | undefined;
   const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
@@ -78,11 +83,14 @@ export default function TripDetailScreen() {
   );
   const parcelsQuery = useParcelsByIdsQuery(requestedParcelIds);
   const parcels = parcelsQuery.data ?? [];
+  const allParcels = flattenInfiniteData(allParcelsQuery.data);
+  const userParcels = useMemo(() => allParcels.filter(p => p.userId === user?.id && p.status === 'open'), [allParcels, user?.id]);
+  const myRequest = useMemo(() => requests.find(r => r.senderId === user?.id && ['pending', 'accepted'].includes(r.status)), [requests, user?.id]);
   const loading = tripQuery.isLoading || requestsQuery.isLoading || parcelsQuery.isLoading;
 
   const vGradient: [string, string] = trip
-    ? (vehicleGradients[trip.vehicleType] || ['#4F46E5', '#312E81'])
-    : ['#4F46E5', '#312E81'];
+    ? (vehicleGradients[trip.vehicleType] || ['#059669', '#064E3B'])
+    : ['#059669', '#064E3B'];
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -90,9 +98,56 @@ export default function TripDetailScreen() {
       tripQuery.refetch(),
       requestsQuery.refetch(),
       conversationsQuery.refetch(),
+      allParcelsQuery.refetch(),
       requestedParcelIds.length > 0 ? parcelsQuery.refetch() : Promise.resolve(),
     ]);
     setRefreshing(false);
+  };
+
+  const handleConfirmRequest = async (parcelId: string, targetTrip: Trip, calculatedPrice: number) => {
+    if (!user) return;
+    const chosenParcel = userParcels.find(p => p.id === parcelId);
+    if (!chosenParcel) return;
+
+    try {
+      const result = await createRequestAsync({
+        parcelId: chosenParcel.id,
+        tripId: targetTrip.id,
+        senderId: user.id,
+        senderName: user.name || 'Sender',
+        travellerId: targetTrip.userId,
+        travellerName: targetTrip.userName,
+        status: 'pending',
+        price: calculatedPrice,
+        message: `Hi ${targetTrip.userName}! Could you please carry my ${chosenParcel.category} package (${chosenParcel.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity} on ${targetTrip.date}?`,
+      });
+
+      if (result) {
+        setShowRequestModal(false);
+        Haptic.success();
+        showAlert(
+          'Request Sent! 🎉',
+          `Your delivery request was sent to ${targetTrip.userName}.`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await requestsQuery.refetch();
+      } else {
+        showAlert('Error', 'Could not send request. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Could not send request. Please try again.');
+    }
+  };
+
+  const handleCreateParcelForTrip = (fromCity: string, toCity: string) => {
+    router.push({
+      pathname: '/create-parcel',
+      params: { fromCity, toCity },
+    });
   };
 
   const handleAccept = (req: Request) => {
@@ -176,7 +231,7 @@ export default function TripDetailScreen() {
             showAlert('Trip Cancelled', 'Your trip has been removed from the marketplace.');
           } catch (error) {
             Haptic.error();
-            showAlert('Error', error instanceof Error ? error.message : 'Could not cancel trip. Please try again.');
+            showAlert('Trip Not Cancelled', getUserErrorMessage(error, 'Could not cancel trip. Please try again.'));
           }
         },
       },
@@ -306,13 +361,13 @@ export default function TripDetailScreen() {
 
             <View style={styles.ticketTopRow}>
               <View style={styles.vehicleChip}>
-                <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'directions-car'} size={14} color="#fff" />
-                <Text style={styles.vehicleChipText}>{trip.vehicleType.toUpperCase()}</Text>
+                <MaterialIcons name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'directions-car'} size={14} color="#fff" />
+                <Text style={styles.vehicleChipText}>{(trip.vehicleType || 'CAR').toUpperCase()}</Text>
               </View>
 
               <View style={styles.statusChip}>
                 <View style={[styles.statusDot, { backgroundColor: isTripActive ? '#10B981' : '#E2E8F0' }]} />
-                <Text style={styles.statusChipText}>{trip.status.toUpperCase()}</Text>
+                <Text style={styles.statusChipText}>{(trip.status || 'ACTIVE').toUpperCase()}</Text>
               </View>
             </View>
 
@@ -324,7 +379,7 @@ export default function TripDetailScreen() {
               </View>
 
               <View style={styles.transportCapsule}>
-                <MaterialIcons name={vehicleIcons[trip.vehicleType] || 'arrow-forward'} size={22} color="#fff" />
+                <MaterialIcons name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'arrow-forward'} size={22} color="#fff" />
               </View>
 
               <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
@@ -441,6 +496,63 @@ export default function TripDetailScreen() {
           </Pressable>
         ) : null}
 
+        {/* Send Delivery Request Card for Senders */}
+        {!isOwner && isTripActive ? (
+          myRequest ? (
+            <View style={[styles.matchingBanner, { backgroundColor: C.surface, borderColor: myRequest.status === 'accepted' ? '#10B98155' : '#F59E0B55' }]}>
+              <View style={[styles.matchingIconWrap, { backgroundColor: myRequest.status === 'accepted' ? '#10B98120' : '#F59E0B20' }]}>
+                <MaterialIcons
+                  name={myRequest.status === 'accepted' ? 'check-circle' : 'schedule'}
+                  size={24}
+                  color={myRequest.status === 'accepted' ? '#10B981' : '#F59E0B'}
+                />
+              </View>
+              <View style={styles.matchingTextWrap}>
+                <Text style={[styles.matchingHeading, { color: C.textPrimary }]}>
+                  {myRequest.status === 'accepted' ? 'Request Accepted!' : 'Request Pending'}
+                </Text>
+                <Text style={[styles.matchingSubheading, { color: C.textMuted }]}>
+                  {myRequest.status === 'accepted'
+                    ? `Coordinate with ${trip.userName} in chat to arrange pickup.`
+                    : `Waiting for ${trip.userName} to accept your request.`}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.matchingBanner,
+                pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }
+              ]}
+              onPress={() => {
+                if (!user) {
+                  Haptic.warning();
+                  showAlert('Sign In Required', 'Please sign in to send requests.');
+                  return;
+                }
+                setShowRequestModal(true);
+              }}
+            >
+              <LinearGradient
+                colors={[C.primary, C.primaryDark]}
+                style={StyleSheet.absoluteFillObject}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0.5 }}
+              />
+              <View style={styles.matchingIconWrap}>
+                <MaterialIcons name="send" size={24} color="#fff" />
+              </View>
+              <View style={styles.matchingTextWrap}>
+                <Text style={styles.matchingHeading}>Request Traveler to Carry</Text>
+                <Text style={styles.matchingSubheading}>
+                  Ask {trip.userName} to deliver your parcel on this trip
+                </Text>
+              </View>
+              <MaterialIcons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />
+            </Pressable>
+          )
+        ) : null}
+
         {/* Requests Feed */}
         <View style={styles.requestsSection}>
           <View style={styles.requestsHeaderRow}>
@@ -540,6 +652,16 @@ export default function TripDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <SendRequestModal
+        visible={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        trip={trip}
+        userParcels={userParcels}
+        onConfirmRequest={handleConfirmRequest}
+        onCreateParcel={handleCreateParcelForTrip}
+        isSubmitting={isCreatingRequest}
+      />
     </View>
   );
 }

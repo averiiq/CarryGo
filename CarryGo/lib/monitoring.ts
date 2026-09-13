@@ -29,6 +29,18 @@ export function initMonitoring(overrides?: Partial<MonitoringConfig>) {
   config = { ...config, ...overrides };
 }
 
+export function setupGlobalErrorHandlers() {
+  if (typeof global !== 'undefined' && (global as any).ErrorUtils) {
+    const defaultHandler = (global as any).ErrorUtils.getGlobalHandler?.();
+    (global as any).ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+      captureException(error, { isFatal, source: 'GlobalErrorHandler' });
+      if (defaultHandler) {
+        defaultHandler(error, isFatal);
+      }
+    });
+  }
+}
+
 export function captureException(error: unknown, context?: LogContext) {
   const entry = {
     level: 'error' as LogLevel,

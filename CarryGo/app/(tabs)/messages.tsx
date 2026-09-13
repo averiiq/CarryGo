@@ -10,11 +10,13 @@ import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/cons
 import { Haptic } from '@/services/haptics.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useConversationsQuery, useConversationsRealtime } from '@/features/conversations/queries';
+import { useRequestsQuery } from '@/features/requests/queries';
 import { AsyncStateCard, OfflineBanner } from '@/components';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useHeartbeat } from '@/hooks/useAnimations';
 import { formatRelative } from '@/lib/dateFormat';
+import { getUserErrorMessage } from '@/lib/error-handler';
 import { Conversation } from '@/types';
 import { ProductIllustration } from '@/components/illustrations';
 
@@ -29,6 +31,7 @@ interface ConversationRowModel {
   previewTimeLabel: string;
   previewTimeValue: number;
   isUnread: boolean;
+  isCompleted: boolean;
 }
 
 function safeText(value: unknown, fallback: string) {
@@ -48,7 +51,11 @@ function formatConversationTime(timestamp?: string) {
   return formatRelative(timestamp);
 }
 
-function toConversationRowModel(conversation: Conversation, userId: string): ConversationRowModel | null {
+function toConversationRowModel(
+  conversation: Conversation,
+  userId: string,
+  completedRequestIds: Set<string>
+): ConversationRowModel | null {
   const participantNames =
     conversation.participantNames && typeof conversation.participantNames === 'object'
       ? conversation.participantNames
@@ -86,12 +93,14 @@ function toConversationRowModel(conversation: Conversation, userId: string): Con
       !conversation.lastMessage.read &&
       conversation.lastMessage.senderId !== userId
     ),
+    isCompleted: completedRequestIds.has(conversation.requestId),
   };
 }
 
 export default function MessagesScreen() {
   const { user } = useAuth();
   const conversationsQuery = useConversationsQuery(user?.id);
+  const requestsQuery = useRequestsQuery(user?.id);
   const conversations = useMemo(() => (user ? conversationsQuery.data ?? [] : []), [conversationsQuery.data, user]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -104,11 +113,19 @@ export default function MessagesScreen() {
   const unreadPulse = useHeartbeat(3200, 1.14);
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  const completedRequestIds = useMemo(() => {
+    const set = new Set<string>();
+    (requestsQuery.data || []).forEach(r => {
+      if (r.status === 'completed') set.add(r.id);
+    });
+    return set;
+  }, [requestsQuery.data]);
+
   const conversationRows = useMemo(() => {
     if (!user?.id) return [];
 
     return conversations
-      .map(conversation => toConversationRowModel(conversation, user.id))
+      .map(conversation => toConversationRowModel(conversation, user.id, completedRequestIds))
       .filter((row): row is ConversationRowModel => Boolean(row))
       .sort((a, b) => {
         if (a.previewTimeValue === b.previewTimeValue) {
@@ -116,7 +133,7 @@ export default function MessagesScreen() {
         }
         return b.previewTimeValue - a.previewTimeValue;
       });
-  }, [conversations, user?.id]);
+  }, [conversations, user?.id, completedRequestIds]);
 
   const unreadCount = useMemo(() => conversationRows.filter(row => row.isUnread).length, [conversationRows]);
   const visibleRows = useMemo(
@@ -220,9 +237,11 @@ export default function MessagesScreen() {
                 <Text style={[styles.convTime, { color: item.isUnread ? C.primary : C.textMuted }]}>{item.previewTimeLabel}</Text>
               </View>
 
-              <View style={[styles.routePill, { backgroundColor: C.primarySubtle }]}>
-                <MaterialIcons name="route" size={10} color={C.primary} />
-                <Text style={[styles.routeText, { color: C.primary }]} numberOfLines={1}>{item.routeLabel}</Text>
+              <View style={[styles.routePill, { backgroundColor: item.isCompleted ? C.successSubtle : C.primarySubtle }]}>
+                <MaterialIcons name={item.isCompleted ? 'verified' : 'route'} size={10} color={item.isCompleted ? C.success : C.primary} />
+                <Text style={[styles.routeText, { color: item.isCompleted ? C.success : C.primary }]} numberOfLines={1}>
+                  {item.isCompleted ? `${item.routeLabel} · Completed` : item.routeLabel}
+                </Text>
               </View>
 
               <Text style={[styles.lastMsg, { color: item.isUnread ? C.textPrimary : C.textMuted }]} numberOfLines={1}>
@@ -359,7 +378,7 @@ export default function MessagesScreen() {
               C={C}
               icon="cloud-off"
               title="Could not load messages"
-              message={conversationsQuery.error instanceof Error ? conversationsQuery.error.message : 'Refresh and try again.'}
+              message={getUserErrorMessage(conversationsQuery.error, 'Refresh and try again.')}
               actionLabel="Retry"
               onAction={() => {
                 void conversationsQuery.refetch();

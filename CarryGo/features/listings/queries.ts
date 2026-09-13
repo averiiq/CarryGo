@@ -58,6 +58,7 @@ export function useTripsQuery(enabled = true, userCity?: string) {
     queryKey: queryKeys.listings.trips(userCity ? { userCity } : undefined),
     enabled,
     initialPageParam: 0,
+    staleTime: 30_000, // 30s — short enough to catch newly posted trips quickly
     queryFn: async ({ pageParam }) => {
       const offset = pageParam as number;
       const { data, error, total } = await fetchTrips({ userCity, limit: PAGE_SIZE, offset });
@@ -67,7 +68,6 @@ export function useTripsQuery(enabled = true, userCity?: string) {
       return { items, total, nextOffset };
     },
     getNextPageParam: (lastPage) => lastPage.nextOffset,
-    staleTime: 60_000,
   });
 }
 
@@ -113,6 +113,7 @@ export function useParcelsQuery(enabled = true, userCity?: string) {
     queryKey: queryKeys.listings.parcels(userCity ? { userCity } : undefined),
     enabled,
     initialPageParam: 0,
+    staleTime: 30_000, // 30s — short enough to catch newly posted parcels quickly
     queryFn: async ({ pageParam }) => {
       const offset = pageParam as number;
       const { data, error, total } = await fetchParcels({ userCity, limit: PAGE_SIZE, offset });
@@ -122,7 +123,6 @@ export function useParcelsQuery(enabled = true, userCity?: string) {
       return { items, total, nextOffset };
     },
     getNextPageParam: (lastPage) => lastPage.nextOffset,
-    staleTime: 60_000,
   });
 }
 
@@ -165,7 +165,10 @@ export function useCreateTripMutation() {
       if (error || !data) throw serviceError(error, 'Failed to create trip');
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (newTrip) => {
+      if (newTrip?.id) {
+        queryClient.setQueryData(queryKeys.listings.trip(newTrip.id), newTrip);
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
     },
   });
@@ -201,7 +204,11 @@ export function useCreateParcelMutation() {
       if (error || !data) throw serviceError(error, 'Failed to create parcel');
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (newParcel) => {
+      // Seed the detail cache immediately so the parcel page loads without a round-trip
+      if (newParcel?.id) {
+        queryClient.setQueryData(queryKeys.listings.parcel(newParcel.id), newParcel);
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
     },
   });
@@ -239,52 +246,46 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
 
     const invalidateAll = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
+      // 600ms debounce: batches rapid successive inserts/updates into a single cache invalidation
       debounceTimer = setTimeout(() => {
         if (!mounted) return;
         queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
         queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
-      }, 400);
+      }, 600);
     };
 
     const suffix = cityFilter || 'all';
-
-    let tripsChannel = sb.channel(`listings-trips:${suffix}`);
-    let parcelsChannel = sb.channel(`listings-parcels:${suffix}`);
+    // Single combined channel for both tables — reduces Supabase channel overhead
+    let combinedChannel = sb.channel(`listings-combined:${suffix}`);
 
     if (cityFilter) {
       const fromFilter = `from_city=eq.${cityFilter}`;
       const toFilter = `to_city=eq.${cityFilter}`;
-      tripsChannel = tripsChannel
+      combinedChannel = combinedChannel
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: fromFilter }, invalidateAll)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: fromFilter }, invalidateAll)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll);
-      parcelsChannel = parcelsChannel
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: fromFilter }, invalidateAll)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: toFilter }, invalidateAll)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: fromFilter }, invalidateAll)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: toFilter }, invalidateAll);
     } else {
-      tripsChannel = tripsChannel
+      combinedChannel = combinedChannel
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips' }, invalidateAll)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips' }, invalidateAll);
-      parcelsChannel = parcelsChannel
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips' }, invalidateAll)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels' }, invalidateAll)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels' }, invalidateAll);
     }
 
-    tripsChannel.subscribe((status) => {
-      if (!mounted) void sb.removeChannel(tripsChannel);
-    });
-    parcelsChannel.subscribe((status) => {
-      if (!mounted) void sb.removeChannel(parcelsChannel);
+    combinedChannel.subscribe(() => {
+      if (!mounted) void sb.removeChannel(combinedChannel);
     });
 
     return () => {
       mounted = false;
       if (debounceTimer) clearTimeout(debounceTimer);
-      void sb.removeChannel(tripsChannel);
-      void sb.removeChannel(parcelsChannel);
+      void sb.removeChannel(combinedChannel);
     };
   }, [enabled, queryClient, cityFilter]);
 }
