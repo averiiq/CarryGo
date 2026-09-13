@@ -1,23 +1,23 @@
 {
   "expo": {
-    "name": "Hizli",
-    "slug": "hizli",
+    "name": "CarryGo",
+    "slug": "carrygo",
     "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "hizli",
+    "scheme": "carrygo",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "in.averiq.hizli",
+      "bundleIdentifier": "in.averiq.carrygo",
       "newArchEnabled": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Hizli uses the camera to capture parcel photos, delivery proof, and KYC verification documents.",
-        "NSPhotoLibraryUsageDescription": "Hizli lets you upload parcel and verification images from your photo library.",
-        "NSLocationWhenInUseUsageDescription": "Hizli uses your location to match routes and support live trip and parcel tracking when enabled."
+        "NSCameraUsageDescription": "CarryGo uses the camera to capture parcel photos, delivery proof, and KYC verification documents.",
+        "NSPhotoLibraryUsageDescription": "CarryGo lets you upload parcel and verification images from your photo library.",
+        "NSLocationWhenInUseUsageDescription": "CarryGo uses your location to match routes and support live trip and parcel tracking when enabled."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -34,7 +34,7 @@
       }
     },
     "android": {
-      "package": "in.averiq.hizli",
+      "package": "in.averiq.carrygo",
       "versionCode": 12,
       "allowBackup": false,
       "blockedPermissions": [

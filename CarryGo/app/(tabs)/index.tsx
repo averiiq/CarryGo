@@ -853,7 +853,7 @@ export default function HomeScreen() {
 
           if (parcelsQuery.hasNextPage && !parcelsQuery.isFetchingNextPage) parcelsQuery.fetchNextPage();
         }}
-        contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(116, insets.bottom + 104) }]}
+        contentContainerStyle={{ ...styles.listContent, paddingBottom: Math.max(116, insets.bottom + 104) }}
       />
     </View>
   );
