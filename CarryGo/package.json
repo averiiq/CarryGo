@@ -20,7 +20,9 @@
     "ci": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build:web",
     "doctor": "npx expo-doctor",
     "build:web": "expo export --platform web --output-dir dist/web",
-    "supabase:types": "supabase gen types typescript --local > types/database.ts"
+    "supabase:types": "supabase gen types typescript --local > types/database.ts",
+    "update:preview": "eas update --channel preview",
+    "update:production": "eas update --channel production"
   },
   "expo": {
     "autolinking": {
@@ -72,6 +74,7 @@
     "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
     "expo-system-ui": "~5.0.11",
+    "expo-updates": "~0.28.18",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.6",

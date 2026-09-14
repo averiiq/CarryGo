@@ -4,7 +4,14 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "benchmark": "node benchmark/run-all.mjs",
+    "benchmark:flood": "node benchmark/flood-defense.mjs",
+    "benchmark:load": "node benchmark/distributed-load.mjs",
+    "benchmark:k6": "k6 run benchmark/k6-gateway-test.js",
+    "benchmark:supabase": "k6 run benchmark/k6-supabase-test.js",
+    "benchmark:stress": "node benchmark/overload-stress.mjs",
+    "benchmark:lakh": "node benchmark/enterprise-lakh-stress.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.901.0",
@@ -14,6 +21,8 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.152",
     "@types/node": "^22.14.1",
+    "autocannon": "^8.0.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.2"
   }
 }

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Animated, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { flattenInfiniteData, useParcelsQuery, useTripsQuery } from '@/features/
 import { useRequestsQuery } from '@/features/requests/queries';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useBreathing, useHeartbeat } from '@/hooks/useAnimations';
+import { useAppUpdates } from '@/hooks/useAppUpdates';
 
 interface MenuItemProps {
   icon: React.ReactNode;
@@ -102,6 +103,15 @@ export default function ProfileScreen() {
   const parcelsQuery = useParcelsQuery(Boolean(user));
   const requestsQuery = useRequestsQuery(user?.id);
   const scrollRef = useRef<ScrollView | null>(null);
+
+  const {
+    isChecking: isCheckingUpdates,
+    isDownloading: isDownloadingUpdate,
+    isUpdateReady,
+    statusMessage: updateStatusMessage,
+    checkForUpdate,
+    applyUpdate,
+  } = useAppUpdates();
 
   // Automatically refresh profile from database whenever returning to profile tab
   useFocusEffect(
@@ -429,6 +439,30 @@ export default function ProfileScreen() {
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
               <MenuItem C={C}
+                icon={<Ionicons name="cloud-download-outline" size={17} color={C.primary} />}
+                label="Check for Updates"
+                subtitle={
+                  isCheckingUpdates
+                    ? 'Checking update servers...'
+                    : isDownloadingUpdate
+                    ? 'Downloading update...'
+                    : isUpdateReady
+                    ? 'Update ready! Tap to restart'
+                    : updateStatusMessage || 'Latest version active (OTA enabled)'
+                }
+                right={
+                  isCheckingUpdates || isDownloadingUpdate ? (
+                    <ActivityIndicator size="small" color={C.primary} />
+                  ) : isUpdateReady ? (
+                    <View style={[styles.updateReadyBadge, { backgroundColor: C.primary }]}>
+                      <Text style={styles.updateReadyText}>Restart</Text>
+                    </View>
+                  ) : undefined
+                }
+                onPress={isUpdateReady ? applyUpdate : checkForUpdate}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
+              <MenuItem C={C}
                 icon={<MaterialIcons name="delete-outline" size={17} color={C.error} />}
                 label="Delete Account"
                 subtitle="Permanently remove your profile and data"
@@ -450,7 +484,7 @@ export default function ProfileScreen() {
             <View style={[styles.footerDivider, { backgroundColor: C.surfaceBorder + '44' }]} />
             <View style={styles.footerContent}>
               <MaterialIcons name="local-shipping" size={12} color={C.textMuted + '88'} />
-              <Text style={[styles.footerText, { color: C.textMuted + '88' }]}>CarryGo v1.0</Text>
+              <Text style={[styles.footerText, { color: C.textMuted + '88' }]}>CarryGo v1.2.2</Text>
               <View style={[styles.footerDot, { backgroundColor: C.textMuted + '44' }]} />
               <Text style={[styles.footerText, { color: C.textMuted + '88' }]}>Peer-to-Peer Logistics</Text>
             </View>
@@ -728,6 +762,16 @@ const styles = StyleSheet.create({
   },
   footerText: { fontSize: 10, fontWeight: FontWeight.medium, letterSpacing: 0.3 },
   footerDot: { width: 3, height: 3, borderRadius: 1.5 },
+  updateReadyBadge: {
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+  },
+  updateReadyText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.xs - 1,
+    fontWeight: FontWeight.bold,
+  },
 });
 
 

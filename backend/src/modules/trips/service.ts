@@ -9,6 +9,7 @@ import { ddb } from '../../lib/dynamo';
 import { config } from '../../config';
 import { l1Cache } from '../../lib/cache';
 import { enqueueDomainEvent } from '../../lib/queue';
+import { dynamoDbBreaker } from '../../lib/circuit-breaker';
 
 export type TripStatus = 'active' | 'completed' | 'cancelled';
 
@@ -84,42 +85,47 @@ export const listTrips = async (
   return l1Cache.getOrFetch(
     cacheKey,
     async () => {
-      const { Items } = await ddb.send(
-        new QueryCommand({
-          TableName: config.coreTableName,
-          IndexName: 'gsi1',
-          KeyConditionExpression: 'gsi1pk = :pk',
-          ExpressionAttributeValues: {
-            ':pk': 'TRIP#STATUS#active',
-          },
-          ScanIndexForward: false,
-          Limit: Math.min(filters.limit + filters.offset + 50, 500),
-        }),
+      return dynamoDbBreaker.execute(
+        async () => {
+          const { Items } = await ddb.send(
+            new QueryCommand({
+              TableName: config.coreTableName,
+              IndexName: 'gsi1',
+              KeyConditionExpression: 'gsi1pk = :pk',
+              ExpressionAttributeValues: {
+                ':pk': 'TRIP#STATUS#active',
+              },
+              ScanIndexForward: false,
+              Limit: Math.min(filters.limit + filters.offset + 50, 500),
+            }),
+          );
+
+          const filtered = (Items ?? [])
+            .filter((item) => item.entityType === 'trip')
+            .map((item) => toTrip(item as Record<string, unknown>))
+            .filter((trip) => {
+              if (fromCity && !includesText(trip.fromCity, fromCity)) {
+                return false;
+              }
+
+              if (toCity && !includesText(trip.toCity, toCity)) {
+                return false;
+              }
+
+              if (userCity && !fromCity && !toCity) {
+                return includesText(trip.fromCity, userCity) || includesText(trip.toCity, userCity);
+              }
+
+              return true;
+            });
+
+          return {
+            items: filtered.slice(filters.offset, filters.offset + filters.limit),
+            total: filtered.length,
+          };
+        },
+        async () => ({ items: [], total: 0 }),
       );
-
-      const filtered = (Items ?? [])
-        .filter((item) => item.entityType === 'trip')
-        .map((item) => toTrip(item as Record<string, unknown>))
-        .filter((trip) => {
-          if (fromCity && !includesText(trip.fromCity, fromCity)) {
-            return false;
-          }
-
-          if (toCity && !includesText(trip.toCity, toCity)) {
-            return false;
-          }
-
-          if (userCity && !fromCity && !toCity) {
-            return includesText(trip.fromCity, userCity) || includesText(trip.toCity, userCity);
-          }
-
-          return true;
-        });
-
-      return {
-        items: filtered.slice(filters.offset, filters.offset + filters.limit),
-        total: filtered.length,
-      };
     },
     15_000, // 15s TTL (hot feed cache)
   );
@@ -131,21 +137,26 @@ export const getTripById = async (tripId: string): Promise<TripItem | null> => {
   return l1Cache.getOrFetch(
     cacheKey,
     async () => {
-      const { Item } = await ddb.send(
-        new GetCommand({
-          TableName: config.coreTableName,
-          Key: {
-            pk: `TRIP#${tripId}`,
-            sk: 'META',
-          },
-        }),
+      return dynamoDbBreaker.execute(
+        async () => {
+          const { Item } = await ddb.send(
+            new GetCommand({
+              TableName: config.coreTableName,
+              Key: {
+                pk: `TRIP#${tripId}`,
+                sk: 'META',
+              },
+            }),
+          );
+
+          if (!Item || Item.entityType !== 'trip') {
+            return null;
+          }
+
+          return toTrip(Item as Record<string, unknown>);
+        },
+        async () => null,
       );
-
-      if (!Item || Item.entityType !== 'trip') {
-        return null;
-      }
-
-      return toTrip(Item as Record<string, unknown>);
     },
     30_000, // 30s TTL
   );

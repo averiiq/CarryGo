@@ -7,8 +7,8 @@ import { loadStackConfig } from '../lib/config';
 const app = new cdk.App();
 const config = loadStackConfig(app);
 
-const account = process.env.CDK_DEFAULT_ACCOUNT;
-const region = process.env.CDK_DEFAULT_REGION ?? 'ap-south-1';
+const account = process.env.CDK_DEFAULT_ACCOUNT ?? process.env.AWS_ACCOUNT_ID ?? '649419331709';
+const region = process.env.CDK_DEFAULT_REGION ?? process.env.AWS_REGION ?? 'ap-south-1';
 
 new CarryGoCoreStack(app, `${config.projectName}-${config.stage}-core`, {
   env: {

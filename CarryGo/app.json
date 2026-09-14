@@ -79,6 +79,7 @@
       "@react-native-community/datetimepicker",
       "expo-font",
       "expo-secure-store",
+      "expo-updates",
       "react-native-edge-to-edge",
       [
         "expo-build-properties",
@@ -90,6 +91,11 @@
         }
       ]
     ],
+    "updates": {
+      "url": "https://u.expo.dev/85ee60ab-6a6a-4f2e-9688-9fbd4dabca3b",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "experiments": {
       "typedRoutes": true
     },

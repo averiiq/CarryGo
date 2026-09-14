@@ -17,10 +17,16 @@ export class SlidingWindowRateLimiter {
   private store = new Map<string, RateLimitRecord>();
   private readonly windowMs: number;
   private readonly maxRequests: number;
+  private readonly maxKeys: number;
 
-  constructor(windowMs = 60_000, maxRequests = 60) {
+  constructor(windowMs = 60_000, maxRequests = 60, maxKeys = 50_000) {
     this.windowMs = windowMs;
     this.maxRequests = maxRequests;
+    this.maxKeys = maxKeys;
+
+    // Background auto-pruning timer to eliminate memory leaks under distributed high-cardinality traffic
+    const pruneTimer = setInterval(() => this.cleanup(), 30_000);
+    pruneTimer.unref?.();
   }
 
   check(key: string, customLimit?: number): RateLimitResult {
@@ -30,6 +36,13 @@ export class SlidingWindowRateLimiter {
 
     let record = this.store.get(key);
     if (!record) {
+      // LRU eviction when reaching capacity limit
+      if (this.store.size >= this.maxKeys) {
+        const oldestKey = this.store.keys().next().value;
+        if (oldestKey) {
+          this.store.delete(oldestKey);
+        }
+      }
       record = { timestamps: [] };
       this.store.set(key, record);
     }

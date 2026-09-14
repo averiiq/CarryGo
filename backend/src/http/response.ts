@@ -65,3 +65,35 @@ export const rateLimited = (
       },
     },
   );
+
+export const serviceOverloaded = (
+  retryAfterSeconds: number = 2,
+  requestId?: string,
+): JsonResponse =>
+  json(
+    503,
+    {
+      message: 'Service is temporarily experiencing high load. Please retry shortly.',
+      retryAfterSeconds,
+    },
+    {
+      requestId,
+      headers: {
+        'retry-after': String(retryAfterSeconds),
+      },
+    },
+  );
+
+export const gatewayTimeout = (
+  requestId?: string,
+): JsonResponse =>
+  json(
+    504,
+    {
+      message: 'Request timed out. Please try again.',
+    },
+    {
+      requestId,
+    },
+  );
+

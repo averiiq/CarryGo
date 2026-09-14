@@ -1,8 +1,19 @@
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
+import https from 'https';
 import { config } from '../config';
 
 const sqs = new SQSClient({
   maxAttempts: 3,
+  requestHandler: new NodeHttpHandler({
+    connectionTimeout: 3000,
+    requestTimeout: 4000,
+    httpsAgent: new https.Agent({
+      keepAlive: true,
+      maxSockets: 50,
+      keepAliveMsecs: 60_000,
+    }),
+  }),
 });
 
 export interface DomainEvent<T = Record<string, unknown>> {

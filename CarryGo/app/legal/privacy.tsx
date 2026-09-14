@@ -56,7 +56,7 @@ export default function PrivacyScreen() {
           </View>
         ))}
         <Text style={[styles.contact, { color: C.textMuted }]}>
-          For privacy questions, contact CarryGo support from the in-app help channel.
+          For privacy inquiries or data deletion requests, contact us at support@carrygo.in or visit https://carrygo.in/delete-account.
         </Text>
       </ScrollView>
     </View>

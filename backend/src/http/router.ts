@@ -1,7 +1,14 @@
 import { randomUUID } from 'crypto';
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { json, JsonResponse, rateLimited } from './response';
-import { handleHealth } from '../modules/health/handler';
+import { json, JsonResponse, rateLimited, serviceOverloaded, gatewayTimeout } from './response';
+import { concurrencyGovernor } from '../lib/governor';
+import { idempotencyEngine } from '../lib/idempotency';
+import {
+  handleHealth,
+  handleHealthLive,
+  handleHealthReady,
+  handleHealthMetrics,
+} from '../modules/health/handler';
 import { handleReserveBooking } from '../modules/bookings/handler';
 import {
   handleCreateTrip,
@@ -47,6 +54,18 @@ const normalizePath = (rawPath: string): string => {
   return rawPath;
 };
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs = 8000): Promise<T> => {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('GATEWAY_TIMEOUT')), timeoutMs);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timer!);
+  }
+};
+
 export const routeRequest = async (
   event: APIGatewayProxyEventV2,
 ): Promise<JsonResponse> => {
@@ -61,33 +80,76 @@ export const routeRequest = async (
   const path = normalizePath(event.rawPath);
   const sourceIp = event.requestContext.http.sourceIp ?? 'unknown';
 
-  // 1. Sliding window rate limit check (Defends against retry storms & flood attacks)
-  // Dedicated stricter rate limit for KYC operations to prevent credential harvesting / abuse
-  if (path.startsWith('/kyc/') && path !== '/kyc/sandbox/webhook') {
-    const kycCheck = kycRateLimiter.check(`${sourceIp}:KYC`);
-    if (!kycCheck.allowed) {
-      return rateLimited(kycCheck.retryAfterSeconds, requestId);
+  // 1. Adaptive Load Shedding (Concurrency Governor & Event Loop Protection)
+  const isHealth = path.startsWith('/health');
+  if (!isHealth && !concurrencyGovernor.acquire()) {
+    const lag = concurrencyGovernor.getEventLoopLag();
+    console.warn(`[LoadShedder] Dropped ${method} ${path}. InFlight: ${concurrencyGovernor.getInFlightCount()}, Lag: ${lag}ms`);
+    return serviceOverloaded(2, requestId);
+  }
+
+  try {
+    // 2. Sliding window rate limit check (Defends against retry storms & flood attacks)
+    // Dedicated stricter rate limit for KYC operations to prevent credential harvesting / abuse
+    if (path.startsWith('/kyc/') && path !== '/kyc/sandbox/webhook') {
+      const kycCheck = kycRateLimiter.check(`${sourceIp}:KYC`);
+      if (!kycCheck.allowed) {
+        return rateLimited(kycCheck.retryAfterSeconds, requestId);
+      }
     }
-  }
 
-  const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
-  const rateLimitKey = `${sourceIp}:${isMutation ? 'MUTATION' : 'READ'}`;
-  const limiter = isMutation ? mutationRateLimiter : globalApiRateLimiter;
-  const rateCheck = limiter.check(rateLimitKey);
+    const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
+    const rateLimitKey = `${sourceIp}:${isMutation ? 'MUTATION' : 'READ'}`;
+    const limiter = isMutation ? mutationRateLimiter : globalApiRateLimiter;
+    const rateCheck = limiter.check(rateLimitKey);
 
-  if (!rateCheck.allowed) {
-    return rateLimited(rateCheck.retryAfterSeconds, requestId);
-  }
+    if (!rateCheck.allowed) {
+      return rateLimited(rateCheck.retryAfterSeconds, requestId);
+    }
 
+    // 3. Enterprise Idempotency Engine for mutation deduplication
+    const idempotencyKey = isMutation
+      ? event.headers['idempotency-key'] ??
+        event.headers['Idempotency-Key'] ??
+        event.headers['x-idempotency-key']
+      : undefined;
 
-  // 2. Dispatch to route handlers
-  let response: JsonResponse;
+    if (idempotencyKey) {
+      const idempResult = idempotencyEngine.acquire(idempotencyKey, event.body || '');
+      if (idempResult.status === 'REPLAY') {
+        return idempResult.response;
+      }
+      if (idempResult.status === 'IN_FLIGHT') {
+        return json(
+          409,
+          { message: 'A request with this idempotency key is currently in flight. Please retry shortly.' },
+          { requestId },
+        );
+      }
+      if (idempResult.status === 'PAYLOAD_MISMATCH') {
+        return json(
+          422,
+          { message: 'Idempotency key re-used with a different request payload.' },
+          { requestId },
+        );
+      }
+    }
 
-  if (method === 'GET' && path === '/health') {
-    response = await handleHealth();
-  } else if (method === 'POST' && path === '/bookings/reserve') {
-    response = await handleReserveBooking(event);
-  } else if (method === 'GET' && path === '/trips') {
+    // 4. Dispatch to route handlers with timeout guard (prevents hanging sockets)
+    let response: JsonResponse;
+
+    const executeRoute = async (): Promise<JsonResponse> => {
+      if (method === 'GET' && path === '/health') {
+        response = handleHealth();
+      } else if (method === 'GET' && path === '/health/live') {
+        response = handleHealthLive();
+      } else if (method === 'GET' && path === '/health/ready') {
+        response = handleHealthReady();
+      } else if (method === 'GET' && path === '/health/metrics') {
+        response = handleHealthMetrics();
+      } else if (method === 'POST' && path === '/bookings/reserve') {
+        response = await handleReserveBooking(event);
+      } else if (method === 'GET' && path === '/trips') {
     response = await handleListTrips(event);
   } else if (method === 'POST' && path === '/trips') {
     response = await handleCreateTrip(event);
@@ -162,11 +224,37 @@ export const routeRequest = async (
       }
     }
   }
-
-  // 3. Inject Observability & Tracing headers (p50/p95/p99 tracking)
-  const durationMs = performance.now() - startTime;
-  response.headers['x-request-id'] = requestId;
-  response.headers['server-timing'] = `app;dur=${durationMs.toFixed(2)}`;
-
   return response;
 };
+
+    try {
+      response = await withTimeout(executeRoute(), 8000);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === 'GATEWAY_TIMEOUT') {
+        response = gatewayTimeout(requestId);
+      } else {
+        const errorMsg = err instanceof Error ? err.message : 'Internal server error';
+        console.error(`[RouterError] Error in ${method} ${path}:`, err);
+        response = json(500, { message: errorMsg }, { requestId });
+      }
+    }
+
+    if (idempotencyKey && response.statusCode < 500) {
+      idempotencyEngine.complete(idempotencyKey, response);
+    } else if (idempotencyKey) {
+      idempotencyEngine.fail(idempotencyKey);
+    }
+
+    // 5. Inject Observability & Tracing headers (p50/p95/p99 tracking)
+    const durationMs = performance.now() - startTime;
+    response.headers['x-request-id'] = requestId;
+    response.headers['server-timing'] = `app;dur=${durationMs.toFixed(2)}`;
+
+    return response;
+  } finally {
+    if (!isHealth) {
+      concurrencyGovernor.release();
+    }
+  }
+};
+

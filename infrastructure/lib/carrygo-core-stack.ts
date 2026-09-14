@@ -128,7 +128,9 @@ export class CarryGoCoreStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
       encryption: dynamodb.TableEncryption.AWS_MANAGED,
       timeToLiveAttribute: 'ttl',
       removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
@@ -174,9 +176,14 @@ export class CarryGoCoreStack extends cdk.Stack {
       eventBusName: `${prefix}-domain-events`,
     });
 
+    const backendRoot = path.join(__dirname, '../../backend');
+    const backendLock = path.join(__dirname, '../../backend/package-lock.json');
+
     const appLambda = new lambdaNodejs.NodejsFunction(this, 'AppLambda', {
       functionName: `${prefix}-app`,
-      entry: path.join(__dirname, '../../backend/src/lambda.ts'),
+      projectRoot: backendRoot,
+      depsLockFilePath: backendLock,
+      entry: path.join(backendRoot, 'src/lambda.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       timeout: cdk.Duration.seconds(15),
@@ -189,6 +196,10 @@ export class CarryGoCoreStack extends cdk.Stack {
         ASYNC_QUEUE_URL: asyncQueue.queueUrl,
         NOTIFICATIONS_TOPIC_ARN: notificationTopic.topicArn,
         EVENT_BUS_NAME: eventBus.eventBusName,
+        SANDBOX_API_KEY: process.env.SANDBOX_API_KEY ?? 'key_live_416614ac6953471ebf15142f75db722e',
+        SANDBOX_API_SECRET: process.env.SANDBOX_API_SECRET ?? 'secret_live_fac826b1d2c74cd0b021ec72e84c04ad',
+        SANDBOX_BASE_URL: process.env.SANDBOX_BASE_URL ?? 'https://api.sandbox.co.in',
+        SANDBOX_WEBHOOK_SECRET: process.env.SANDBOX_WEBHOOK_SECRET ?? 'sbx_whsec_carrygo_dev',
       },
       bundling: {
         minify: true,
@@ -199,7 +210,9 @@ export class CarryGoCoreStack extends cdk.Stack {
 
     const workerLambda = new lambdaNodejs.NodejsFunction(this, 'WorkerLambda', {
       functionName: `${prefix}-worker`,
-      entry: path.join(__dirname, '../../backend/src/lambda.ts'),
+      projectRoot: backendRoot,
+      depsLockFilePath: backendLock,
+      entry: path.join(backendRoot, 'src/lambda.ts'),
       handler: 'workerHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
       timeout: cdk.Duration.seconds(30),
@@ -219,7 +232,9 @@ export class CarryGoCoreStack extends cdk.Stack {
 
     const scheduledJobsLambda = new lambdaNodejs.NodejsFunction(this, 'ScheduledJobsLambda', {
       functionName: `${prefix}-scheduler`,
-      entry: path.join(__dirname, '../../backend/src/lambda.ts'),
+      projectRoot: backendRoot,
+      depsLockFilePath: backendLock,
+      entry: path.join(backendRoot, 'src/lambda.ts'),
       handler: 'scheduledHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
       timeout: cdk.Duration.seconds(30),
@@ -280,7 +295,7 @@ export class CarryGoCoreStack extends cdk.Stack {
           apigwv2.CorsHttpMethod.OPTIONS,
         ],
         allowOrigins: config.allowedOrigins,
-        allowHeaders: ['authorization', 'content-type', 'idempotency-key'],
+        allowHeaders: ['authorization', 'content-type', 'idempotency-key', 'x-idempotency-key'],
         maxAge: cdk.Duration.days(1),
       },
     });
@@ -288,6 +303,18 @@ export class CarryGoCoreStack extends cdk.Stack {
     httpApi.addRoutes({
       path: '/health',
       methods: [apigwv2.HttpMethod.GET],
+      integration: appIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: '/health/{proxy+}',
+      methods: [apigwv2.HttpMethod.GET],
+      integration: appIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: '/api/verification/sandbox-webhook',
+      methods: [apigwv2.HttpMethod.POST],
       integration: appIntegration,
     });
 

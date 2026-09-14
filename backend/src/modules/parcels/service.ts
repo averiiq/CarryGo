@@ -9,6 +9,7 @@ import { ddb } from '../../lib/dynamo';
 import { config } from '../../config';
 import { l1Cache } from '../../lib/cache';
 import { enqueueDomainEvent } from '../../lib/queue';
+import { dynamoDbBreaker } from '../../lib/circuit-breaker';
 
 export type ParcelStatus =
   | 'open'
@@ -85,22 +86,27 @@ const toParcel = (item: Record<string, unknown>): ParcelItem => {
 };
 
 const queryByStatus = async (status: ParcelStatus, max: number): Promise<ParcelItem[]> => {
-  const { Items } = await ddb.send(
-    new QueryCommand({
-      TableName: config.coreTableName,
-      IndexName: 'gsi1',
-      KeyConditionExpression: 'gsi1pk = :pk',
-      ExpressionAttributeValues: {
-        ':pk': `PARCEL#STATUS#${status}`,
-      },
-      ScanIndexForward: false,
-      Limit: max,
-    }),
-  );
+  return dynamoDbBreaker.execute(
+    async () => {
+      const { Items } = await ddb.send(
+        new QueryCommand({
+          TableName: config.coreTableName,
+          IndexName: 'gsi1',
+          KeyConditionExpression: 'gsi1pk = :pk',
+          ExpressionAttributeValues: {
+            ':pk': `PARCEL#STATUS#${status}`,
+          },
+          ScanIndexForward: false,
+          Limit: max,
+        }),
+      );
 
-  return (Items ?? [])
-    .filter((item) => item.entityType === 'parcel')
-    .map((item) => toParcel(item as Record<string, unknown>));
+      return (Items ?? [])
+        .filter((item) => item.entityType === 'parcel')
+        .map((item) => toParcel(item as Record<string, unknown>));
+    },
+    async () => [],
+  );
 };
 
 /**
@@ -157,21 +163,26 @@ export const getParcelById = async (parcelId: string): Promise<ParcelItem | null
   return l1Cache.getOrFetch(
     cacheKey,
     async () => {
-      const { Item } = await ddb.send(
-        new GetCommand({
-          TableName: config.coreTableName,
-          Key: {
-            pk: `PARCEL#${parcelId}`,
-            sk: 'META',
-          },
-        }),
+      return dynamoDbBreaker.execute(
+        async () => {
+          const { Item } = await ddb.send(
+            new GetCommand({
+              TableName: config.coreTableName,
+              Key: {
+                pk: `PARCEL#${parcelId}`,
+                sk: 'META',
+              },
+            }),
+          );
+
+          if (!Item || Item.entityType !== 'parcel') {
+            return null;
+          }
+
+          return toParcel(Item as Record<string, unknown>);
+        },
+        async () => null,
       );
-
-      if (!Item || Item.entityType !== 'parcel') {
-        return null;
-      }
-
-      return toParcel(Item as Record<string, unknown>);
     },
     30_000, // 30s TTL
   );
