@@ -1,4 +1,4 @@
-﻿import { createServerClient } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const ROLE_COOKIE_NAME = 'x-cms-role'
@@ -40,10 +40,16 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
   const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard')
+  const isCustomerProtectedRoute =
+    request.nextUrl.pathname.startsWith('/activity') ||
+    request.nextUrl.pathname.startsWith('/kyc') ||
+    request.nextUrl.pathname.startsWith('/profile') ||
+    request.nextUrl.pathname.startsWith('/payment')
 
-  if (!user && isDashboardRoute) {
+  if (!user && (isDashboardRoute || isCustomerProtectedRoute)) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    url.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(url)
   }
 
@@ -74,9 +80,15 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
       return NextResponse.redirect(url)
     }
 
-    if (systemRole === 'admin' && isAuthRoute) {
+    if (isAuthRoute) {
+      const nextUrl = request.nextUrl.searchParams.get('next')
       const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
+      url.searchParams.delete('next')
+      if (systemRole === 'admin') {
+        url.pathname = nextUrl || '/dashboard'
+      } else {
+        url.pathname = nextUrl || '/activity'
+      }
       return NextResponse.redirect(url)
     }
   } else {
