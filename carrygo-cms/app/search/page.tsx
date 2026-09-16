@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Filter, MapPin, Package, Route, Search as SearchIcon } from 'lucide-react'
+import { ArrowRight, Filter, MapPin, Package, Route, Search as SearchIcon, AlertCircle, PlusCircle, RefreshCw, XCircle } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -239,9 +239,36 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
             ))}
 
             {trips.length === 0 && (
-              <div className='glass-card rounded-2xl p-6 text-center text-sm text-muted'>
-                <Route className='mx-auto mb-2 h-5 w-5 text-primary' />
-                No matching trips found.
+              <div className='glass-card rounded-2xl p-6 text-center text-sm'>
+                <div className='mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-subtle text-primary'>
+                  <Route className='h-6 w-6' />
+                </div>
+                <h3 className='font-heading font-semibold text-foreground'>
+                  {from || to ? `No Active Trips on ${from || 'Anywhere'} → ${to || 'Anywhere'}` : 'No Active Trips Found'}
+                </h3>
+                <p className='mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-muted'>
+                  {from || to
+                    ? 'No travelers currently have scheduled trips matching this corridor. You can list your own trip or create an open parcel delivery request.'
+                    : 'There are currently no active traveler listings in the marketplace.'}
+                </p>
+                <div className='mt-4 flex flex-wrap items-center justify-center gap-2'>
+                  <Link
+                    href={`/create-trip?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
+                    className='button-primary text-xs py-2 px-3 inline-flex items-center gap-1.5'
+                  >
+                    <PlusCircle className='h-3.5 w-3.5' />
+                    List a Trip on This Route
+                  </Link>
+                  {(from || to) && (
+                    <Link
+                      href='/search?type=trips'
+                      className='button-secondary text-xs py-2 px-3 inline-flex items-center gap-1.5'
+                    >
+                      <XCircle className='h-3.5 w-3.5' />
+                      Clear Filters
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -287,9 +314,36 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
             ))}
 
             {parcels.length === 0 && (
-              <div className='glass-card rounded-2xl p-6 text-center text-sm text-muted'>
-                <Package className='mx-auto mb-2 h-5 w-5 text-accent' />
-                No matching parcels found.
+              <div className='glass-card rounded-2xl p-6 text-center text-sm'>
+                <div className='mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-subtle text-accent'>
+                  <Package className='h-6 w-6' />
+                </div>
+                <h3 className='font-heading font-semibold text-foreground'>
+                  {from || to ? `No Open Parcels on ${from || 'Anywhere'} → ${to || 'Anywhere'}` : 'No Open Parcels Found'}
+                </h3>
+                <p className='mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-muted'>
+                  {from || to
+                    ? 'No senders have requested deliveries on this corridor yet. Post your delivery request so travelers moving along this route can accept it.'
+                    : 'There are currently no open parcel listings in the marketplace.'}
+                </p>
+                <div className='mt-4 flex flex-wrap items-center justify-center gap-2'>
+                  <Link
+                    href={`/create-parcel?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
+                    className='button-primary text-xs py-2 px-3 inline-flex items-center gap-1.5'
+                  >
+                    <PlusCircle className='h-3.5 w-3.5' />
+                    Post Parcel on This Route
+                  </Link>
+                  {(from || to) && (
+                    <Link
+                      href='/search?type=parcels'
+                      className='button-secondary text-xs py-2 px-3 inline-flex items-center gap-1.5'
+                    >
+                      <XCircle className='h-3.5 w-3.5' />
+                      Clear Filters
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -307,9 +361,22 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         </section>
 
         {hasError && (
-          <p className='mx-auto mt-4 w-full max-w-6xl rounded-xl border border-danger/35 bg-danger-subtle px-3 py-2 text-sm text-danger'>
-            Some results could not be loaded right now. Please retry in a few moments.
-          </p>
+          <div className='mx-auto mt-6 flex w-full max-w-6xl flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-danger/35 bg-danger-subtle p-4 text-sm text-danger'>
+            <div className='flex items-center gap-3'>
+              <AlertCircle className='h-5 w-5 shrink-0 text-danger' />
+              <div>
+                <p className='font-semibold'>Unable to Fetch Real-Time Marketplace Results</p>
+                <p className='text-xs text-danger/80'>A network or database connection issue occurred while querying active listings.</p>
+              </div>
+            </div>
+            <Link
+              href={`/search?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&type=${type}`}
+              className='button-secondary self-start sm:self-auto text-xs py-2 px-3 inline-flex items-center gap-1.5'
+            >
+              <RefreshCw className='h-3.5 w-3.5' />
+              Retry Search
+            </Link>
+          </div>
         )}
       </ScrollLinkedSection>
     </MarketingShell>

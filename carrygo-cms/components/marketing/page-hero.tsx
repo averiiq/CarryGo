@@ -68,21 +68,38 @@ export function PageHero({
       </Reveal>
 
       {illustrationSrc && (
-        <Reveal delay={0.08} className='relative'>
-          <div aria-hidden className='pointer-events-none absolute inset-6 rounded-[1.9rem] bg-primary-subtle blur-2xl' />
-          <div className='relative overflow-hidden rounded-3xl border border-border/70 bg-surface p-3 shadow-sm md:p-4'>
-            <Image
-              src={illustrationSrc}
-              alt={illustrationAlt}
-              width={960}
-              height={720}
-              className={isSvg ? 'relative z-10 h-auto w-full rounded-2xl' : 'relative z-10 aspect-[4/3] w-full rounded-2xl object-cover'}
-            />
+        <Reveal delay={0.08} className='relative group'>
+          {/* Ambient Volumetric Backlight */}
+          <div aria-hidden className='pointer-events-none absolute -inset-4 rounded-[2.5rem] bg-gradient-to-tr from-emerald-500/15 via-sky-500/15 to-transparent blur-3xl transition-opacity duration-500 group-hover:opacity-100 opacity-70' />
+          
+          {/* Framed 3D Visual Card */}
+          <div className='relative overflow-hidden rounded-3xl border border-border/80 bg-surface/90 p-2 sm:p-3 shadow-bento backdrop-blur-xl transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-glow'>
+            <div className='relative overflow-hidden rounded-2xl'>
+              <Image
+                src={illustrationSrc}
+                alt={illustrationAlt}
+                width={960}
+                height={720}
+                priority
+                className={
+                  isSvg
+                    ? 'relative z-10 h-auto w-full rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]'
+                    : 'relative z-10 aspect-[16/10] w-full rounded-2xl object-contain bg-gradient-to-b from-white via-slate-50/50 to-slate-100/30 p-6 sm:p-10 transition-transform duration-500 group-hover:scale-[1.02]'
+                }
+              />
+              <div className='pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/5' />
+            </div>
           </div>
 
           {illustrationLabel && (
-            <div className='mt-3 inline-flex rounded-full border border-border bg-background px-4 py-2 text-xs font-medium text-muted shadow-xs'>
-              {illustrationLabel}
+            <div className='mt-3 flex items-center justify-between px-1'>
+              <div className='inline-flex items-center gap-2 rounded-full border border-border/80 bg-surface/90 px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-xs backdrop-blur-md'>
+                <span className='h-2 w-2 rounded-full bg-emerald-500 animate-pulse' />
+                <span>{illustrationLabel}</span>
+              </div>
+              <span className='text-[11px] font-mono text-muted uppercase tracking-wider'>
+                Verified P2P Network
+              </span>
             </div>
           )}
         </Reveal>

@@ -1,4 +1,11 @@
-import { scoreMatch, findBestMatches, findBestParcelsForTrip, MatchScore } from '@/services/smart-matching.service';
+import {
+  scoreMatch,
+  findBestMatches,
+  findBestParcelsForTrip,
+  diagnoseParcelTripMatching,
+  diagnoseTripParcelMatching,
+  MatchScore,
+} from '@/services/smart-matching.service';
 import { Trip, Parcel } from '@/types';
 
 jest.mock('@/constants/indian-cities', () => ({
@@ -487,6 +494,127 @@ describe('smart-matching.service', () => {
 
       const matches = findBestParcelsForTrip(trip, parcels, { minScore: 0, limit: 10 });
       expect(matches.map(match => match.parcel.id)).toEqual(['parcel-ok']);
+    });
+  });
+
+  describe('diagnoseParcelTripMatching', () => {
+    it('diagnoses unserved corridor when no trips exist', () => {
+      const parcel = makeParcel({ fromCity: 'Mumbai', toCity: 'Delhi', userId: 'user-1' });
+      const diagnostic = diagnoseParcelTripMatching(parcel, []);
+
+      expect(diagnostic.reason).toBe('corridor_unserved');
+      expect(diagnostic.candidateCount).toBe(0);
+      expect(diagnostic.actions.some(a => a.id === 'post_open_request')).toBe(true);
+      expect(diagnostic.actions.some(a => a.id === 'subscribe_route')).toBe(true);
+    });
+
+    it('diagnoses unserved corridor when only user own trips exist', () => {
+      const parcel = makeParcel({ fromCity: 'Mumbai', toCity: 'Delhi', userId: 'user-1' });
+      const trips = [makeTrip({ userId: 'user-1', fromCity: 'Mumbai', toCity: 'Delhi' })];
+      const diagnostic = diagnoseParcelTripMatching(parcel, trips);
+
+      expect(diagnostic.reason).toBe('corridor_unserved');
+      expect(diagnostic.candidateCount).toBe(0);
+    });
+
+    it('diagnoses no active listings when trips are completed or cancelled', () => {
+      const parcel = makeParcel({ fromCity: 'Mumbai', toCity: 'Delhi', userId: 'user-1' });
+      const trips = [
+        makeTrip({ id: 't1', userId: 'user-2', status: 'completed', fromCity: 'Mumbai', toCity: 'Delhi' }),
+        makeTrip({ id: 't2', userId: 'user-3', status: 'cancelled', fromCity: 'Mumbai', toCity: 'Delhi' }),
+      ];
+      const diagnostic = diagnoseParcelTripMatching(parcel, trips);
+
+      expect(diagnostic.reason).toBe('no_active_listings');
+      expect(diagnostic.candidateCount).toBe(2);
+    });
+
+    it('diagnoses capacity exceeded when parcel weight exceeds available capacity on route', () => {
+      const parcel = makeParcel({ fromCity: 'Mumbai', toCity: 'Delhi', weight: 15, userId: 'user-1' });
+      const trips = [
+        makeTrip({ id: 't1', userId: 'user-2', fromCity: 'Mumbai', toCity: 'Delhi', availableCapacity: 5 }),
+        makeTrip({ id: 't2', userId: 'user-3', fromCity: 'Mumbai', toCity: 'Delhi', availableCapacity: 8 }),
+      ];
+      const diagnostic = diagnoseParcelTripMatching(parcel, trips);
+
+      expect(diagnostic.reason).toBe('capacity_exceeded');
+      expect(diagnostic.details?.requiredCapacity).toBe(15);
+      expect(diagnostic.details?.maxAvailableCapacity).toBe(8);
+      expect(diagnostic.actions.some(a => a.id === 'split_parcel')).toBe(true);
+    });
+
+    it('diagnoses date misalignment when trips depart after delivery deadline', () => {
+      const parcel = makeParcel({
+        fromCity: 'Mumbai',
+        toCity: 'Delhi',
+        weight: 3,
+        deliveryDate: '2026-07-20',
+        userId: 'user-1',
+      });
+      const trips = [
+        makeTrip({
+          id: 't1',
+          userId: 'user-2',
+          fromCity: 'Mumbai',
+          toCity: 'Delhi',
+          availableCapacity: 10,
+          date: '2026-07-28',
+        }),
+      ];
+      const diagnostic = diagnoseParcelTripMatching(parcel, trips);
+
+      expect(diagnostic.reason).toBe('date_misaligned');
+      expect(diagnostic.details?.parcelDeliveryDate).toBe('2026-07-20');
+      expect(diagnostic.actions.some(a => a.id === 'adjust_date')).toBe(true);
+    });
+
+    it('diagnoses price gap when parcel offer is far below route expectations', () => {
+      const parcel = makeParcel({
+        fromCity: 'Mumbai',
+        toCity: 'Delhi',
+        weight: 5,
+        priceOffer: 50, // very low offer (₹10/kg vs ₹100/kg)
+        deliveryDate: '2026-07-25',
+        userId: 'user-1',
+      });
+      const trips = [
+        makeTrip({
+          id: 't1',
+          userId: 'user-2',
+          fromCity: 'Mumbai',
+          toCity: 'Delhi',
+          availableCapacity: 10,
+          pricePerKg: 100, // min needed = 500
+          date: '2026-07-22',
+        }),
+      ];
+      const diagnostic = diagnoseParcelTripMatching(parcel, trips);
+
+      expect(diagnostic.reason).toBe('price_gap');
+      expect(diagnostic.actions.some(a => a.id === 'adjust_price')).toBe(true);
+    });
+  });
+
+  describe('diagnoseTripParcelMatching', () => {
+    it('diagnoses unserved corridor when no parcels exist', () => {
+      const trip = makeTrip({ fromCity: 'Mumbai', toCity: 'Delhi', userId: 'user-1' });
+      const diagnostic = diagnoseTripParcelMatching(trip, []);
+
+      expect(diagnostic.reason).toBe('corridor_unserved');
+      expect(diagnostic.candidateCount).toBe(0);
+      expect(diagnostic.actions.some(a => a.id === 'subscribe_route')).toBe(true);
+    });
+
+    it('diagnoses capacity exceeded when waiting parcels are heavier than trip capacity', () => {
+      const trip = makeTrip({ fromCity: 'Mumbai', toCity: 'Delhi', availableCapacity: 2, userId: 'user-1' });
+      const parcels = [
+        makeParcel({ id: 'p1', fromCity: 'Mumbai', toCity: 'Delhi', weight: 10, status: 'open', userId: 'user-2' }),
+      ];
+      const diagnostic = diagnoseTripParcelMatching(trip, parcels);
+
+      expect(diagnostic.reason).toBe('capacity_exceeded');
+      expect(diagnostic.details?.requiredCapacity).toBe(10);
+      expect(diagnostic.actions.some(a => a.id === 'increase_capacity')).toBe(true);
     });
   });
 });

@@ -1,4 +1,4 @@
-﻿import { MessageCircle } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -23,15 +23,15 @@ export default async function ChatPage({ params }: Props) {
     <MarketingShell>
       <ScrollLinkedSection className='px-6 pt-16 pb-10 md:pt-24 md:pb-12'>
         <PageHero
-          badge='Phase 2: Chat Handoff'
-          title='Request Conversation'
-          description='Continue coordination in chat right after creating a request.'
-          illustrationSrc='/images/custom/support-center.svg'
-          illustrationAlt='Chat support illustration'
-          illustrationLabel='Real-time coordination'
+          badge='Private Journey Lounge'
+          title='Traveler Conversation'
+          description='Coordinate timing, meeting spots, and golden passkeys in private.'
+          illustrationSrc='/images/abstract/chat-coordination.jpg'
+          illustrationAlt='Minimalist 3D dialogue artwork'
+          illustrationLabel='Private Journey Lounge'
           actions={[
             { label: 'Back to Search', href: '/search' },
-            { label: 'Create Trip', href: '/create-trip', variant: 'secondary' },
+            { label: 'Host a Journey', href: '/create-trip', variant: 'secondary' },
           ]}
         />
       </ScrollLinkedSection>

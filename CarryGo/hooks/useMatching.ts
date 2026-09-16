@@ -3,7 +3,19 @@ import { fetchTrips } from '@/services/trips.service';
 import { fetchParcels } from '@/services/parcels.service';
 import { useQuery } from '@tanstack/react-query';
 import { captureException } from '@/lib/monitoring';
-import { findBestMatches, findBestParcelsForTrip } from '@/services/smart-matching.service';
+import {
+  findBestMatches,
+  findBestParcelsForTrip,
+  diagnoseParcelTripMatching,
+  diagnoseTripParcelMatching,
+  MatchingDiagnostic,
+} from '@/services/smart-matching.service';
+
+export interface MatchingResult<T> {
+  matches: T[];
+  candidateCount: number;
+  diagnostic: MatchingDiagnostic;
+}
 
 interface MatchTripsParams {
   fromCity: string;
@@ -37,7 +49,7 @@ interface MatchTripsOnRouteParams {
 }
 
 export function useMatchingTrips(params: MatchTripsParams | null) {
-  const query = useQuery<Trip[]>({
+  const query = useQuery<MatchingResult<Trip>>({
     queryKey: [
       'matching',
       'trips',
@@ -51,7 +63,21 @@ export function useMatchingTrips(params: MatchTripsParams | null) {
     ],
     enabled: Boolean(params),
     queryFn: async () => {
-      if (!params) return [];
+      const emptyDiagnostic: MatchingDiagnostic = {
+        reason: 'corridor_unserved',
+        title: 'No Active Travellers on This Route',
+        explanation: 'There are currently no registered trips scheduled on this route.',
+        candidateCount: 0,
+        actions: [
+          {
+            id: 'post_open_request',
+            label: 'Post Open Request',
+            hint: 'Keep your parcel visible to all community drivers along this corridor',
+          },
+        ],
+      };
+
+      if (!params) return { matches: [], candidateCount: 0, diagnostic: emptyDiagnostic };
 
       const [exact, fromNearby, toNearby] = await Promise.all([
         fetchTrips({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
@@ -80,9 +106,16 @@ export function useMatchingTrips(params: MatchTripsParams | null) {
         createdAt: params.createdAt ?? new Date().toISOString(),
       };
 
-      return findBestMatches(scoringParcel, dedupedTrips, { minScore: 20, limit: 50 }).map(
+      const matches = findBestMatches(scoringParcel, dedupedTrips, { minScore: 20, limit: 50 }).map(
         match => match.trip,
       );
+      const diagnostic = diagnoseParcelTripMatching(scoringParcel, dedupedTrips);
+
+      return {
+        matches,
+        candidateCount: dedupedTrips.length,
+        diagnostic,
+      };
     },
     staleTime: 60_000,
   });
@@ -95,7 +128,7 @@ export function useMatchingTrips(params: MatchTripsParams | null) {
 }
 
 export function useMatchingParcels(params: MatchParcelsParams | null) {
-  const query = useQuery<Parcel[]>({
+  const query = useQuery<MatchingResult<Parcel>>({
     queryKey: [
       'matching',
       'parcels',
@@ -108,7 +141,15 @@ export function useMatchingParcels(params: MatchParcelsParams | null) {
     ],
     enabled: Boolean(params),
     queryFn: async () => {
-      if (!params) return [];
+      const emptyDiagnostic: MatchingDiagnostic = {
+        reason: 'corridor_unserved',
+        title: 'No Senders Waiting on This Route',
+        explanation: 'There are currently no parcels waiting for delivery on this corridor.',
+        candidateCount: 0,
+        actions: [],
+      };
+
+      if (!params) return { matches: [], candidateCount: 0, diagnostic: emptyDiagnostic };
 
       const [exact, fromNearby, toNearby] = await Promise.all([
         fetchParcels({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
@@ -138,9 +179,16 @@ export function useMatchingParcels(params: MatchParcelsParams | null) {
         createdAt: new Date().toISOString(),
       };
 
-      return findBestParcelsForTrip(scoringTrip, dedupedParcels, { minScore: 20, limit: 50 }).map(
+      const matches = findBestParcelsForTrip(scoringTrip, dedupedParcels, { minScore: 20, limit: 50 }).map(
         match => match.parcel,
       );
+      const diagnostic = diagnoseTripParcelMatching(scoringTrip, dedupedParcels);
+
+      return {
+        matches,
+        candidateCount: dedupedParcels.length,
+        diagnostic,
+      };
     },
     staleTime: 60_000,
   });
@@ -153,11 +201,20 @@ export function useMatchingParcels(params: MatchParcelsParams | null) {
 }
 
 export function useMatchingTripsOnRoute(params: MatchTripsOnRouteParams | null) {
-  const query = useQuery<Trip[]>({
+  const query = useQuery<MatchingResult<Trip>>({
     queryKey: ['matching', 'tripsOnRoute', params?.fromCity, params?.toCity, params?.excludeUserId],
     enabled: Boolean(params),
     queryFn: async () => {
-      if (!params) return [];
+      const emptyDiagnostic: MatchingDiagnostic = {
+        reason: 'corridor_unserved',
+        title: 'No Active Travellers on This Route',
+        explanation: 'There are currently no registered trips scheduled on this route.',
+        candidateCount: 0,
+        actions: [],
+      };
+
+      if (!params) return { matches: [], candidateCount: 0, diagnostic: emptyDiagnostic };
+
       const [exact, fromNearby, toNearby] = await Promise.all([
         fetchTrips({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
         fetchTrips({ userCity: params.fromCity, limit: 60, offset: 0, includeCount: false }),
@@ -184,12 +241,21 @@ export function useMatchingTripsOnRoute(params: MatchTripsOnRouteParams | null) 
         createdAt: new Date().toISOString(),
       };
 
-      const rankedTrips = findBestMatches(scoringParcel, dedupedTrips, { minScore: 20, limit: 50 }).map(
+      let rankedTrips = findBestMatches(scoringParcel, dedupedTrips, { minScore: 20, limit: 50 }).map(
         match => match.trip,
       );
 
-      if (!params.excludeUserId) return rankedTrips;
-      return rankedTrips.filter(trip => trip.userId !== params.excludeUserId);
+      if (params.excludeUserId) {
+        rankedTrips = rankedTrips.filter(trip => trip.userId !== params.excludeUserId);
+      }
+
+      const diagnostic = diagnoseParcelTripMatching(scoringParcel, dedupedTrips);
+
+      return {
+        matches: rankedTrips,
+        candidateCount: dedupedTrips.length,
+        diagnostic,
+      };
     },
     staleTime: 60_000,
   });

@@ -139,6 +139,7 @@ function AppStack() {
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="my-activity" options={{ headerShown: false }} />
         <Stack.Screen name="kyc" options={{ headerShown: false }} />
+        <Stack.Screen name="support" options={{ headerShown: false }} />
         <Stack.Screen name="legal/terms" options={{ headerShown: false }} />
         <Stack.Screen name="legal/privacy" options={{ headerShown: false }} />
       </Stack>

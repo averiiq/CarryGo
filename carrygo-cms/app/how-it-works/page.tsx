@@ -4,6 +4,14 @@ import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
+import { RouteCorridorIllustration } from '@/components/illustrations/route-corridor-illustration'
+import {
+  AnimatedRouteNode,
+  AnimatedShieldBeacon,
+  AnimatedPackageDelivery,
+  AnimatedWalletVault,
+  InteractiveIconBadge,
+} from '@/components/ui/animated-icons'
 
 export const metadata = createMarketingMetadata('How It Works', 'See how CarryGo matches routes and coordinates secure parcel handovers.', '/how-it-works')
 
@@ -11,34 +19,40 @@ const senderFlow = [
   {
     title: 'Post Request',
     description: 'Describe parcel size, value, route, and preferred delivery window.',
+    tone: 'amber' as const,
     icon: ClipboardList,
   },
   {
     title: 'Choose Trusted Match',
     description: 'Review verified travelers and select the best fit for your timeline.',
+    tone: 'sky' as const,
     icon: Route,
   },
   {
-    title: 'Secure Pickup',
-    description: 'Complete handover using OTP and validated parcel details.',
+    title: 'Golden Passkey Pickup',
+    description: 'Complete personal handover with your private 4-digit passkey.',
+    tone: 'emerald' as const,
     icon: Handshake,
   },
 ]
 
 const deliveryFlow = [
   {
-    title: 'In-transit Visibility',
-    description: 'Receive status updates across major delivery checkpoints.',
+    title: 'Live Journey Milestones',
+    description: 'Receive real-time journey milestones and travel progress along the route.',
+    tone: 'sky' as const,
     icon: MessageSquare,
   },
   {
-    title: 'OTP Drop Confirmation',
-    description: 'Recipient verifies final handover through protected confirmation flow.',
+    title: 'Golden Handshake Signoff',
+    description: 'Recipient verifies parcel condition and concludes delivery with the final golden passkey.',
+    tone: 'emerald' as const,
     icon: CheckCheck,
   },
   {
-    title: 'Policy-backed Closure',
-    description: 'Payments and logs are finalized with support-ready audit history.',
+    title: 'SafeVault™ Payout Release',
+    description: 'Traveler earnings are deposited instantly with verified journey history.',
+    tone: 'indigo' as const,
     icon: ShieldCheck,
   },
 ]
@@ -51,9 +65,9 @@ export default function HowItWorksPage() {
           badge='Workflow'
           title='A Clear Delivery Journey for Everyone Involved'
           description='CarryGo removes ambiguity with structured pickup, transit, and delivery operations designed around trust and speed.'
-          illustrationSrc="/images/abstract/hero-routes.jpg"
-          illustrationAlt="Abstract 3D delivery journey artwork"
-          illustrationLabel="Structured delivery journey"
+          illustrationSrc="/images/abstract/how-it-works-journey.jpg"
+          illustrationAlt="Minimalist 3D travel ribbon connecting two location pins"
+          illustrationLabel="Real-Time Journey Intelligence"
           actions={[
             { label: 'View Sender Experience', href: '/for-senders' },
             { label: 'View Traveler Experience', href: '/for-travelers', variant: 'secondary' },
@@ -61,6 +75,7 @@ export default function HowItWorksPage() {
         />
       </ScrollLinkedSection>
 
+      {/* Phase 1: Request to Pickup */}
       <ScrollLinkedSection className='px-4 sm:px-6 pb-12'>
         <SectionHeading
           label='Phase One'
@@ -69,20 +84,48 @@ export default function HowItWorksPage() {
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {senderFlow.map((step, index) => (
-            <article key={step.title} className='glass-card p-6 md:p-7'>
-              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/25 bg-primary-subtle text-xs font-semibold text-primary'>
-                {index + 1}
+            <article key={step.title} className='glass-card p-6 md:p-7 group hover:border-primary/40 transition-all duration-300'>
+              <div className="flex items-center justify-between mb-4">
+                <div className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/25 bg-primary-subtle text-xs font-semibold text-primary font-mono'>
+                  {index + 1}
+                </div>
+                <InteractiveIconBadge tone={step.tone} className="w-10 h-10">
+                  <step.icon className='h-5 w-5 text-primary' />
+                </InteractiveIconBadge>
               </div>
-              <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
-                <step.icon className='h-5 w-5' />
-              </div>
-              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
+              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground group-hover:text-primary transition-colors'>{step.title}</h3>
               <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
             </article>
           ))}
         </div>
       </ScrollLinkedSection>
 
+      {/* Live Route Corridor Simulation */}
+      <ScrollLinkedSection className='px-4 sm:px-6 py-12'>
+        <div className='mx-auto max-w-4xl'>
+          <div className="text-center mb-8 space-y-2">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-xs font-semibold">
+              <Route className="w-3.5 h-3.5 text-sky-600" />
+              <span>Live Journey Pulse Simulator</span>
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-heading font-bold text-foreground">
+              Dynamic Highway &amp; Rail Waypoints
+            </h2>
+            <p className="text-sm text-muted max-w-lg mx-auto">
+              Senders and travelers receive live milestone check-ins with automated journey updates.
+            </p>
+          </div>
+
+          <RouteCorridorIllustration
+            fromCity="Mumbai"
+            toCity="Pune"
+            duration="2h 45m"
+            distance="148 km"
+          />
+        </div>
+      </ScrollLinkedSection>
+
+      {/* Phase 2: Transit to Closure */}
       <ScrollLinkedSection className='px-4 sm:px-6 pt-12 pb-24'>
         <SectionHeading
           label='Phase Two'
@@ -91,14 +134,16 @@ export default function HowItWorksPage() {
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {deliveryFlow.map((step, index) => (
-            <article key={step.title} className='glass-card p-6 md:p-7'>
-              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-accent/25 bg-accent-subtle text-xs font-semibold text-accent'>
-                {index + 4}
+            <article key={step.title} className='glass-card p-6 md:p-7 group hover:border-accent/40 transition-all duration-300'>
+              <div className="flex items-center justify-between mb-4">
+                <div className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-accent/25 bg-accent-subtle text-xs font-semibold text-accent font-mono'>
+                  {index + 4}
+                </div>
+                <InteractiveIconBadge tone={step.tone} className="w-10 h-10">
+                  <step.icon className='h-5 w-5 text-accent' />
+                </InteractiveIconBadge>
               </div>
-              <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>
-                <step.icon className='h-5 w-5' />
-              </div>
-              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
+              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground group-hover:text-accent transition-colors'>{step.title}</h3>
               <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
             </article>
           ))}
@@ -107,6 +152,7 @@ export default function HowItWorksPage() {
     </MarketingShell>
   )
 }
+
 
 
 

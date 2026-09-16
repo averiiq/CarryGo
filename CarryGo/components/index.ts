@@ -6,6 +6,7 @@ export { RouteMapView } from './feature/RouteMapView';
 export { SmartSearchBar } from './feature/SmartSearchBar';
 export { ETACard } from './feature/ETACard';
 export { MatchResultCard } from './feature/MatchResultCard';
+export { MatchDiagnosticCard } from './feature/MatchDiagnosticCard';
 export { Button } from './ui/Button';
 export { Input } from './ui/Input';
 export { Badge } from './ui/Badge';

@@ -24,6 +24,38 @@ export interface RankedParcelMatch {
   score: MatchScore;
 }
 
+export type MismatchReason =
+  | 'capacity_exceeded'
+  | 'date_misaligned'
+  | 'price_gap'
+  | 'corridor_unserved'
+  | 'no_active_listings';
+
+export interface DiagnosticAction {
+  id: 'split_parcel' | 'adjust_date' | 'adjust_price' | 'post_open_request' | 'subscribe_route' | 'repost_trip' | 'increase_capacity';
+  label: string;
+  hint: string;
+  icon?: string;
+}
+
+export interface MatchingDiagnostic {
+  reason: MismatchReason;
+  title: string;
+  explanation: string;
+  candidateCount: number;
+  actions: DiagnosticAction[];
+  details?: {
+    requiredCapacity?: number;
+    maxAvailableCapacity?: number;
+    parcelDeliveryDate?: string;
+    earliestTripDate?: string;
+    latestTripDate?: string;
+    parcelPriceOffer?: number;
+    averageTripPrice?: number;
+    corridorName?: string;
+  };
+}
+
 const ROUTE_SUFFIXES = [' ncr', ' city', ' district'];
 
 function clampScore(value: number): number {
@@ -299,4 +331,329 @@ export function findBestParcelsForTrip(
     .slice(0, limit);
 
   return scored;
+}
+
+export function diagnoseParcelTripMatching(
+  parcel: Parcel,
+  candidateTrips: Trip[]
+): MatchingDiagnostic {
+  const corridorName = `${parcel.fromCity} → ${parcel.toCity}`;
+
+  // 1. Exclude trips by the parcel owner
+  const otherUserTrips = candidateTrips.filter(t => t.userId !== parcel.userId);
+
+  if (otherUserTrips.length === 0) {
+    return {
+      reason: 'corridor_unserved',
+      title: 'No Active Travel Companions on This Route',
+      explanation: `There are currently no registered journeys scheduled between ${parcel.fromCity} and ${parcel.toCity}. You can dispatch your package as an open request so passing travel companions can accept it, or set route alerts.`,
+      candidateCount: 0,
+      actions: [
+        {
+          id: 'post_open_request',
+          label: 'Dispatch Open Request',
+          hint: 'Keep your package visible to all travel companions along this pathway',
+          icon: 'send',
+        },
+        {
+          id: 'subscribe_route',
+          label: 'Set Route Alert',
+          hint: 'Receive an instant notification the moment a travel companion lists a journey',
+          icon: 'notifications',
+        },
+      ],
+      details: { corridorName },
+    };
+  }
+
+  // 2. Check for active trips
+  const activeTrips = otherUserTrips.filter(t => t.status === 'active');
+  if (activeTrips.length === 0) {
+    return {
+      reason: 'no_active_listings',
+      title: 'All Route Journeys Are Completed or Full',
+      explanation: `We found ${otherUserTrips.length} journey(s) on this route, but all are currently reserved or completed.`,
+      candidateCount: otherUserTrips.length,
+      actions: [
+        {
+          id: 'subscribe_route',
+          label: 'Set Route Alert',
+          hint: 'Get notified as soon as a new journey opens on this pathway',
+          icon: 'notifications',
+        },
+        {
+          id: 'post_open_request',
+          label: 'Dispatch Open Request',
+          hint: 'Make your package discoverable by new travel companions',
+          icon: 'send',
+        },
+      ],
+      details: { corridorName },
+    };
+  }
+
+  // 3. Route compatibility check
+  const routeTrips = activeTrips.filter(t => routeCompatibility(t, parcel) >= 20);
+  if (routeTrips.length === 0) {
+    return {
+      reason: 'corridor_unserved',
+      title: 'No Direct or Connecting Travellers Found',
+      explanation: `There are active travellers nearby, but none of their routes pass close enough to ${parcel.fromCity} or ${parcel.toCity}.`,
+      candidateCount: activeTrips.length,
+      actions: [
+        {
+          id: 'post_open_request',
+          label: 'Post Open Request',
+          hint: 'Allow flexible long-distance travellers to make a custom detour offer',
+          icon: 'send',
+        },
+        {
+          id: 'subscribe_route',
+          label: 'Set Route Alert',
+          hint: 'We will notify you when a direct trip is created',
+          icon: 'notifications',
+        },
+      ],
+      details: { corridorName },
+    };
+  }
+
+  // 4. Capacity bottleneck check
+  const fittingTrips = routeTrips.filter(t => t.availableCapacity >= parcel.weight);
+  if (fittingTrips.length === 0) {
+    const maxCapacity = Math.max(...routeTrips.map(t => t.availableCapacity), 0);
+    return {
+      reason: 'capacity_exceeded',
+      title: 'Package Exceeds Available Luggage Reserve',
+      explanation: `Found ${routeTrips.length} travel companion${routeTrips.length > 1 ? 's' : ''} on this route, but your package (${parcel.weight}kg) exceeds their spare baggage capacity (maximum available is ${maxCapacity}kg).`,
+      candidateCount: routeTrips.length,
+      actions: [
+        {
+          id: 'split_parcel',
+          label: 'Split into Smaller Parcels',
+          hint: maxCapacity > 0 ? `Split your package to fit within ${maxCapacity}kg luggage reserve` : 'Split into smaller packages',
+          icon: 'call-split',
+        },
+        {
+          id: 'post_open_request',
+          label: 'Post Bulk Request',
+          hint: 'Allow SUV, van, or large-capacity travelers to carry this delivery',
+          icon: 'send',
+        },
+      ],
+      details: {
+        requiredCapacity: parcel.weight,
+        maxAvailableCapacity: maxCapacity,
+        corridorName,
+      },
+    };
+  }
+
+  // 5. Date bottleneck check
+  if (parcel.deliveryDate) {
+    const deadline = new Date(parcel.deliveryDate).getTime();
+    const onTimeTrips = routeTrips.filter(t => {
+      const tripTime = new Date(t.date).getTime();
+      return (tripTime - deadline) / (1000 * 60 * 60 * 24) <= 1;
+    });
+
+    if (onTimeTrips.length === 0) {
+      const sortedByDate = [...routeTrips].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const earliest = sortedByDate[0]?.date;
+      return {
+        reason: 'date_misaligned',
+        title: 'Travel Dates Fall After Delivery Deadline',
+        explanation: `Found ${routeTrips.length} traveller${routeTrips.length > 1 ? 's' : ''} on this route, but their earliest departure is ${earliest}, which is after your deadline (${parcel.deliveryDate}).`,
+        candidateCount: routeTrips.length,
+        actions: [
+          {
+            id: 'adjust_date',
+            label: 'Extend Delivery Window',
+            hint: 'Allow flexible delivery dates to match scheduled departures',
+            icon: 'date-range',
+          },
+          {
+            id: 'post_open_request',
+            label: 'Request Express Delivery',
+            hint: 'Notify urgent community drivers for same-day or next-day transit',
+            icon: 'flash-on',
+          },
+        ],
+        details: {
+          parcelDeliveryDate: parcel.deliveryDate,
+          earliestTripDate: earliest,
+          corridorName,
+        },
+      };
+    }
+  }
+
+  // 6. Price bottleneck check
+  const requiredOffers = routeTrips.map(t => t.pricePerKg * parcel.weight);
+  const minRequired = Math.min(...requiredOffers);
+  const avgTripPrice = Math.round(requiredOffers.reduce((a, b) => a + b, 0) / requiredOffers.length);
+
+  if (parcel.priceOffer > 0 && parcel.priceOffer < minRequired * 0.6) {
+    return {
+      reason: 'price_gap',
+      title: 'Reward Offer Below Corridor Average',
+      explanation: `Travellers on this route typically ask ~₹${avgTripPrice} for a ${parcel.weight}kg parcel (min ₹${minRequired}). Your current offer is ₹${parcel.priceOffer}.`,
+      candidateCount: routeTrips.length,
+      actions: [
+        {
+          id: 'adjust_price',
+          label: 'Increase Delivery Reward',
+          hint: `Raise offer closer to ₹${minRequired} – ₹${avgTripPrice} to attract drivers`,
+          icon: 'payments',
+        },
+        {
+          id: 'post_open_request',
+          label: 'Keep Current Offer',
+          hint: 'Leave your request open for drivers willing to accept your budget',
+          icon: 'send',
+        },
+      ],
+      details: {
+        parcelPriceOffer: parcel.priceOffer,
+        averageTripPrice: avgTripPrice,
+        corridorName,
+      },
+    };
+  }
+
+  // 7. General schedule / low total score fallback
+  return {
+    reason: 'date_misaligned',
+    title: 'No High-Match Travellers Right Now',
+    explanation: `We found ${routeTrips.length} traveller(s) on this corridor, but their timing, detour, or pricing scores did not meet the confidence threshold.`,
+    candidateCount: routeTrips.length,
+    actions: [
+      {
+        id: 'adjust_date',
+        label: 'Adjust Delivery Window',
+        hint: 'Broaden your departure dates by ±2 days',
+        icon: 'date-range',
+      },
+      {
+        id: 'post_open_request',
+        label: 'Post Open Request',
+        hint: 'Let drivers contact you directly with custom offers',
+        icon: 'send',
+      },
+    ],
+    details: { corridorName },
+  };
+}
+
+export function diagnoseTripParcelMatching(
+  trip: Trip,
+  candidateParcels: Parcel[]
+): MatchingDiagnostic {
+  const corridorName = `${trip.fromCity} → ${trip.toCity}`;
+  const otherUserParcels = candidateParcels.filter(p => p.userId !== trip.userId);
+
+  if (otherUserParcels.length === 0) {
+    return {
+      reason: 'corridor_unserved',
+      title: 'No Packages Waiting on This Pathway',
+      explanation: `There are currently no packages waiting for dispatch between ${trip.fromCity} and ${trip.toCity}. We will notify you as soon as a sender lists a matching package.`,
+      candidateCount: 0,
+      actions: [
+        {
+          id: 'subscribe_route',
+          label: 'Set Route Alert',
+          hint: 'Get notified instantly when new packages are listed along your travel pathway',
+          icon: 'notifications',
+        },
+        {
+          id: 'repost_trip',
+          label: 'Keep Journey Active',
+          hint: 'Your journey remains visible in search results for senders',
+          icon: 'directions-car',
+        },
+      ],
+      details: { corridorName },
+    };
+  }
+
+  const openParcels = otherUserParcels.filter(p => p.status === 'open');
+  if (openParcels.length === 0) {
+    return {
+      reason: 'no_active_listings',
+      title: 'All Route Parcels Are Already Matched',
+      explanation: `All ${otherUserParcels.length} parcel(s) on this route have already been assigned to other travellers.`,
+      candidateCount: otherUserParcels.length,
+      actions: [
+        {
+          id: 'subscribe_route',
+          label: 'Set Route Alert',
+          hint: 'Be first to receive alerts when new parcels appear',
+          icon: 'notifications',
+        },
+      ],
+      details: { corridorName },
+    };
+  }
+
+  const routeParcels = openParcels.filter(p => routeCompatibility(trip, p) >= 20);
+  if (routeParcels.length === 0) {
+    return {
+      reason: 'corridor_unserved',
+      title: 'No Parcels Along Your Driving Corridor',
+      explanation: `There are open parcels in nearby cities, but none are close enough to your route (${corridorName}).`,
+      candidateCount: openParcels.length,
+      actions: [
+        {
+          id: 'subscribe_route',
+          label: 'Set Route Alert',
+          hint: 'We will ping you when a parcel matching your corridor is listed',
+          icon: 'notifications',
+        },
+      ],
+      details: { corridorName },
+    };
+  }
+
+  // Capacity check
+  const fittingParcels = routeParcels.filter(p => p.weight <= trip.availableCapacity);
+  if (fittingParcels.length === 0) {
+    const minWeight = Math.min(...routeParcels.map(p => p.weight));
+    return {
+      reason: 'capacity_exceeded',
+      title: 'Waiting Packages Exceed Your Available Capacity',
+      explanation: `There are ${routeParcels.length} parcel(s) waiting on this route, but they weigh at least ${minWeight}kg, which exceeds your current capacity limit of ${trip.availableCapacity}kg.`,
+      candidateCount: routeParcels.length,
+      actions: [
+        {
+          id: 'increase_capacity',
+          label: 'Increase Available Capacity',
+          hint: `Raise your trip spare capacity to at least ${minWeight}kg to claim these deliveries`,
+          icon: 'fitness-center',
+        },
+      ],
+      details: {
+        requiredCapacity: minWeight,
+        maxAvailableCapacity: trip.availableCapacity,
+        corridorName,
+      },
+    };
+  }
+
+  return {
+    reason: 'date_misaligned',
+    title: 'No Matching Parcels for Your Travel Date',
+    explanation: `Found ${routeParcels.length} parcel(s) on this corridor, but their required delivery timelines do not align with your departure on ${trip.date}.`,
+    candidateCount: routeParcels.length,
+    actions: [
+      {
+        id: 'subscribe_route',
+        label: 'Keep Trip Active',
+        hint: 'Senders often list urgent same-day packages closer to your travel date',
+        icon: 'notifications',
+      },
+    ],
+    details: { corridorName },
+  };
 }

@@ -274,5 +274,27 @@ export interface KycSession {
   panStatus?: 'not_provided' | 'pending' | 'verified' | 'failed';
   panReferenceId?: string;
   kycFlowVersion?: number;
+}
 
+export type SupportTicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+
+export type SupportTicketCategory =
+  | 'delivery_issue'
+  | 'payment_refund'
+  | 'kyc_account'
+  | 'safety_conduct'
+  | 'technical_bug'
+  | 'general';
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  subject: string;
+  description: string;
+  status: SupportTicketStatus;
+  category?: SupportTicketCategory;
+  rawSubject?: string;
+  assignedTo?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -36,6 +36,7 @@
     "android": {
       "package": "in.averiq.carrygo",
       "versionCode": 12,
+      "softwareKeyboardLayoutMode": "resize",
       "allowBackup": false,
       "blockedPermissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS",

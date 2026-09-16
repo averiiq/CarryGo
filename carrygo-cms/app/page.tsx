@@ -30,6 +30,13 @@ import { MobileAppShowcase } from '@/components/marketing/mobile-app-showcase'
 import { testimonials } from '@/components/marketing/site-data'
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 import { createClient } from '@/utils/supabase/server'
+import {
+  AnimatedShieldBeacon,
+  AnimatedRouteNode,
+  AnimatedWalletVault,
+  AnimatedPackageDelivery,
+  InteractiveIconBadge,
+} from '@/components/ui/animated-icons'
 
 export const metadata = createMarketingMetadata(
   'Peer-to-Peer Intercity Parcel Delivery',
@@ -93,32 +100,36 @@ const FALLBACK_CORRIDORS: TripPreview[] = [
 
 const TRUST_PILLARS = [
   {
-    title: '100% ID-Verified Travelers',
+    title: '100% Verified Travel Companions',
     description: 'Every carrier undergoes automated government ID (Aadhaar/Driving License) and real-time facial verification before accepting parcels.',
     icon: ShieldCheck,
     tag: 'Govt. KYC Verified',
-    tone: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    tone: 'emerald' as const,
+    component: 'shield' as const,
   },
   {
-    title: 'Dual-OTP In-Person Handover',
-    description: 'Time-stamped 4-digit cryptographic OTPs required at pickup and dropoff ensure zero parcel mix-up or unauthorized handovers.',
+    title: 'Dual Golden Handshake PIN',
+    description: 'Private 4-digit verification passkeys required at pickup and dropoff ensure zero parcel mix-up and guaranteed personal handover.',
     icon: KeyRound,
-    tag: 'Cryptographic Codes',
-    tone: 'bg-sky-50 text-sky-700 border-sky-200',
+    tag: 'Golden Passkey',
+    tone: 'sky' as const,
+    component: 'route' as const,
   },
   {
-    title: 'Smart Escrow Vault',
-    description: 'Delivery fares remain securely locked in platform escrow and are automatically released to traveler UPI only after recipient OTP signoff.',
+    title: 'SafeVault™ Payout Protection',
+    description: 'Delivery rewards remain held in protected custody and are automatically released to the traveler\'s UPI immediately after recipient signoff.',
     icon: Lock,
-    tag: 'Guaranteed Payout',
-    tone: 'bg-amber-50 text-amber-700 border-amber-200',
+    tag: 'Protected Reserve',
+    tone: 'amber' as const,
+    component: 'vault' as const,
   },
   {
-    title: '₹10,000 Transit Protection',
-    description: 'Comprehensive transit safety pledge backed by 24/7 dedicated dispute specialists and tamper-evident digital audit trails.',
+    title: '₹10,000 Signature Peace of Mind',
+    description: 'Comprehensive transit safety pledge backed by our dedicated Resolution Concierge and tamper-proof digital travel records.',
     icon: BadgeCheck,
-    tag: 'Protected Shipment',
-    tone: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    tag: 'Signature Assurance',
+    tone: 'indigo' as const,
+    component: 'package' as const,
   },
 ]
 
@@ -227,13 +238,13 @@ export default async function LandingPage() {
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
                 <Navigation className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Live Marketplace</span>
+                <span>Live Travel Network</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-heading font-bold text-slate-900 tracking-tight">
-                Active Traveler Corridors
+                Curated Travel Pathways
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                Verified travelers departing today with available luggage or trunk space.
+                Verified travel companions departing today with available luggage or trunk space.
               </p>
             </div>
 
@@ -241,7 +252,7 @@ export default async function LandingPage() {
               href="/search"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition"
             >
-              <span>View All 150+ Corridors</span>
+              <span>Explore All 150+ Routes</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -370,8 +381,8 @@ export default async function LandingPage() {
                   },
                   {
                     step: 4,
-                    title: 'Dropoff Confirmed & Escrow Released',
-                    desc: 'Recipient inspects package and shares dropoff OTP. Fares safely locked in escrow are finalized.',
+                    title: 'Handshake Confirmed & Reward Released',
+                    desc: 'Recipient inspects package and shares dropoff passkey. Rewards safely held in SafeVault™ are instantly released.',
                   },
                 ].map((item) => (
                   <div key={item.step} className="flex items-start gap-3.5">
@@ -391,7 +402,7 @@ export default async function LandingPage() {
                   href="/create-parcel"
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:brightness-105 shadow-md shadow-emerald-600/20 transition cursor-pointer"
                 >
-                  <span>Post a Parcel Request</span>
+                  <span>Dispatch a Package</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
@@ -413,7 +424,7 @@ export default async function LandingPage() {
                 {[
                   {
                     step: 1,
-                    title: 'Publish Your Travel Corridor',
+                    title: 'Share Your Travel Itinerary',
                     desc: 'Enter departure city, destination, travel time, and available kilograms of luggage or car trunk space.',
                   },
                   {
@@ -449,7 +460,7 @@ export default async function LandingPage() {
                   href="/create-trip"
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold bg-gradient-to-r from-sky-600 to-blue-600 text-white hover:brightness-105 shadow-md shadow-sky-600/20 transition cursor-pointer"
                 >
-                  <span>Post Your Travel Plan</span>
+                  <span>Host a Travel Journey</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
@@ -459,28 +470,42 @@ export default async function LandingPage() {
       </ScrollLinkedSection>
 
       {/* 5. BENTO TRUST & SECURITY FORTRESS */}
-      <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10">
+      <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10 overflow-hidden">
+        {/* Ambient Mesh Aurora Wallpaper Backdrop */}
+        <div className="absolute inset-0 -z-10 pointer-events-none opacity-[0.05] dark:opacity-[0.12] overflow-hidden">
+          <Image
+            src="/images/abstract/mesh-aurora-bg.jpg"
+            alt="Mesh Aurora Background"
+            fill
+            className="object-cover scale-105"
+            priority={false}
+          />
+        </div>
+
         <div className="mx-auto max-w-6xl">
           <SectionHeading
-            label="Security Fortress"
+            label="Signature Assurance"
             title="Engineered for Absolute Trust &amp; Peace of Mind"
-            description="Strict verification, dual cryptographic signoffs, and smart escrow vaulting protect every shipment."
+            description="Strict verification, private dual passkeys, and SafeVault™ protection ensure flawless delivery."
           />
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {TRUST_PILLARS.map((pillar, index) => {
-              const Icon = pillar.icon
               return (
                 <Reveal key={pillar.title} delay={index * 0.05}>
-                  <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4 h-full shadow-sm hover:shadow-lg hover:border-emerald-300 transition flex flex-col justify-between">
+                  <div className="rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-xs p-6 space-y-4 h-full shadow-sm hover:shadow-xl hover:border-emerald-300 transition-all duration-300 flex flex-col justify-between group">
                     <div className="space-y-3.5">
-                      <div className={`inline-flex p-3 rounded-2xl border ${pillar.tone}`}>
-                        <Icon className="w-5 h-5" />
-                      </div>
+                      <InteractiveIconBadge tone={pillar.tone} className="w-14 h-14">
+                        {pillar.component === 'shield' && <AnimatedShieldBeacon size={36} color="#059669" />}
+                        {pillar.component === 'route' && <AnimatedRouteNode size={36} color="#0284C7" />}
+                        {pillar.component === 'vault' && <AnimatedWalletVault size={36} color="#D97706" />}
+                        {pillar.component === 'package' && <AnimatedPackageDelivery size={36} color="#6366F1" />}
+                      </InteractiveIconBadge>
+
                       <span className="block text-[10px] uppercase font-bold tracking-wider text-slate-500">
                         {pillar.tag}
                       </span>
-                      <h3 className="text-base font-heading font-bold text-slate-900">
+                      <h3 className="text-base font-heading font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
                         {pillar.title}
                       </h3>
                       <p className="text-xs leading-relaxed text-slate-600">{pillar.description}</p>
@@ -488,7 +513,7 @@ export default async function LandingPage() {
 
                     <div className="pt-3 border-t border-slate-100 flex items-center gap-1.5 text-[11px] text-emerald-700 font-bold">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Enterprise Protocol</span>
+                      <span>Signature Assurance</span>
                     </div>
                   </div>
                 </Reveal>

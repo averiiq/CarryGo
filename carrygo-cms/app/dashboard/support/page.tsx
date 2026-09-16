@@ -24,23 +24,29 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
       description,
       status,
       created_at,
-      user_profiles ( full_name )
+      user_profiles ( full_name, email, phone )
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
   if (error) throw new Error(`Unable to load support tickets: ${error.message}`)
 
-  const mappedTickets = ticketsData?.map(ticket => ({
-    id: ticket.id,
-    user: Array.isArray(ticket.user_profiles)
-      ? (ticket.user_profiles[0] as { full_name?: string })?.full_name ?? 'Unknown User'
-      : (ticket.user_profiles as { full_name?: string } | null)?.full_name ?? 'Unknown User',
-    subject: ticket.subject,
-    description: ticket.description,
-    status: ticket.status,
-    time: new Date(ticket.created_at).toLocaleDateString()
-  })) || []
+  const mappedTickets = ticketsData?.map((ticket) => {
+    const profile = Array.isArray(ticket.user_profiles)
+      ? (ticket.user_profiles[0] as { full_name?: string; email?: string; phone?: string } | null)
+      : (ticket.user_profiles as { full_name?: string; email?: string; phone?: string } | null)
+
+    return {
+      id: ticket.id,
+      user: profile?.full_name ?? 'Unknown User',
+      email: profile?.email ?? null,
+      phone: profile?.phone ?? null,
+      subject: ticket.subject,
+      description: ticket.description,
+      status: ticket.status,
+      time: new Date(ticket.created_at).toLocaleDateString(),
+    }
+  }) || []
 
   const totalPages = Math.ceil((count || 0) / PAGE_SIZE)
 

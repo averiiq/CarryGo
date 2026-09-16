@@ -28,4 +28,8 @@ export const queryKeys = {
     trips: (fromCity: string, toCity: string) => ['smartSearch', 'trips', fromCity, toCity] as const,
     parcels: (fromCity: string, toCity: string) => ['smartSearch', 'parcels', fromCity, toCity] as const,
   },
+  support: {
+    all: ['support'] as const,
+    tickets: (userId: string) => ['support', 'tickets', userId] as const,
+  },
 };

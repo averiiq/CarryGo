@@ -3,6 +3,7 @@ import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
+import { EscrowVaultIllustration } from '@/components/illustrations/escrow-vault-illustration'
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
 export const metadata = createMarketingMetadata('Safety', 'Review CarryGo identity, handover, payment, and support safeguards.', '/safety')
@@ -19,9 +20,9 @@ const safetyLayers = [
     icon: Fingerprint,
   },
   {
-    title: 'Automated Risk Signals',
-    description: 'Behavioral anomalies trigger alerts for operations review.',
-    icon: Siren,
+    title: 'Smart Escrow Vault',
+    description: 'Fares remain locked in platform escrow until the recipient confirms physical delivery.',
+    icon: ShieldCheck,
   },
 ]
 
@@ -50,10 +51,10 @@ export default function SafetyPage() {
         <PageHero
           badge='Safety and Trust'
           title='Protection Layers Built into Every Delivery'
-          description='CarryGo combines identity checks, secure handovers, and incident-ready workflows to keep delivery dependable.'
-          illustrationSrc="/images/abstract/hero-routes.jpg"
-          illustrationAlt="Abstract 3D security and route network"
-          illustrationLabel="Policy-first protection layers"
+          description='CarryGo unites verified identity screening, Golden Handshake passkeys, and SafeVault™ protection to make every peer-to-peer delivery completely tranquil and secure.'
+          illustrationSrc="/images/abstract/escrow-security.jpg"
+          illustrationAlt="Minimalist 3D frosted glass and platinum security shield lock"
+          illustrationLabel="SafeVault™ Golden Handshake Protection"
           actions={[
             { label: 'View Legal Policies', href: '/terms-and-conditions' },
             { label: 'Contact Support', href: '/contact', variant: 'secondary' },
@@ -62,8 +63,12 @@ export default function SafetyPage() {
       </ScrollLinkedSection>
 
       <ScrollLinkedSection className='px-4 sm:px-6 pb-12'>
+        <div className='mx-auto max-w-6xl mb-12'>
+          <EscrowVaultIllustration />
+        </div>
+
         <SectionHeading
-          label='Safety Architecture'
+          label='Signature Assurance'
           title='Designed for prevention, not just response'
           description='Risk controls are embedded from onboarding through final payout closure.'
         />
@@ -83,9 +88,9 @@ export default function SafetyPage() {
 
       <ScrollLinkedSection className='px-4 sm:px-6 pt-12 pb-24'>
         <SectionHeading
-          label='Incident Handling'
-          title='Fast and auditable escalation path'
-          description='When issues happen, the platform provides enough evidence for quick resolution.'
+          label='Concierge Resolution'
+          title='Swift and transparent resolution path'
+          description='When questions arise, our Resolution Concierge provides verified journey records for prompt care.'
         />
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>

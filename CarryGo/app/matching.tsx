@@ -12,13 +12,13 @@ import { useMatchingTrips, useMatchingTripsOnRoute } from '@/hooks/useMatching';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useParcelQuery, useTripQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
-import { AppErrorBoundary, TripCard } from '@/components';
+import { AppErrorBoundary, TripCard, MatchDiagnosticCard } from '@/components';
 import { Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { LinearGradient } from 'expo-linear-gradient';
-import { scoreMatch, MatchScore } from '@/services/smart-matching.service';
+import { scoreMatch, MatchScore, DiagnosticAction } from '@/services/smart-matching.service';
 
 /**
  * Matching screen supports sender-led request flow.
@@ -81,9 +81,13 @@ export default function MatchingScreen() {
   );
 
   const matchingTrips = useMemo(
-    () => (isParcelMode ? (matchingTripsQuery.data ?? []) : (browseTripsQuery.data ?? [])),
+    () => (isParcelMode ? (matchingTripsQuery.data?.matches ?? []) : (browseTripsQuery.data?.matches ?? [])),
     [browseTripsQuery.data, isParcelMode, matchingTripsQuery.data]
   );
+  const activeDiagnostic = isParcelMode
+    ? matchingTripsQuery.data?.diagnostic
+    : browseTripsQuery.data?.diagnostic;
+  const isMatchingError = Boolean(matchingTripsQuery.isError || browseTripsQuery.isError);
   const loading = matchingTripsQuery.isLoading || browseTripsQuery.isLoading;
 
   // Pre-populate sentRequests from existing requests to prevent duplicate sends
@@ -243,6 +247,42 @@ export default function MatchingScreen() {
     }
   }, [currentParcel, currentTrip, router]);
 
+  const handleDiagnosticAction = useCallback((action: DiagnosticAction) => {
+    Haptic.tap();
+    switch (action.id) {
+      case 'split_parcel':
+      case 'adjust_date':
+      case 'adjust_price':
+      case 'repost_trip':
+      case 'increase_capacity':
+        handleRepostNow();
+        break;
+      case 'subscribe_route':
+        router.push({
+          pathname: '/subscriptions',
+          params: { fromCity, toCity },
+        });
+        break;
+      case 'post_open_request':
+        if (currentParcel) {
+          showAlert(
+            'Delivery Request Is Live',
+            'Your parcel request is open on the marketplace. Verified travelers on this corridor will see it and can offer to carry.',
+            [
+              { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+              { text: 'OK' },
+            ]
+          );
+        } else {
+          router.push('/create-parcel');
+        }
+        break;
+      default:
+        handleRepostNow();
+        break;
+    }
+  }, [handleRepostNow, router, fromCity, toCity, currentParcel, showAlert]);
+
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
@@ -355,18 +395,54 @@ export default function MatchingScreen() {
               </Text>
             </View>
           </View>
+        ) : isMatchingError ? (
+          <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.errorBorder }]}>
+            <View style={[styles.emptyIconBox, { backgroundColor: C.errorSubtle }]}>
+              <MaterialIcons name="cloud-off" size={40} color={C.error} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>Unable to Connect</Text>
+            <Text style={[styles.emptySub, { color: C.textMuted }]}>
+              We had trouble loading route listings. Please check your internet connection and try again.
+            </Text>
+            <Pressable
+              style={[styles.emptyCta, { backgroundColor: C.primarySubtle, borderColor: C.primary + '55' }]}
+              onPress={() => {
+                Haptic.confirm();
+                if (isParcelMode) matchingTripsQuery.refetch();
+                else browseTripsQuery.refetch();
+              }}
+            >
+              <Ionicons name="refresh" size={15} color={C.primary} />
+              <Text style={[styles.emptyCtaText, { color: C.primary }]}>Retry Search</Text>
+            </Pressable>
+          </View>
         ) : isParcelMode || isBrowseMode ? (
           sortedTrips.length === 0 ? (
-            <EmptyMatches
-              icon="directions-car"
-              title="No travellers on this route"
-              sub={isParcelMode
-                ? 'No one is travelling this route right now. Repost quickly or subscribe for alerts when a traveller appears.'
-                : 'No one is travelling this route right now. Subscribe to get notified when someone is!'}
-              cta={isParcelMode ? 'Repost Now' : 'Subscribe to Route'}
-              onCta={isParcelMode ? handleRepostNow : () => router.push('/subscriptions')}
-              C={C}
-            />
+            activeDiagnostic ? (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+                <MatchDiagnosticCard
+                  diagnostic={activeDiagnostic}
+                  onActionPress={handleDiagnosticAction}
+                  onRetry={() => {
+                    Haptic.select();
+                    if (isParcelMode) matchingTripsQuery.refetch();
+                    else browseTripsQuery.refetch();
+                  }}
+                  isRetrying={matchingTripsQuery.isRefetching || browseTripsQuery.isRefetching}
+                />
+              </ScrollView>
+            ) : (
+              <EmptyMatches
+                icon="directions-car"
+                title="No travellers on this route"
+                sub={isParcelMode
+                  ? 'No one is travelling this route right now. Repost quickly or subscribe for alerts when a traveller appears.'
+                  : 'No one is travelling this route right now. Subscribe to get notified when someone is!'}
+                cta={isParcelMode ? 'Repost Now' : 'Subscribe to Route'}
+                onCta={isParcelMode ? handleRepostNow : () => router.push('/subscriptions')}
+                C={C}
+              />
+            )
           ) : (
             <AppErrorBoundary>
               <FlashList

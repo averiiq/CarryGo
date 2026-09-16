@@ -7,7 +7,9 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  HelpCircle,
   IdCard,
+  LifeBuoy,
   LogOut,
   Mail,
   MapPin,
@@ -19,6 +21,8 @@ import {
   ShieldCheck,
   Star,
   User,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { createClient } from '@/utils/supabase/client'
@@ -42,6 +46,15 @@ export default function CustomerProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
+  const [copiedEmail, setCopiedEmail] = useState(false)
+
+  const handleCopyEmail = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText('support@carrygo.in')
+      setCopiedEmail(true)
+      setTimeout(() => setCopiedEmail(false), 2000)
+    }
+  }
 
   // Edit fields
   const [fullName, setFullName] = useState('')
@@ -163,6 +176,65 @@ export default function CustomerProfilePage() {
                     Complete KYC Verification ➔
                   </Link>
                 )}
+              </div>
+
+              {/* Help & Support Callout */}
+              <div className="pt-3 border-t border-slate-100 text-left space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs">
+                    <LifeBuoy className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Help &amp; Support Desk</span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> 24/7 Live
+                  </span>
+                </div>
+
+                {/* 1-Click Official Email Copy Strip */}
+                <button
+                  type="button"
+                  onClick={handleCopyEmail}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/80 hover:bg-slate-100/80 transition text-left group cursor-pointer"
+                  title="Click to copy official email"
+                >
+                  <div className="min-w-0 pr-2">
+                    <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">
+                      Official Email
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 truncate block">
+                      support@carrygo.in
+                    </span>
+                  </div>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 transition ${
+                      copiedEmail
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-600 group-hover:border-emerald-500 group-hover:text-emerald-700'
+                    }`}
+                  >
+                    {copiedEmail ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedEmail ? 'Copied' : 'Copy'}</span>
+                  </span>
+                </button>
+
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Have questions about OTP handovers, luggage limits, or escrow refunds?
+                </p>
+
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  <Link
+                    href="/faq"
+                    className="p-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition text-center text-[11px] font-semibold text-slate-700 block"
+                  >
+                    Browse FAQ
+                  </Link>
+                  <Link
+                    href="/contact"
+                    className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 transition text-center text-[11px] font-bold text-white block shadow-xs"
+                  >
+                    Contact Ops
+                  </Link>
+                </div>
               </div>
 
               <button

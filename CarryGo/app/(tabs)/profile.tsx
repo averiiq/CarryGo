@@ -426,6 +426,44 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Support & Legal */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Support & Legal</Text>
+            <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <MenuItem C={C}
+                icon={<MaterialIcons name="support-agent" size={17} color={C.primary} />}
+                label="Help & Support Desk"
+                subtitle="FAQs, 24/7 AI Chatbot, Raise Incident"
+                right={
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.primarySubtle, paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 10 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' }} />
+                      <Text style={{ fontSize: 10, fontWeight: FontWeight.bold, color: C.primary }}>24/7</Text>
+                    </View>
+                    <View style={[styles.menuChevronWrap, { backgroundColor: C.surfaceElevated }]}>
+                      <MaterialIcons name="chevron-right" size={16} color={C.textMuted} />
+                    </View>
+                  </View>
+                }
+                onPress={() => router.push('/support' as any)}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
+              <MenuItem C={C}
+                icon={<MaterialIcons name="description" size={17} color={C.info} />}
+                label="Terms of Service"
+                subtitle="Platform rules, escrow & cancellation"
+                onPress={() => router.push('/legal/terms')}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
+              <MenuItem C={C}
+                icon={<MaterialIcons name="privacy-tip" size={17} color={C.success} />}
+                label="Privacy Policy"
+                subtitle="Data protection & verification safeguards"
+                onPress={() => router.push('/legal/privacy')}
+              />
+            </View>
+          </View>
+
           {/* Account */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Account</Text>
