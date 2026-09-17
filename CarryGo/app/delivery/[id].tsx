@@ -561,6 +561,7 @@ export default function DeliveryScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: C.background }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         {/* ========================================================================= */}
         {/* TOP FLOATING NAV BAR                                                      */}
@@ -598,7 +599,7 @@ export default function DeliveryScreen() {
             {/* Quick Chat Button */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Chat"
+              accessibilityLabel="Open Direct Messaging"
               onPress={handleOpenChat}
               style={({ pressed }) => [
                 styles.navRoundBtn,
@@ -620,6 +621,8 @@ export default function DeliveryScreen() {
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={true}
         >
           {/* ========================================================================= */}
           {/* 1. UNIFIED ROUTE HERO CARD                                               */}

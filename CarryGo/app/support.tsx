@@ -25,6 +25,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
 import { Haptic } from '@/services/haptics.service';
 import {
   BorderRadius,
@@ -279,6 +280,10 @@ export default function SupportScreen() {
   const [chatBotInput, setChatBotInput] = useState('');
   const [isBotTyping, setIsBotTyping] = useState(false);
   const chatBotScrollRef = useRef<ScrollView>(null);
+  const { bottomInset: chatBotBottomPadding } = useKeyboardPadding({
+    activePadding: Spacing.sm,
+    inactivePadding: Spacing.sm,
+  });
 
   // Live real-time sync
   useSupportTicketsRealtime(user?.id);
@@ -549,7 +554,10 @@ export default function SupportScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Top App Bar */}
       <View style={[styles.topBar, { borderBottomColor: C.surfaceBorder }]}>
         <Pressable
@@ -660,6 +668,9 @@ export default function SupportScreen() {
           isTablet && styles.tabletScrollContent,
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets={true}
         refreshControl={
           activeTab === 'tickets' ? (
             <RefreshControl
@@ -1622,7 +1633,7 @@ export default function SupportScreen() {
               {
                 borderTopColor: C.surfaceBorder,
                 backgroundColor: C.surface,
-                paddingBottom: insets.bottom > 0 ? insets.bottom : Spacing.sm,
+                paddingBottom: chatBotBottomPadding,
               },
             ]}
           >
@@ -1685,7 +1696,7 @@ export default function SupportScreen() {
           <View style={[styles.floatingActiveBadge, { borderColor: '#FFFFFF' }]} />
         </Pressable>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

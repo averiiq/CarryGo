@@ -10,6 +10,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { TripCard, ParcelCard } from '@/components';
 import { Trip, Parcel, Request } from '@/types';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
+import { Spacing } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { createSubscription } from '@/services/subscriptions.service';
 import { useAlert } from '@/template';
@@ -303,6 +304,7 @@ export default function SearchScreen() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: C.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <View style={[styles.container, { backgroundColor: C.background }]}>
         <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
@@ -352,9 +354,11 @@ export default function SearchScreen() {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 32 }]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={true}
           scrollEventThrottle={16}
         >
           <View style={[styles.searchCard, { backgroundColor: C.surface, borderColor: focused ? C.primary + '66' : C.surfaceBorder }, isTablet && styles.tabletContainer]}>

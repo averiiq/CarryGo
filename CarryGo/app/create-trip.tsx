@@ -461,7 +461,15 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
   locationHint: string | null;
 }) {
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled keyboardDismissMode="on-drag">
+    <ScrollView
+      style={styles.stepContent}
+      contentContainerStyle={styles.stepInner}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      nestedScrollEnabled
+      keyboardDismissMode="on-drag"
+      automaticallyAdjustKeyboardInsets={true}
+    >
       <StepHeader
         title="Where are you going?"
         subtitle="Choose route, date, and departure time in one pass"

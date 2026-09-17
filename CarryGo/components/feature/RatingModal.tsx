@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, TextInput, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Colors, FontSize, FontWeight, Spacing, BorderRadius, Shadow } from '@/constants/theme';
@@ -43,86 +43,102 @@ export function RatingModal({ visible, requestId, fromUserId, toUserId, toUserNa
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconRing}>
-              <Ionicons name="star" size={28} color={Colors.warning} />
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.overlay}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.iconRing}>
+                <Ionicons name="star" size={28} color={Colors.warning} />
+              </View>
+              <Text style={styles.title}>Rate Your Experience</Text>
+              <Text style={styles.subtitle}>How was your delivery with</Text>
+              <Text style={styles.userName}>{toUserName}</Text>
             </View>
-            <Text style={styles.title}>Rate Your Experience</Text>
-            <Text style={styles.subtitle}>How was your delivery with</Text>
-            <Text style={styles.userName}>{toUserName}</Text>
-          </View>
 
-          {/* Stars */}
-          <View style={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map(star => (
+            {/* Stars */}
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <Pressable
+                  key={star}
+                  onPress={() => setRating(star)}
+                  onPressIn={() => setHovered(star)}
+                  onPressOut={() => setHovered(0)}
+                  hitSlop={8}
+                >
+                  <Ionicons
+                    name={star <= activeRating ? 'star' : 'star-outline'}
+                    size={42}
+                    color={star <= activeRating ? Colors.warning : Colors.textMuted}
+                  />
+                </Pressable>
+              ))}
+            </View>
+
+            {activeRating > 0 ? (
+              <Text style={styles.ratingLabel}>{ratingLabels[activeRating]}</Text>
+            ) : null}
+
+            {/* Comment */}
+            <View style={styles.commentBox}>
+              <TextInput
+                style={styles.commentInput}
+                value={comment}
+                onChangeText={setComment}
+                placeholder="Leave a comment (optional)..."
+                placeholderTextColor={Colors.textMuted}
+                multiline
+                numberOfLines={3}
+                maxLength={200}
+                textAlignVertical="top"
+                accessibilityLabel="Rating comment"
+              />
+              <Text style={styles.charCount}>{comment.length}/200</Text>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.actions}>
               <Pressable
-                key={star}
-                onPress={() => setRating(star)}
-                onPressIn={() => setHovered(star)}
-                onPressOut={() => setHovered(0)}
-                hitSlop={8}
+                style={[styles.skipBtn]}
+                onPress={onDone}
               >
-                <Ionicons
-                  name={star <= activeRating ? 'star' : 'star-outline'}
-                  size={42}
-                  color={star <= activeRating ? Colors.warning : Colors.textMuted}
-                />
+                <Text style={styles.skipText}>Skip</Text>
               </Pressable>
-            ))}
+              <Pressable
+                style={[styles.submitBtn, rating === 0 && styles.submitBtnDisabled, loading && styles.submitBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={rating === 0 || loading}
+              >
+                <Ionicons name="checkmark-circle" size={18} color={Colors.textInverse} />
+                <Text style={styles.submitText}>{loading ? 'Saving...' : 'Submit Rating'}</Text>
+              </Pressable>
+            </View>
           </View>
-
-          {activeRating > 0 ? (
-            <Text style={styles.ratingLabel}>{ratingLabels[activeRating]}</Text>
-          ) : null}
-
-          {/* Comment */}
-          <View style={styles.commentBox}>
-            <TextInput
-              style={styles.commentInput}
-              value={comment}
-              onChangeText={setComment}
-              placeholder="Leave a comment (optional)..."
-              placeholderTextColor={Colors.textMuted}
-              multiline
-              numberOfLines={3}
-              maxLength={200}
-              textAlignVertical="top"
-              accessibilityLabel="Rating comment"
-            />
-            <Text style={styles.charCount}>{comment.length}/200</Text>
-          </View>
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            <Pressable
-              style={[styles.skipBtn]}
-              onPress={onDone}
-            >
-              <Text style={styles.skipText}>Skip</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.submitBtn, rating === 0 && styles.submitBtnDisabled, loading && styles.submitBtnDisabled]}
-              onPress={handleSubmit}
-              disabled={rating === 0 || loading}
-            >
-              <Ionicons name="checkmark-circle" size={18} color={Colors.textInverse} />
-              <Text style={styles.submitText}>{loading ? 'Saving...' : 'Submit Rating'}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+  },
   overlay: {
-    flex: 1, backgroundColor: Colors.overlayMedium,
-    alignItems: 'center', justifyContent: 'center',
+    flexGrow: 1,
+    backgroundColor: Colors.overlayMedium,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
   },
   card: {
     backgroundColor: Colors.surface,

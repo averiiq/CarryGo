@@ -11,17 +11,20 @@ interface InputProps extends TextInputProps {
   rightIcon?: React.ReactNode;
 }
 
-export function Input({
-  label,
-  error,
-  containerStyle,
-  leftIcon,
-  rightIcon,
-  style,
-  onFocus,
-  onBlur,
-  ...props
-}: InputProps) {
+export const Input = React.forwardRef<TextInput, InputProps>(function Input(
+  {
+    label,
+    error,
+    containerStyle,
+    leftIcon,
+    rightIcon,
+    style,
+    onFocus,
+    onBlur,
+    ...props
+  },
+  ref
+) {
   const { C } = useThemeColors();
   const [focused, setFocused] = useState(false);
   const borderAnim = useRef(new Animated.Value(0)).current;
@@ -73,6 +76,7 @@ export function Input({
       >
         {leftIcon ? <View style={styles.iconLeft}>{leftIcon}</View> : null}
         <TextInput
+          ref={ref}
           style={[
             styles.input,
             { color: C.textPrimary },
@@ -92,7 +96,7 @@ export function Input({
       {error ? <Text style={[styles.error, { color: C.error }]}>{error}</Text> : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: { gap: 8 },

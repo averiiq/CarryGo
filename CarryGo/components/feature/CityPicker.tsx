@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Input } from '@/components/ui/Input';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
@@ -56,66 +56,76 @@ export function CityPicker({
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <Pressable
-        style={[styles.pickerOverlay, { backgroundColor: C.overlay }]}
-        onPress={handleClose}
-      />
-      <View style={[styles.pickerSheet, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
-        <View style={[styles.pickerHandle, { backgroundColor: C.surfaceBorderLight }]} />
-        <Text style={[styles.pickerTitle, { color: C.textPrimary }]}>{title}</Text>
-        <Input
-          placeholder="Search or type any city..."
-          value={search}
-          onChangeText={setSearch}
-          autoFocus
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable
+          style={[styles.pickerOverlay, { backgroundColor: C.overlay }]}
+          onPress={handleClose}
         />
-        <ScrollView style={{ maxHeight: 300 }} keyboardShouldPersistTaps="handled">
-          {showCustomOption && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.cityOption,
-                styles.customCityOption,
-                {
-                  borderBottomColor: C.surfaceBorder,
-                  backgroundColor: pressed ? C.primarySubtle : C.surfaceElevated,
-                },
-              ]}
-              onPress={() => handleSelect(search.trim())}
-            >
-              <MaterialIcons name="add-location" size={18} color={dotColor} />
-              <Text style={[styles.cityOptionText, { color: C.textPrimary, fontWeight: FontWeight.semibold }]}>
-                Use &quot;{search.trim()}&quot;
-              </Text>
-            </Pressable>
-          )}
-          {filteredCities.map(city => (
-            <Pressable
-              key={city}
-              style={({ pressed }) => [
-                styles.cityOption,
-                {
-                  borderBottomColor: C.surfaceBorder,
-                  backgroundColor: pressed ? C.surfaceElevated : 'transparent',
-                },
-              ]}
-              onPress={() => handleSelect(city)}
-            >
-              <View style={[styles.cityDotSmall, { backgroundColor: dotColor }]} />
-              <Text style={[styles.cityOptionText, { color: C.textPrimary }]}>{city}</Text>
-            </Pressable>
-          ))}
-          {filteredCities.length === 0 && !showCustomOption && (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: C.textMuted }]}>No cities found</Text>
-            </View>
-          )}
-        </ScrollView>
-      </View>
+        <View style={[styles.pickerSheet, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
+          <View style={[styles.pickerHandle, { backgroundColor: C.surfaceBorderLight }]} />
+          <Text style={[styles.pickerTitle, { color: C.textPrimary }]}>{title}</Text>
+          <Input
+            placeholder="Search or type any city..."
+            value={search}
+            onChangeText={setSearch}
+            autoFocus
+          />
+          <ScrollView
+            style={{ maxHeight: 300 }}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
+          >
+            {showCustomOption && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.cityOption,
+                  styles.customCityOption,
+                  {
+                    borderBottomColor: C.surfaceBorder,
+                    backgroundColor: pressed ? C.primarySubtle : C.surfaceElevated,
+                  },
+                ]}
+                onPress={() => handleSelect(search.trim())}
+              >
+                <MaterialIcons name="add-location" size={18} color={dotColor} />
+                <Text style={[styles.cityOptionText, { color: C.textPrimary, fontWeight: FontWeight.semibold }]}>
+                  Use &quot;{search.trim()}&quot;
+                </Text>
+              </Pressable>
+            )}
+            {filteredCities.map(city => (
+              <Pressable
+                key={city}
+                style={({ pressed }) => [
+                  styles.cityOption,
+                  {
+                    borderBottomColor: C.surfaceBorder,
+                    backgroundColor: pressed ? C.surfaceElevated : 'transparent',
+                  },
+                ]}
+                onPress={() => handleSelect(city)}
+              >
+                <View style={[styles.cityDotSmall, { backgroundColor: dotColor }]} />
+                <Text style={[styles.cityOptionText, { color: C.textPrimary }]}>{city}</Text>
+              </Pressable>
+            ))}
+            {filteredCities.length === 0 && !showCustomOption && (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyText, { color: C.textMuted }]}>No cities found</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoid: { flex: 1, justifyContent: 'flex-end' },
   pickerOverlay: { flex: 1 },
   pickerSheet: {
     borderTopLeftRadius: 28,

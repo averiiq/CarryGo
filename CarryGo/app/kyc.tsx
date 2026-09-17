@@ -8,6 +8,8 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
@@ -1011,7 +1013,10 @@ export default function KycScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: C.background, paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      style={[styles.screen, { backgroundColor: C.background, paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: C.surfaceBorder }]}>
         <Pressable
@@ -1038,8 +1043,10 @@ export default function KycScreen() {
       ) : null}
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.xl }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.xxl + 20 }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets={true}
       >
         {step === 'aadhaar_number' && renderAadhaarNumberStep()}
         {step === 'aadhaar_otp' && renderAadhaarOtpStep()}
@@ -1048,7 +1055,7 @@ export default function KycScreen() {
         {step === 'pan' && renderPanStep()}
         {step === 'completed' && renderCompletedStep()}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

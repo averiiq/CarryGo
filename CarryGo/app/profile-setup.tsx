@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -283,7 +284,7 @@ export default function ProfileSetupScreen() {
       <StatusBar style={C.statusBarStyle} />
       <KeyboardAvoidingView
         style={[styles.root, { backgroundColor: C.background }]}
-        behavior="padding"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: C.background, borderBottomColor: C.surfaceBorder }]}>
           {stepIndex > 0 ? (
@@ -322,9 +323,11 @@ export default function ProfileSetupScreen() {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={true}
         >
           <Animated.View style={[styles.slideWrap, { transform: [{ translateX: slideAnim }, { translateX: shakeAnim }] }]}>
             {step === 'username' ? (

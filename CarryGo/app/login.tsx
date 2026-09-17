@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
-  TextInput, Animated, Dimensions, Pressable,
+  TextInput, Animated, Dimensions, Pressable, Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -217,12 +217,17 @@ export default function LoginScreen() {
   return (
     <>
       <StatusBar style={C.statusBarStyle} />
-      <KeyboardAvoidingView style={[styles.root, { backgroundColor: C.background }]} behavior="padding">
+      <KeyboardAvoidingView
+        style={[styles.root, { backgroundColor: C.background }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={true}
         >
           {/* Hero */}
           <Animated.View style={[styles.hero, { paddingTop: insets.top + Spacing.lg, opacity: heroFade.opacity, transform: heroFade.transform }]}>

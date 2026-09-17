@@ -34,6 +34,7 @@ export function WizardContainer({
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: C.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <LinearGradient

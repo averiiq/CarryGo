@@ -12,6 +12,7 @@ import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ChatMessage } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
+import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
 import { Haptic } from '@/services/haptics.service';
 import {
   useConversationMessagesRealtime,
@@ -142,6 +143,10 @@ const ChatInputBar = React.memo(function ChatInputBar({
   const [text, setText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const sendBtnScale = useRef(new Animated.Value(1)).current;
+  const { bottomInset } = useKeyboardPadding({
+    activePadding: Spacing.xs + 4,
+    inactivePadding: Spacing.sm,
+  });
 
   const handleSend = async () => {
     const trimmed = text.trim();
@@ -171,7 +176,7 @@ const ChatInputBar = React.memo(function ChatInputBar({
         {
           backgroundColor: C.surface,
           borderTopColor: C.surfaceBorder,
-          paddingBottom: Math.max(insetsBottom, Spacing.xs) + Spacing.sm,
+          paddingBottom: bottomInset,
         },
       ]}
     >
