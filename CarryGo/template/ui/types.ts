@@ -1,8 +1,15 @@
-// @ts-nocheck
+export type AlertType = 'auto' | 'success' | 'error' | 'warning' | 'info' | 'destructive';
+
 export interface AlertButton {
   text: string;
   onPress?: () => void;
   style?: 'default' | 'cancel' | 'destructive';
+}
+
+export interface AlertOptions {
+  type?: AlertType;
+  cancelable?: boolean;
+  onDismiss?: () => void;
 }
 
 export interface AlertState {
@@ -10,4 +17,6 @@ export interface AlertState {
   title: string;
   message: string;
   buttons: AlertButton[];
-}
+  type?: AlertType;
+  cancelable?: boolean;
+}

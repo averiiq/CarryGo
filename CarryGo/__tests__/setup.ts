@@ -1,5 +1,5 @@
 jest.mock('react-native', () => ({
-  Platform: { OS: 'ios' },
+  Platform: { OS: 'ios', select: (obj: any) => obj?.ios ?? obj?.default },
 }));
 
 jest.mock('expo-file-system', () => ({

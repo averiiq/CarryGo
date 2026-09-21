@@ -7,10 +7,10 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useAlert } from '@/template';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
@@ -48,6 +48,7 @@ export default function KycScreen() {
   const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
   const { C, S } = useThemeColors();
+  const { showAlert } = useAlert();
 
   const [step, setStep] = useState<KycStep>('aadhaar_number');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -251,7 +252,7 @@ export default function KycScreen() {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
         Haptic.warning();
-        Alert.alert('Camera Required', 'Camera permission is needed to take your live verification selfie.');
+        showAlert('Camera Required', 'Camera permission is needed to take your live verification selfie.');
         return;
       }
 

@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { RazorpayOrder, RazorpayPaymentResult } from '@/types';
 import { createRazorpayOrder, verifyRazorpayPayment } from '@/services/payments.service';
+import { useAlert } from '@/template';
 
 interface CheckoutState {
   isCreatingOrder: boolean;
@@ -55,6 +56,7 @@ export function useRazorpayCheckout({
   onSuccess,
   onFailure,
 }: UseRazorpayCheckoutOptions) {
+  const { showAlert } = useAlert();
   const [state, setState] = useState<CheckoutState>({
     isCreatingOrder: false,
     isProcessing: false,
@@ -75,7 +77,7 @@ export function useRazorpayCheckout({
     if (error || !data) {
       const msg = error ?? 'Payment verification failed';
       setState(s => ({ ...s, isVerifying: false, error: msg }));
-      Alert.alert('Verification Failed', msg);
+      showAlert('Verification Failed', msg);
       onFailure?.(msg);
       return;
     }

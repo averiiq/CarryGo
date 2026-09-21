@@ -150,17 +150,17 @@ function AppStack() {
 export default function RootLayout() {
   return (
     <AppErrorBoundary>
-      <AlertProvider>
-        <SafeAreaProvider>
-          <ThemeProvider>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AlertProvider>
             <AppQueryProvider>
               <AuthProvider>
                 <AppShell />
               </AuthProvider>
             </AppQueryProvider>
-          </ThemeProvider>
-        </SafeAreaProvider>
-      </AlertProvider>
+          </AlertProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
     </AppErrorBoundary>
   );
 }
