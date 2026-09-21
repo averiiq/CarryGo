@@ -160,13 +160,13 @@ export const RequestCard = React.memo(function RequestCard({
           </View>
 
           {/* Route Section: Explicit Pickup and Drop Locations */}
-          <View style={[styles.routeContainer, { backgroundColor: C.cardSubtle, borderColor: C.surfaceBorder }]}>
+          <View style={[styles.routeContainer, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
             <View style={styles.routeRow}>
               {/* Pickup location */}
               <View style={styles.locationCol}>
                 <View style={styles.locBadgeRow}>
                   <View style={[styles.pickupDot, { backgroundColor: C.primary }]} />
-                  <Text style={[styles.locTypeLabel, { color: C.primary }]}>PICKUP</Text>
+                  <Text style={[styles.locTypeLabel, { color: C.textMuted }]}>PICKUP</Text>
                 </View>
                 <Text style={[styles.locCityText, { color: C.textPrimary }]} numberOfLines={1}>{pickup}</Text>
               </View>
@@ -174,8 +174,8 @@ export const RequestCard = React.memo(function RequestCard({
               {/* Route connecting arrow */}
               <View style={styles.routeConnector}>
                 <View style={[styles.dottedLine, { borderColor: C.surfaceBorder }]} />
-                <View style={[styles.arrowIconWrap, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                  <MaterialIcons name="arrow-forward" size={13} color={C.primary} />
+                <View style={[styles.arrowIconWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                  <MaterialIcons name="east" size={13} color={C.primary} />
                 </View>
                 <View style={[styles.dottedLine, { borderColor: C.surfaceBorder }]} />
               </View>
@@ -183,8 +183,8 @@ export const RequestCard = React.memo(function RequestCard({
               {/* Drop location */}
               <View style={[styles.locationCol, styles.locationColRight]}>
                 <View style={[styles.locBadgeRow, { justifyContent: 'flex-end' }]}>
-                  <Text style={[styles.locTypeLabel, { color: C.error }]}>DROP</Text>
-                  <View style={[styles.dropDot, { backgroundColor: C.error }]} />
+                  <Text style={[styles.locTypeLabel, { color: C.textMuted }]}>DROP</Text>
+                  <MaterialIcons name="place" size={11} color={C.primary} style={{ marginLeft: 2 }} />
                 </View>
                 <Text style={[styles.locCityText, { color: C.textPrimary, textAlign: 'right' }]} numberOfLines={1}>{drop}</Text>
               </View>
@@ -194,9 +194,9 @@ export const RequestCard = React.memo(function RequestCard({
             {(request.parcelWeight || request.parcelCategory || request.message) ? (
               <View style={[styles.detailsRow, { borderTopColor: C.surfaceBorderLight }]}>
                 {request.parcelWeight ? (
-                  <View style={[styles.specChip, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                    <MaterialIcons name="scale" size={11} color={C.primary} />
-                    <Text style={[styles.specChipText, { color: C.primary }]}>{request.parcelWeight} kg</Text>
+                  <View style={[styles.specChip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                    <MaterialIcons name="scale" size={11} color={C.textSecondary} />
+                    <Text style={[styles.specChipText, { color: C.textSecondary }]}>{request.parcelWeight} kg</Text>
                   </View>
                 ) : null}
                 {request.message ? (
@@ -235,8 +235,8 @@ export const RequestCard = React.memo(function RequestCard({
             {/* User on Left */}
             <View style={styles.userBlock}>
               <View style={styles.avatarWrap}>
-                <View style={[styles.avatar, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                  <Text style={[styles.avatarText, { color: C.primaryDark }]}>{personName.charAt(0).toUpperCase()}</Text>
+                <View style={[styles.avatar, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 }]}>
+                  <Text style={[styles.avatarText, { color: C.primary }]}>{personName.charAt(0).toUpperCase()}</Text>
                 </View>
                 <View style={[styles.avatarVerifiedBadge, { backgroundColor: C.primary }]}>
                   <MaterialIcons name="check" size={8} color="#FFFFFF" />

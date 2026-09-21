@@ -145,6 +145,8 @@ export default async function KycReviewPage({ params }: PageProps) {
               aadhaarStatus: session.aadhaar_verification_status,
               selfieStatus: session.selfie_status,
               panStatus: session.pan_verification_status,
+              faceVerified: session.face_verified,
+              faceConfidence: session.face_confidence,
             }}
           />
         </div>

@@ -173,7 +173,7 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   const displayName = user.fullName || user.name || user.email?.split('@')[0] || 'User';
-  const isKycApproved = Boolean(user.kycStatus === 'approved' || user.verified || user.isAadhaarVerified);
+  const isKycApproved = Boolean(user.kycStatus === 'approved' || user.verified);
   const isKycSubmitted = !isKycApproved && user.kycStatus === 'submitted';
   const isKycAvailable = FeatureFlags.kycProvider;
   const canOpenKycBanner = isKycAvailable && !isKycApproved && !isKycSubmitted;
@@ -300,7 +300,9 @@ export default function ProfileScreen() {
                   <View style={[styles.ratingPill, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
                     <MaterialIcons name="star" size={12} color="#D97706" />
                     <Text style={[styles.ratingPillText, { color: '#B45309' }]}>
-                      {(user.rating || 4.9).toFixed(1)} Rating
+                      {user.totalRatings && user.totalRatings > 0
+                        ? `${(user.rating || 5.0).toFixed(1)} ★ (${user.totalRatings} ${user.totalRatings === 1 ? 'review' : 'reviews'})`
+                        : 'New Member'}
                     </Text>
                   </View>
 
@@ -344,7 +346,15 @@ export default function ProfileScreen() {
         {/* Stats */}
         <Animated.View style={{ opacity: statsEntrance.opacity, transform: statsEntrance.transform }}>
           <View style={styles.statsGrid}>
-            <StatPill label="Rating" value={(user.rating || 4.5).toFixed(1)} icon="star" color={C.warning} C={C} iconAnim={starHeartbeat} isSmallDevice={isSmallDevice} />
+            <StatPill
+              label="Rating"
+              value={user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0).toFixed(1) : 'New'}
+              icon="star"
+              color={C.warning}
+              C={C}
+              iconAnim={starHeartbeat}
+              isSmallDevice={isSmallDevice}
+            />
             <StatPill label="Trips" value={String(myTrips.length)} icon="directions-car" color={C.primary} C={C} isSmallDevice={isSmallDevice} />
             <StatPill label="Parcels" value={String(myParcels.length)} icon="inventory-2" color={C.success} C={C} isSmallDevice={isSmallDevice} />
             <StatPill label="Delivered" value={String(completed)} icon="check-circle" color={C.info} C={C} isSmallDevice={isSmallDevice} />

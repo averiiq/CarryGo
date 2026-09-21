@@ -55,6 +55,7 @@ export const footerSections: FooterSection[] = [
       { label: 'Search', href: '/search' },
       { label: 'Pricing', href: '/pricing' },
       { label: 'Safety', href: '/safety' },
+      { label: 'Admin Command (CMS)', href: process.env.NEXT_PUBLIC_CMS_URL || 'http://localhost:3001' },
     ],
   },
   {
@@ -87,21 +88,21 @@ export const quickStats = [
 export const testimonials: Testimonial[] = [
   {
     quote:
-      'I needed to send an urgent signed agreement from Mumbai to Pune within 4 hours. Traditional couriers quoted next-day 6 PM. Found an IT consultant driving to Pune on CarryGo who delivered it directly by 3 PM. Absolute lifesaver!',
+      'I needed to send an urgent signed agreement from Gurugram to Faridabad within 2 hours. Traditional couriers quoted next-day delivery. Found a commuter heading across the expressway on CarryGo who delivered it directly by 1 PM. Absolute lifesaver!',
     name: 'Arjun Mehta',
-    role: 'Founder, Apex Media (Mumbai)',
+    role: 'Founder, Apex Media (Gurugram)',
   },
   {
     quote:
-      'I travel twice a week between Bangalore and Hyderabad for client meetings. Carrying 2 small packages each trip covers almost my entire round-trip travel expense. The dual-OTP system gives complete peace of mind.',
+      'I travel daily between Panipat and Gurugram for client consultations. Carrying 2 small packages each trip covers almost my entire fuel and toll expense on NH-44. The dual-OTP system gives complete peace of mind.',
     name: 'Kavita Sundaram',
-    role: 'Management Consultant & Frequent Traveler',
+    role: 'Management Consultant & Daily Commuter',
   },
   {
     quote:
-      'We run an artisanal craft store in Delhi and use CarryGo for urgent customer orders to Jaipur and Chandigarh. Customers are thrilled when packages arrive the very same evening. 60% cheaper than priority courier services!',
+      'We run a textile and craft boutique in Panipat and use CarryGo for urgent customer orders to Karnal, Ambala, and Gurugram. Customers are thrilled when packages arrive the very same evening. Much faster than standard courier services!',
     name: 'Rohan Deshmukh',
-    role: 'Co-founder, CraftNook Organics',
+    role: 'Co-founder, Panipat Handloom Collective',
   },
 ]
 

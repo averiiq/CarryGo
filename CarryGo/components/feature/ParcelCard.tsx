@@ -7,22 +7,13 @@ import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } fr
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
 
-const categoryIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-  documents: 'description',
-  electronics: 'devices',
-  clothing: 'checkroom',
-  food: 'restaurant',
-  medicine: 'medical-services',
-  other: 'inventory-2',
-};
-
-const categoryGradients: Record<string, [string, string]> = {
-  documents: ['#D97706', '#B45309'],
-  electronics: ['#2563EB', '#1D4ED8'],
-  clothing: ['#7C3AED', '#6D28D9'],
-  food: ['#EA580C', '#C2410C'],
-  medicine: ['#DC2626', '#B91C1C'],
-  other: ['#059669', '#047857'],
+const categoryConfig: Record<string, { icon: keyof typeof MaterialIcons.glyphMap; color: string; bg: string; border: string }> = {
+  documents: { icon: 'description', color: '#D97706', bg: '#FEF3C7', border: '#FDE68A' },
+  electronics: { icon: 'devices', color: '#0284C7', bg: '#E0F2FE', border: '#BAE6FD' },
+  clothing: { icon: 'checkroom', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },
+  food: { icon: 'restaurant', color: '#EA580C', bg: '#FFEDD5', border: '#FED7AA' },
+  medicine: { icon: 'medical-services', color: '#DC2626', bg: '#FEE2E2', border: '#FECACA' },
+  other: { icon: 'inventory-2', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
 };
 
 interface ParcelCardProps {
@@ -51,12 +42,15 @@ export const ParcelCard = React.memo(function ParcelCard({
   onViewRequest,
 }: ParcelCardProps) {
   const { C, S } = useThemeColors();
-  const cGradient = categoryGradients[parcel.category] || ['#059669', '#047857'];
-  const cColor = cGradient[0];
+  const cMeta = categoryConfig[parcel.category] || categoryConfig.other;
   const scale = useRef(new Animated.Value(1)).current;
 
+  const rawName = parcel.userName || 'User';
+  const userName = rawName.trim();
+  const avatarLetter = (userName.charAt(0) || 'U').toUpperCase();
+
   const onPressIn = () =>
-    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, ...Motion.springFast }).start();
+    Animated.spring(scale, { toValue: 0.985, useNativeDriver: true, ...Motion.springFast }).start();
   const onPressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
@@ -94,20 +88,20 @@ export const ParcelCard = React.memo(function ParcelCard({
       >
         <View style={styles.topRow}>
           <View style={styles.senderSection}>
-            <LinearGradient
-              colors={cGradient}
-              style={styles.avatar}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <View
+              style={[
+                styles.avatar,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 }
+              ]}
             >
-              <Text style={styles.avatarLetter}>
-                {parcel.userName.charAt(0).toUpperCase()}
+              <Text style={[styles.avatarLetter, { color: C.primary }]}>
+                {avatarLetter}
               </Text>
-            </LinearGradient>
+            </View>
             <View style={styles.senderMeta}>
               <View style={styles.nameBadgeRow}>
                 <Text style={[styles.senderName, { color: C.textPrimary }]} numberOfLines={1}>
-                  {isOwner ? 'You' : parcel.userName}
+                  {isOwner ? 'You' : userName}
                 </Text>
                 {isOwner ? (
                   <View style={[styles.ownerBadge, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
@@ -130,17 +124,20 @@ export const ParcelCard = React.memo(function ParcelCard({
             </View>
           </View>
 
-          <View style={[styles.statusChip, { backgroundColor: statusColor + '12', borderColor: statusColor + '28' }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusLabel, { color: statusColor }]}>
-              {statusLabel}
+          <View style={[styles.categoryChip, { backgroundColor: cMeta.bg, borderColor: cMeta.border }]}>
+            <MaterialIcons name={cMeta.icon} size={13} color={cMeta.color} />
+            <Text style={[styles.categoryChipText, { color: cMeta.color }]}>
+              {parcel.category.toUpperCase()}
             </Text>
           </View>
         </View>
 
-        <View style={styles.routeContainer}>
+        <View style={[styles.routeContainer, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
           <View style={styles.cityBlock}>
-            <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
+            <View style={styles.cityIndicatorRow}>
+              <View style={[styles.routeDot, { backgroundColor: C.primary }]} />
+              <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
+            </View>
             <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
               {parcel.fromCity}
             </Text>
@@ -148,13 +145,16 @@ export const ParcelCard = React.memo(function ParcelCard({
 
           <View style={styles.arrowBlock}>
             <View style={[styles.arrowLine, { borderColor: C.surfaceBorder }]} />
-            <View style={[styles.arrowIconCircle, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="arrow-forward" size={13} color={C.primary} />
+            <View style={[styles.arrowIconCircle, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <MaterialIcons name="east" size={13} color={C.primary} />
             </View>
           </View>
 
           <View style={[styles.cityBlock, { alignItems: 'flex-end' }]}>
-            <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
+            <View style={[styles.cityIndicatorRow, { justifyContent: 'flex-end' }]}>
+              <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
+              <MaterialIcons name="place" size={11} color={C.primary} style={{ marginLeft: 2 }} />
+            </View>
             <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
               {parcel.toCity}
             </Text>
@@ -172,13 +172,6 @@ export const ParcelCard = React.memo(function ParcelCard({
             <MaterialIcons name="scale" size={12} color={C.textSecondary} />
             <Text style={[styles.specText, { color: C.textSecondary }]}>
               {parcel.weight} kg
-            </Text>
-          </View>
-
-          <View style={[styles.specItem, { backgroundColor: cColor + '10' }]}>
-            <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={12} color={cColor} />
-            <Text style={[styles.specText, { color: cColor, fontWeight: FontWeight.semibold }]}>
-              {parcel.category.charAt(0).toUpperCase() + parcel.category.slice(1)}
             </Text>
           </View>
 
@@ -203,6 +196,13 @@ export const ParcelCard = React.memo(function ParcelCard({
               </Text>
             </Pressable>
           )}
+
+          <View style={[styles.statusChip, { backgroundColor: statusColor + '12', borderColor: statusColor + '28' }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.statusLabel, { color: statusColor }]}>
+              {statusLabel}
+            </Text>
+          </View>
         </View>
 
         <View style={[styles.footerRow, { borderTopColor: C.surfaceBorderLight }]}>
@@ -358,6 +358,20 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     letterSpacing: LetterSpacing.wider,
   },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4.5,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  categoryChipText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: LetterSpacing.wider,
+  },
   statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -381,11 +395,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 14,
+    borderWidth: 1,
   },
   cityBlock: {
     flex: 1,
-    gap: 2,
+    gap: 3,
+  },
+  cityIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  routeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   cityLabel: {
     fontSize: 9.5,

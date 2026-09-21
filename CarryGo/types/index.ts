@@ -17,6 +17,7 @@ export interface User {
   username?: string;
   avatar?: string;
   rating: number;
+  totalRatings?: number;
   totalDeliveries: number;
   totalTrips: number;
   joinedAt: string;
@@ -30,6 +31,8 @@ export interface User {
   role?: UserRole;
   city?: string;
   profileCompletedAt?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
 export type VehicleType = 'bike' | 'car' | 'bus' | 'train' | 'flight';
@@ -271,6 +274,9 @@ export interface KycSession {
   aadhaarGender?: string;
   aadhaarAddress?: AadhaarVerifiedAddress;
   selfieStatus?: 'pending' | 'uploaded' | 'verified';
+  faceVerified?: boolean;
+  faceConfidence?: number;
+  faceMetrics?: Record<string, unknown>;
   panStatus?: 'not_provided' | 'pending' | 'verified' | 'failed';
   panReferenceId?: string;
   kycFlowVersion?: number;

@@ -328,7 +328,7 @@ export default function CreateParcelScreen() {
       setShowSafety(true);
       return;
     }
-    const isKycApproved = user?.kycStatus === 'approved' || Boolean(user?.verified) || Boolean(user?.isAadhaarVerified);
+    const isKycApproved = user?.kycStatus === 'approved' || Boolean(user?.verified);
     if (!isKycApproved) {
       if (!FeatureFlags.kycProvider) {
         Haptic.warning();

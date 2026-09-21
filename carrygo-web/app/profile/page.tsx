@@ -293,7 +293,7 @@ export default function CustomerProfilePage() {
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Mumbai, Maharashtra"
+                      placeholder="e.g. Gurugram, Haryana"
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:bg-white focus:border-emerald-500 transition"
                     />
                   </div>
@@ -305,7 +305,7 @@ export default function CustomerProfilePage() {
                     rows={3}
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
-                    placeholder="Frequent commuter between Mumbai and Pune, happy to help carry lightweight parcels."
+                    placeholder="Frequent commuter between Gurugram and Panipat, happy to help carry lightweight parcels."
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:bg-white focus:border-emerald-500 transition"
                   />
                 </div>

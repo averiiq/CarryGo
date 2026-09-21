@@ -449,7 +449,7 @@ function ParityCreateFormInner({ mode }: Props) {
             <CityAutocomplete
               id="create-from-city"
               label="Origin City"
-              placeholder="e.g. Mumbai"
+              placeholder="e.g. Gurugram"
               value={fromCity}
               onChange={setFromCity}
               iconColor="text-emerald-600"
@@ -458,7 +458,7 @@ function ParityCreateFormInner({ mode }: Props) {
             <CityAutocomplete
               id="create-to-city"
               label="Destination City"
-              placeholder="e.g. Pune"
+              placeholder="e.g. Faridabad"
               value={toCity}
               onChange={setToCity}
               iconColor="text-sky-600"
@@ -696,7 +696,7 @@ function ParityCreateFormInner({ mode }: Props) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-md shadow-emerald-600/25 hover:brightness-105 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-xs active:scale-95 transition disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
               <>

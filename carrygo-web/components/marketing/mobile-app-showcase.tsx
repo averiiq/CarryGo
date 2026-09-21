@@ -23,9 +23,6 @@ export function MobileAppShowcase() {
   return (
     <div className="w-full max-w-6xl mx-auto">
       <div className="relative rounded-3xl border border-slate-200/90 bg-white shadow-xl p-6 sm:p-10 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center overflow-hidden">
-        {/* Subtle top edge highlight */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500" />
-
         {/* Left Side: Copywriting, Screen Switcher, & Ratings */}
         <div className="lg:col-span-7 space-y-6">
           <div>
@@ -164,9 +161,9 @@ export function MobileAppShowcase() {
                       </div>
 
                       <div className="text-[11px] font-medium text-slate-700 flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100">
-                        <span>Mumbai</span>
+                        <span>Gurugram</span>
                         <span className="text-emerald-600 font-bold">→</span>
-                        <span>Pune</span>
+                        <span>Panipat</span>
                         <span className="text-[10px] text-slate-500">6 kg space</span>
                       </div>
 
@@ -219,10 +216,10 @@ export function MobileAppShowcase() {
 
                     <div className="space-y-1.5 text-[11px]">
                       <div className="p-2 rounded-2xl rounded-tl-xs bg-white border border-slate-200 text-slate-800 shadow-xs max-w-[85%]">
-                        Hi! I have a 1.5kg sealed parcel. Can we meet near Dadar Station?
+                        Hi! I have a 1.5kg sealed parcel. Can we meet near IFFCO Chowk, Gurugram?
                       </div>
                       <div className="p-2 rounded-2xl rounded-tr-xs bg-emerald-600 text-white font-medium ml-auto max-w-[85%] shadow-xs">
-                        Sure! I am reaching Dadar by 4:30 PM. I will enter pickup OTP.
+                        Sure! I am reaching IFFCO Chowk by 4:30 PM. I will enter pickup OTP.
                       </div>
                     </div>
 

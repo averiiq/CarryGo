@@ -567,10 +567,11 @@ type SuccessCardProps = {
   onRate: () => void;
   onViewPayment?: () => void;
   showPayment: boolean;
+  hasRated?: boolean;
   C: ThemeColors;
 };
 
-export function DeliverySuccessCard({ onRate, onViewPayment, showPayment, C }: SuccessCardProps) {
+export function DeliverySuccessCard({ onRate, onViewPayment, showPayment, hasRated, C }: SuccessCardProps) {
   return (
     <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.success + '44' }]}>
       <LinearGradient colors={[C.success + '12', 'transparent']} style={StyleSheet.absoluteFillObject} />
@@ -584,16 +585,23 @@ export function DeliverySuccessCard({ onRate, onViewPayment, showPayment, C }: S
         </Text>
       </View>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.primaryActionBtn,
-          { backgroundColor: C.primary, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
-        ]}
-        onPress={onRate}
-      >
-        <Feather name="star" size={16} color="#FFFFFF" />
-        <Text style={styles.primaryActionBtnText}>Rate Experience</Text>
-      </Pressable>
+      {hasRated ? (
+        <View style={[styles.secondaryBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+          <Feather name="check" size={14} color={C.success} />
+          <Text style={[styles.secondaryBtnText, { color: C.success, fontWeight: '600' }]}>Rating Submitted</Text>
+        </View>
+      ) : (
+        <Pressable
+          style={({ pressed }) => [
+            styles.primaryActionBtn,
+            { backgroundColor: C.primary, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+          onPress={onRate}
+        >
+          <Feather name="star" size={16} color="#FFFFFF" />
+          <Text style={styles.primaryActionBtnText}>Rate Experience</Text>
+        </Pressable>
+      )}
 
       {showPayment && onViewPayment ? (
         <Pressable

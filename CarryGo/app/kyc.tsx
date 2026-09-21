@@ -27,9 +27,11 @@ import {
   uploadSelfie,
   verifyPan,
   skipPan,
+  submitSandboxKyc,
   completeSandboxKyc,
   fetchLatestKycSession,
 } from '@/services/kyc.service';
+import { verifyHumanFace, FaceVerificationResult } from '@/services/face-verification.service';
 import KycStepIndicator from '@/components/feature/kyc/KycStepIndicator';
 import { Haptic } from '@/services/haptics.service';
 
@@ -68,6 +70,8 @@ export default function KycScreen() {
 
   // Selfie & PAN States
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
+  const [faceVerification, setFaceVerification] = useState<FaceVerificationResult | null>(null);
+  const [isVerifyingFace, setIsVerifyingFace] = useState(false);
   const [panNumber, setPanNumber] = useState('');
   const [isPanVerified, setIsPanVerified] = useState(false);
 
@@ -87,10 +91,10 @@ export default function KycScreen() {
     };
   }, [step, resendCountdown]);
 
-  // Check if user is already verified on mount
+  // Check if user is already verified or has submission under review on mount
   useEffect(() => {
     if (!user) return;
-    if (user.kycStatus === 'approved') {
+    if (user.kycStatus === 'approved' || user.kycStatus === 'submitted') {
       setStep('completed');
       return;
     }
@@ -99,7 +103,7 @@ export default function KycScreen() {
       if (!session) return;
       setSessionId(session.id);
 
-      if (session.status === 'approved') {
+      if (session.status === 'approved' || session.status === 'submitted') {
         setStep('completed');
       } else if (session.aadhaarStatus === 'verified') {
         if (session.aadhaarName) {
@@ -212,6 +216,7 @@ export default function KycScreen() {
         referenceId,
         cleanOtp,
         maskedAadhaar,
+        aadhaarRaw,
       );
 
       if (result.error || !result.data) {
@@ -239,7 +244,7 @@ export default function KycScreen() {
     setErrorMessage(null);
   }, []);
 
-  // Step 4: Launch front camera for live selfie
+  // Step 4: Launch front camera for live selfie with face verification
   const handleLaunchCamera = useCallback(async () => {
     Haptic.tap();
     try {
@@ -259,13 +264,30 @@ export default function KycScreen() {
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
+        const uri = result.assets[0].uri;
+        setIsVerifyingFace(true);
+        setErrorMessage(null);
+
+        const faceRes = await verifyHumanFace(uri);
+        setIsVerifyingFace(false);
+
+        if (!faceRes.isValid) {
+          Haptic.error();
+          setSelfieUri(null);
+          setFaceVerification(faceRes);
+          setErrorMessage(faceRes.errorMessage || 'No human face detected. Please ensure your face is well-lit and look directly at the camera.');
+          return;
+        }
+
         Haptic.success();
-        setSelfieUri(result.assets[0].uri);
+        setSelfieUri(uri);
+        setFaceVerification(faceRes);
         setErrorMessage(null);
       }
     } catch {
+      setIsVerifyingFace(false);
       Haptic.error();
-      setErrorMessage('Could not launch camera. Please check permissions.');
+      setErrorMessage('Could not launch camera or process selfie. Please try again.');
     }
   }, []);
 
@@ -327,7 +349,7 @@ export default function KycScreen() {
 
       setIsPanVerified(true);
 
-      const compRes = await completeSandboxKyc(sessionId, user.id);
+      const compRes = await submitSandboxKyc(sessionId, user.id, faceVerification || undefined);
       if (compRes.error) {
         Haptic.error();
         setErrorMessage(compRes.error);
@@ -337,8 +359,8 @@ export default function KycScreen() {
 
       Haptic.success();
       updateUser({
-        kycStatus: 'approved',
-        verified: true,
+        kycStatus: 'submitted',
+        verified: false,
         isAadhaarVerified: true,
         isAddressVerified: true,
       });
@@ -349,9 +371,9 @@ export default function KycScreen() {
     } finally {
       setIsProcessing(false);
     }
-  }, [user, sessionId, panNumber, updateUser]);
+  }, [user, sessionId, panNumber, faceVerification, updateUser]);
 
-  // Step 5: Skip PAN (Zero penalty, completes KYC immediately)
+  // Step 5: Skip PAN (Submits KYC for CMS review)
   const handleSkipPan = useCallback(async () => {
     if (!user || !sessionId) return;
     Haptic.tap();
@@ -360,7 +382,7 @@ export default function KycScreen() {
 
     try {
       await skipPan(sessionId, user.id);
-      const compRes = await completeSandboxKyc(sessionId, user.id);
+      const compRes = await submitSandboxKyc(sessionId, user.id, faceVerification || undefined);
       if (compRes.error) {
         Haptic.error();
         setErrorMessage(compRes.error);
@@ -370,19 +392,19 @@ export default function KycScreen() {
 
       Haptic.success();
       updateUser({
-        kycStatus: 'approved',
-        verified: true,
+        kycStatus: 'submitted',
+        verified: false,
         isAadhaarVerified: true,
         isAddressVerified: true,
       });
       setStep('completed');
     } catch (err) {
       Haptic.error();
-      setErrorMessage(err instanceof Error ? err.message : 'Error completing KYC.');
+      setErrorMessage(err instanceof Error ? err.message : 'Error submitting KYC.');
     } finally {
       setIsProcessing(false);
     }
-  }, [user, sessionId, updateUser]);
+  }, [user, sessionId, faceVerification, updateUser]);
 
   // Stepper Indicator Mapping
   const stepNumber =
@@ -409,7 +431,9 @@ export default function KycScreen() {
             ? 'Live Selfie'
             : step === 'pan'
               ? 'PAN (Optional)'
-              : 'Verified';
+              : user?.kycStatus === 'approved'
+                ? 'Verified'
+                : 'In Review';
 
   // ---------------------------------------------------------------------------
   // STEP 1: 12-DIGIT AADHAAR NUMBER INPUT
@@ -797,6 +821,14 @@ export default function KycScreen() {
         {selfieUri ? (
           <View style={styles.previewContainer}>
             <Image source={{ uri: selfieUri }} style={styles.selfiePreview} contentFit="cover" />
+            {faceVerification?.isValid && (
+              <View style={[styles.faceVerifiedBadge, { backgroundColor: C.successSubtle, borderColor: C.success + '40' }]}>
+                <MaterialIcons name="check-circle" size={14} color={C.success} />
+                <Text style={[styles.faceVerifiedText, { color: C.success }]}>
+                  Human Face Verified ✓ ({faceVerification.confidence}% match)
+                </Text>
+              </View>
+            )}
             <Pressable
               accessibilityRole="button"
               onPress={handleLaunchCamera}
@@ -810,6 +842,7 @@ export default function KycScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={handleLaunchCamera}
+            disabled={isVerifyingFace}
             style={[styles.cameraPlaceholder, { borderColor: C.primary, backgroundColor: C.surfaceElevated }]}
           >
             <View style={[styles.cameraInnerIcon, { backgroundColor: C.primarySubtle }]}>
@@ -821,6 +854,15 @@ export default function KycScreen() {
         )}
       </View>
 
+      {isVerifyingFace && (
+        <View style={[styles.verifyingFaceBox, { backgroundColor: C.primarySubtle }]}>
+          <ActivityIndicator size="small" color={C.primary} />
+          <Text style={[styles.verifyingFaceText, { color: C.primary }]}>
+            Analyzing face biometrics &amp; liveness...
+          </Text>
+        </View>
+      )}
+
       {errorMessage ? (
         <Animated.View entering={FadeIn.duration(200)} style={[styles.errorBox, { backgroundColor: C.errorSubtle }]}>
           <MaterialIcons name="error-outline" size={18} color={C.error} />
@@ -831,12 +873,12 @@ export default function KycScreen() {
       <Pressable
         accessibilityRole="button"
         onPress={handleUploadSelfie}
-        disabled={isProcessing || !selfieUri}
+        disabled={isProcessing || isVerifyingFace || !selfieUri || !faceVerification?.isValid}
         style={({ pressed }) => [
           styles.primaryButton,
           {
             backgroundColor: C.primary,
-            opacity: isProcessing || !selfieUri ? 0.5 : pressed ? 0.88 : 1,
+            opacity: isProcessing || isVerifyingFace || !selfieUri || !faceVerification?.isValid ? 0.5 : pressed ? 0.88 : 1,
           },
         ]}
       >
@@ -946,71 +988,108 @@ export default function KycScreen() {
   );
 
   // ---------------------------------------------------------------------------
-  // STEP 6: VERIFIED CELEBRATION & COMPLETION
+  // STEP 6: VERIFIED CELEBRATION OR SUBMITTED IN-REVIEW STATE
   // ---------------------------------------------------------------------------
-  const renderCompletedStep = () => (
-    <Animated.View entering={ZoomIn.duration(450)} style={styles.card}>
-      <View style={[styles.iconCircle, { backgroundColor: C.successSubtle }]}>
-        <MaterialIcons name="verified" size={56} color={C.success} />
-      </View>
+  const renderCompletedStep = () => {
+    const isApproved = user?.kycStatus === 'approved';
 
-      <Text style={[styles.title, { color: C.textPrimary }]}>You're Officially Verified!</Text>
-      <Text style={[styles.subtitle, { color: C.textSecondary }]}>
-        Your identity has been authenticated. You now have full access to accept deliveries, create trips, and earn on CarryGo.
-      </Text>
-
-      <View style={[styles.summaryContainer, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryLeft}>
-            <MaterialIcons name="check-circle" size={18} color={C.success} />
-            <Text style={[styles.summaryLabel, { color: C.textPrimary }]}>Aadhaar Identity</Text>
-          </View>
-          <Text style={[styles.summaryValue, { color: C.success }]}>UIDAI Verified</Text>
+    return (
+      <Animated.View entering={ZoomIn.duration(450)} style={styles.card}>
+        <View style={[styles.iconCircle, { backgroundColor: isApproved ? C.successSubtle : C.accentSubtle }]}>
+          <MaterialIcons
+            name={isApproved ? 'verified' : 'pending-actions'}
+            size={56}
+            color={isApproved ? C.success : C.accent}
+          />
         </View>
 
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryLeft}>
-            <MaterialIcons name="check-circle" size={18} color={C.success} />
-            <Text style={[styles.summaryLabel, { color: C.textPrimary }]}>Residential Address</Text>
+        <Text style={[styles.title, { color: C.textPrimary }]}>
+          {isApproved ? "You're Officially Verified!" : 'KYC Submitted for Review'}
+        </Text>
+        <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+          {isApproved
+            ? 'Your identity has been authenticated. You now have full access to accept deliveries, create trips, and earn on CarryGo.'
+            : 'Your Aadhaar identity and live selfie with face verification have been submitted. Our compliance team will review and approve your profile shortly.'}
+        </Text>
+
+        <View style={[styles.summaryContainer, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryLeft}>
+              <MaterialIcons name="check-circle" size={18} color={C.success} />
+              <Text style={[styles.summaryLabel, { color: C.textPrimary }]}>Aadhaar Identity</Text>
+            </View>
+            <Text style={[styles.summaryValue, { color: C.success }]}>UIDAI Verified</Text>
           </View>
-          <Text style={[styles.summaryValue, { color: C.success }]}>UIDAI Verified</Text>
+
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryLeft}>
+              <MaterialIcons name="check-circle" size={18} color={C.success} />
+              <Text style={[styles.summaryLabel, { color: C.textPrimary }]}>Human Face Verification</Text>
+            </View>
+            <Text style={[styles.summaryValue, { color: C.success }]}>Verified ✓</Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryLeft}>
+              <MaterialIcons
+                name={isPanVerified ? 'check-circle' : 'remove-circle-outline'}
+                size={18}
+                color={isPanVerified ? C.success : C.textMuted}
+              />
+              <Text style={[styles.summaryLabel, { color: C.textPrimary }]}>PAN Card</Text>
+            </View>
+            <Text style={[styles.summaryValue, { color: isPanVerified ? C.success : C.textMuted }]}>
+              {isPanVerified ? 'Verified' : 'Optional (Skipped)'}
+            </Text>
+          </View>
+
+          <View style={[styles.summaryRow, { paddingTop: 6, borderTopWidth: 1, borderTopColor: C.surfaceBorder }]}>
+            <View style={styles.summaryLeft}>
+              <MaterialIcons
+                name={isApproved ? 'verified-user' : 'hourglass-top'}
+                size={18}
+                color={isApproved ? C.success : C.accent}
+              />
+              <Text style={[styles.summaryLabel, { color: C.textPrimary, fontWeight: FontWeight.bold }]}>
+                Compliance Status
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.summaryValue,
+                {
+                  color: isApproved ? C.success : C.accent,
+                  fontWeight: FontWeight.bold,
+                },
+              ]}
+            >
+              {isApproved ? 'Approved' : 'Pending CMS Approval'}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryLeft}>
-            <MaterialIcons name="check-circle" size={18} color={C.success} />
-            <Text style={[styles.summaryLabel, { color: C.textPrimary }]}>Face Liveness Selfie</Text>
+        {!isApproved && (
+          <View style={[styles.skipReassurance, { backgroundColor: C.accentSubtle, borderColor: C.accent + '33' }]}>
+            <MaterialIcons name="info-outline" size={18} color={C.accent} />
+            <Text style={[styles.skipReassuranceText, { color: C.textPrimary }]}>
+              Review typically completes in 1–2 hours during business hours. You can browse routes in the meantime.
+            </Text>
           </View>
-          <Text style={[styles.summaryValue, { color: C.success }]}>Approved</Text>
-        </View>
+        )}
 
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryLeft}>
-            <MaterialIcons
-              name={isPanVerified ? 'check-circle' : 'remove-circle-outline'}
-              size={18}
-              color={isPanVerified ? C.success : C.textMuted}
-            />
-            <Text style={[styles.summaryLabel, { color: C.textPrimary }]}>PAN Card</Text>
-          </View>
-          <Text style={[styles.summaryValue, { color: isPanVerified ? C.success : C.textMuted }]}>
-            {isPanVerified ? 'Verified' : 'Optional (Skipped)'}
-          </Text>
-        </View>
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.back()}
-        style={({ pressed }) => [
-          styles.primaryButton,
-          { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1 },
-        ]}
-      >
-        <Text style={styles.primaryButtonText}>Return to Profile</Text>
-      </Pressable>
-    </Animated.View>
-  );
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1 },
+          ]}
+        >
+          <Text style={styles.primaryButtonText}>Return to Profile</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -1448,6 +1527,34 @@ const styles = StyleSheet.create({
   retakeText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
+  },
+  faceVerifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    marginTop: Spacing.sm,
+  },
+  faceVerifiedText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  verifyingFaceBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    width: '100%',
+    marginBottom: Spacing.md,
+  },
+  verifyingFaceText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
   panInput: {
     width: '100%',

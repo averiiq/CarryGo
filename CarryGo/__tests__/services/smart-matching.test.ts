@@ -299,6 +299,14 @@ describe('smart-matching.service', () => {
       const result = scoreMatch(trip, parcel);
       expect(result.breakdown.ratingScore).toBe(20);
     });
+
+    it('returns 75 neutral score for unrated couriers', () => {
+      const trip = makeTrip({ userRating: 0 });
+      const parcel = makeParcel();
+
+      const result = scoreMatch(trip, parcel);
+      expect(result.breakdown.ratingScore).toBe(75);
+    });
   });
 
   describe('scoreMatch - overall score calculation', () => {

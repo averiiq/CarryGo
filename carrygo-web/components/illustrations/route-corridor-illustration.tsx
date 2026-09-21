@@ -13,10 +13,10 @@ interface RouteCorridorIllustrationProps {
 }
 
 export function RouteCorridorIllustration({
-  fromCity = 'Mumbai',
-  toCity = 'Pune',
-  duration = '2h 45m',
-  distance = '148 km',
+  fromCity = 'Gurugram',
+  toCity = 'Panipat',
+  duration = '1h 45m',
+  distance = '112 km',
   className = '',
 }: RouteCorridorIllustrationProps) {
   const [activeSpeed, setActiveSpeed] = useState<'normal' | 'express'>('normal')

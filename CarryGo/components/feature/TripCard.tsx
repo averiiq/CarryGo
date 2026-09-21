@@ -6,20 +6,12 @@ import { Trip, Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-  bike: 'two-wheeler',
-  car: 'directions-car',
-  bus: 'directions-bus',
-  train: 'train',
-  flight: 'flight',
-};
-
-const vehicleColors: Record<string, [string, string]> = {
-  bike: ['#D97706', '#B45309'],
-  car: ['#2563EB', '#1D4ED8'],
-  bus: ['#7C3AED', '#6D28D9'],
-  train: ['#0F766E', '#0D9488'],
-  flight: ['#16A34A', '#15803D'],
+const vehicleConfig: Record<string, { icon: keyof typeof MaterialIcons.glyphMap; color: string; bg: string; border: string }> = {
+  bike: { icon: 'two-wheeler', color: '#D97706', bg: '#FEF3C7', border: '#FDE68A' },
+  car: { icon: 'directions-car', color: '#0284C7', bg: '#E0F2FE', border: '#BAE6FD' },
+  bus: { icon: 'directions-bus', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },
+  train: { icon: 'train', color: '#0D9488', bg: '#CCFBF1', border: '#99F6E4' },
+  flight: { icon: 'flight', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
 };
 
 interface TripCardProps {
@@ -54,9 +46,7 @@ export const TripCard = React.memo(function TripCard({
   if (!trip) return null;
 
   const vehicleTypeKey = (trip.vehicleType || 'car').toLowerCase();
-  const vGradient: [string, string] = vehicleColors[vehicleTypeKey] || ['#059669', '#047857'];
-  const vColor = vGradient[0];
-  const vehicleIcon = vehicleIcons[vehicleTypeKey] || 'directions-car';
+  const vMeta = vehicleConfig[vehicleTypeKey] || vehicleConfig.car;
   const vehicleLabel = (trip.vehicleType || 'CAR').toUpperCase();
 
   const rawName = trip.userName || 'User';
@@ -73,7 +63,7 @@ export const TripCard = React.memo(function TripCard({
   const pricePerKg = typeof trip.pricePerKg === 'number' ? trip.pricePerKg : 0;
 
   const onPressIn = () =>
-    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, ...Motion.springFast }).start();
+    Animated.spring(scale, { toValue: 0.985, useNativeDriver: true, ...Motion.springFast }).start();
   const onPressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
@@ -97,16 +87,16 @@ export const TripCard = React.memo(function TripCard({
       >
         <View style={styles.topRow}>
           <View style={styles.userSection}>
-            <LinearGradient
-              colors={vGradient}
-              style={styles.avatar}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <View
+              style={[
+                styles.avatar,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 }
+              ]}
             >
-              <Text style={styles.avatarLetter}>
+              <Text style={[styles.avatarLetter, { color: C.primary }]}>
                 {avatarLetter}
               </Text>
-            </LinearGradient>
+            </View>
             <View style={styles.userMeta}>
               <View style={styles.nameBadgeRow}>
                 <Text style={[styles.userName, { color: C.textPrimary }]} numberOfLines={1}>
@@ -136,17 +126,20 @@ export const TripCard = React.memo(function TripCard({
             </View>
           </View>
 
-          <View style={[styles.vehicleChip, { backgroundColor: vColor + '12', borderColor: vColor + '28' }]}>
-            <MaterialIcons name={vehicleIcon} size={13} color={vColor} />
-            <Text style={[styles.vehicleLabel, { color: vColor }]}>
+          <View style={[styles.vehicleChip, { backgroundColor: vMeta.bg, borderColor: vMeta.border }]}>
+            <MaterialIcons name={vMeta.icon} size={13} color={vMeta.color} />
+            <Text style={[styles.vehicleLabel, { color: vMeta.color }]}>
               {vehicleLabel}
             </Text>
           </View>
         </View>
 
-        <View style={styles.routeContainer}>
+        <View style={[styles.routeContainer, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
           <View style={styles.cityBlock}>
-            <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
+            <View style={styles.cityIndicatorRow}>
+              <View style={[styles.routeDot, { backgroundColor: C.primary }]} />
+              <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
+            </View>
             <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
               {fromCity}
             </Text>
@@ -154,13 +147,16 @@ export const TripCard = React.memo(function TripCard({
 
           <View style={styles.arrowBlock}>
             <View style={[styles.arrowLine, { borderColor: C.surfaceBorder }]} />
-            <View style={[styles.arrowIconCircle, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-              <MaterialIcons name="arrow-forward" size={13} color={C.primary} />
+            <View style={[styles.arrowIconCircle, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <MaterialIcons name="east" size={13} color={C.primary} />
             </View>
           </View>
 
           <View style={[styles.cityBlock, { alignItems: 'flex-end' }]}>
-            <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
+            <View style={[styles.cityIndicatorRow, { justifyContent: 'flex-end' }]}>
+              <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
+              <MaterialIcons name="place" size={11} color={C.primary} style={{ marginLeft: 2 }} />
+            </View>
             <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
               {toCity}
             </Text>
@@ -377,11 +373,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 14,
+    borderWidth: 1,
   },
   cityBlock: {
     flex: 1,
-    gap: 2,
+    gap: 3,
+  },
+  cityIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  routeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   cityLabel: {
     fontSize: 9.5,

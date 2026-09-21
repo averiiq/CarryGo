@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowRight, KeyRound, Loader2, ShieldCheck, Sparkles, User, UserPlus } from 'lucide-react'
 import { login, signup, reviewerLogin } from '@/app/login/actions'
+import { getClientPlatformConfig } from '@/lib/platform-config'
 
 interface Props {
   initialError?: string
@@ -12,7 +13,7 @@ interface Props {
 
 export function LoginForm({ initialError, initialMode = 'signin', nextPath = '' }: Props) {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode)
-  const [isAdminMode, setIsAdminMode] = useState(false)
+  const [signupsAllowed, setSignupsAllowed] = useState(true)
   const [loading, setLoading] = useState(false)
   const [reviewerLoading, setReviewerLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState(
@@ -24,6 +25,16 @@ export function LoginForm({ initialError, initialMode = 'signin', nextPath = '' 
       ? 'Reviewer account sign-in failed. Please try manual email login.'
       : initialError
   )
+
+  useEffect(() => {
+    void getClientPlatformConfig().then((cfg) => {
+      setSignupsAllowed(cfg.newUserSignups)
+      if (!cfg.newUserSignups && initialMode === 'signup') {
+        setMode('signin')
+        setErrorMsg('New account registrations are temporarily paused by administration.')
+      }
+    })
+  }, [initialMode])
 
   const handleReviewerClick = async () => {
     setReviewerLoading(true)
@@ -97,6 +108,10 @@ export function LoginForm({ initialError, initialMode = 'signin', nextPath = '' 
             <button
               type="button"
               onClick={() => {
+                if (!signupsAllowed) {
+                  setErrorMsg('New account registrations are temporarily paused by administration.')
+                  return
+                }
                 setMode('signup')
                 setErrorMsg(undefined)
               }}
@@ -104,37 +119,29 @@ export function LoginForm({ initialError, initialMode = 'signin', nextPath = '' 
                 mode === 'signup'
                   ? 'bg-surface text-foreground shadow-sm'
                   : 'text-muted hover:text-foreground'
-              }`}
+              } ${!signupsAllowed ? 'opacity-50' : ''}`}
             >
               Create Account
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsAdminMode(!isAdminMode)}
-            className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
-              isAdminMode
-                ? 'bg-accent/10 border-accent/30 text-accent font-semibold'
-                : 'border-border text-muted hover:text-foreground'
-            }`}
+          <a
+            href={process.env.NEXT_PUBLIC_CMS_URL ? `${process.env.NEXT_PUBLIC_CMS_URL}/login` : 'http://localhost:3001/login'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium px-2.5 py-1 rounded-lg border border-border text-muted hover:text-purple-600 hover:border-purple-300 transition-colors inline-flex items-center gap-1"
+            title="Open Admin CMS Operations Console"
           >
-            {isAdminMode ? 'Admin Portal' : 'Admin?'}
-          </button>
+            Admin Portal ↗
+          </a>
         </div>
 
         <div className="space-y-1">
           <h2 className="text-xl font-heading font-bold text-foreground">
-            {isAdminMode
-              ? 'Administrator Access'
-              : mode === 'signin'
-              ? 'Welcome to CarryGo'
-              : 'Join CarryGo Today'}
+            {mode === 'signin' ? 'Welcome to CarryGo' : 'Join CarryGo Today'}
           </h2>
           <p className="text-xs text-muted">
-            {isAdminMode
-              ? 'Authorized operations and dispute management console.'
-              : mode === 'signin'
+            {mode === 'signin'
               ? 'Sign in to send parcels, offer trips, and track active bookings.'
               : 'Connect with verified travelers and send parcels securely across India.'}
           </p>
@@ -187,8 +194,7 @@ export function LoginForm({ initialError, initialMode = 'signin', nextPath = '' 
               name="email"
               type="email"
               required
-              defaultValue={isAdminMode ? 'admin@carrygo.com' : ''}
-              placeholder={isAdminMode ? 'admin@carrygo.com' : 'you@example.com'}
+              placeholder="you@example.com"
               className="block w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground text-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>

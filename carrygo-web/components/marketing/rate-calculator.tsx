@@ -63,8 +63,6 @@ export function RateCalculator() {
   return (
     <div className="w-full max-w-5xl mx-auto">
       <div className="relative rounded-3xl border border-slate-200/90 bg-white shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
-        {/* Subtle top edge highlight */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500" />
 
         {/* Left Side: Interactive Controls */}
         <div className="lg:col-span-7 p-6 sm:p-8 space-y-6">
@@ -240,7 +238,7 @@ export function RateCalculator() {
           <div>
             <Link
               href={`/create-parcel?weight=${weight}&category=${category}&price=${calculation.carrygoEst}&urgency=${urgency}`}
-              className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:brightness-105 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white bg-emerald-700 hover:bg-emerald-800 shadow-xs transition-all active:scale-[0.98] cursor-pointer"
             >
               <span>Post This Parcel for ₹{calculation.carrygoEst}</span>
               <ArrowRight className="w-4 h-4" />

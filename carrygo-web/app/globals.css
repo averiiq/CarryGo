@@ -167,64 +167,28 @@ body {
   transition: all var(--transition-base);
 }
 
-.glow-card::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(2, 132, 199, 0.1), transparent 70%);
-  z-index: -1;
-  opacity: 0;
-  transition: opacity var(--transition-base);
+.glow-card:hover {
+  border-color: rgba(5, 150, 105, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
-.glow-card:hover::before {
-  opacity: 1;
-}
-
-/* Ambient Cyber Grid & Auroras in Light Mode */
+/* Minimal Soft Background Tinting */
 .cyber-grid {
-  position: absolute;
-  inset: 0;
-  background-image: 
-    linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 20%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 20%, transparent 80%);
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
-.ambient-glow-emerald {
-  position: absolute;
-  width: 500px;
-  height: 350px;
-  background: radial-gradient(circle, rgba(5, 150, 105, 0.09) 0%, rgba(5, 150, 105, 0) 70%);
-  filter: blur(80px);
-  pointer-events: none;
-  border-radius: 9999px;
-  z-index: 0;
-}
-
+.ambient-glow-emerald,
 .ambient-glow-cyan {
-  position: absolute;
-  width: 450px;
-  height: 320px;
-  background: radial-gradient(circle, rgba(2, 132, 199, 0.08) 0%, rgba(2, 132, 199, 0) 70%);
-  filter: blur(80px);
-  pointer-events: none;
-  border-radius: 9999px;
-  z-index: 0;
+  display: none;
 }
 
 /* Animations */
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.3);
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.2);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(5, 150, 105, 0);
+    box-shadow: 0 0 0 6px rgba(5, 150, 105, 0);
   }
 }
 
@@ -236,7 +200,7 @@ body {
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  50% { transform: translateY(-4px); }
 }
 
 @keyframes route-dash {
@@ -262,26 +226,17 @@ body {
   animation: route-dash 1.5s linear infinite;
 }
 
-/* Gradient text systems for Light Theme */
+/* Minimal Soft Heading & Accent Text */
 .text-gradient-emerald {
-  background: linear-gradient(135deg, #059669 0%, #0D9488 45%, #0284C7 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #047857;
 }
 
 .text-gradient-heading {
-  background: linear-gradient(180deg, #0F172A 20%, #334155 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #0F172A;
 }
 
 .text-gradient-amber {
-  background: linear-gradient(135deg, #D97706 0%, #B45309 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #B45309;
 }
 
 /* Modern status dots */
@@ -360,18 +315,18 @@ body {
   border-radius: 1rem;
   padding: 0.75rem 1.5rem;
   font-size: 0.875rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  font-weight: 600;
+  background: #047857;
   color: #FFFFFF;
-  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.28);
+  box-shadow: var(--shadow-xs);
   transition: all var(--transition-fast);
   cursor: pointer;
 }
 
 .button-primary:hover {
-  filter: brightness(1.08);
+  background: #065F46;
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(5, 150, 105, 0.35);
+  box-shadow: var(--shadow-sm);
 }
 
 .button-secondary {
@@ -425,4 +380,67 @@ body {
   right: 1.5rem;
   height: 1px;
   background: linear-gradient(90deg, transparent 0%, rgba(226, 232, 240, 0.8) 50%, transparent 100%);
+}
+
+/* Card & Interactive Micro-Interactions */
+.card-hover-elevate {
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.card-hover-elevate:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.06);
+  border-color: rgba(5, 150, 105, 0.3);
+}
+
+.gradient-border-emerald {
+  position: relative;
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  background: var(--surface);
+}
+
+.shimmer-badge {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-badge::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 60%
+  );
+  transform: rotate(25deg);
+  animation: shimmer 5s infinite linear;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(100%) rotate(25deg);
+  }
+}
+
+.boarding-pass-card {
+  position: relative;
+  background: #FFFFFF;
+  border-radius: 1.5rem;
+  border: 1px solid #E2E8F0;
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-base);
+}
+
+.boarding-pass-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(5, 150, 105, 0.3);
+  box-shadow: var(--shadow-md);
 }

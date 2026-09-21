@@ -2,22 +2,22 @@ import { findCity, getDistance, haversineDistance, INDIAN_CITIES } from '@/const
 
 describe('Indian Cities Optimization & Lookups', () => {
   it('finds city by exact name via Map lookup', () => {
-    const delhi = findCity('Delhi');
-    expect(delhi).toBeDefined();
-    expect(delhi?.name).toBe('Delhi');
-    expect(delhi?.state).toBe('Delhi');
+    const gurugram = findCity('Gurugram');
+    expect(gurugram).toBeDefined();
+    expect(gurugram?.name).toBe('Gurugram');
+    expect(gurugram?.state).toBe('Haryana');
   });
 
   it('finds city case-insensitively and with surrounding whitespace', () => {
-    const mumbai = findCity('  mUmBaI  ');
-    expect(mumbai).toBeDefined();
-    expect(mumbai?.name).toBe('Mumbai');
+    const gurugram = findCity('  gUrUgRaM  ');
+    expect(gurugram).toBeDefined();
+    expect(gurugram?.name).toBe('Gurugram');
   });
 
   it('finds city by partial match if exact match does not exist', () => {
-    const visakhapatnam = findCity('Visakha');
-    expect(visakhapatnam).toBeDefined();
-    expect(visakhapatnam?.name).toBe('Visakhapatnam');
+    const faridabad = findCity('Farid');
+    expect(faridabad).toBeDefined();
+    expect(faridabad?.name).toBe('Faridabad');
   });
 
   it('returns undefined for nonexistent city or empty string', () => {
@@ -25,12 +25,12 @@ describe('Indian Cities Optimization & Lookups', () => {
     expect(findCity('Atlantis')).toBeUndefined();
   });
 
-  it('calculates correct haversine distance between Mumbai and Pune', () => {
-    const mumbai = findCity('Mumbai')!;
-    const pune = findCity('Pune')!;
-    const distance = getDistance(mumbai, pune);
-    // Mumbai to Pune is approximately ~120-150 km
-    expect(distance).toBeGreaterThan(100);
-    expect(distance).toBeLessThan(170);
+  it('calculates correct haversine distance between Gurugram and Faridabad', () => {
+    const gurugram = findCity('Gurugram')!;
+    const faridabad = findCity('Faridabad')!;
+    const distance = getDistance(gurugram, faridabad);
+    // Gurugram to Faridabad is approximately ~30-40 km
+    expect(distance).toBeGreaterThan(25);
+    expect(distance).toBeLessThan(50);
   });
 });

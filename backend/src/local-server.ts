@@ -83,14 +83,31 @@ export const server = http.createServer(async (req, res) => {
       isBase64Encoded: false,
     } as APIGatewayProxyEventV2;
 
+    const origin = headers['origin'] || '*';
+    const corsHeaders: Record<string, string> = {
+      'access-control-allow-origin': origin,
+      'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'access-control-allow-headers': 'content-type, authorization, x-user-id, x-role, x-request-id, idempotency-key',
+      'access-control-allow-credentials': 'true',
+    };
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, corsHeaders);
+      res.end();
+      return;
+    }
+
     try {
       const response = await routeRequest(event);
-      res.writeHead(response.statusCode, response.headers || {});
+      res.writeHead(response.statusCode, {
+        ...(response.headers || {}),
+        ...corsHeaders,
+      });
       res.end(response.body);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Internal server error';
       console.error('Server error:', err);
-      res.writeHead(500, { 'content-type': 'application/json' });
+      res.writeHead(500, { 'content-type': 'application/json', ...corsHeaders });
       res.end(JSON.stringify({ error: message }));
     }
   });

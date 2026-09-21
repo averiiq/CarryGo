@@ -208,9 +208,9 @@ export default function MessagesScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.convItem,
-              { marginTop: topMargin, backgroundColor: C.surface, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
+              { marginTop: topMargin, backgroundColor: C.card, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
               item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
-              pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+              pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
             ]}
             onPress={() => openConversation(item.id)}
           >
@@ -225,7 +225,7 @@ export default function MessagesScreen() {
             >
               <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
               {item.isUnread ? (
-                <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.surface }]} />
+                <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card }]} />
               ) : null}
             </View>
 
@@ -304,7 +304,7 @@ export default function MessagesScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.refreshBtn,
-                { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+                { backgroundColor: C.card, borderColor: C.surfaceBorder },
                 pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
               ]}
               onPress={handleRefresh}
@@ -317,7 +317,7 @@ export default function MessagesScreen() {
         </View>
 
         {conversationRows.length > 0 ? (
-          <View style={[styles.filterSegment, { backgroundColor: '#F1F5F9', borderColor: C.surfaceBorder }]}>
+          <View style={[styles.filterSegment, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
             <Pressable
               style={[
                 styles.segmentItem,

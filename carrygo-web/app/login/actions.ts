@@ -31,7 +31,8 @@ export async function login(formData: FormData) {
       .maybeSingle()
 
     if (profile?.system_role === 'admin') {
-      redirectTarget = next || '/dashboard'
+      const cmsUrl = process.env.NEXT_PUBLIC_CMS_URL || 'http://localhost:3001'
+      redirectTarget = next || `${cmsUrl}/dashboard`
     }
   }
 

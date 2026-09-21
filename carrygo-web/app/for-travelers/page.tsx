@@ -60,28 +60,28 @@ const travelerBenefits = [
 
 const EARNING_EXAMPLES = [
   {
-    route: 'Mumbai ↔ Pune',
-    transport: 'Car / Bus / Train',
+    route: 'Gurugram ↔ Faridabad',
+    transport: 'Car / Cab',
     capacity: '8 kg capacity',
-    earnings: '₹500 – ₹850',
-    impact: 'Covers toll charges & highway fuel',
+    earnings: '₹350 – ₹600',
+    impact: 'Covers expressway toll & fuel',
     icon: Truck,
   },
   {
-    route: 'Delhi ↔ Jaipur',
-    transport: 'Train / Car',
+    route: 'Gurugram ↔ Panipat',
+    transport: 'Car / Bus',
     capacity: '10 kg capacity',
-    earnings: '₹600 – ₹1,100',
-    impact: 'Pays for your AC chair car train ticket',
-    icon: Train,
+    earnings: '₹600 – ₹1,000',
+    impact: 'Covers NH-44 fuel & travel expenses',
+    icon: Truck,
   },
   {
-    route: 'Bangalore ↔ Hyderabad',
-    transport: 'Flight / Car',
-    capacity: '5 kg lightweight',
-    earnings: '₹900 – ₹1,800',
-    impact: 'Offsets airport cab fares & travel meals',
-    icon: Plane,
+    route: 'Ambala ↔ Karnal',
+    transport: 'Train / Car',
+    capacity: '6 kg lightweight',
+    earnings: '₹300 – ₹550',
+    impact: 'Pays for your train ticket & refreshments',
+    icon: Train,
   },
 ]
 

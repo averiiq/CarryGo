@@ -14,6 +14,7 @@ import {
   Star,
   Truck,
   AlertCircle,
+  AlertTriangle,
   RefreshCw,
   MapPin,
   Calendar,
@@ -21,6 +22,8 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
+  ShieldAlert,
+  X,
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { OtpHandshakeModal } from '@/components/delivery/otp-handshake-modal'
@@ -123,6 +126,13 @@ export default function DeliveryTrackingPage({
   const [progressNote, setProgressNote] = useState('')
   const [progressEta, setProgressEta] = useState('')
   const [progressSubmitting, setProgressSubmitting] = useState(false)
+
+  // Dispute / Issue modal states
+  const [showDisputeModal, setShowDisputeModal] = useState(false)
+  const [disputeCategory, setDisputeCategory] = useState('Delivery Delay / Non-arrival')
+  const [disputeReason, setDisputeReason] = useState('')
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false)
+  const [disputeError, setDisputeError] = useState<string | null>(null)
 
   const isSender = Boolean(currentUserId && request?.sender_id === currentUserId)
   const isTraveler = Boolean(currentUserId && request?.traveller_id === currentUserId)
@@ -361,6 +371,42 @@ export default function DeliveryTrackingPage({
     }
   }
 
+  // Handle Raising Dispute to Central CMS
+  const handleRaiseDispute = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!disputeReason.trim()) {
+      setDisputeError('Please describe the issue in detail for administrative arbitration.')
+      return
+    }
+    setDisputeSubmitting(true)
+    setDisputeError(null)
+    try {
+      const supabase = createClient()
+      const targetReqId = request?.id || delivery?.request_id || deliveryOrRequestId
+      const actorRole = isSender ? 'Sender' : isTraveler ? 'Traveler' : 'Participant'
+      const formattedMessage = `[DISPUTE: ${disputeCategory.toUpperCase()}] Raised by ${actorRole}: ${disputeReason.trim()}`
+
+      const { error: updErr } = await supabase
+        .from('requests')
+        .update({
+          status: 'failed',
+          message: formattedMessage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', targetReqId)
+
+      if (updErr) throw updErr
+
+      setShowDisputeModal(false)
+      setDisputeReason('')
+      await fetchData(true)
+    } catch (err) {
+      setDisputeError(err instanceof Error ? err.message : 'Failed to submit dispute.')
+    } finally {
+      setDisputeSubmitting(false)
+    }
+  }
+
   const fromCity = parcel?.from_city || trip?.from_city || 'Origin'
   const toCity = parcel?.to_city || trip?.to_city || 'Destination'
   const routeMetrics = getRouteEstimate(fromCity, toCity)
@@ -445,6 +491,18 @@ export default function DeliveryTrackingPage({
           </div>
 
           <div className="flex items-center gap-2">
+            {isParticipant && request?.status !== 'failed' && activeStep < 4 && (
+              <button
+                type="button"
+                onClick={() => setShowDisputeModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition cursor-pointer shadow-xs"
+                title="Report delivery dispute to central CMS administration"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Report Issue</span>
+              </button>
+            )}
+
             {conversationId && (
               <Link
                 href={`/chat/${conversationId}`}
@@ -466,6 +524,43 @@ export default function DeliveryTrackingPage({
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        {/* Dispute Status Banner */}
+        {request?.status === 'failed' && (
+          <div
+            className={`rounded-2xl border p-4 shadow-sm flex items-start gap-3.5 ${
+              request.message?.includes('[RESOLVED:')
+                ? 'border-emerald-500/30 bg-emerald-50 text-emerald-950'
+                : 'border-amber-500/30 bg-amber-50 text-amber-950'
+            }`}
+          >
+            <div className="p-2 rounded-xl bg-white/85 shrink-0 shadow-xs">
+              <ShieldAlert
+                className={`w-5 h-5 ${
+                  request.message?.includes('[RESOLVED:') ? 'text-emerald-600' : 'text-amber-600'
+                }`}
+              />
+            </div>
+            <div className="space-y-1 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold">
+                  {request.message?.includes('[RESOLVED: REFUND_SENDER]')
+                    ? 'Dispute Ruled by Administration: Full Refund Issued'
+                    : request.message?.includes('[RESOLVED: PAY_TRAVELLER]')
+                    ? 'Dispute Ruled by Administration: Payment Released to Traveler'
+                    : 'Delivery Under Administrative Dispute Review'}
+                </h3>
+                <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-white border border-current">
+                  {request.message?.includes('[RESOLVED:') ? 'RESOLVED' : 'CMS ARBITRATION'}
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed opacity-90">
+                {request.message ||
+                  'This journey has been reported to central administration. SafeVault™ escrow funds remain protected until final resolution.'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Corridor Hero Card */}
         <div className="p-6 rounded-2xl border border-border/60 bg-gradient-to-br from-surface via-surface/80 to-surface/40 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
@@ -1090,6 +1185,104 @@ export default function DeliveryTrackingPage({
                 >
                   {progressSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Save Updates</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dispute / Issue Reporting Modal */}
+      {showDisputeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg p-6 rounded-2xl bg-surface border border-border/80 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-heading font-bold text-foreground">
+                    Report Issue / Contest Delivery
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Submitted directly to Central CMS Administration for arbitration.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDisputeModal(false)}
+                className="p-1.5 rounded-lg hover:bg-surface-hover text-muted-foreground hover:text-foreground transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {disputeError && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                {disputeError}
+              </div>
+            )}
+
+            <form onSubmit={handleRaiseDispute} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1.5">
+                  Nature of Dispute
+                </label>
+                <select
+                  value={disputeCategory}
+                  onChange={(e) => setDisputeCategory(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-surface-subtle border border-border/70 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="Delivery Delay / Non-arrival">Delivery Delay / Non-arrival</option>
+                  <option value="Parcel Damaged or Missing">Parcel Damaged or Missing</option>
+                  <option value="Wrong Handover Location / Incomplete Trip">
+                    Wrong Handover Location / Incomplete Trip
+                  </option>
+                  <option value="Unresponsive Contact / Fraud Concern">
+                    Unresponsive Contact / Fraud Concern
+                  </option>
+                  <option value="Other Operational Issue">Other Operational Issue</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1.5">
+                  Detailed Explanation & Evidence Summary
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Explain what occurred, timestamps, location details, or communication history. This will be examined in the Central CMS Dispute Resolution Center."
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-surface-subtle border border-border/70 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 leading-relaxed">
+                <span className="font-bold">SafeVault™ Escrow Protection:</span> When you submit a
+                dispute, escrow funds are placed in protective freeze. A certified platform
+                administrator will inspect the chat transcript, GPS corridor coordinates, and contact
+                both parties before ruling.
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowDisputeModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-border/70 bg-surface hover:bg-surface-hover text-xs font-medium text-foreground transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={disputeSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 text-white font-semibold text-xs hover:bg-rose-700 transition disabled:opacity-50 inline-flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  {disputeSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Submit to Central CMS Arbitration</span>
                 </button>
               </div>
             </form>

@@ -95,7 +95,7 @@ function SearchBarTrigger({
       }}
       style={({ pressed }) => [
         styles.searchBar,
-        { backgroundColor: C.surface, borderColor: hasFilter ? C.primary : C.surfaceBorder },
+        { backgroundColor: C.card, borderColor: hasFilter ? C.primary : C.surfaceBorder },
         pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
       ]}
     >
@@ -106,7 +106,7 @@ function SearchBarTrigger({
         <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Where are you sending to?</Text>
         <Text style={[styles.searchSubPlaceholder, { color: C.textMuted }]}>Search routes, cities or dates</Text>
       </View>
-      <View style={[styles.filterIconBadge, { backgroundColor: hasFilter ? C.primarySubtle : C.background }]}>
+      <View style={[styles.filterIconBadge, { backgroundColor: hasFilter ? C.primarySubtle : C.surfaceElevated }]}>
         <MaterialIcons name="tune" size={18} color={hasFilter ? C.primary : C.textSecondary} />
       </View>
     </Pressable>
@@ -127,19 +127,19 @@ function QuickActions() {
         style={({ pressed }) => [
           styles.quickActionCard,
           styles.quickActionPrimaryCard,
-          { backgroundColor: C.primaryDark, borderColor: C.primaryDark },
+          { backgroundColor: C.primary, borderColor: C.primary },
           pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
         ]}
       >
         <View style={styles.quickActionTop}>
-          <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
+          <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
             <MaterialIcons name="inventory-2" size={22} color="#FFFFFF" />
           </View>
-          <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.7)" />
+          <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
         </View>
         <View style={styles.quickActionCopy}>
           <Text style={[styles.quickActionTitle, { color: '#FFFFFF' }]}>Send Parcel</Text>
-          <Text style={[styles.quickActionSub, { color: 'rgba(255,255,255,0.78)' }]}>Match with travelers</Text>
+          <Text style={[styles.quickActionSub, { color: 'rgba(255,255,255,0.85)' }]}>Match with travelers</Text>
         </View>
       </Pressable>
 
@@ -150,7 +150,7 @@ function QuickActions() {
         }}
         style={({ pressed }) => [
           styles.quickActionCard,
-          { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+          { backgroundColor: C.card, borderColor: C.surfaceBorder },
           pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
         ]}
       >
@@ -173,15 +173,19 @@ function HomeStats({
   tripsCount,
   parcelsCount,
   rating,
+  totalRatings,
   isSmallDevice,
 }: {
   tripsCount: number;
   parcelsCount: number;
   rating?: number;
+  totalRatings?: number;
   isSmallDevice?: boolean;
 }) {
   const { C } = useThemeColors();
-  const userRating = rating ? rating.toFixed(1) : '4.9';
+  const userRating = totalRatings && totalRatings > 0
+    ? (rating ? rating.toFixed(1) : '5.0')
+    : 'New';
   const responsiveStatNumberStyle = isSmallDevice ? { fontSize: FontSize.md } : undefined;
 
   return (
@@ -749,6 +753,7 @@ export default function HomeScreen() {
               tripsCount={filteredTrips.length}
               parcelsCount={filteredParcels.length}
               rating={user?.rating}
+              totalRatings={user?.totalRatings}
               isSmallDevice={isSmallDevice}
             />
 
@@ -777,7 +782,7 @@ export default function HomeScreen() {
 
             {!isOnline ? <OfflineBanner C={C} /> : null}
 
-            <View style={[styles.segmented, { backgroundColor: '#F1F5F9', borderColor: C.surfaceBorder }]}> 
+            <View style={[styles.segmented, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}> 
               {(['trips', 'parcels'] as const).map((tab) => {
                 const active = activeTab === tab;
                 const count = tab === 'trips' ? filteredTrips.length : filteredParcels.length;

@@ -330,6 +330,7 @@ export type Database = {
           aadhaar_address: Json | null
           aadhaar_dob: string | null
           aadhaar_gender: string | null
+          aadhaar_hash: string | null
           aadhaar_name: string | null
           aadhaar_reference_id: string | null
           aadhaar_verification_status: string | null
@@ -337,11 +338,15 @@ export type Database = {
           address_proof_url: string | null
           created_at: string
           document_url: string | null
+          face_confidence: number | null
+          face_metrics: Json | null
+          face_verified: boolean
           full_name: string
           id: string
           id_back_url: string | null
           id_type: string
           kyc_flow_version: number
+          pan_hash: string | null
           pan_reference_id: string | null
           pan_verification_status: string | null
           pan_verified_at: string | null
@@ -355,12 +360,14 @@ export type Database = {
           selfie_url: string | null
           status: Database["public"]["Enums"]["kyc_status"]
           submission_attempt: number
+          submitted_at: string | null
           user_id: string
         }
         Insert: {
           aadhaar_address?: Json | null
           aadhaar_dob?: string | null
           aadhaar_gender?: string | null
+          aadhaar_hash?: string | null
           aadhaar_name?: string | null
           aadhaar_reference_id?: string | null
           aadhaar_verification_status?: string | null
@@ -368,11 +375,15 @@ export type Database = {
           address_proof_url?: string | null
           created_at?: string
           document_url?: string | null
+          face_confidence?: number | null
+          face_metrics?: Json | null
+          face_verified?: boolean
           full_name: string
           id?: string
           id_back_url?: string | null
           id_type: string
           kyc_flow_version?: number
+          pan_hash?: string | null
           pan_reference_id?: string | null
           pan_verification_status?: string | null
           pan_verified_at?: string | null
@@ -386,12 +397,14 @@ export type Database = {
           selfie_url?: string | null
           status?: Database["public"]["Enums"]["kyc_status"]
           submission_attempt?: number
+          submitted_at?: string | null
           user_id: string
         }
         Update: {
           aadhaar_address?: Json | null
           aadhaar_dob?: string | null
           aadhaar_gender?: string | null
+          aadhaar_hash?: string | null
           aadhaar_name?: string | null
           aadhaar_reference_id?: string | null
           aadhaar_verification_status?: string | null
@@ -399,11 +412,15 @@ export type Database = {
           address_proof_url?: string | null
           created_at?: string
           document_url?: string | null
+          face_confidence?: number | null
+          face_metrics?: Json | null
+          face_verified?: boolean
           full_name?: string
           id?: string
           id_back_url?: string | null
           id_type?: string
           kyc_flow_version?: number
+          pan_hash?: string | null
           pan_reference_id?: string | null
           pan_verification_status?: string | null
           pan_verified_at?: string | null
@@ -417,6 +434,7 @@ export type Database = {
           selfie_url?: string | null
           status?: Database["public"]["Enums"]["kyc_status"]
           submission_attempt?: number
+          submitted_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1139,10 +1157,13 @@ export type Database = {
           status: Database["public"]["Enums"]["account_status"]
           system_role: Database["public"]["Enums"]["system_role"]
           total_deliveries: number
+          total_ratings: number
           total_trips: number
           updated_at: string
           username: string | null
           verified: boolean
+          is_deleted?: boolean
+          deleted_at?: string | null
         }
         Insert: {
           city?: string | null
@@ -1164,10 +1185,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["account_status"]
           system_role?: Database["public"]["Enums"]["system_role"]
           total_deliveries?: number
+          total_ratings?: number
           total_trips?: number
           updated_at?: string
           username?: string | null
           verified?: boolean
+          is_deleted?: boolean
+          deleted_at?: string | null
         }
         Update: {
           city?: string | null
@@ -1189,10 +1213,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["account_status"]
           system_role?: Database["public"]["Enums"]["system_role"]
           total_deliveries?: number
+          total_ratings?: number
           total_trips?: number
           updated_at?: string
           username?: string | null
           verified?: boolean
+          is_deleted?: boolean
+          deleted_at?: string | null
         }
         Relationships: []
       }
@@ -1201,6 +1228,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      soft_delete_user_account: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       check_api_rate_limit: {
         Args: { p_action: string; p_user_id: string }
         Returns: boolean
@@ -1385,6 +1416,16 @@ export type Database = {
         Args: { p_session_id: string; p_user_id: string }
         Returns: undefined
       }
+      submit_sandbox_kyc: {
+        Args: {
+          p_session_id: string
+          p_user_id: string
+          p_face_verified?: boolean
+          p_face_confidence?: number | null
+          p_face_metrics?: Record<string, unknown> | null
+        }
+        Returns: undefined
+      }
       verify_aadhaar_sandbox: {
         Args: {
           p_session_id: string
@@ -1394,6 +1435,7 @@ export type Database = {
           p_dob?: string
           p_gender?: string
           p_address?: Record<string, unknown>
+          p_aadhaar_hash?: string
         }
         Returns: undefined
       }
@@ -1407,6 +1449,7 @@ export type Database = {
           p_user_id: string
           p_pan_status: string
           p_pan_reference_id?: string
+          p_pan_hash?: string
         }
         Returns: undefined
       }

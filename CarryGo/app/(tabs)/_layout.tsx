@@ -260,7 +260,7 @@ export default function TabLayout() {
   const unreadMessages = conversations.filter(
     (conversation) => conversation.lastMessage && !conversation.lastMessage.read && conversation.lastMessage.senderId !== user.id,
   ).length;
-  const isKycApproved = user.kycStatus === 'approved' || Boolean(user.verified) || Boolean(user.isAadhaarVerified);
+  const isKycApproved = user.kycStatus === 'approved' || Boolean(user.verified);
   const kycPending = !isKycApproved && (!user.kycStatus || user.kycStatus === 'pending');
 
   return (

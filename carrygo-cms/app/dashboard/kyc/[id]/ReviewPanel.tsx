@@ -33,6 +33,8 @@ type ReviewPanelProps = {
     aadhaarStatus?: string | null
     selfieStatus?: string | null
     panStatus?: string | null
+    faceVerified?: boolean | null
+    faceConfidence?: number | null
   }
 }
 
@@ -252,6 +254,20 @@ export default function ReviewPanel({
                   {verificationSummary.selfieStatus === 'uploaded' || verificationSummary.selfieStatus === 'verified'
                     ? 'Uploaded ✓'
                     : 'Pending'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Human Face Verification</span>
+                <span
+                  className={`font-semibold ${
+                    verificationSummary.faceVerified
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                >
+                  {verificationSummary.faceVerified
+                    ? `Verified (${verificationSummary.faceConfidence || 95}%) ✓`
+                    : 'Not Verified'}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">

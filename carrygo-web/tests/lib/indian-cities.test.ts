@@ -8,65 +8,66 @@ import {
   INDIAN_CITIES,
 } from '@/lib/indian-cities'
 
-describe('Indian Cities & Route Intelligence', () => {
-  it('should have cities populated across all tiers', () => {
-    expect(INDIAN_CITIES.length).toBeGreaterThan(40)
+describe('Haryana Cities & Route Intelligence', () => {
+  it('should have Haryana cities populated across all 22 districts', () => {
+    expect(INDIAN_CITIES.length).toBe(31)
     const metros = INDIAN_CITIES.filter((c) => c.tier === 'metro')
-    expect(metros.length).toBe(6) // Mumbai, Delhi, Bangalore, Hyderabad, Chennai, Kolkata
+    expect(metros.length).toBe(2) // Gurugram, Faridabad
+    expect(INDIAN_CITIES.every((c) => c.state === 'Haryana')).toBe(true)
   })
 
   it('should find city by exact and case-insensitive name', () => {
-    const mumbai = findCity('Mumbai')
-    expect(mumbai).toBeDefined()
-    expect(mumbai?.state).toBe('Maharashtra')
+    const gurugram = findCity('Gurugram')
+    expect(gurugram).toBeDefined()
+    expect(gurugram?.state).toBe('Haryana')
 
-    const pune = findCity('pune')
-    expect(pune).toBeDefined()
-    expect(pune?.name).toBe('Pune')
+    const faridabad = findCity('faridabad')
+    expect(faridabad).toBeDefined()
+    expect(faridabad?.name).toBe('Faridabad')
 
     const invalid = findCity('NonExistentCityXYZ')
     expect(invalid).toBeUndefined()
   })
 
   it('should search cities with prefix prioritization and tier ranking', () => {
-    const results = searchCities('Mum')
+    const results = searchCities('Guru')
     expect(results.length).toBeGreaterThan(0)
-    expect(results[0].name).toBe('Mumbai')
+    expect(results[0].name).toBe('Gurugram')
 
     const emptySearch = searchCities('')
     expect(emptySearch.length).toBe(8)
     expect(emptySearch[0].tier).toBe('metro')
   })
 
-  it('should calculate accurate Haversine distance between Mumbai and Pune', () => {
-    const mumbai = findCity('Mumbai')!
-    const pune = findCity('Pune')!
-    const distance = haversineDistance(mumbai.lat, mumbai.lng, pune.lat, pune.lng)
+  it('should calculate accurate Haversine distance between Gurugram and Faridabad', () => {
+    const gurugram = findCity('Gurugram')!
+    const faridabad = findCity('Faridabad')!
+    const distance = haversineDistance(gurugram.lat, gurugram.lng, faridabad.lat, faridabad.lng)
 
-    // Straight-line distance between Mumbai & Pune is ~120-130 km
-    expect(distance).toBeGreaterThan(110)
-    expect(distance).toBeLessThan(140)
+    // Straight-line distance between Gurugram & Faridabad is ~30-35 km
+    expect(distance).toBeGreaterThan(25)
+    expect(distance).toBeLessThan(40)
 
-    const routeDistance = getRouteDistance('Mumbai', 'Pune')
-    // Road distance with tortuosity factor ~140-160 km
-    expect(routeDistance).toBeGreaterThan(130)
-    expect(routeDistance).toBeLessThan(175)
+    const routeDistance = getRouteDistance('Gurugram', 'Faridabad')
+    // Road distance with tortuosity factor ~35-50 km
+    expect(routeDistance).toBeGreaterThan(30)
+    expect(routeDistance).toBeLessThan(55)
   })
 
-  it('should provide comprehensive route estimates', () => {
-    const estimate = getRouteEstimate('Mumbai', 'Pune')
+  it('should provide comprehensive route estimates for Haryana corridors', () => {
+    const estimate = getRouteEstimate('Gurugram', 'Faridabad')
     expect(estimate).not.toBeNull()
-    expect(estimate?.distanceKm).toBeGreaterThan(130)
-    expect(estimate?.driveHours).toBeGreaterThan(1.5)
-    expect(estimate?.basePriceEstimate).toBeGreaterThanOrEqual(40)
+    expect(estimate?.distanceKm).toBeGreaterThan(30)
+    expect(estimate?.driveHours).toBeGreaterThanOrEqual(0.5)
+    expect(estimate?.basePriceEstimate).toBeGreaterThanOrEqual(35)
     expect(estimate?.recommendedVehicle).toBe('car')
 
-    // Long distance: Delhi to Bangalore
-    const longDist = getRouteEstimate('Delhi', 'Bangalore')
+    // Long intra-Haryana distance: Sirsa to Faridabad
+    const longDist = getRouteEstimate('Sirsa', 'Faridabad')
     expect(longDist).not.toBeNull()
-    expect(longDist?.distanceKm).toBeGreaterThan(1800)
-    expect(longDist?.flightHours).not.toBeNull()
-    expect(longDist?.recommendedVehicle).toBe('flight')
+    expect(longDist?.distanceKm).toBeGreaterThan(250)
+    expect(longDist?.flightHours).toBeNull() // No flights within Haryana
+    expect(longDist?.recommendedVehicle).toBe('train')
   })
 
   it('should return null for invalid city pairs', () => {

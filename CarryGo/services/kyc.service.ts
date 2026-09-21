@@ -11,6 +11,7 @@ import { uploadKycDocument as uploadKycToS3 } from '@/services/storage.service';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import * as FileSystem from 'expo-file-system';
 import { optimizeImage } from '@/lib/imageOptimizer';
+import { hashAadhaarNumber, hashPanNumber } from '@/lib/crypto';
 
 interface KycDocumentRow {
   id: string;
@@ -39,6 +40,9 @@ interface KycSessionRow {
   aadhaar_gender?: string | null;
   aadhaar_address?: unknown;
   selfie_status?: string | null;
+  face_verified?: boolean | null;
+  face_confidence?: number | null;
+  face_metrics?: unknown;
   pan_verification_status?: string | null;
   pan_reference_id?: string | null;
   kyc_flow_version?: number | null;
@@ -84,6 +88,9 @@ function mapSession(row: KycSessionRow, documents: KycDocument[]): KycSession {
         }
       : undefined,
     selfieStatus: (row.selfie_status ?? undefined) as KycSession['selfieStatus'],
+    faceVerified: row.face_verified ?? undefined,
+    faceConfidence: row.face_confidence ?? undefined,
+    faceMetrics: (row.face_metrics && typeof row.face_metrics === 'object') ? (row.face_metrics as Record<string, unknown>) : undefined,
     panStatus: (row.pan_verification_status ?? undefined) as KycSession['panStatus'],
     panReferenceId: row.pan_reference_id ?? undefined,
     kycFlowVersion: row.kyc_flow_version ?? 1,
@@ -198,6 +205,25 @@ export async function generateAadhaarOtp(
   }
 
   const sb = getSupabaseClient();
+  const aadhaarHash = hashAadhaarNumber(cleanAadhaar);
+
+  // Early duplicate identity check: Prevent multiple accounts from using the same Aadhaar
+  const { data: existingDuplicate } = await sb
+    .from('kyc_sessions')
+    .select('id, user_id')
+    .eq('aadhaar_hash', aadhaarHash)
+    .neq('user_id', userId)
+    .in('status', ['submitted', 'approved'])
+    .limit(1)
+    .maybeSingle();
+
+  if (existingDuplicate) {
+    return {
+      data: null,
+      error: 'This Aadhaar number is already linked to another CarryGo account. Each individual may only operate one account.',
+    };
+  }
+
   const maskedAadhaar = `•••• •••• ${cleanAadhaar.slice(-4)}`;
   let referenceId = `sbx_adh_${Date.now()}`;
   let registeredMobileEnding: string | undefined = undefined;
@@ -284,6 +310,7 @@ export async function generateAadhaarOtp(
       .update({
         aadhaar_verification_status: 'pending',
         aadhaar_reference_id: referenceId,
+        aadhaar_hash: aadhaarHash,
         kyc_flow_version: 2,
         provider: 'sandbox',
       })
@@ -303,6 +330,7 @@ export async function generateAadhaarOtp(
       provider_session_id: referenceId,
       aadhaar_verification_status: 'pending',
       aadhaar_reference_id: referenceId,
+      aadhaar_hash: aadhaarHash,
       kyc_flow_version: 2,
       status: 'pending',
     })
@@ -325,6 +353,7 @@ export async function verifyAadhaarOtp(
   referenceId: string,
   otp: string,
   maskedAadhaar?: string,
+  aadhaarNumber?: string,
 ): Promise<ServiceResult<AadhaarVerifiedData>> {
   const cleanOtp = otp.trim().replace(/\D/g, '');
   if (cleanOtp.length !== 6) {
@@ -431,6 +460,8 @@ export async function verifyAadhaarOtp(
     }
   }
 
+  const aadhaarHash = aadhaarNumber ? hashAadhaarNumber(aadhaarNumber) : undefined;
+
   const { error } = await sb.rpc('verify_aadhaar_sandbox', {
     p_session_id: sessionId,
     p_user_id: userId,
@@ -439,6 +470,7 @@ export async function verifyAadhaarOtp(
     p_dob: verifiedData.dob,
     p_gender: verifiedData.gender,
     p_address: verifiedData.address ? (verifiedData.address as unknown as Record<string, unknown>) : undefined,
+    p_aadhaar_hash: aadhaarHash,
   });
 
   if (error) {
@@ -666,6 +698,25 @@ export async function verifyPan(
   }
 
   const sb = getSupabaseClient();
+  const panHash = hashPanNumber(cleanPan);
+
+  // Early duplicate identity check: Prevent multiple accounts from using the same PAN
+  const { data: existingDuplicatePan } = await sb
+    .from('kyc_sessions')
+    .select('id, user_id')
+    .eq('pan_hash', panHash)
+    .neq('user_id', userId)
+    .in('status', ['submitted', 'approved'])
+    .limit(1)
+    .maybeSingle();
+
+  if (existingDuplicatePan) {
+    return {
+      data: null,
+      error: 'This PAN card is already linked to another CarryGo account.',
+    };
+  }
+
   const panRefId = `pan_${cleanPan.slice(0, 1)}XXXXX${cleanPan.slice(-4)}_${Date.now()}`;
 
   const { error } = await sb.rpc('update_kyc_pan_status', {
@@ -673,6 +724,7 @@ export async function verifyPan(
     p_user_id: userId,
     p_pan_status: 'verified',
     p_pan_reference_id: panRefId,
+    p_pan_hash: panHash,
   });
 
   if (error) {
@@ -705,8 +757,46 @@ export async function skipPan(
 }
 
 /**
- * Completes Sandbox KYC via complete_sandbox_kyc RPC.
- * Atomically marks user as approved, verified = true, is_aadhaar_verified = true.
+ * Submits Sandbox KYC for manual CMS review via submit_sandbox_kyc RPC.
+ * Transitions session to 'submitted' status and records face verification metrics.
+ * Does NOT auto-approve.
+ */
+export async function submitSandboxKyc(
+  sessionId: string,
+  userId: string,
+  faceResult?: {
+    isValid: boolean;
+    confidence: number;
+    faceCount: number;
+    isCentered: boolean;
+    lightingQuality: string;
+  },
+): Promise<ServiceResult<{ success: boolean }>> {
+  const sb = getSupabaseClient();
+
+  const { error } = await sb.rpc('submit_sandbox_kyc', {
+    p_session_id: sessionId,
+    p_user_id: userId,
+    p_face_verified: faceResult?.isValid ?? true,
+    p_face_confidence: faceResult?.confidence ?? null,
+    p_face_metrics: faceResult
+      ? {
+          faceCount: faceResult.faceCount,
+          isCentered: faceResult.isCentered,
+          lightingQuality: faceResult.lightingQuality,
+        }
+      : null,
+  });
+
+  if (error) {
+    return { data: null, error: error.message };
+  }
+
+  return { data: { success: true }, error: null };
+}
+
+/**
+ * Completes Sandbox KYC via complete_sandbox_kyc RPC (Admin direct approval).
  */
 export async function completeSandboxKyc(
   sessionId: string,

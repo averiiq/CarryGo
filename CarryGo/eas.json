@@ -6,7 +6,8 @@
   "build": {
     "base": {
       "node": "22.12.0",
-      "pnpm": "10.11.0"
+      "pnpm": "10.11.0",
+      "channel": "base"
     },
     "development": {
       "developmentClient": true,

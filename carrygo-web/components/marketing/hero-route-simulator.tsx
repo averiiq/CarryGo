@@ -41,15 +41,107 @@ type LiveCorridor = {
   }
 }
 
+const DEFAULT_HARYANA_CORRIDORS: LiveCorridor[] = [
+  {
+    id: 'corridor-ggn-fbd',
+    from: 'Gurugram',
+    to: 'Faridabad',
+    distance: '38 km',
+    duration: '~55m road',
+    vehicle: 'car',
+    traveler: {
+      name: 'Vikas Sharma',
+      avatar: 'VS',
+      rating: 4.9,
+      vehicleDetail: 'Personal Sedan Trunk',
+      spaceAvailable: '8 kg open',
+      ratePerKg: 35,
+      eta: 'Departing today at 4:30 PM',
+      verified: true,
+    },
+  },
+  {
+    id: 'corridor-ggn-panipat',
+    from: 'Gurugram',
+    to: 'Panipat',
+    distance: '115 km',
+    duration: '~2.1h road',
+    vehicle: 'car',
+    traveler: {
+      name: 'Amit Dahiya',
+      avatar: 'AD',
+      rating: 5.0,
+      vehicleDetail: 'SUV Boot Space',
+      spaceAvailable: '12 kg open',
+      ratePerKg: 50,
+      eta: 'Departing today at 6:00 PM',
+      verified: true,
+    },
+  },
+  {
+    id: 'corridor-ambala-karnal',
+    from: 'Ambala',
+    to: 'Karnal',
+    distance: '85 km',
+    duration: '~1.2h rail',
+    vehicle: 'train',
+    traveler: {
+      name: 'Pooja Verma',
+      avatar: 'PV',
+      rating: 4.8,
+      vehicleDetail: 'Vande Bharat Express Luggage',
+      spaceAvailable: '6 kg open',
+      ratePerKg: 45,
+      eta: 'Departing today at 5:15 PM',
+      verified: true,
+    },
+  },
+  {
+    id: 'corridor-rohtak-hisar',
+    from: 'Rohtak',
+    to: 'Hisar',
+    distance: '98 km',
+    duration: '~1.5h road',
+    vehicle: 'car',
+    traveler: {
+      name: 'Sandeep Malik',
+      avatar: 'SM',
+      rating: 4.9,
+      vehicleDetail: 'Hatchback Luggage Space',
+      spaceAvailable: '10 kg open',
+      ratePerKg: 40,
+      eta: 'Departing today at 7:00 PM',
+      verified: true,
+    },
+  },
+  {
+    id: 'corridor-panchkula-ambala',
+    from: 'Panchkula',
+    to: 'Ambala',
+    distance: '45 km',
+    duration: '~45m road',
+    vehicle: 'car',
+    traveler: {
+      name: 'Ritu Saini',
+      avatar: 'RS',
+      rating: 5.0,
+      vehicleDetail: 'Compact Car Trunk',
+      spaceAvailable: '5 kg open',
+      ratePerKg: 35,
+      eta: 'Departing today at 3:45 PM',
+      verified: true,
+    },
+  },
+]
+
 export function HeroRouteSimulator() {
-  const [corridors, setCorridors] = useState<LiveCorridor[]>([])
-  const [activeCorridorId, setActiveCorridorId] = useState<string>('')
-  const [isLoadingLive, setIsLoadingLive] = useState(true)
+  const [corridors, setCorridors] = useState<LiveCorridor[]>(DEFAULT_HARYANA_CORRIDORS)
+  const [activeCorridorId, setActiveCorridorId] = useState<string>('corridor-ggn-fbd')
+  const [isLoadingLive, setIsLoadingLive] = useState(false)
 
   // Fetch real active trips from /api/public/trips on mount
   useEffect(() => {
     const fetchLiveTrips = async () => {
-      setIsLoadingLive(true)
       try {
         const res = await fetch('/api/public/trips?limit=6')
         const json = await res.json()
@@ -96,7 +188,7 @@ export function HeroRouteSimulator() {
                     ? 'Confirmed Seat Luggage'
                     : 'Personal Vehicle Trunk',
                 spaceAvailable: `${t.available_capacity} kg open`,
-                ratePerKg: Number(t.price_per_kg) || 60,
+                ratePerKg: Number(t.price_per_kg) || 45,
                 eta: t.time ? `Departing at ${t.time}` : t.date || 'Departing Soon',
                 verified: true,
               },
@@ -105,13 +197,9 @@ export function HeroRouteSimulator() {
 
           setCorridors(mapped)
           setActiveCorridorId(mapped[0].id)
-        } else {
-          setCorridors([])
         }
       } catch {
-        setCorridors([])
-      } finally {
-        setIsLoadingLive(false)
+        // Retain default Haryana corridors on network error
       }
     }
 
@@ -167,15 +255,8 @@ export function HeroRouteSimulator() {
 
   return (
     <div className="relative w-full max-w-lg mx-auto">
-      {/* Background ambient lighting */}
-      <div className="absolute -top-10 -right-10 w-64 h-64 bg-emerald-400/10 blur-[80px] rounded-full pointer-events-none" />
-      <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-sky-400/10 blur-[80px] rounded-full pointer-events-none" />
-
       {/* Main Glass HUD Container */}
-      <div className="relative rounded-3xl border border-slate-200/80 bg-white/95 backdrop-blur-xl p-5 sm:p-6 shadow-xl overflow-hidden">
-        {/* Subtle top edge highlight */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500" />
-
+      <div className="relative rounded-3xl border border-slate-200/80 bg-white shadow-xl p-5 sm:p-6 overflow-hidden">
         {/* Header Strip with Live Status */}
         <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -212,7 +293,7 @@ export function HeroRouteSimulator() {
         </div>
 
         {/* Active Corridor Card HUD */}
-        <div className="mt-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-emerald-50/40 border border-slate-200/80 space-y-4">
+        <div className="mt-4 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
           {/* Top route & distance stats */}
           <div className="flex items-start justify-between gap-2">
             <div>

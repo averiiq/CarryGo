@@ -241,6 +241,7 @@ function priceCompatibility(tripPricePerKg: number, parcelOffer: number, parcelW
 }
 
 function ratingScore(rating: number): number {
+  if (!rating || rating <= 0) return 75;
   if (rating >= 4.5) return 100;
   if (rating >= 4.0) return 80;
   if (rating >= 3.5) return 60;

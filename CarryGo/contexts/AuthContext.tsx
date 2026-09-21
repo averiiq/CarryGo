@@ -75,8 +75,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadUser = useCallback(async (userId: string, email?: string | null) => {
     try {
       let result = await fetchProfile(userId);
+      if (result.error === 'ACCOUNT_DELETED' || result.data?.isDeleted) {
+        const sb = getSupabaseClient();
+        await sb.auth.signOut().catch(() => {});
+        setUser(null);
+        persistUser(null);
+        queryClient.clear();
+        return { data: null, error: 'This account has been deleted and cannot be accessed.' };
+      }
       if (!result.data && !result.error) {
         result = await ensureProfile(userId, profileEmailFor(userId, email));
+        if (result.error === 'ACCOUNT_DELETED') {
+          const sb = getSupabaseClient();
+          await sb.auth.signOut().catch(() => {});
+          setUser(null);
+          persistUser(null);
+          queryClient.clear();
+          return { data: null, error: 'This account has been deleted and cannot be accessed.' };
+        }
       }
 
       if (result.data) {
@@ -90,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       return { data: null, error: 'Failed to load profile' };
     }
-  }, [persistUser]);
+  }, [persistUser, queryClient]);
 
   // Instantly restore cached user on mount — no network needed
   useEffect(() => {
@@ -226,6 +242,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fetchProfile(authUser.id),
             quickCheck,
           ]);
+          if (profileResult.error === 'ACCOUNT_DELETED' || profileResult.data?.isDeleted) {
+            await sb.auth.signOut().catch(() => {});
+            setUser(null);
+            persistUser(null);
+            queryClient.clear();
+            return { error: 'This account has been deleted and cannot be accessed.' };
+          }
           if (profileResult.data) {
             setUser(profileResult.data);
             persistUser(profileResult.data);
@@ -239,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const message = err instanceof Error ? err.message : 'Unknown error verifying OTP';
       return { error: mapAuthError(message) };
     }
-  }, []);
+  }, [persistUser, queryClient]);
 
   const logout = useCallback(async () => {
     try {

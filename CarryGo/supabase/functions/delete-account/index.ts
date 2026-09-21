@@ -50,24 +50,19 @@ Deno.serve(async (req) => {
 
     const userId = authData.user.id;
 
-    const { error: profileDeleteError } = await adminClient
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
+    // Call the PostgreSQL soft_delete_user_account RPC
+    const { data: rpcData, error: rpcError } = await userClient.rpc('soft_delete_user_account');
 
-    if (profileDeleteError) {
-      console.error('[delete-account] profile delete failed', profileDeleteError.message);
-      return jsonResponse({ error: 'Failed to delete account profile' }, 500);
+    if (rpcError) {
+      console.error('[delete-account] soft delete failed', rpcError.message);
+      return jsonResponse({ error: rpcError.message || 'Failed to soft delete account' }, 500);
     }
 
-    const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId, true);
-
-    if (authDeleteError) {
-      console.error('[delete-account] auth delete failed', authDeleteError.message);
-      return jsonResponse({ error: 'Failed to delete account user' }, 500);
+    if (rpcData && typeof rpcData === 'object' && 'error' in rpcData && rpcData.error) {
+      return jsonResponse({ error: String(rpcData.error) }, 400);
     }
 
-    return jsonResponse({ success: true });
+    return jsonResponse({ success: true, data: rpcData });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
     console.error('[delete-account]', message);

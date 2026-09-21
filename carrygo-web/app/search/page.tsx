@@ -161,7 +161,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
               <input
                 name='from'
                 defaultValue={from}
-                placeholder='e.g. Mumbai'
+                placeholder='e.g. Gurugram'
                 className='w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/45'
               />
             </label>
@@ -171,7 +171,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
               <input
                 name='to'
                 defaultValue={to}
-                placeholder='e.g. Pune'
+                placeholder='e.g. Faridabad'
                 className='w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/45'
               />
             </label>

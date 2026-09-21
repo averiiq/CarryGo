@@ -117,10 +117,10 @@ export default function HowItWorksPage() {
           </div>
 
           <RouteCorridorIllustration
-            fromCity="Mumbai"
-            toCity="Pune"
-            duration="2h 45m"
-            distance="148 km"
+            fromCity="Gurugram"
+            toCity="Panipat"
+            duration="1h 45m"
+            distance="112 km"
           />
         </div>
       </ScrollLinkedSection>

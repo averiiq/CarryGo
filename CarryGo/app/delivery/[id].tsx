@@ -24,6 +24,7 @@ import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { getUserErrorMessage, getErrorTitle } from '@/lib/error-handler';
 import { RatingModal } from '@/components/feature/RatingModal';
+import { hasRated } from '@/services/ratings.service';
 import { DeliveryTimeline, DeliveryStep, STEPS, stepIndex } from '@/components/feature/DeliveryTimeline';
 import {
   SenderPickupOtpCard,
@@ -68,6 +69,7 @@ export default function DeliveryScreen() {
   const [deliveryOtp, setDeliveryOtp] = useState<string | null>(null);
   const [showRating, setShowRating] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<{ userId: string; name: string } | null>(null);
+  const [hasAlreadyRated, setHasAlreadyRated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pickupOtpLoading, setPickupOtpLoading] = useState(false);
   const [tripUpdateLoading, setTripUpdateLoading] = useState(false);
@@ -120,6 +122,19 @@ export default function DeliveryScreen() {
       if (pollInterval.current) clearInterval(pollInterval.current);
     };
   }, [fadeAnim, id, initDelivery, isParticipant, request]);
+
+  // Check if current user has already rated this delivery
+  useEffect(() => {
+    if (!id || !user?.id) return;
+    let isMounted = true;
+    void (async () => {
+      const rated = await hasRated(user.id, id);
+      if (isMounted) setHasAlreadyRated(rated);
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [id, user?.id]);
 
   // If sender and awaiting pickup, ensure pickup OTP is ready to show
   useEffect(() => {
@@ -241,7 +256,7 @@ export default function DeliveryScreen() {
           queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
           await requestQuery.refetch();
 
-          if (isSender && request) {
+          if (isSender && request && !hasAlreadyRated) {
             Haptic.success();
             const target = { userId: request.travellerId, name: request.travellerName };
             setRatingTarget(target);
@@ -410,11 +425,13 @@ export default function DeliveryScreen() {
     Haptic.success();
     if (locationInterval.current) clearInterval(locationInterval.current);
     if (pollInterval.current) clearInterval(pollInterval.current);
-    const target = isTraveller
-      ? { userId: request.senderId, name: request.senderName }
-      : { userId: request.travellerId, name: request.travellerName };
-    setRatingTarget(target);
-    setTimeout(() => setShowRating(true), 800);
+    if (!hasAlreadyRated) {
+      const target = isTraveller
+        ? { userId: request.senderId, name: request.senderName }
+        : { userId: request.travellerId, name: request.travellerName };
+      setRatingTarget(target);
+      setTimeout(() => setShowRating(true), 800);
+    }
   };
 
   // Issue Delivery OTP (Sender)
@@ -554,7 +571,10 @@ export default function DeliveryScreen() {
           fromUserId={user?.id || ''}
           toUserId={ratingTarget.userId}
           toUserName={ratingTarget.name}
-          onDone={() => setShowRating(false)}
+          onDone={() => {
+            setShowRating(false);
+            setHasAlreadyRated(true);
+          }}
         />
       ) : null}
 
@@ -845,6 +865,7 @@ export default function DeliveryScreen() {
               onRate={handleRateFromSuccess}
               onViewPayment={() => router.push({ pathname: '/payment/[id]', params: { id } })}
               showPayment={FeatureFlags.payments}
+              hasRated={hasAlreadyRated}
               C={C}
             />
           )}

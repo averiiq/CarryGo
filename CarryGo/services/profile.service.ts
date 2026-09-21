@@ -3,10 +3,10 @@ import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { User, UserRole } from '@/types';
 
 const PROFILE_SELECT =
-  'id, full_name, username, email, phone, rating, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, city, profile_completed_at';
+  'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, city, profile_completed_at, is_deleted, deleted_at';
 
 const LEGACY_PROFILE_SELECT =
-  'id, full_name, username, email, phone, rating, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status';
+  'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
 const E164_PHONE_PATTERN = /^\+[1-9][0-9]{7,14}$/;
@@ -18,6 +18,7 @@ interface ProfileRow {
   full_name?: string | null;
   phone?: string | null;
   rating?: number | string | null;
+  total_ratings?: number | null;
   total_deliveries?: number | null;
   total_trips?: number | null;
   joined_at?: string | null;
@@ -31,6 +32,8 @@ interface ProfileRow {
   is_aadhaar_verified?: boolean | null;
   is_address_verified?: boolean | null;
   verified_address?: string | null;
+  is_deleted?: boolean | null;
+  deleted_at?: string | null;
 }
 
 function mapProfileRow(data: ProfileRow): User {
@@ -42,6 +45,7 @@ function mapProfileRow(data: ProfileRow): User {
     phone: data.phone || undefined,
     username: data.username || undefined,
     rating: parseFloat(String(data.rating ?? '4.5')) || 4.5,
+    totalRatings: data.total_ratings || 0,
     totalDeliveries: data.total_deliveries || 0,
     totalTrips: data.total_trips || 0,
     joinedAt: data.joined_at || data.created_at || new Date().toISOString(),
@@ -55,6 +59,8 @@ function mapProfileRow(data: ProfileRow): User {
     isAadhaarVerified: isApproved || Boolean(data.is_aadhaar_verified),
     isAddressVerified: Boolean(data.is_address_verified),
     verifiedAddress: data.verified_address || undefined,
+    isDeleted: Boolean(data.is_deleted),
+    deletedAt: data.deleted_at || undefined,
   };
 }
 
@@ -110,7 +116,7 @@ export async function fetchProfile(userId: string): Promise<{ data: User | null;
   let data = profileResult.data as ProfileRow | null;
   let error = profileResult.error;
 
-  if (error && (error.message.includes('role') || error.message.includes('profile_completed_at'))) {
+  if (error && (error.message.includes('role') || error.message.includes('profile_completed_at') || error.message.includes('is_deleted'))) {
     const legacyResult = await sb
       .from('user_profiles')
       .select(LEGACY_PROFILE_SELECT)
@@ -122,6 +128,9 @@ export async function fetchProfile(userId: string): Promise<{ data: User | null;
 
   if (error) return { data: null, error: error.message };
   if (!data) return { data: null, error: null };
+  if (data.is_deleted || Boolean(data.deleted_at)) {
+    return { data: null, error: 'ACCOUNT_DELETED' };
+  }
   return { data: mapProfileRow(data), error: null };
 }
 
@@ -131,6 +140,7 @@ export async function ensureProfile(
   defaults?: { username?: string; fullName?: string }
 ): Promise<{ data: User | null; error: string | null }> {
   const existing = await fetchProfile(userId);
+  if (existing.error === 'ACCOUNT_DELETED') return existing;
   if (existing.data || existing.error) return existing;
 
   const sb = getSupabaseClient();

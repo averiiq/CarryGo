@@ -9,22 +9,19 @@ import {
 import { footerSections } from '@/components/marketing/site-data'
 
 const POPULAR_CITY_ROUTES = [
-  'Mumbai to Pune',
-  'Delhi to Jaipur',
-  'Bangalore to Hyderabad',
-  'Chennai to Bangalore',
-  'Delhi to Chandigarh',
-  'Ahmedabad to Mumbai',
-  'Pune to Goa',
-  'Kolkata to Patna',
+  'Gurugram to Faridabad',
+  'Gurugram to Panipat',
+  'Ambala to Karnal',
+  'Rohtak to Hisar',
+  'Panchkula to Ambala',
+  'Rewari to Gurugram',
+  'Sonipat to Panipat',
+  'Yamunanagar to Karnal',
 ]
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-slate-200 bg-slate-50/90 px-4 py-14 sm:px-6 sm:py-20 relative overflow-hidden text-slate-600">
-      {/* Ambient background glow */}
-      <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
-
       <div className="mx-auto grid w-full max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-12 relative z-10">
         {/* Brand Column */}
         <div className="space-y-4 sm:col-span-2 lg:col-span-4">
@@ -38,7 +35,7 @@ export function SiteFooter() {
           </Link>
 
           <p className="max-w-sm text-xs sm:text-sm leading-relaxed text-slate-600">
-            India&apos;s trusted peer-to-peer intercity logistics network. Connecting everyday travelers with urgent parcel senders for same-day delivery at 60% lower rates.
+            Haryana&apos;s dedicated peer-to-peer intercity logistics network. Connecting daily commuters with urgent parcel senders across all 22 districts for same-day delivery at 60% lower rates.
           </p>
 
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">

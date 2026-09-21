@@ -28,6 +28,8 @@ type KycSession = {
   aadhaarStatus?: string | null
   selfieStatus?: string | null
   panStatus?: string | null
+  faceVerified?: boolean | null
+  faceConfidence?: number | null
 }
 
 type TabKey = 'all' | 'submitted' | 'under_review' | 'approved' | 'rejected'
@@ -424,6 +426,18 @@ export default function KycQueue({ sessions, counts, activeTab: initialTab }: Ky
                             >
                               Selfie: {session.selfieStatus === 'uploaded' || session.selfieStatus === 'verified' ? '✓' : '⋯'}
                             </span>
+                            {session.faceVerified !== undefined && session.faceVerified !== null && (
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                                  session.faceVerified
+                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                    : 'bg-rose-500/10 text-rose-600'
+                                }`}
+                                title={`Human Face: ${session.faceVerified ? 'Verified' : 'Failed'} (${session.faceConfidence ?? 0}%)`}
+                              >
+                                Face: {session.faceVerified ? `✓${session.faceConfidence ? ` ${Math.round(session.faceConfidence)}%` : ''}` : '✗'}
+                              </span>
+                            )}
                             {session.panStatus && session.panStatus !== 'not_started' && (
                               <span
                                 className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${

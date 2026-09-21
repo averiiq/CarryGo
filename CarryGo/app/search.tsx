@@ -38,8 +38,8 @@ const VEHICLE_TYPES = [
 ] as const;
 
 const POPULAR_ROUTES = [
-  ['Mumbai', 'Delhi'], ['Mumbai', 'Pune'], ['Delhi', 'Jaipur'],
-  ['Bangalore', 'Chennai'], ['Hyderabad', 'Vizag'], ['Kolkata', 'Patna'],
+  ['Gurugram', 'Faridabad'], ['Gurugram', 'Panipat'], ['Ambala', 'Karnal'],
+  ['Rohtak', 'Hisar'], ['Panchkula', 'Ambala'], ['Rewari', 'Gurugram'],
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -471,7 +471,7 @@ export default function SearchScreen() {
               <Pressable
                 style={[
                   styles.searchBtn,
-                  { backgroundColor: canSearch ? C.primaryDark : C.surfaceElevated, borderColor: canSearch ? C.primaryDark : C.surfaceBorder },
+                  { backgroundColor: canSearch ? C.primary : C.surfaceElevated, borderColor: canSearch ? C.primary : C.surfaceBorder },
                 ]}
                 onPress={handleSearch}
                 disabled={!canSearch}
