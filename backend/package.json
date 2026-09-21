@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "start": "node --env-file=.env dist/local-server.js",
+    "dev": "node --env-file=.env dist/local-server.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "benchmark": "node benchmark/run-all.mjs",

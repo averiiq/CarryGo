@@ -139,7 +139,24 @@ export const routeRequest = async (
     let response: JsonResponse;
 
     const executeRoute = async (): Promise<JsonResponse> => {
-      if (method === 'GET' && path === '/health') {
+      if (method === 'GET' && (path === '/' || path === '')) {
+        response = json(200, {
+          service: 'CarryGo AWS Modular Monolith API',
+          status: 'operational',
+          version: '0.1.0',
+          endpoints: {
+            health: '/health',
+            healthLive: '/health/live',
+            healthReady: '/health/ready',
+            healthMetrics: '/health/metrics',
+            trips: '/trips',
+            parcels: '/parcels',
+            requests: '/requests',
+            reserve: '/bookings/reserve',
+            kyc: '/kyc/status',
+          },
+        });
+      } else if (method === 'GET' && path === '/health') {
         response = handleHealth();
       } else if (method === 'GET' && path === '/health/live') {
         response = handleHealthLive();

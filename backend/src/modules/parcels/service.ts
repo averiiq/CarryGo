@@ -194,9 +194,10 @@ export const createParcel = async (
   const id = randomUUID();
   const createdAt = new Date().toISOString();
   const item: ParcelItem = {
+    ...payload,
     id,
     createdAt,
-    ...payload,
+    status: payload.status ?? 'open',
   };
 
   await ddb.send(

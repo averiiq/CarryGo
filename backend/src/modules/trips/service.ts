@@ -168,9 +168,10 @@ export const createTrip = async (
   const id = randomUUID();
   const createdAt = new Date().toISOString();
   const item: TripItem = {
+    ...payload,
     id,
     createdAt,
-    ...payload,
+    status: payload.status ?? 'active',
   };
 
   await ddb.send(
