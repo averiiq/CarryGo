@@ -8,7 +8,7 @@ import { Haptic } from '@/services/haptics.service';
 import { AUTH_TIMEOUTS } from '@/constants/timing';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { secureGet, secureSet, secureDelete } from '@/lib/secure-storage';
-import { requestAccountDeletion } from '@/services/account.service';
+import { requestAccountDeletion, recreateUserAccount } from '@/services/account.service';
 
 const CACHED_USER_KEY = 'cached_user_profile';
 
@@ -76,23 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       let result = await fetchProfile(userId);
       if (result.error === 'ACCOUNT_DELETED' || result.data?.isDeleted) {
-        const sb = getSupabaseClient();
-        await sb.auth.signOut().catch(() => {});
-        setUser(null);
-        persistUser(null);
-        queryClient.clear();
-        return { data: null, error: 'This account has been deleted and cannot be accessed.' };
+        // Recreate the account so the user can re-register/re-setup with this email
+        await recreateUserAccount();
+        result = await fetchProfile(userId);
       }
       if (!result.data && !result.error) {
         result = await ensureProfile(userId, profileEmailFor(userId, email));
-        if (result.error === 'ACCOUNT_DELETED') {
-          const sb = getSupabaseClient();
-          await sb.auth.signOut().catch(() => {});
-          setUser(null);
-          persistUser(null);
-          queryClient.clear();
-          return { data: null, error: 'This account has been deleted and cannot be accessed.' };
-        }
       }
 
       if (result.data) {
@@ -237,25 +226,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const quickCheck = new Promise<{ data: User | null; error: string | null }>((resolve) =>
           setTimeout(() => resolve({ data: null, error: null }), AUTH_TIMEOUTS.PROFILE_CHECK)
         );
+        let finalUser: User | null = null;
         try {
-          const profileResult = await Promise.race([
+          let profileResult = await Promise.race([
             fetchProfile(authUser.id),
             quickCheck,
           ]);
           if (profileResult.error === 'ACCOUNT_DELETED' || profileResult.data?.isDeleted) {
-            await sb.auth.signOut().catch(() => {});
-            setUser(null);
-            persistUser(null);
-            queryClient.clear();
-            return { error: 'This account has been deleted and cannot be accessed.' };
+            // Re-create the account and guide user to profile setup
+            await recreateUserAccount(authUser.id);
+            profileResult = await fetchProfile(authUser.id);
+          }
+          if (!profileResult.data && !profileResult.error) {
+            profileResult = await ensureProfile(authUser.id, profileEmailFor(authUser.id, authUser.email));
           }
           if (profileResult.data) {
-            setUser(profileResult.data);
-            persistUser(profileResult.data);
-            return { error: null, requiresProfileSetup: !isProfileComplete(profileResult.data) };
+            finalUser = profileResult.data;
           }
         } catch {}
-        return { error: null, requiresProfileSetup: true };
+
+        if (!finalUser) {
+          // Construct an in-memory fallback user so AuthContext user is guaranteed non-null
+          finalUser = {
+            id: authUser.id,
+            name: '',
+            email: authUser.email || profileEmailFor(authUser.id, authUser.email),
+            username: '',
+            fullName: '',
+            phone: '',
+            city: '',
+            role: undefined,
+            rating: 4.5,
+            totalRatings: 0,
+            totalDeliveries: 0,
+            totalTrips: 0,
+            verified: false,
+            kycStatus: 'pending',
+            joinedAt: new Date().toISOString(),
+            isDeleted: false,
+          };
+        }
+
+        setUser(finalUser);
+        persistUser(finalUser);
+        return { error: null, requiresProfileSetup: !isProfileComplete(finalUser) };
       }
       return { error: 'Could not load the authenticated account.' };
     } catch (err: unknown) {

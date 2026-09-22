@@ -1,3 +1,4 @@
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AlertProvider } from '@/template';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Redirect, Stack, useSegments } from 'expo-router';
@@ -117,6 +118,7 @@ function AppStack() {
           headerShown: false,
           animation: 'slide_from_right',
           gestureEnabled: true,
+          fullScreenGestureEnabled: true,
           contentStyle: { backgroundColor: C.background },
         }}
       >
@@ -150,17 +152,19 @@ function AppStack() {
 export default function RootLayout() {
   return (
     <AppErrorBoundary>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <AlertProvider>
-            <AppQueryProvider>
-              <AuthProvider>
-                <AppShell />
-              </AuthProvider>
-            </AppQueryProvider>
-          </AlertProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <AlertProvider>
+              <AppQueryProvider>
+                <AuthProvider>
+                  <AppShell />
+                </AuthProvider>
+              </AppQueryProvider>
+            </AlertProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </AppErrorBoundary>
   );
 }

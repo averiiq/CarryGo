@@ -198,7 +198,10 @@ function FloatingCapsuleTabBar({
               onLongPress={onLongPress}
               hitSlop={TouchTarget.smallHitSlop}
               android_ripple={{ color: C.primarySubtle, borderless: true, radius: 28 }}
-              style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.85 }]}
+              style={({ pressed }) => [
+                styles.tabButton,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.93 }] },
+              ]}
             >
               <View style={styles.tabItem}>
                 <View style={styles.iconContainer}>

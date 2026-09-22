@@ -426,13 +426,6 @@ export default function ProfileScreen() {
                 subtitle="Matching route notifications"
                 onPress={() => router.push('/subscriptions')}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
-              <MenuItem C={C}
-                icon={<Ionicons name={'sunny'} size={17} color={C.warning} />}
-                label={'Light Theme'}
-                subtitle="Clean white-first interface"
-                right={<MaterialIcons name="check-circle" size={18} color={C.success} />}
-              />
             </View>
           </View>
 

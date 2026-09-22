@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, SectionList, Pressable, ActivityIndicator,
-  Animated, RefreshControl,
+  View,
+  Text,
+  StyleSheet,
+  SectionList,
+  Pressable,
+  ActivityIndicator,
+  Animated,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
@@ -15,6 +21,7 @@ import { Haptic } from '@/services/haptics.service';
 import { EmptyTransactionsSVG } from '@/components/ui/EmptyState';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { PanVerificationModal } from '@/components/feature/PanVerificationModal';
 
 // Group payments by month
 function groupByMonth(payments: Payment[]): { title: string; data: Payment[] }[] {
@@ -42,7 +49,8 @@ function SummaryCard({ payments, userId }: { payments: Payment[]; userId: string
       <LinearGradient
         colors={[C.primarySubtle, 'transparent']}
         style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       />
 
       {/* Net balance */}
@@ -213,6 +221,7 @@ export default function TransactionsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'locked' | 'released' | 'refunded'>('all');
+  const [isPanModalVisible, setIsPanModalVisible] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -282,7 +291,15 @@ export default function TransactionsScreen() {
             <Feather name="arrow-left" size={20} color={C.textPrimary} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Transactions</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Transactions</Text>
+              {user?.isPanVerified ? (
+                <View style={[styles.panHeaderBadge, { backgroundColor: C.successSubtle }]}>
+                  <MaterialIcons name="check-circle" size={12} color={C.success} />
+                  <Text style={[styles.panHeaderBadgeText, { color: C.success }]}>PAN Verified</Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={[styles.headerSub, { color: C.textMuted }]}>
               {payments.length} records · Rs {totalEarned} earned · Rs {totalSpent} spent
             </Text>
@@ -342,11 +359,53 @@ export default function TransactionsScreen() {
             <MonthHeader title={section.title} payments={section.data} userId={user?.id || ''} />
           )}
           ListHeaderComponent={
-            payments.length > 0 ? (
-              <View style={{ paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm }}>
-                <SummaryCard payments={payments} userId={user?.id || ''} />
-              </View>
-            ) : null
+            <View style={{ paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm, gap: Spacing.md }}>
+              {/* One-time PAN verification banner or verified badge */}
+              {!user?.isPanVerified ? (
+                <View style={[styles.panComplianceCard, { backgroundColor: C.surface, borderColor: C.accent + '44' }]}>
+                  <View style={styles.panCardHeader}>
+                    <View style={[styles.panIconBox, { backgroundColor: C.accentSubtle }]}>
+                      <MaterialIcons name="security" size={22} color={C.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.panCardTitle, { color: C.textPrimary }]}>
+                        One-Time PAN Verification Required
+                      </Text>
+                      <Text style={[styles.panCardDesc, { color: C.textSecondary }]}>
+                        Mandatory compliance for financial payouts & transfers. Verify once to authorize all future transactions.
+                      </Text>
+                    </View>
+                  </View>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.panVerifyBtn,
+                      { backgroundColor: C.accent, opacity: pressed ? 0.88 : 1 },
+                    ]}
+                    onPress={() => {
+                      Haptic.tap();
+                      setIsPanModalVisible(true);
+                    }}
+                  >
+                    <MaterialIcons name="verified-user" size={16} color="#fff" />
+                    <Text style={styles.panVerifyBtnText}>Verify PAN Card Now</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={[styles.panVerifiedPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                    <MaterialIcons name="verified" size={16} color={C.success} />
+                    <Text style={[styles.panVerifiedPillText, { color: C.textPrimary }]}>
+                      PAN Verified • <Text style={{ color: C.textMuted }}>{user?.panMasked || 'Active'}</Text>
+                    </Text>
+                  </View>
+                  <View style={[styles.taxStatusChip, { backgroundColor: C.successSubtle }]}>
+                    <Text style={[styles.taxStatusText, { color: C.success }]}>Authorized</Text>
+                  </View>
+                </View>
+              )}
+
+              {payments.length > 0 && <SummaryCard payments={payments} userId={user?.id || ''} />}
+            </View>
           }
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
@@ -382,6 +441,12 @@ export default function TransactionsScreen() {
           }
         />
       )}
+
+      {/* PAN Verification Modal */}
+      <PanVerificationModal
+        visible={isPanModalVisible}
+        onClose={() => setIsPanModalVisible(false)}
+      />
     </View>
   );
 }
@@ -401,6 +466,18 @@ const styles = StyleSheet.create({
   backBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   headerSub: { fontSize: FontSize.xs, marginTop: 2 },
+  panHeaderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  panHeaderBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
 
   filterRow: { flexDirection: 'row', gap: Spacing.sm },
   filterChip: {
@@ -437,6 +514,70 @@ const styles = StyleSheet.create({
   statIconBox: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   statAmount: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
   statLabel: { fontSize: 9, fontWeight: FontWeight.medium },
+
+  // PAN Compliance Card
+  panComplianceCard: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+  panCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  panIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  panCardTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    marginBottom: 2,
+  },
+  panCardDesc: {
+    fontSize: FontSize.xs,
+    lineHeight: 17,
+  },
+  panVerifyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 42,
+    borderRadius: BorderRadius.md,
+  },
+  panVerifyBtnText: {
+    color: '#ffffff',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  panVerifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  panVerifiedPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  taxStatusChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  taxStatusText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
 
   // Month header
   monthHeader: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm },

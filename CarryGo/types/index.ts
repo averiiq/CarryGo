@@ -33,6 +33,8 @@ export interface User {
   profileCompletedAt?: string;
   isDeleted?: boolean;
   deletedAt?: string;
+  isPanVerified?: boolean;
+  panMasked?: string;
 }
 
 export type VehicleType = 'bike' | 'car' | 'bus' | 'train' | 'flight';

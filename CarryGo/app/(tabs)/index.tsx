@@ -680,7 +680,7 @@ export default function HomeScreen() {
   }, [handleCarryParcel, handlePressParcel, handlePressTrip, handleRequestTrip, handleTrackDelivery, handleViewRequest, isTablet, requestsByParcelId, requestsByTripId, user?.id]);
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}> 
+    <View style={[styles.container, { backgroundColor: C.background }]}>
       <NotificationPanel
         visible={showNotifications}
         onClose={() => setShowNotifications(false)}
@@ -733,7 +733,7 @@ export default function HomeScreen() {
         renderItem={renderItem}
         estimatedItemSize={236}
         ListHeaderComponent={
-          <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}> 
+          <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}>
             <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
               <HomeHeader
                 userName={user?.fullName || user?.name || 'there'}
@@ -782,7 +782,7 @@ export default function HomeScreen() {
 
             {!isOnline ? <OfflineBanner C={C} /> : null}
 
-            <View style={[styles.segmented, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}> 
+            <View style={[styles.segmented, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
               {(['trips', 'parcels'] as const).map((tab) => {
                 const active = activeTab === tab;
                 const count = tab === 'trips' ? filteredTrips.length : filteredParcels.length;
@@ -812,7 +812,7 @@ export default function HomeScreen() {
             </View>
 
             {hasFilter ? (
-              <View style={[styles.filterSummary, { backgroundColor: C.primarySubtle }]}> 
+              <View style={[styles.filterSummary, { backgroundColor: C.primarySubtle }]}>
                 <MaterialIcons name="filter-alt" size={14} color={C.primaryDark} />
                 <Text style={[styles.filterSummaryText, { color: C.primaryDark }]}>Active filters applied</Text>
                 <Pressable onPress={() => setFilters(DEFAULT_FILTERS)}>

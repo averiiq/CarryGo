@@ -4,6 +4,7 @@ import {
   Animated,
   Dimensions,
   KeyboardAvoidingView,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -72,7 +73,7 @@ function formatMobileInput(value?: string) {
 }
 
 export default function ProfileSetupScreen() {
-  const { user, updateUser, refreshUser } = useAuth();
+  const { user, isLoading, updateUser, refreshUser } = useAuth();
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
   const router = useRouter();
@@ -99,16 +100,23 @@ export default function ProfileSetupScreen() {
   const phoneRef = useRef<TextInput>(null);
 
   useEffect(() => {
+    if (isLoading) return;
+
     if (!user) {
-      router.replace('/login');
-      return;
+      const timer = setTimeout(() => {
+        if (!user) {
+          router.replace('/login');
+        }
+      }, 500);
+      return () => clearTimeout(timer);
     }
+
     setUsername(user.username || '');
     setFullName(user.fullName || '');
     setPhone(formatMobileInput(user.phone));
     setCity(user.city || '');
     setRole(user.role || null);
-  }, [router, user]);
+  }, [isLoading, router, user]);
 
   const shake = () => {
     Animated.sequence([
@@ -200,14 +208,40 @@ export default function ProfileSetupScreen() {
         setDetectedLiveCity(data);
         Haptic.success();
       } else {
-        setDetectionError(error || 'Could not detect live location.');
+        const errorMsg = error || 'Could not detect live location.';
+        setDetectionError(errorMsg);
+        if (!silent) {
+          Haptic.error();
+          if (errorMsg.includes('settings') || errorMsg.includes('denied')) {
+            showAlert(
+              'Location Access Required',
+              'CarryGo uses your location to automatically detect your city. Please grant location access in device settings.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Open Settings',
+                  onPress: () => {
+                    void Linking.openSettings();
+                  },
+                },
+              ]
+            );
+          } else {
+            showAlert('Location Detection', errorMsg);
+          }
+        }
       }
     } catch (err: any) {
-      setDetectionError(err?.message || 'Location detection failed.');
+      const msg = err?.message || 'Location detection failed.';
+      setDetectionError(msg);
+      if (!silent) {
+        Haptic.error();
+        showAlert('Location Detection', msg);
+      }
     } finally {
       setDetectingCity(false);
     }
-  }, []);
+  }, [showAlert]);
 
   // Auto-detect live city when reaching the city step if not already set
   useEffect(() => {
@@ -270,7 +304,13 @@ export default function ProfileSetupScreen() {
     router.replace('/(tabs)');
   };
 
-  if (!user) return null;
+  if (isLoading || !user) {
+    return (
+      <View style={[styles.root, { backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator color={C.primary} size="large" />
+      </View>
+    );
+  }
 
   const stepIndex = STEPS.indexOf(step);
   const progress = ((stepIndex + 1) / STEPS.length) * 100;

@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Modal, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ThemeColors, TouchTarget } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { FilterOptions, VehicleType } from '@/types';
 import { CitySearchField } from './CitySearchField';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 import { styles } from '@/styles/tabs/index.styles';
 
 const VEHICLE_TYPES = [
@@ -34,10 +35,8 @@ export function FilterPanel({ visible, filters, onClose, onApply, C }: FilterPan
   }, [filters, visible]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={[styles.overlay, { backgroundColor: C.overlayMedium }]} onPress={onClose} />
-      <View style={[styles.filterSheet, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
-        <View style={[styles.sheetHandle, { backgroundColor: C.surfaceBorderLight }]} />
+    <GestureBottomSheet visible={visible} onClose={onClose} maxHeight="85%">
+      <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
         <View style={styles.filterHeaderRow}>
           <Text style={[styles.filterTitle, { color: C.textPrimary }]}>Filter Listings</Text>
           <Pressable
@@ -110,6 +109,6 @@ export function FilterPanel({ visible, filters, onClose, onApply, C }: FilterPan
           <Text style={styles.applyText}>Apply Filters</Text>
         </Pressable>
       </View>
-    </Modal>
+    </GestureBottomSheet>
   );
 }

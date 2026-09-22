@@ -1228,6 +1228,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      recreate_user_account: {
+        Args: { p_user_id?: string }
+        Returns: Json
+      }
       soft_delete_user_account: {
         Args: Record<PropertyKey, never>
         Returns: Json

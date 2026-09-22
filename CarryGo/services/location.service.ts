@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { getSupabaseClient } from '@/template';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import * as Location from 'expo-location';
@@ -70,19 +71,25 @@ function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Prom
   ]);
 }
 
-async function ensureForegroundPermission(): Promise<{ granted: boolean; error?: string }> {
+async function ensureForegroundPermission(): Promise<{ granted: boolean; canAskAgain?: boolean; error?: string }> {
   try {
     const existing = await Location.getForegroundPermissionsAsync();
-    if (existing.status === 'granted') return { granted: true };
+    if (existing.status === 'granted' || existing.granted) {
+      return { granted: true, canAskAgain: true };
+    }
 
-    if (existing.canAskAgain || existing.status === 'undetermined') {
-      const requested = await Location.requestForegroundPermissionsAsync();
-      if (requested.status === 'granted') return { granted: true };
+    // Always attempt to request foreground permissions if not currently granted
+    const requested = await Location.requestForegroundPermissionsAsync();
+    if (requested.status === 'granted' || requested.granted) {
+      return { granted: true, canAskAgain: true };
     }
 
     return {
       granted: false,
-      error: 'Location permission was denied. Please allow location access in your device settings.',
+      canAskAgain: requested.canAskAgain,
+      error: requested.canAskAgain
+        ? 'Location permission is needed to detect your city. Please allow location access.'
+        : 'Location permission was denied. Please allow location access in your device settings.',
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Location permission check failed.';
@@ -118,7 +125,17 @@ export async function detectCurrentCity(): Promise<{ data: string | null; error:
     // Check if device location services are enabled
     const servicesEnabled = await Location.hasServicesEnabledAsync().catch(() => true);
     if (!servicesEnabled) {
-      return { data: null, error: 'Location services (GPS) are turned off. Please turn them on in device settings.' };
+      if (Platform.OS === 'android') {
+        try {
+          await Location.enableNetworkProviderAsync();
+        } catch {
+          // User declined to enable location provider
+        }
+      }
+      const recheck = await Location.hasServicesEnabledAsync().catch(() => true);
+      if (!recheck) {
+        return { data: null, error: 'Location services (GPS) are turned off. Please turn them on in device settings.' };
+      }
     }
 
     let coords: { latitude: number; longitude: number } | null = null;

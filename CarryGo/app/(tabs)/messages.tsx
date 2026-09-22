@@ -4,6 +4,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
@@ -200,67 +201,101 @@ export default function MessagesScreen() {
 
   const { isSmallDevice, isTablet } = useResponsive();
 
+  const renderRightActions = useCallback(
+    (conversationId: string) => () => (
+      <Pressable
+        onPress={() => {
+          Haptic.tap();
+          openConversation(conversationId);
+        }}
+        style={{
+          width: 76,
+          marginVertical: 4,
+          marginLeft: 8,
+          borderRadius: BorderRadius.xl,
+          backgroundColor: C.primary,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Open Chat"
+      >
+        <MaterialIcons name="chat" size={20} color="#FFFFFF" />
+        <Text style={{ color: '#FFFFFF', fontWeight: FontWeight.bold, marginTop: 4, fontSize: FontSize.xs }}>
+          Chat
+        </Text>
+      </Pressable>
+    ),
+    [C.primary, openConversation]
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: ConversationRowModel; index: number }) => {
       const topMargin = index === 0 ? Spacing.sm : 0;
       return (
         <View style={isTablet ? styles.tabletContainer : undefined}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.convItem,
-              { marginTop: topMargin, backgroundColor: C.card, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
-              item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
-              pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-            ]}
-            onPress={() => openConversation(item.id)}
+          <Swipeable
+            rightThreshold={36}
+            renderRightActions={renderRightActions(item.id)}
+            containerStyle={{ overflow: 'hidden', borderRadius: BorderRadius.xl }}
           >
-            <View
-              style={[
-                styles.avatar,
-                {
-                  backgroundColor: item.isUnread ? C.primarySubtle : C.surfaceElevated,
-                  borderColor: item.isUnread ? C.primary + '44' : C.surfaceBorder,
-                },
+            <Pressable
+              style={({ pressed }) => [
+                styles.convItem,
+                { marginTop: topMargin, backgroundColor: C.card, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
+                item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
+                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
               ]}
+              onPress={() => openConversation(item.id)}
             >
-              <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
+              <View
+                style={[
+                  styles.avatar,
+                  {
+                    backgroundColor: item.isUnread ? C.primarySubtle : C.surfaceElevated,
+                    borderColor: item.isUnread ? C.primary + '44' : C.surfaceBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
+                {item.isUnread ? (
+                  <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card }]} />
+                ) : null}
+              </View>
+
+              <View style={styles.convInfo}>
+                <View style={styles.convTop}>
+                  <Text style={[styles.convName, { color: C.textPrimary }, item.isUnread && { fontWeight: FontWeight.bold }]} numberOfLines={1}>
+                    {item.displayName}
+                  </Text>
+                  <Text style={[styles.convTime, { color: item.isUnread ? C.primary : C.textMuted }]}>{item.previewTimeLabel}</Text>
+                </View>
+
+                <View style={[styles.routePill, { backgroundColor: item.isCompleted ? C.successSubtle : C.primarySubtle }]}>
+                  <MaterialIcons name={item.isCompleted ? 'verified' : 'route'} size={10} color={item.isCompleted ? C.success : C.primary} />
+                  <Text style={[styles.routeText, { color: item.isCompleted ? C.success : C.primary }]} numberOfLines={1}>
+                    {item.isCompleted ? `${item.routeLabel} · Completed` : item.routeLabel}
+                  </Text>
+                </View>
+
+                <Text style={[styles.lastMsg, { color: item.isUnread ? C.textPrimary : C.textMuted }]} numberOfLines={1}>
+                  {item.previewText}
+                </Text>
+              </View>
+
               {item.isUnread ? (
-                <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card }]} />
-              ) : null}
-            </View>
-
-            <View style={styles.convInfo}>
-              <View style={styles.convTop}>
-                <Text style={[styles.convName, { color: C.textPrimary }, item.isUnread && { fontWeight: FontWeight.bold }]} numberOfLines={1}>
-                  {item.displayName}
-                </Text>
-                <Text style={[styles.convTime, { color: item.isUnread ? C.primary : C.textMuted }]}>{item.previewTimeLabel}</Text>
-              </View>
-
-              <View style={[styles.routePill, { backgroundColor: item.isCompleted ? C.successSubtle : C.primarySubtle }]}>
-                <MaterialIcons name={item.isCompleted ? 'verified' : 'route'} size={10} color={item.isCompleted ? C.success : C.primary} />
-                <Text style={[styles.routeText, { color: item.isCompleted ? C.success : C.primary }]} numberOfLines={1}>
-                  {item.isCompleted ? `${item.routeLabel} · Completed` : item.routeLabel}
-                </Text>
-              </View>
-
-              <Text style={[styles.lastMsg, { color: item.isUnread ? C.textPrimary : C.textMuted }]} numberOfLines={1}>
-                {item.previewText}
-              </Text>
-            </View>
-
-            {item.isUnread ? (
-              <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
-                <Text style={styles.unreadText}>NEW</Text>
-              </View>
-            ) : (
-              <MaterialIcons name="chevron-right" size={17} color={C.surfaceBorderLight} />
-            )}
-          </Pressable>
+                <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
+                  <Text style={styles.unreadText}>NEW</Text>
+                </View>
+              ) : (
+                <MaterialIcons name="chevron-right" size={17} color={C.surfaceBorderLight} />
+              )}
+            </Pressable>
+          </Swipeable>
         </View>
       );
     },
-    [C, isTablet, openConversation]
+    [C, isTablet, openConversation, renderRightActions]
   );
 
   return (

@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
 import { useSavedRoutes, SavedRoute } from '@/hooks/useSavedRoutes';
 import { Haptic } from '@/services/haptics.service';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
 interface SavedRoutesSheetProps {
   visible: boolean;
@@ -23,10 +24,8 @@ export function SavedRoutesSheet({ visible, onClose, onSelectRoute }: SavedRoute
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={[styles.overlay, { backgroundColor: C.overlay }]} onPress={onClose} />
-      <View style={[styles.sheet, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
-        <View style={[styles.handle, { backgroundColor: C.surfaceBorderLight }]} />
+    <GestureBottomSheet visible={visible} onClose={onClose} maxHeight="80%">
+      <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl }}>
         <Text style={[styles.title, { color: C.textPrimary }]}>Your Routes</Text>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -76,7 +75,7 @@ export function SavedRoutesSheet({ visible, onClose, onSelectRoute }: SavedRoute
           </View>
         </ScrollView>
       </View>
-    </Modal>
+    </GestureBottomSheet>
   );
 }
 

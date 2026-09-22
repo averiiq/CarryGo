@@ -1,6 +1,8 @@
 import { getSupabaseClient } from '@/template';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { User, UserRole } from '@/types';
+import { recreateUserAccount } from '@/services/account.service';
+import { checkUserPanStatus } from '@/services/kyc.service';
 
 const PROFILE_SELECT =
   'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, city, profile_completed_at, is_deleted, deleted_at';
@@ -34,10 +36,12 @@ interface ProfileRow {
   verified_address?: string | null;
   is_deleted?: boolean | null;
   deleted_at?: string | null;
+  is_pan_verified?: boolean | null;
+  pan_masked?: string | null;
 }
 
 function mapProfileRow(data: ProfileRow): User {
-  const isApproved = data.kyc_status === 'approved' || Boolean(data.verified) || Boolean(data.is_aadhaar_verified);
+  const isApproved = data.kyc_status === 'approved' || Boolean(data.verified);
   return {
     id: data.id,
     name: data.full_name || data.username || data.email?.split('@')[0] || 'User',
@@ -49,18 +53,20 @@ function mapProfileRow(data: ProfileRow): User {
     totalDeliveries: data.total_deliveries || 0,
     totalTrips: data.total_trips || 0,
     joinedAt: data.joined_at || data.created_at || new Date().toISOString(),
-    verified: isApproved || Boolean(data.verified),
+    verified: isApproved,
     pushToken: data.push_token || undefined,
     kycStatus: isApproved ? 'approved' : ((data.kyc_status as User['kycStatus']) || 'pending'),
     fullName: data.full_name || undefined,
     role: data.role as User['role'],
     city: data.city || undefined,
     profileCompletedAt: data.profile_completed_at || undefined,
-    isAadhaarVerified: isApproved || Boolean(data.is_aadhaar_verified),
+    isAadhaarVerified: Boolean(data.is_aadhaar_verified),
     isAddressVerified: Boolean(data.is_address_verified),
     verifiedAddress: data.verified_address || undefined,
     isDeleted: Boolean(data.is_deleted),
     deletedAt: data.deleted_at || undefined,
+    isPanVerified: Boolean(data.is_pan_verified),
+    panMasked: data.pan_masked || undefined,
   };
 }
 
@@ -131,7 +137,21 @@ export async function fetchProfile(userId: string): Promise<{ data: User | null;
   if (data.is_deleted || Boolean(data.deleted_at)) {
     return { data: null, error: 'ACCOUNT_DELETED' };
   }
-  return { data: mapProfileRow(data), error: null };
+  const mappedUser = mapProfileRow(data);
+  if (!mappedUser.isPanVerified) {
+    try {
+      const panStatus = await checkUserPanStatus(userId);
+      if (panStatus.isVerified) {
+        mappedUser.isPanVerified = true;
+        if (panStatus.panMasked) {
+          mappedUser.panMasked = panStatus.panMasked;
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+  return { data: mappedUser, error: null };
 }
 
 export async function ensureProfile(
@@ -140,7 +160,11 @@ export async function ensureProfile(
   defaults?: { username?: string; fullName?: string }
 ): Promise<{ data: User | null; error: string | null }> {
   const existing = await fetchProfile(userId);
-  if (existing.error === 'ACCOUNT_DELETED') return existing;
+  if (existing.error === 'ACCOUNT_DELETED') {
+    const { error: recreateError } = await recreateUserAccount(userId);
+    if (recreateError) return { data: null, error: recreateError };
+    return fetchProfile(userId);
+  }
   if (existing.data || existing.error) return existing;
 
   const sb = getSupabaseClient();

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   Pressable,
   ScrollView,
   ActivityIndicator,
@@ -14,6 +13,7 @@ import { Parcel, Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
 function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
@@ -131,19 +131,16 @@ export function CarryParcelModal({
     onPostTrip(parcel.fromCity, parcel.toCity, parcel.weight);
   };
 
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={styles.dismissArea} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          {/* Handle */}
-          <View style={[styles.dragHandle, { backgroundColor: C.surfaceBorder }]} />
+  if (!parcel) return null;
 
+  return (
+    <GestureBottomSheet
+      visible={visible}
+      onClose={onClose}
+      maxHeight="88%"
+    >
+      <View style={{ paddingBottom: Spacing.md }}>
+        {/* Header */}
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleRow}>
@@ -420,9 +417,8 @@ export function CarryParcelModal({
               </Pressable>
             </View>
           ) : null}
-        </View>
       </View>
-    </Modal>
+    </GestureBottomSheet>
   );
 }
 

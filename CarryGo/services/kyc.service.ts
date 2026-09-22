@@ -12,6 +12,7 @@ import { enforceRateLimit } from '@/lib/server-rate-limit';
 import * as FileSystem from 'expo-file-system';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { hashAadhaarNumber, hashPanNumber } from '@/lib/crypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface KycDocumentRow {
   id: string;
@@ -225,7 +226,7 @@ export async function generateAadhaarOtp(
   }
 
   const maskedAadhaar = `•••• •••• ${cleanAadhaar.slice(-4)}`;
-  let referenceId = `sbx_adh_${Date.now()}`;
+  let referenceId: string | null = null;
   let registeredMobileEnding: string | undefined = undefined;
 
   const { apiKey, apiSecret, baseUrl } = getSandboxConfig();
@@ -266,6 +267,13 @@ export async function generateAadhaarOtp(
           };
         }
 
+        if (response.status === 429 || parsedMessage.toLowerCase().includes('limit') || parsedMessage.toLowerCase().includes('flood')) {
+          return {
+            data: null,
+            error: parsedMessage || 'UIDAI flood limit reached. Please wait before requesting another OTP. Existing OTP is valid for 10 minutes.',
+          };
+        }
+
         return {
           data: null,
           error: parsedMessage || `Aadhaar OTP request rejected (${response.status}): ${errText}`,
@@ -277,12 +285,31 @@ export async function generateAadhaarOtp(
         reference_id?: string | number;
         message?: string;
         mobile_number?: string;
+        code?: number;
       };
 
       console.log('SANDBOX_GENERATE_OTP_RESPONSE:', JSON.stringify(resData));
 
-      referenceId = String(resData.data?.reference_id ?? resData.reference_id ?? referenceId);
+      const rawRef = resData.data?.reference_id ?? resData.reference_id;
       const msg = resData.data?.message ?? resData.message ?? '';
+
+      // Check if Sandbox returned an error code inside 200 or did not generate a reference_id
+      if (resData.code && resData.code !== 200) {
+        return {
+          data: null,
+          error: msg || `UIDAI gateway returned error code ${resData.code}.`,
+        };
+      }
+
+      if (!rawRef) {
+        // UIDAI / Sandbox did not issue a new reference ID
+        return {
+          data: null,
+          error: msg || 'UIDAI did not dispatch a new OTP. Your existing OTP remains valid for 10 minutes, or please wait before retrying.',
+        };
+      }
+
+      referenceId = String(rawRef);
       const mob = resData.data?.mobile_number ?? resData.mobile_number;
       registeredMobileEnding = extractLast2MobileDigits(msg, mob);
       console.log('EXTRACTED_REGISTERED_MOBILE_ENDING:', registeredMobileEnding);
@@ -291,13 +318,18 @@ export async function generateAadhaarOtp(
     }
   } else {
     // Only in mock fallback mode (e.g. cleanAadhaar starting with 0000)
+    referenceId = `sbx_adh_${Date.now()}`;
     registeredMobileEnding = undefined;
+  }
+
+  if (!referenceId) {
+    return { data: null, error: 'Could not obtain valid OTP reference from UIDAI.' };
   }
 
   // Find or create active session
   const { data: existing } = await sb
     .from('kyc_sessions')
-    .select('id, status')
+    .select('id, status, aadhaar_reference_id')
     .eq('user_id', userId)
     .in('status', ['pending', 'submitted'])
     .order('created_at', { ascending: false })
@@ -310,6 +342,7 @@ export async function generateAadhaarOtp(
       .update({
         aadhaar_verification_status: 'pending',
         aadhaar_reference_id: referenceId,
+        provider_session_id: referenceId,
         aadhaar_hash: aadhaarHash,
         kyc_flow_version: 2,
         provider: 'sandbox',
@@ -430,12 +463,17 @@ export async function verifyAadhaarOtp(
             state?: string;
             pincode?: string;
           };
+          message?: string;
         };
         message?: string;
       };
 
       if (!res.data?.name) {
-        return { data: null, error: res.message ?? 'Invalid or expired OTP. Please try again.' };
+        const errMsg = res.data?.message ?? res.message;
+        if (errMsg && errMsg.toLowerCase().includes('expired')) {
+          return { data: null, error: 'Your OTP has expired. Please request a new OTP to continue.' };
+        }
+        return { data: null, error: errMsg ?? 'Invalid or expired OTP. Please try again.' };
       }
 
       verifiedData = {
@@ -754,6 +792,154 @@ export async function skipPan(
   }
 
   return { data: { skipped: true }, error: null };
+}
+
+/**
+ * Verifies PAN card for transactions (one-time mandatory verification).
+ * Validates format, enforces duplicate prevention across all accounts,
+ * and saves verification status in Supabase and local cache.
+ */
+export async function verifyTransactionPan(
+  userId: string,
+  panNumber: string,
+): Promise<ServiceResult<{ verified: boolean; panMasked: string }>> {
+  const cleanPan = panNumber.trim().toUpperCase();
+  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+  if (!panRegex.test(cleanPan)) {
+    return { data: null, error: 'Please enter a valid 10-character PAN number (e.g. ABCDE1234F).' };
+  }
+
+  const sb = getSupabaseClient();
+  const panHash = hashPanNumber(cleanPan);
+  const panMasked = `${cleanPan.slice(0, 5)}••••${cleanPan.slice(-1)}`;
+
+  // 1. Early duplicate identity check across accounts
+  const { data: duplicateSession } = await sb
+    .from('kyc_sessions')
+    .select('id, user_id')
+    .eq('pan_hash', panHash)
+    .neq('user_id', userId)
+    .in('status', ['submitted', 'approved'])
+    .limit(1)
+    .maybeSingle();
+
+  if (duplicateSession) {
+    return {
+      data: null,
+      error: 'This PAN card is already linked to another CarryGo account.',
+    };
+  }
+
+  // 2. Try atomic RPC verify_user_pan if available
+  try {
+    const { data: rpcRes, error: rpcError } = await (sb.rpc as any)('verify_user_pan', {
+      p_user_id: userId,
+      p_pan_masked: panMasked,
+      p_pan_hash: panHash,
+    });
+
+    const typedRes = rpcRes as { success?: boolean; error?: string } | null;
+    if (!rpcError && typedRes?.success) {
+      await AsyncStorage.setItem(`@carrygo_pan_verified_${userId}`, JSON.stringify({ verified: true, panMasked }));
+      return { data: { verified: true, panMasked }, error: null };
+    }
+    if (!rpcError && typedRes && !typedRes.success && typedRes.error) {
+      return { data: null, error: typedRes.error };
+    }
+  } catch {
+    // Fall back to direct session and profile update below
+  }
+
+  // 3. Fallback: Update or create in kyc_sessions
+  const { data: existingSession } = await sb
+    .from('kyc_sessions')
+    .select('id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const panRefId = `pan_tx_${cleanPan.slice(0, 2)}XXXXX${cleanPan.slice(-2)}_${Date.now()}`;
+
+  if (existingSession) {
+    await (sb.from('kyc_sessions') as any)
+      .update({
+        pan_verification_status: 'verified',
+        pan_reference_id: panRefId,
+        pan_hash: panHash,
+        pan_verified_at: new Date().toISOString(),
+      })
+      .eq('id', existingSession.id);
+  } else {
+    await (sb.from('kyc_sessions') as any).insert({
+      user_id: userId,
+      status: 'pending',
+      pan_verification_status: 'verified',
+      pan_reference_id: panRefId,
+      pan_hash: panHash,
+      pan_verified_at: new Date().toISOString(),
+    });
+  }
+
+  // Try updating user_profiles if column exists
+  try {
+    await (sb.from('user_profiles') as any)
+      .update({
+        is_pan_verified: true,
+        pan_hash: panHash,
+        pan_masked: panMasked,
+        pan_verified_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+  } catch {
+    // Column might not exist yet; session update succeeds
+  }
+
+  // Save to persistent storage cache
+  await AsyncStorage.setItem(
+    `@carrygo_pan_verified_${userId}`,
+    JSON.stringify({ verified: true, panMasked })
+  );
+
+  return { data: { verified: true, panMasked }, error: null };
+}
+
+/**
+ * Checks whether user has completed one-time PAN verification for transactions.
+ */
+export async function checkUserPanStatus(userId: string): Promise<{ isVerified: boolean; panMasked?: string }> {
+  try {
+    // 1. Check local AsyncStorage cache first for instant sub-millisecond response
+    const cached = await AsyncStorage.getItem(`@carrygo_pan_verified_${userId}`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed?.verified) {
+        return { isVerified: true, panMasked: parsed.panMasked };
+      }
+    }
+
+    const sb = getSupabaseClient();
+
+    // 2. Check kyc_sessions
+    const { data: session } = await sb
+      .from('kyc_sessions')
+      .select('pan_verification_status, pan_reference_id')
+      .eq('user_id', userId)
+      .eq('pan_verification_status', 'verified')
+      .limit(1)
+      .maybeSingle();
+
+    if (session) {
+      const panMasked = 'Verified';
+      await AsyncStorage.setItem(`@carrygo_pan_verified_${userId}`, JSON.stringify({ verified: true, panMasked }));
+      return { isVerified: true, panMasked };
+    }
+
+    return { isVerified: false };
+  } catch {
+    return { isVerified: false };
+  }
 }
 
 /**

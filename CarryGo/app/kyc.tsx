@@ -25,8 +25,6 @@ import {
   generateAadhaarOtp,
   verifyAadhaarOtp,
   uploadSelfie,
-  verifyPan,
-  skipPan,
   submitSandboxKyc,
   completeSandboxKyc,
   fetchLatestKycSession,
@@ -40,7 +38,6 @@ type KycStep =
   | 'aadhaar_otp'
   | 'aadhaar_verified'
   | 'selfie'
-  | 'pan'
   | 'completed';
 
 export default function KycScreen() {
@@ -62,19 +59,19 @@ export default function KycScreen() {
   // OTP State
   const [otpCode, setOtpCode] = useState('');
   const [registeredMobileEnding, setRegisteredMobileEnding] = useState<string | null>(null);
-  const [resendCountdown, setResendCountdown] = useState(30);
+  const [resendCountdown, setResendCountdown] = useState(60);
+  const [isResending, setIsResending] = useState(false);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
   // Verified Data State
   const [aadhaarData, setAadhaarData] = useState<AadhaarVerifiedData | null>(null);
 
-  // Selfie & PAN States
+  // Selfie States
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [faceVerification, setFaceVerification] = useState<FaceVerificationResult | null>(null);
   const [isVerifyingFace, setIsVerifyingFace] = useState(false);
-  const [panNumber, setPanNumber] = useState('');
-  const [isPanVerified, setIsPanVerified] = useState(false);
 
   // UI Flow States
   const [isProcessing, setIsProcessing] = useState(false);
@@ -95,17 +92,26 @@ export default function KycScreen() {
   // Check if user is already verified or has submission under review on mount
   useEffect(() => {
     if (!user) return;
-    if (user.kycStatus === 'approved' || user.kycStatus === 'submitted') {
+    if (user.kycStatus === 'approved') {
       setStep('completed');
       return;
     }
 
+    if (user.kycStatus === 'submitted') {
+      setStep('completed');
+      return;
+    }
+
+    // If profile KYC status is pending, user has not completed submission — start fresh
     fetchLatestKycSession(user.id).then(({ data: session }) => {
       if (!session) return;
       setSessionId(session.id);
 
       if (session.status === 'approved' || session.status === 'submitted') {
-        setStep('completed');
+        // Only mark completed if the user profile also confirms submission/approval
+        if (user.kycStatus === 'approved' || user.kycStatus === 'submitted') {
+          setStep('completed');
+        }
       } else if (session.aadhaarStatus === 'verified') {
         if (session.aadhaarName) {
           setAadhaarData({
@@ -119,7 +125,7 @@ export default function KycScreen() {
           });
         }
         if (session.selfieStatus === 'uploaded' || session.selfieStatus === 'verified') {
-          setStep('pan');
+          setStep('completed');
         } else {
           setStep('selfie');
         }
@@ -162,6 +168,7 @@ export default function KycScreen() {
     Haptic.tap();
     setIsProcessing(true);
     setErrorMessage(null);
+    setInfoMessage(null);
 
     try {
       const result = await generateAadhaarOtp(
@@ -186,7 +193,8 @@ export default function KycScreen() {
       } else {
         setRegisteredMobileEnding(null);
       }
-      setResendCountdown(30);
+      setResendCountdown(60);
+      setInfoMessage(null);
       setStep('aadhaar_otp');
     } catch (err) {
       Haptic.error();
@@ -195,6 +203,64 @@ export default function KycScreen() {
       setIsProcessing(false);
     }
   }, [user, aadhaarRaw]);
+
+  // Dedicated Resend OTP Handler respecting UIDAI 60s flood limits and existing active OTPs
+  const handleResendOtp = useCallback(async () => {
+    if (!user || isResending || isProcessing) return;
+    const cleanAadhaar = aadhaarRaw.replace(/\D/g, '');
+    if (cleanAadhaar.length !== 12) {
+      Haptic.error();
+      setErrorMessage('Please enter a valid 12-digit Aadhaar number.');
+      return;
+    }
+
+    Haptic.tap();
+    setIsResending(true);
+    setErrorMessage(null);
+    setInfoMessage(null);
+
+    try {
+      const result = await generateAadhaarOtp(
+        user.id,
+        user.name || user.fullName || 'Citizen User',
+        cleanAadhaar,
+      );
+
+      if (result.error || !result.data) {
+        Haptic.warning();
+        const err = result.error ?? 'Could not dispatch a new OTP.';
+        if (
+          err.toLowerCase().includes('already') ||
+          err.toLowerCase().includes('valid') ||
+          err.toLowerCase().includes('wait') ||
+          err.toLowerCase().includes('flood') ||
+          err.toLowerCase().includes('limit')
+        ) {
+          setInfoMessage('UIDAI: Your existing OTP remains active and valid for 10 minutes. Please enter the code sent to your mobile.');
+        } else {
+          setErrorMessage(err);
+        }
+        setResendCountdown(60);
+        return;
+      }
+
+      Haptic.success();
+      setSessionId(result.data.sessionId);
+      setReferenceId(result.data.referenceId);
+      setMaskedAadhaar(result.data.maskedAadhaar);
+      if (result.data.registeredMobileEnding) {
+        setRegisteredMobileEnding(result.data.registeredMobileEnding);
+      }
+      setOtpCode('');
+      setResendCountdown(60);
+      setInfoMessage('A new OTP has been dispatched to your Aadhaar-linked mobile.');
+    } catch (err) {
+      Haptic.error();
+      setErrorMessage(err instanceof Error ? err.message : 'Error requesting new OTP.');
+    } finally {
+      setIsResending(false);
+    }
+  }, [user, isResending, isProcessing, aadhaarRaw]);
 
   // Step 2: Verify 6-digit OTP received from UIDAI
   const handleVerifyOtp = useCallback(async () => {
@@ -292,7 +358,7 @@ export default function KycScreen() {
     }
   }, []);
 
-  // Step 4: Upload selfie
+  // Step 4: Upload selfie & submit KYC for review
   const handleUploadSelfie = useCallback(async () => {
     if (!user || !sessionId || !selfieUri) {
       Haptic.error();
@@ -313,43 +379,6 @@ export default function KycScreen() {
         return;
       }
 
-      Haptic.success();
-      setStep('pan');
-    } catch (err) {
-      Haptic.error();
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to register selfie.');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [user, sessionId, selfieUri]);
-
-  // Step 5: Verify PAN Card
-  const handleVerifyPan = useCallback(async () => {
-    if (!user || !sessionId) return;
-    const cleanPan = panNumber.trim().toUpperCase();
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-
-    if (!panRegex.test(cleanPan)) {
-      Haptic.error();
-      setErrorMessage('Please enter a valid 10-character PAN (e.g. ABCDE1234F).');
-      return;
-    }
-
-    Haptic.confirm();
-    setIsProcessing(true);
-    setErrorMessage(null);
-
-    try {
-      const panRes = await verifyPan(sessionId, user.id, cleanPan);
-      if (panRes.error) {
-        Haptic.error();
-        setErrorMessage(panRes.error);
-        setIsProcessing(false);
-        return;
-      }
-
-      setIsPanVerified(true);
-
       const compRes = await submitSandboxKyc(sessionId, user.id, faceVerification || undefined);
       if (compRes.error) {
         Haptic.error();
@@ -368,46 +397,13 @@ export default function KycScreen() {
       setStep('completed');
     } catch (err) {
       Haptic.error();
-      setErrorMessage(err instanceof Error ? err.message : 'Error completing PAN check.');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to submit verification.');
     } finally {
       setIsProcessing(false);
     }
-  }, [user, sessionId, panNumber, faceVerification, updateUser]);
+  }, [user, sessionId, selfieUri, faceVerification, updateUser]);
 
-  // Step 5: Skip PAN (Submits KYC for CMS review)
-  const handleSkipPan = useCallback(async () => {
-    if (!user || !sessionId) return;
-    Haptic.tap();
-    setIsProcessing(true);
-    setErrorMessage(null);
-
-    try {
-      await skipPan(sessionId, user.id);
-      const compRes = await submitSandboxKyc(sessionId, user.id, faceVerification || undefined);
-      if (compRes.error) {
-        Haptic.error();
-        setErrorMessage(compRes.error);
-        setIsProcessing(false);
-        return;
-      }
-
-      Haptic.success();
-      updateUser({
-        kycStatus: 'submitted',
-        verified: false,
-        isAadhaarVerified: true,
-        isAddressVerified: true,
-      });
-      setStep('completed');
-    } catch (err) {
-      Haptic.error();
-      setErrorMessage(err instanceof Error ? err.message : 'Error submitting KYC.');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [user, sessionId, faceVerification, updateUser]);
-
-  // Stepper Indicator Mapping
+  // Stepper Indicator Mapping (4 steps: Aadhaar ID, UIDAI OTP, Verified Profile, Live Selfie)
   const stepNumber =
     step === 'aadhaar_number'
       ? 0
@@ -417,9 +413,7 @@ export default function KycScreen() {
           ? 2
           : step === 'selfie'
             ? 3
-            : step === 'pan'
-              ? 4
-              : 5;
+            : 4;
 
   const stepLabel =
     step === 'aadhaar_number'
@@ -430,11 +424,9 @@ export default function KycScreen() {
           ? 'Verified Profile'
           : step === 'selfie'
             ? 'Live Selfie'
-            : step === 'pan'
-              ? 'PAN (Optional)'
-              : user?.kycStatus === 'approved'
-                ? 'Verified'
-                : 'In Review';
+            : user?.kycStatus === 'approved'
+              ? 'Verified'
+              : 'In Review';
 
   // ---------------------------------------------------------------------------
   // STEP 1: 12-DIGIT AADHAAR NUMBER INPUT
@@ -604,11 +596,22 @@ export default function KycScreen() {
           </View>
         </View>
 
+        {/* UIDAI Validity & Delivery Note */}
+        <View style={[styles.guaranteeBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, marginTop: Spacing.sm }]}>
+          <MaterialIcons name="schedule" size={16} color={C.primary} />
+          <Text style={[styles.guaranteeText, { color: C.textSecondary }]}>
+            <Text style={{ fontWeight: FontWeight.bold, color: C.textPrimary }}>UIDAI Notice: </Text>
+            Your Aadhaar verification OTP is valid for <Text style={{ fontWeight: FontWeight.bold, color: C.textPrimary }}>10 minutes</Text>. If you've already received the SMS, you can enter it directly.
+          </Text>
+        </View>
+
         {/* Change Aadhaar Link */}
         <Pressable
           onPress={() => {
             Haptic.tap();
             setOtpCode('');
+            setErrorMessage(null);
+            setInfoMessage(null);
             setStep('aadhaar_number');
           }}
           style={styles.changeLink}
@@ -672,23 +675,32 @@ export default function KycScreen() {
 
         {/* Resend Timer / Action */}
         <View style={styles.resendRow}>
-          {resendCountdown > 0 ? (
+          {isResending ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={C.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.resendActionText, { color: C.primary }]}>Requesting new OTP from UIDAI...</Text>
+            </View>
+          ) : resendCountdown > 0 ? (
             <Text style={[styles.resendTimerText, { color: C.textMuted }]}>
               Resend OTP in <Text style={{ fontWeight: FontWeight.bold, color: C.textPrimary }}>{resendCountdown}s</Text>
             </Text>
           ) : (
             <Pressable
-              onPress={() => {
-                Haptic.tap();
-                handleSendOtp();
-              }}
-              disabled={isProcessing}
+              onPress={handleResendOtp}
+              disabled={isProcessing || isResending}
               hitSlop={10}
             >
               <Text style={[styles.resendActionText, { color: C.primary }]}>Didn't receive code? Resend OTP</Text>
             </Pressable>
           )}
         </View>
+
+        {infoMessage ? (
+          <Animated.View entering={FadeIn.duration(200)} style={[styles.infoBox, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name="info-outline" size={18} color={C.primary} />
+            <Text style={[styles.infoText, { color: C.primary }]}>{infoMessage}</Text>
+          </Animated.View>
+        ) : null}
 
         {errorMessage ? (
           <Animated.View entering={FadeIn.duration(200)} style={[styles.errorBox, { backgroundColor: C.errorSubtle }]}>
@@ -896,100 +908,7 @@ export default function KycScreen() {
   );
 
   // ---------------------------------------------------------------------------
-  // STEP 5: OPTIONAL PAN CARD VERIFICATION
-  // ---------------------------------------------------------------------------
-  const renderPanStep = () => (
-    <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
-      <View style={[styles.optionalPill, { backgroundColor: C.accentSubtle, borderColor: C.accent + '33' }]}>
-        <MaterialIcons name="stars" size={16} color={C.accent} />
-        <Text style={[styles.optionalPillText, { color: C.accent }]}>Optional Step • Can Be Skipped</Text>
-      </View>
-
-      <View style={[styles.iconCircle, { backgroundColor: C.accentSubtle }]}>
-        <MaterialIcons name="badge" size={44} color={C.accent} />
-      </View>
-
-      <Text style={[styles.title, { color: C.textPrimary }]}>PAN Verification</Text>
-      <Text style={[styles.subtitle, { color: C.textSecondary }]}>
-        Add your PAN card to unlock higher daily delivery earnings and instant bank withdrawals.
-      </Text>
-
-      <View style={styles.inputContainer}>
-        <Text style={[styles.inputLabel, { color: C.textPrimary }]}>Permanent Account Number (PAN)</Text>
-        <TextInput
-          style={[
-            styles.panInput,
-            {
-              borderColor: C.surfaceBorder,
-              backgroundColor: C.surfaceElevated,
-              color: C.textPrimary,
-            },
-          ]}
-          placeholder="e.g. ABCDE1234F"
-          placeholderTextColor={C.textMuted}
-          autoCapitalize="characters"
-          maxLength={10}
-          value={panNumber}
-          onChangeText={(text) => {
-            setPanNumber(text.toUpperCase());
-            if (errorMessage) setErrorMessage(null);
-          }}
-        />
-      </View>
-
-      {/* Reassurance that skipping has ZERO penalty */}
-      <View style={[styles.skipReassurance, { backgroundColor: C.surfaceElevated }]}>
-        <MaterialIcons name="check-circle-outline" size={16} color={C.success} />
-        <Text style={[styles.skipReassuranceText, { color: C.textSecondary }]}>
-          Skipping PAN will not delay or block your KYC approval. You can add it anytime later.
-        </Text>
-      </View>
-
-      {errorMessage ? (
-        <Animated.View entering={FadeIn.duration(200)} style={[styles.errorBox, { backgroundColor: C.errorSubtle }]}>
-          <MaterialIcons name="error-outline" size={18} color={C.error} />
-          <Text style={[styles.errorText, { color: C.error }]}>{errorMessage}</Text>
-        </Animated.View>
-      ) : null}
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={handleVerifyPan}
-        disabled={isProcessing || panNumber.trim().length !== 10}
-        style={({ pressed }) => [
-          styles.primaryButton,
-          {
-            backgroundColor: C.primary,
-            opacity: isProcessing || panNumber.trim().length !== 10 ? 0.5 : pressed ? 0.88 : 1,
-          },
-        ]}
-      >
-        {isProcessing ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={styles.primaryButtonText}>Verify PAN & Finish</Text>
-        )}
-      </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={handleSkipPan}
-        disabled={isProcessing}
-        style={({ pressed }) => [
-          styles.secondaryButton,
-          {
-            borderColor: C.surfaceBorder,
-            opacity: isProcessing ? 0.5 : pressed ? 0.85 : 1,
-          },
-        ]}
-      >
-        <Text style={[styles.secondaryButtonText, { color: C.textSecondary }]}>Skip for now (Complete Verification)</Text>
-      </Pressable>
-    </Animated.View>
-  );
-
-  // ---------------------------------------------------------------------------
-  // STEP 6: VERIFIED CELEBRATION OR SUBMITTED IN-REVIEW STATE
+  // STEP 5: VERIFIED CELEBRATION OR SUBMITTED IN-REVIEW STATE
   // ---------------------------------------------------------------------------
   const renderCompletedStep = () => {
     const isApproved = user?.kycStatus === 'approved';
@@ -1030,20 +949,6 @@ export default function KycScreen() {
             <Text style={[styles.summaryValue, { color: C.success }]}>Verified ✓</Text>
           </View>
 
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryLeft}>
-              <MaterialIcons
-                name={isPanVerified ? 'check-circle' : 'remove-circle-outline'}
-                size={18}
-                color={isPanVerified ? C.success : C.textMuted}
-              />
-              <Text style={[styles.summaryLabel, { color: C.textPrimary }]}>PAN Card</Text>
-            </View>
-            <Text style={[styles.summaryValue, { color: isPanVerified ? C.success : C.textMuted }]}>
-              {isPanVerified ? 'Verified' : 'Optional (Skipped)'}
-            </Text>
-          </View>
-
           <View style={[styles.summaryRow, { paddingTop: 6, borderTopWidth: 1, borderTopColor: C.surfaceBorder }]}>
             <View style={styles.summaryLeft}>
               <MaterialIcons
@@ -1070,9 +975,9 @@ export default function KycScreen() {
         </View>
 
         {!isApproved && (
-          <View style={[styles.skipReassurance, { backgroundColor: C.accentSubtle, borderColor: C.accent + '33' }]}>
+          <View style={[styles.guaranteeBox, { backgroundColor: C.accentSubtle, borderColor: C.accent + '33', marginBottom: Spacing.md }]}>
             <MaterialIcons name="info-outline" size={18} color={C.accent} />
-            <Text style={[styles.skipReassuranceText, { color: C.textPrimary }]}>
+            <Text style={[styles.guaranteeText, { color: C.textPrimary }]}>
               Review typically completes in 1–2 hours during business hours. You can browse routes in the meantime.
             </Text>
           </View>
@@ -1088,6 +993,29 @@ export default function KycScreen() {
         >
           <Text style={styles.primaryButtonText}>Return to Profile</Text>
         </Pressable>
+
+        {!isApproved && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setAadhaarRaw('');
+              setMaskedAadhaar('');
+              setOtpCode('');
+              setAadhaarData(null);
+              setSelfieUri(null);
+              setFaceVerification(null);
+              setSessionId(null);
+              setReferenceId(null);
+              setStep('aadhaar_number');
+            }}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              { borderColor: C.surfaceBorder, marginTop: Spacing.sm, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Text style={[styles.secondaryButtonText, { color: C.textSecondary }]}>Start New Verification</Text>
+          </Pressable>
+        )}
       </Animated.View>
     );
   };
@@ -1119,7 +1047,7 @@ export default function KycScreen() {
 
       {/* Progress Indicator */}
       {step !== 'completed' ? (
-        <KycStepIndicator currentStep={stepNumber} totalSteps={5} stepLabel={stepLabel} />
+        <KycStepIndicator currentStep={stepNumber} totalSteps={4} stepLabel={stepLabel} />
       ) : null}
 
       <ScrollView
@@ -1132,7 +1060,6 @@ export default function KycScreen() {
         {step === 'aadhaar_otp' && renderAadhaarOtpStep()}
         {step === 'aadhaar_verified' && renderAadhaarVerifiedStep()}
         {step === 'selfie' && renderSelfieStep()}
-        {step === 'pan' && renderPanStep()}
         {step === 'completed' && renderCompletedStep()}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -1197,20 +1124,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   trustPillText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-  },
-  optionalPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    gap: 6,
-    marginBottom: Spacing.md,
-  },
-  optionalPillText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
@@ -1557,30 +1470,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
-  panInput: {
-    width: '100%',
-    height: 52,
-    borderWidth: 1.5,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 2,
-  },
-  skipReassurance: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    width: '100%',
-    marginBottom: Spacing.lg,
-  },
-  skipReassuranceText: {
-    flex: 1,
-    fontSize: FontSize.xs,
-    lineHeight: 16,
-  },
   summaryContainer: {
     width: '100%',
     borderWidth: 1,
@@ -1617,6 +1506,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   errorText: {
+    fontSize: FontSize.xs,
+    flex: 1,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+    width: '100%',
+    marginBottom: Spacing.md,
+  },
+  infoText: {
     fontSize: FontSize.xs,
     flex: 1,
   },

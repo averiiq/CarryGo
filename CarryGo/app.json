@@ -90,6 +90,12 @@
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CarryGo uses your location to detect your city and match nearby trips and parcels."
+        }
       ]
     ],
     "updates": {

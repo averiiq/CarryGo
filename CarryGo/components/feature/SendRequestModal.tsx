@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   Pressable,
   ScrollView,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import { Parcel, Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
 function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
@@ -89,18 +89,13 @@ export function SendRequestModal({
   };
 
   return (
-    <Modal
+    <GestureBottomSheet
       visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      onClose={onClose}
+      maxHeight="88%"
     >
-      <View style={styles.backdrop}>
-        <Pressable style={styles.dismissArea} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          {/* Handle */}
-          <View style={[styles.dragHandle, { backgroundColor: C.surfaceBorder }]} />
-
+      <View style={{ paddingBottom: Spacing.md }}>
+        {/* Header */}
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleRow}>
@@ -268,9 +263,8 @@ export function SendRequestModal({
               </Pressable>
             </View>
           ) : null}
-        </View>
       </View>
-    </Modal>
+    </GestureBottomSheet>
   );
 }
 

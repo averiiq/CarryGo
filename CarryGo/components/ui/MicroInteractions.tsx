@@ -1,8 +1,8 @@
 import React, { useCallback, useRef, useEffect } from 'react';
-import { Animated, Pressable, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
+import { Animated, Pressable, StyleSheet, View, ViewStyle, StyleProp, Insets, AccessibilityRole } from 'react-native';
 import { Haptic } from '@/services/haptics.service';
 
-interface AnimatedPressableProps {
+export interface AnimatedPressableProps {
   children: React.ReactNode;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -10,6 +10,9 @@ interface AnimatedPressableProps {
   scaleDown?: number;
   disabled?: boolean;
   haptic?: boolean;
+  hitSlop?: Insets;
+  accessibilityRole?: AccessibilityRole;
+  accessibilityLabel?: string;
 }
 
 export function AnimatedPressable({
@@ -20,6 +23,9 @@ export function AnimatedPressable({
   scaleDown = 0.96,
   disabled,
   haptic = true,
+  hitSlop,
+  accessibilityRole,
+  accessibilityLabel,
 }: AnimatedPressableProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -27,8 +33,8 @@ export function AnimatedPressable({
     Animated.spring(scale, {
       toValue: scaleDown,
       useNativeDriver: true,
-      tension: 300,
-      friction: 20,
+      tension: 320,
+      friction: 18,
     }).start();
   }, [scale, scaleDown]);
 
@@ -36,8 +42,8 @@ export function AnimatedPressable({
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: true,
-      tension: 180,
-      friction: 8,
+      tension: 200,
+      friction: 10,
     }).start();
   }, [scale]);
 
@@ -53,6 +59,9 @@ export function AnimatedPressable({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
+      hitSlop={hitSlop}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
     >
       <Animated.View style={[style, { transform: [{ scale }] }]}>
         {children}
@@ -60,6 +69,8 @@ export function AnimatedPressable({
     </Pressable>
   );
 }
+
+export const PressableScale = AnimatedPressable;
 
 interface PulsingDotProps {
   color: string;

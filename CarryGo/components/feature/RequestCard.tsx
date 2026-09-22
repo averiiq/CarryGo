@@ -78,18 +78,18 @@ export const RequestCard = React.memo(function RequestCard({
     onPanResponderRelease: (_, g) => {
       if (g.dx > swipeThreshold) {
         Haptic.success();
-        Animated.spring(translateX, { toValue: 420, useNativeDriver: true, tension: 100 }).start(() => {
+        Animated.spring(translateX, { toValue: 460, useNativeDriver: true, tension: 220, friction: 14 }).start(() => {
           translateX.setValue(0);
           onAccept?.();
         });
       } else if (g.dx < -swipeThreshold) {
         Haptic.error();
-        Animated.spring(translateX, { toValue: -420, useNativeDriver: true, tension: 100 }).start(() => {
+        Animated.spring(translateX, { toValue: -460, useNativeDriver: true, tension: 220, friction: 14 }).start(() => {
           translateX.setValue(0);
           onReject?.();
         });
       } else {
-        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, tension: 150 }).start();
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, tension: 240, friction: 14 }).start();
       }
     },
   })).current;

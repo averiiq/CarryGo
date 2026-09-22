@@ -20,6 +20,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { fetchPaymentByRequest } from '@/services/payments.service';
 import { getSupabaseClient, useAlert } from '@/template';
 import { ProductIllustration } from '@/components/illustrations';
+import { PanVerificationModal } from '@/components/feature/PanVerificationModal';
 
 type PaymentStatus = 'locked' | 'released' | 'refunded';
 
@@ -38,6 +39,7 @@ export default function PaymentScreen() {
 
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [existingPayment, setExistingPayment] = useState<{ id: string; status: PaymentStatus } | null>(null);
+  const [isPanModalVisible, setIsPanModalVisible] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -99,6 +101,14 @@ export default function PaymentScreen() {
       showAlert('Payment Failed', message);
     },
   });
+
+  const handleInitiatePayment = () => {
+    if (!user?.isPanVerified) {
+      setIsPanModalVisible(true);
+      return;
+    }
+    startCheckout();
+  };
 
   const statusMeta = useMemo(() => {
     if (!existingPayment) return null;
@@ -232,8 +242,29 @@ export default function PaymentScreen() {
         <View style={[styles.actionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           {error ? <Text style={[styles.errorText, { color: C.error }]}>{error}</Text> : null}
 
+          {/* One-time PAN Verification Notice or Badge */}
+          {!user?.isPanVerified ? (
+            <Pressable
+              style={[styles.panNotice, { backgroundColor: C.accentSubtle, borderColor: C.accent + '33' }]}
+              onPress={() => setIsPanModalVisible(true)}
+            >
+              <MaterialIcons name="security" size={16} color={C.accent} />
+              <Text style={[styles.panNoticeText, { color: C.textPrimary }]}>
+                One-time PAN verification required before checkout.{' '}
+                <Text style={{ color: C.accent, fontWeight: FontWeight.bold }}>Verify now →</Text>
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={[styles.panVerifiedRow, { backgroundColor: C.surfaceElevated }]}>
+              <MaterialIcons name="verified" size={15} color={C.success} />
+              <Text style={[styles.panVerifiedText, { color: C.textSecondary }]}>
+                PAN Verified ({user?.panMasked || 'Active'})
+              </Text>
+            </View>
+          )}
+
           <Pressable
-            onPress={startCheckout}
+            onPress={handleInitiatePayment}
             disabled={isLoading}
             style={({ pressed }) => [styles.payButtonWrap, pressed && { opacity: 0.86 }, isLoading && { opacity: 0.64 }]}
           >
@@ -272,6 +303,15 @@ export default function PaymentScreen() {
           <Text style={[styles.securityText, { color: C.textMuted }]}>Only the sender can initiate payment for this delivery.</Text>
         </View>
       ) : null}
+
+      {/* PAN Verification Modal */}
+      <PanVerificationModal
+        visible={isPanModalVisible}
+        onClose={() => setIsPanModalVisible(false)}
+        onSuccess={() => {
+          startCheckout();
+        }}
+      />
     </ScrollView>
   );
 }
@@ -419,6 +459,32 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FontSize.xs,
     lineHeight: 18,
+  },
+  panNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  panNoticeText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+  },
+  panVerifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-start',
+  },
+  panVerifiedText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
 });
 

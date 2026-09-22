@@ -20,7 +20,7 @@ export {
   EmptyMessagesSVG,
   EmptyTransactionsSVG,
 } from './ui/EmptyState';
-export { AnimatedPressable, PulsingDot, PresenceIndicator, CountBadge, SlideUp, ScaleIn } from './ui/MicroInteractions';
+export { AnimatedPressable, PressableScale, PulsingDot, PresenceIndicator, CountBadge, SlideUp, ScaleIn } from './ui/MicroInteractions';
 export { LivelyCard } from './ui/LivelyCard';
 export { AnimatedFeedback, SuccessCheckmark } from './ui/AnimatedFeedback';
 export { Skeleton, SkeletonCard, SkeletonList } from './ui/SkeletonLoader';
@@ -28,3 +28,4 @@ export { AnimatedEmptyState } from './ui/AnimatedEmptyState';
 export { AnimatedTabIndicator } from './ui/AnimatedTabIndicator';
 export { AnimatedProgressBar, StepProgress } from './ui/AnimatedProgress';
 export { AppErrorBoundary } from './ui/AppErrorBoundary';
+export { GestureBottomSheet } from './ui/GestureBottomSheet';
