@@ -146,7 +146,41 @@ export interface Rating {
   createdAt: string;
 }
 
-export type NotificationType = 'new_request' | 'request_accepted' | 'request_rejected' | 'delivery_otp' | 'rating' | 'general' | 'route_match' | 'chat_message';
+export type NotificationType =
+  | 'new_request'
+  | 'request_accepted'
+  | 'request_rejected'
+  | 'delivery_otp'
+  | 'rating'
+  | 'general'
+  | 'route_match'
+  | 'chat_message'
+  | 'trip_created'
+  | 'trip_updated'
+  | 'trip_cancelled'
+  | 'parcel_created'
+  | 'parcel_updated'
+  | 'parcel_cancelled'
+  | 'payment_locked'
+  | 'payment_released'
+  | 'payment_refunded'
+  | 'admin_broadcast'
+  | 'promo'
+  | 'system_alert';
+
+export type NotificationCategory =
+  | 'general'
+  | 'matching'
+  | 'trip_update'
+  | 'parcel_update'
+  | 'message'
+  | 'payment'
+  | 'promotion'
+  | 'city_alert'
+  | 'broadcast'
+  | 'system_alert';
+
+export type NotificationPriority = 'critical' | 'high' | 'normal' | 'low';
 
 export interface AppNotification {
   id: string;
@@ -154,9 +188,27 @@ export interface AppNotification {
   title: string;
   body: string;
   type: NotificationType;
+  category?: NotificationCategory;
+  priority?: NotificationPriority;
   relatedId?: string;
   read: boolean;
+  readAt?: string | null;
+  deepLink?: string | null;
+  imageUrl?: string | null;
+  data?: Record<string, unknown>;
   createdAt: string;
+}
+
+export interface UserNotificationPreferences {
+  userId: string;
+  enableMatches: boolean;
+  enableTripUpdates: boolean;
+  enableParcelUpdates: boolean;
+  enableChat: boolean;
+  enablePayments: boolean;
+  enablePromotions: boolean;
+  enableCityAlerts: boolean;
+  updatedAt?: string;
 }
 
 export interface FilterOptions {

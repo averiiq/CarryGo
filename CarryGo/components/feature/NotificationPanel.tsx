@@ -14,6 +14,7 @@ type NotificationPanelProps = {
   markAllRead: () => void;
   onPressNotification: (notification: AppNotification) => void;
   onMarkRead: (notifications: AppNotification[]) => void;
+  onPressSettings?: () => void;
   C: ThemeColors;
 };
 
@@ -197,6 +198,7 @@ export function NotificationPanel({
   markAllRead,
   onPressNotification,
   onMarkRead,
+  onPressSettings,
   C,
 }: NotificationPanelProps) {
   const sheetAnim = useRef(new Animated.Value(0)).current;
@@ -242,10 +244,24 @@ export function NotificationPanel({
         <View style={[styles.sheetHandle, { backgroundColor: C.surfaceBorderLight }]} />
         <View style={styles.notifHeader}>
           <Text style={[styles.notifTitle, { color: C.textPrimary }]}>Notifications</Text>
-          <Pressable onPress={() => { Haptic.tap(); markAllRead(); }} style={({ pressed }) => [styles.markReadBtn, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="done-all" size={16} color={C.primary} />
-            <Text style={[styles.markReadText, { color: C.primary }]}>Mark all read</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {onPressSettings ? (
+              <Pressable
+                onPress={() => { Haptic.tap(); onPressSettings(); onClose(); }}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  { padding: 7, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <MaterialIcons name="tune" size={16} color={C.textSecondary} />
+              </Pressable>
+            ) : null}
+            <Pressable onPress={() => { Haptic.tap(); markAllRead(); }} style={({ pressed }) => [styles.markReadBtn, pressed && { opacity: 0.7 }]}>
+              <MaterialIcons name="done-all" size={16} color={C.primary} />
+              <Text style={[styles.markReadText, { color: C.primary }]}>Mark all read</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 18, paddingBottom: 10 }}>

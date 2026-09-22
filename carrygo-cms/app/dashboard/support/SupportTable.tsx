@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import {
   MessageSquare,
   CheckCircle,
@@ -14,14 +14,18 @@ import {
   Phone,
   Copy,
   Check,
-  ExternalLink,
   Package,
+  UserCheck,
+  AlertCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { updateTicketStatus } from './actions'
+import { updateTicketStatus, assignTicket } from './actions'
 
-type TicketRow = {
+export type TicketRow = {
   id: string
+  userId?: string
+  assignedTo?: string | null
+  assigneeName?: string | null
   user: string
   email?: string | null
   phone?: string | null
@@ -108,14 +112,29 @@ function StatusBadge({ status }: { status: string }) {
   }
 }
 
-export default function SupportTable({ initialTickets }: { initialTickets: TicketRow[] }) {
+export default function SupportTable({
+  initialTickets,
+  currentAdminId,
+}: {
+  initialTickets: TicketRow[]
+  currentAdminId?: string
+}) {
   const [tickets, setTickets] = useState(initialTickets)
   const [selectedTicket, setSelectedTicket] = useState<TicketRow | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [isPending, startTransition] = useTransition()
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setActionFeedback({ type, message })
+    setTimeout(() => {
+      setActionFeedback(null)
+    }, 4000)
+  }
+
+  const handleStatusChange = (id: string, newStatus: string) => {
     const oldTickets = [...tickets]
     setTickets(tickets.map((t) => (t.id === id ? { ...t, status: newStatus } : t)))
 
@@ -123,16 +142,46 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
       setSelectedTicket({ ...selectedTicket, status: newStatus })
     }
 
-    const res = await updateTicketStatus(id, newStatus)
-    if (!res.success) {
-      setTickets(oldTickets)
-      if (selectedTicket && selectedTicket.id === id) {
-        setSelectedTicket({
-          ...selectedTicket,
-          status: oldTickets.find((t) => t.id === id)?.status || 'open',
-        })
+    startTransition(async () => {
+      const res = await updateTicketStatus(id, newStatus)
+      if (!res.success) {
+        setTickets(oldTickets)
+        if (selectedTicket && selectedTicket.id === id) {
+          setSelectedTicket({
+            ...selectedTicket,
+            status: oldTickets.find((t) => t.id === id)?.status || 'open',
+          })
+        }
+        showFeedback('error', res.error || 'Failed to update ticket status')
+      } else {
+        showFeedback('success', `Ticket status updated to ${newStatus.replace('_', ' ')}`)
       }
-    }
+    })
+  }
+
+  const handleAssignTicket = (id: string, targetId: string | null) => {
+    startTransition(async () => {
+      const res = await assignTicket(id, targetId)
+      if (res.success) {
+        const isMe = targetId === 'me' || targetId === currentAdminId
+        const assigneeName = targetId ? (isMe ? 'You' : 'Assigned') : null
+
+        setTickets((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, assignedTo: res.assignedTo ?? null, assigneeName } : t))
+        )
+        if (selectedTicket && selectedTicket.id === id) {
+          setSelectedTicket((prev) =>
+            prev ? { ...prev, assignedTo: res.assignedTo ?? null, assigneeName } : null
+          )
+        }
+        showFeedback(
+          'success',
+          targetId ? `Ticket assigned to ${isMe ? 'you' : 'agent'}` : 'Ticket unassigned'
+        )
+      } else {
+        showFeedback('error', res.error || 'Failed to update assignment')
+      }
+    })
   }
 
   const handleCopyId = (id: string) => {
@@ -165,7 +214,8 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
         ticket.id.toLowerCase().includes(query) ||
         (ticket.email && ticket.email.toLowerCase().includes(query)) ||
         (ticket.phone && ticket.phone.toLowerCase().includes(query)) ||
-        (ticket.description && ticket.description.toLowerCase().includes(query))
+        (ticket.description && ticket.description.toLowerCase().includes(query)) ||
+        (ticket.assigneeName && ticket.assigneeName.toLowerCase().includes(query))
       return matchesStatus && matchesSearch
     })
   }, [tickets, statusFilter, searchQuery])
@@ -183,7 +233,7 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
               Customer Support &amp; Disputes
             </h1>
             <p className="text-xs sm:text-sm text-muted mt-1">
-              Investigate customer inquiries, manage handover disputes, and coordinate escrow resolution.
+              Investigate customer inquiries, manage handover disputes, and coordinate resolution with direct user updates.
             </p>
           </div>
 
@@ -291,6 +341,37 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
         </div>
       </div>
 
+      {/* Action Feedback Banner */}
+      <AnimatePresence>
+        {actionFeedback && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`p-3.5 rounded-xl text-xs font-medium flex items-center justify-between gap-2 mb-4 border ${
+              actionFeedback.type === 'success'
+                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-600 border-rose-500/20'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {actionFeedback.type === 'success' ? (
+                <CheckCircle className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span>{actionFeedback.message}</span>
+            </div>
+            <button
+              onClick={() => setActionFeedback(null)}
+              className="text-current opacity-70 hover:opacity-100 p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Filter Tabs & Search Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-5">
         {/* Status Filter Tabs */}
@@ -358,6 +439,10 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
           ) : (
             filteredTickets.map((ticket) => {
               const { category, cleanSubject } = parseTicketCategory(ticket.subject)
+              const isAssignedToMe = Boolean(
+                currentAdminId && ticket.assignedTo && ticket.assignedTo === currentAdminId
+              )
+
               return (
                 <li key={ticket.id} className="p-5 hover:bg-surface-elevated/40 transition-colors">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -370,6 +455,21 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
                         )}
                         <span className="text-xs text-muted">· {ticket.time}</span>
                         <span className="text-[10px] font-mono text-muted/80">#{ticket.id.slice(0, 8)}</span>
+
+                        {ticket.assignedTo ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 inline-flex items-center gap-1">
+                            <UserCheck className="w-3 h-3" />
+                            {isAssignedToMe ? 'Assigned to You' : ticket.assigneeName || 'Assigned'}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleAssignTicket(ticket.id, 'me')}
+                            className="text-[11px] font-medium text-primary hover:underline hover:text-primary-dark transition inline-flex items-center gap-1"
+                          >
+                            + Assign to me
+                          </button>
+                        )}
                       </div>
                       <span className="text-sm sm:text-base font-semibold text-foreground break-words">
                         {cleanSubject}
@@ -385,7 +485,8 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
                       <select
                         value={ticket.status}
                         onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
-                        className="block px-2.5 py-1.5 text-xs font-medium border border-border rounded-xl bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+                        disabled={isPending}
+                        className="block px-2.5 py-1.5 text-xs font-medium border border-border rounded-xl bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 disabled:opacity-50"
                       >
                         <option value="open">Open</option>
                         <option value="in_progress">In Progress</option>
@@ -446,9 +547,17 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
                       const { category, cleanSubject } = parseTicketCategory(selectedTicket.subject)
                       return (
                         <div className="mb-2">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
                             {category && <CategoryBadge category={category} />}
                             <StatusBadge status={selectedTicket.status} />
+                            {selectedTicket.assignedTo && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 inline-flex items-center gap-1">
+                                <UserCheck className="w-3 h-3" />
+                                {selectedTicket.assignedTo === currentAdminId
+                                  ? 'Assigned to You'
+                                  : selectedTicket.assigneeName || 'Assigned'}
+                              </span>
+                            )}
                           </div>
                           <h4 className="text-lg sm:text-xl font-heading font-bold text-foreground">
                             {cleanSubject}
@@ -514,6 +623,41 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
                     </p>
                   </div>
 
+                  {/* Assignment Controls in Modal */}
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border-subtle text-xs">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-muted" />
+                      <span className="text-muted">Assigned Handler:</span>
+                      <span className="font-semibold text-foreground">
+                        {selectedTicket.assignedTo === currentAdminId
+                          ? 'You'
+                          : selectedTicket.assigneeName || 'Unassigned'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {selectedTicket.assignedTo ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAssignTicket(selectedTicket.id, null)}
+                          disabled={isPending}
+                          className="px-2.5 py-1 rounded-lg border border-border-subtle bg-surface hover:bg-surface-elevated text-muted hover:text-foreground text-[11px] font-medium transition"
+                        >
+                          Unassign
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleAssignTicket(selectedTicket.id, 'me')}
+                          disabled={isPending}
+                          className="px-2.5 py-1 rounded-lg bg-primary text-white text-[11px] font-semibold hover:bg-primary-dark transition"
+                        >
+                          Assign to Me
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between border-t border-border-subtle pt-4">
                     <span className="text-xs text-muted font-mono">UUID: {selectedTicket.id}</span>
                     <div className="flex items-center gap-2">
@@ -521,7 +665,8 @@ export default function SupportTable({ initialTickets }: { initialTickets: Ticke
                       <select
                         value={selectedTicket.status}
                         onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value)}
-                        className="block w-40 px-3 py-2 text-sm border border-border rounded-xl bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+                        disabled={isPending}
+                        className="block w-40 px-3 py-2 text-sm border border-border rounded-xl bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 disabled:opacity-50"
                       >
                         <option value="open">Open</option>
                         <option value="in_progress">In Progress</option>

@@ -21,7 +21,14 @@ try {
   // Expo Go SDK 53+ removed push notification support
 }
 
-type NotificationRow = Database['public']['Tables']['notifications']['Row'];
+type NotificationRow = Database['public']['Tables']['notifications']['Row'] & {
+  category?: string | null;
+  priority?: string | null;
+  deep_link?: string | null;
+  image_url?: string | null;
+  data?: Record<string, unknown> | null;
+  read_at?: string | null;
+};
 
 function mapRow(row: NotificationRow): AppNotification {
   return {
@@ -30,8 +37,14 @@ function mapRow(row: NotificationRow): AppNotification {
     title: row.title,
     body: row.body,
     type: row.type as AppNotification['type'],
+    category: (row.category || 'general') as AppNotification['category'],
+    priority: (row.priority || 'normal') as AppNotification['priority'],
     relatedId: row.related_id ?? undefined,
+    deepLink: row.deep_link ?? null,
+    imageUrl: row.image_url ?? null,
+    data: (row.data as Record<string, unknown>) ?? {},
     read: row.read,
+    readAt: row.read_at ?? null,
     createdAt: row.created_at,
   };
 }
@@ -242,11 +255,12 @@ export async function createNotification(notif: {
   }
 
   const sb = getSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await sb.from('notifications').insert({
     user_id: notif.userId,
     title: trimmedTitle,
     body: trimmedBody,
-    type: notif.type,
+    type: notif.type as any,
     related_id: notif.relatedId,
   });
   return { error: error?.message || null };
@@ -290,7 +304,10 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return count || 0;
 }
 
-export function getDeepLinkRoute(type: string, relatedId?: string): string | null {
+export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: string | null): string | null {
+  // If the notification record has an explicit deep_link stored (from outbox processor), use it directly
+  if (deepLink) return deepLink;
+
   const normalizedType = type.toLowerCase();
 
   switch (normalizedType) {
@@ -298,22 +315,89 @@ export function getDeepLinkRoute(type: string, relatedId?: string): string | nul
     case 'request_received':
     case 'request_accepted':
     case 'request_rejected':
+    case 'request_cancelled':
       return '/(tabs)/requests';
     case 'chat_message':
+    case 'message':
       if (relatedId) return `/chat/${relatedId}`;
       return '/(tabs)/messages';
     case 'route_match':
+    case 'matching':
       return '/subscriptions';
     case 'general':
     case 'delivery_otp':
     case 'delivery_pickup':
     case 'delivery_completed':
+    case 'parcel_update':
       if (relatedId) return `/delivery/${relatedId}`;
-      return null;
+      return '/(tabs)/requests';
+    case 'trip_update':
+      return '/(tabs)/requests';
+    case 'payment':
+    case 'payment_locked':
+    case 'payment_released':
+    case 'payment_refunded':
+      return '/transactions';
     case 'rating':
       return '/(tabs)/profile';
+    case 'broadcast':
+    case 'promotion':
+    case 'system_alert':
+      return null;
     default:
       return null;
   }
+}
+
+// ── Notification Preferences ─────────────────────────────────────────────────
+
+import type { UserNotificationPreferences } from '@/types';
+
+export async function fetchNotificationPreferences(): Promise<{ data: UserNotificationPreferences | null; error: string | null }> {
+  const sb = getSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (sb as any).rpc('get_or_create_notification_preferences');
+  if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: 'No preferences found' };
+  const row = data as {
+    user_id: string;
+    enable_matches: boolean;
+    enable_trip_updates: boolean;
+    enable_parcel_updates: boolean;
+    enable_chat: boolean;
+    enable_payments: boolean;
+    enable_promotions: boolean;
+    enable_city_alerts: boolean;
+    updated_at: string;
+  };
+  return {
+    data: {
+      userId: row.user_id,
+      enableMatches: row.enable_matches,
+      enableTripUpdates: row.enable_trip_updates,
+      enableParcelUpdates: row.enable_parcel_updates,
+      enableChat: row.enable_chat,
+      enablePayments: row.enable_payments,
+      enablePromotions: row.enable_promotions,
+      enableCityAlerts: row.enable_city_alerts,
+      updatedAt: row.updated_at,
+    },
+    error: null,
+  };
+}
+
+export async function updateNotificationPreferences(prefs: Partial<UserNotificationPreferences>): Promise<{ error: string | null }> {
+  const sb = getSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (sb as any).rpc('upsert_user_notification_preferences', {
+    p_enable_matches: prefs.enableMatches ?? true,
+    p_enable_trip_updates: prefs.enableTripUpdates ?? true,
+    p_enable_parcel_updates: prefs.enableParcelUpdates ?? true,
+    p_enable_chat: prefs.enableChat ?? true,
+    p_enable_payments: prefs.enablePayments ?? true,
+    p_enable_promotions: prefs.enablePromotions ?? true,
+    p_enable_city_alerts: prefs.enableCityAlerts ?? true,
+  });
+  return { error: error?.message || null };
 }
 

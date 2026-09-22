@@ -20,24 +20,36 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
     .from('support_tickets')
     .select(`
       id,
+      user_id,
+      assigned_to,
       subject,
       description,
       status,
       created_at,
-      user_profiles ( full_name, email, phone )
+      user_profiles!user_id ( full_name, email, phone ),
+      assignee:user_profiles!assigned_to ( full_name, email )
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
-  if (error) throw new Error(`Unable to load support tickets: ${error.message}`)
+  if (error) {
+    console.error('Failed to load support tickets:', error)
+  }
 
-  const mappedTickets = ticketsData?.map((ticket) => {
+  const mappedTickets = (ticketsData as any[])?.map((ticket) => {
     const profile = Array.isArray(ticket.user_profiles)
-      ? (ticket.user_profiles[0] as { full_name?: string; email?: string; phone?: string } | null)
-      : (ticket.user_profiles as { full_name?: string; email?: string; phone?: string } | null)
+      ? ticket.user_profiles[0]
+      : ticket.user_profiles
+
+    const assignee = Array.isArray(ticket.assignee)
+      ? ticket.assignee[0]
+      : ticket.assignee
 
     return {
       id: ticket.id,
+      userId: ticket.user_id,
+      assignedTo: ticket.assigned_to ?? null,
+      assigneeName: assignee?.full_name ?? null,
       user: profile?.full_name ?? 'Unknown User',
       email: profile?.email ?? null,
       phone: profile?.phone ?? null,
@@ -52,7 +64,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-6">
-      <SupportTable initialTickets={mappedTickets} />
+      <SupportTable initialTickets={mappedTickets} currentAdminId={auth.userId} />
       <Pagination page={page} totalPages={totalPages} totalItems={count ?? 0} pageSize={PAGE_SIZE} itemLabel="tickets" />
     </div>
   )

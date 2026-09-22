@@ -695,6 +695,7 @@ export default function HomeScreen() {
         onMarkRead={(groupNotifications) => {
           void markNotificationsAsRead(groupNotifications);
         }}
+        onPressSettings={() => router.push('/notification-settings' as any)}
         C={C}
       />
 

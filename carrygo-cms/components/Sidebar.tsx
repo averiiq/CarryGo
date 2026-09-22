@@ -16,6 +16,7 @@ import {
   Settings,
   ScrollText,
   Layers,
+  Bell,
 } from 'lucide-react'
 
 export const NAV_ITEMS = [
@@ -29,6 +30,7 @@ export const NAV_ITEMS = [
   { label: 'Disputes', href: '/dashboard/disputes', icon: AlertTriangle },
   { label: 'Support', href: '/dashboard/support', icon: HeadphonesIcon },
   { label: 'Bulk Ops', href: '/dashboard/bulk', icon: Layers },
+  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   { label: 'Audit Log', href: '/dashboard/audit', icon: ScrollText },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]

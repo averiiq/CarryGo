@@ -30,7 +30,7 @@ serve(async (req) => {
     const payload = await req.json();
     const record = payload.record || payload;
 
-    const { id, user_id, title, body, type, related_id } = record;
+    const { id, user_id, title, body, type, related_id, category, priority, deep_link, data: rawData } = record;
 
     if (!id || !user_id || !title || !body) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -68,17 +68,32 @@ serve(async (req) => {
       });
     }
 
+    // Determine Android notification channel
+    const channelId = category === 'payment'
+      ? 'payments'
+      : (category === 'parcel_update' || category === 'trip_update' || type === 'delivery_otp')
+        ? 'deliveries'
+        : 'default';
+
+    const pushPriority = (priority === 'critical' || priority === 'high') ? 'high' : 'default';
+
     const messages = activeDevices.map(device => ({
       to: device.expo_push_token,
       title,
       body,
       sound: 'default',
       badge: 1,
+      priority: pushPriority,
+      channelId,
       data: {
-        type,
+        notificationId: id,
+        type: type || 'general',
+        category: category || 'general',
+        priority: priority || 'normal',
         relatedId: related_id || null,
+        deepLink: deep_link || null,
+        ...(typeof rawData === 'object' && rawData !== null ? rawData : {}),
       },
-      channelId: 'default',
     }));
 
     const expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {

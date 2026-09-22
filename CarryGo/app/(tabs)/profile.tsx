@@ -426,6 +426,13 @@ export default function ProfileScreen() {
                 subtitle="Matching route notifications"
                 onPress={() => router.push('/subscriptions')}
               />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
+              <MenuItem C={C}
+                icon={<MaterialIcons name="tune" size={17} color={C.info} />}
+                label="Notification Preferences"
+                subtitle="Customize which alerts you receive"
+                onPress={() => router.push('/notification-settings' as any)}
+              />
             </View>
           </View>
 
