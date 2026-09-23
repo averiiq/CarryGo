@@ -403,10 +403,10 @@ export function SiteHeader() {
                 )}
               </div>
             ) : (
-              /* Sign In Button */
+              /* Sign In Button - tucked into mobile menu for narrow screens */
               <Link
                 href="/login"
-                className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+                className="hidden min-[480px]:inline-flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors"
               >
                 Sign In
               </Link>
@@ -415,7 +415,7 @@ export function SiteHeader() {
             {/* Primary Action Button */}
             <Link
               href="/create-parcel"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold rounded-full bg-emerald-700 hover:bg-emerald-800 text-white transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
             >
               <span>Send<span className="hidden min-[360px]:inline"> Parcel</span></span>
               <ArrowRight className="h-3 w-3 hidden sm:inline" />

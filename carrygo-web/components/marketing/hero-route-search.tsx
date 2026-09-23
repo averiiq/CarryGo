@@ -76,24 +76,24 @@ export function HeroRouteSearch() {
   }
 
   return (
-    <div className="w-full max-w-xl mx-auto lg:mx-0">
-      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/30 to-white p-5 sm:p-7 overflow-hidden">
+    <div className="w-full">
+      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/30 to-white p-4 sm:p-6 lg:p-7 overflow-hidden">
         {/* Top Gradient Hairline Accent */}
         <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500" />
         <div className="absolute inset-0 pattern-dots opacity-30 pointer-events-none -z-10" />
         {/* Mode Switcher Segmented Control with Smooth Sliding Pill */}
-        <div className="relative grid grid-cols-2 rounded-2xl bg-slate-100 p-1.5 border border-slate-200 mb-5">
+        <div className="relative grid grid-cols-2 rounded-2xl bg-slate-100 p-1 border border-slate-200/90 mb-4 sm:mb-5">
           <button
             type="button"
             onClick={() => setMode('send')}
-            className={`relative z-10 inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
+            className={`relative z-10 inline-flex items-center justify-center gap-2 py-2 sm:py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
               mode === 'send' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {mode === 'send' && (
               <motion.span
                 layoutId="heroModeTab"
-                className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                className="absolute inset-0 rounded-xl bg-emerald-700"
                 transition={{ type: 'spring', stiffness: 450, damping: 32 }}
               />
             )}
@@ -104,14 +104,14 @@ export function HeroRouteSearch() {
           <button
             type="button"
             onClick={() => setMode('travel')}
-            className={`relative z-10 inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
+            className={`relative z-10 inline-flex items-center justify-center gap-2 py-2 sm:py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
               mode === 'travel' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {mode === 'travel' && (
               <motion.span
                 layoutId="heroModeTab"
-                className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                className="absolute inset-0 rounded-xl bg-emerald-700"
                 transition={{ type: 'spring', stiffness: 450, damping: 32 }}
               />
             )}
@@ -121,8 +121,8 @@ export function HeroRouteSearch() {
         </div>
 
         {/* Inputs Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2.5">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-2.5">
             {/* Origin City with Autocomplete */}
             <CityAutocomplete
               id="hero-from-city"
@@ -134,18 +134,18 @@ export function HeroRouteSearch() {
             />
 
             {/* Swap Button with Smooth Spring Rotation */}
-            <div className="flex justify-center sm:pt-4">
+            <div className="flex justify-center -my-1 sm:my-0 sm:pt-4 z-10">
               <motion.button
                 type="button"
                 onClick={handleSwap}
                 animate={{ rotate: isSwapping ? 180 : 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 whileTap={{ scale: 0.9 }}
-                className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 hover:text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50/50 shadow-xs transition-colors cursor-pointer"
+                className="p-2 sm:p-2.5 rounded-full sm:rounded-2xl border border-slate-200 bg-white sm:bg-slate-50 text-slate-600 hover:text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors cursor-pointer"
                 title="Swap origin and destination"
                 aria-label="Swap cities"
               >
-                <ArrowRightLeft className="w-4 h-4" />
+                <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </motion.button>
             </div>
 
@@ -201,7 +201,7 @@ export function HeroRouteSearch() {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 rounded-2xl border border-slate-200 bg-white text-sm text-slate-900 font-medium focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition shadow-xs"
+                  className="w-full pl-10 pr-3 py-3 rounded-2xl border border-slate-200 bg-white text-sm text-slate-900 font-medium focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition"
                 />
               </div>
             </div>
@@ -211,7 +211,7 @@ export function HeroRouteSearch() {
                 type="submit"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full h-[46px] rounded-2xl font-bold text-sm text-white bg-emerald-700 hover:bg-emerald-800 shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 group"
+                className="w-full h-[46px] rounded-2xl font-bold text-sm text-white bg-emerald-700 hover:bg-emerald-800 transition-colors cursor-pointer flex items-center justify-center gap-2 group"
               >
                 <Search className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 <span>
@@ -241,7 +241,7 @@ export function HeroRouteSearch() {
                   whileTap={{ scale: 0.96 }}
                   className={`text-[11px] font-semibold px-2.5 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                     active
-                      ? 'bg-emerald-700 text-white shadow-xs'
+                      ? 'bg-emerald-700 text-white'
                       : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300'
                   }`}
                 >

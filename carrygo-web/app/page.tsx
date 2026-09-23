@@ -26,6 +26,8 @@ import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-sectio
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { HeroRouteSearch } from '@/components/marketing/hero-route-search'
 import { HeroRouteSimulator } from '@/components/marketing/hero-route-simulator'
+import { HeroTransitVectors } from '@/components/marketing/hero-transit-vectors'
+import { HeroSplitExperience } from '@/components/marketing/hero-split-experience'
 import { CorridorsMarketplace } from '@/components/marketing/corridors-marketplace'
 import { CourierComparison } from '@/components/marketing/courier-comparison'
 import { RateCalculator } from '@/components/marketing/rate-calculator'
@@ -131,6 +133,10 @@ export default async function LandingPage() {
         <div className="absolute inset-0 -z-10 gradient-mesh-aurora pointer-events-none" />
         {/* Subtle Micro-dot Geometric Pattern with Radial Vignette */}
         <div className="absolute inset-0 -z-10 pattern-dots mask-radial-vignette opacity-50 pointer-events-none" />
+        {/* Minimal Engineering Grid Background */}
+        <div className="absolute inset-0 -z-10 bg-grid-minimal mask-radial-vignette opacity-50 pointer-events-none" />
+        {/* Animated Transit Vector SVG Shapes */}
+        <HeroTransitVectors />
 
         {/* Subtle decorative background blur layer with gentle parallax */}
         <ParallaxLayer speed={-0.12} className="absolute inset-0 -z-10 pointer-events-none">
@@ -138,35 +144,33 @@ export default async function LandingPage() {
         </ParallaxLayer>
 
         <div className="mx-auto max-w-7xl">
-          {/* Hero Headline & Subhead */}
-          <div className="text-center max-w-4xl mx-auto space-y-4 mb-10 sm:mb-12">
+          {/* Left-Aligned Editorial Header: Headline + Subheading */}
+          <div className="max-w-3xl space-y-4 mb-8">
             <Reveal delay={0.05}>
-              <h1 className="text-3xl sm:text-5xl md:text-6xl font-heading font-extrabold tracking-tight text-slate-900 leading-[1.12]">
-                Intercity Parcel Delivery at the{' '}
-                <span className="text-emerald-700">Speed of Real Travel</span>
-              </h1>
-            </Reveal>
+              {/* Eyebrow Pill Badge */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/90 mb-3">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Haryana&apos;s Dedicated P2P Commuter Transit • All 22 Districts</span>
+              </div>
 
-            <Reveal delay={0.1}>
-              <p className="mx-auto max-w-2xl text-sm sm:text-base md:text-lg text-slate-700 leading-relaxed font-normal">
-                Connect directly with verified travelers commuting across Haryana. Send urgent documents, gifts, and packages same-day between Gurugram, Faridabad, Panipat, Ambala, Rohtak, and all 22 districts.
+              {/* Left-Aligned High-Impact Typography */}
+              <h1 className="text-3xl sm:text-5xl lg:text-[3.5rem] font-heading font-extrabold tracking-tight text-slate-900 leading-[1.12]">
+                Intercity Parcel Delivery at the{' '}
+                <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent">
+                  Speed of Real Travel
+                </span>
+              </h1>
+
+              {/* Left-Aligned High-Clarity Subheading */}
+              <p className="mt-4 text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl">
+                Connect directly with verified commuters traveling across Haryana. Send urgent documents, gifts, and packages same-day between Gurugram, Faridabad, Panipat, Ambala, and Rohtak — 60% cheaper with guaranteed dual-OTP handovers.
               </p>
             </Reveal>
           </div>
 
-          {/* Split Screen Hero: Left Route Search | Right Live Route Simulator */}
-          <Reveal delay={0.15}>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center max-w-6xl mx-auto">
-              {/* Left Column: Interactive Route Search */}
-              <div className="lg:col-span-6 w-full">
-                <HeroRouteSearch />
-              </div>
-
-              {/* Right Column: Live Corridor Simulator HUD */}
-              <div className="lg:col-span-6 w-full">
-                <HeroRouteSimulator />
-              </div>
-            </div>
+          {/* Responsive Split Experience: Desktop side-by-side | Mobile segmented toggle */}
+          <Reveal delay={0.12}>
+            <HeroSplitExperience />
           </Reveal>
 
           {/* Trust Highlights Strip with Animated Number Tickers */}
@@ -214,6 +218,8 @@ export default async function LandingPage() {
 
       {/* 3. INTERACTIVE RATE & SPEED CALCULATOR */}
       <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10">
+        {/* Subtle Minimal Grid Background */}
+        <div className="absolute inset-0 -z-10 bg-grid-minimal mask-radial-vignette opacity-30 pointer-events-none" />
         <GsapScrollExpand startScale={0.94} endScale={1.0}>
           <RateCalculator />
         </GsapScrollExpand>
@@ -245,6 +251,8 @@ export default async function LandingPage() {
       <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10 overflow-hidden bg-slate-50/30">
         {/* Subtle Geometric Dot Pattern with Radial Vignette */}
         <div className="absolute inset-0 -z-10 pattern-dots mask-radial-vignette opacity-40 pointer-events-none" />
+        {/* Subtle Minimal Grid Background */}
+        <div className="absolute inset-0 -z-10 bg-grid-minimal mask-radial-vignette opacity-25 pointer-events-none" />
 
         {/* Ambient Mesh Aurora Wallpaper Backdrop */}
         <div className="absolute inset-0 -z-10 pointer-events-none opacity-[0.05] dark:opacity-[0.12] overflow-hidden">

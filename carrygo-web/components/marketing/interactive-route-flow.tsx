@@ -138,7 +138,7 @@ export function InteractiveRouteFlow() {
         </div>
 
         {/* SVG Route Visualizer - Crisp Light Design */}
-        <div className="relative mt-6 rounded-2xl bg-gradient-to-b from-slate-50/90 via-emerald-50/20 to-white p-5 text-slate-900 border border-slate-200/90 shadow-2xs overflow-hidden">
+        <div className="relative mt-6 rounded-2xl bg-gradient-to-b from-slate-50/90 via-emerald-50/20 to-white p-5 text-slate-900 border border-slate-200/90 overflow-hidden">
           {/* Subtle grid background */}
           <div
             className="absolute inset-0 opacity-[0.35] pointer-events-none"
@@ -269,7 +269,7 @@ export function InteractiveRouteFlow() {
 
           {/* Delivery Speed vs Traditional Courier Telemetry - Light Styling */}
           <div className="relative z-10 grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/80 text-xs">
-            <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200/90 shadow-2xs">
+            <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200/90">
               <div className="flex items-center justify-between text-emerald-800 text-[11px] mb-1 font-semibold">
                 <span>CarryGo Commuter</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-200/70 text-emerald-900 font-bold text-[10px]">
@@ -284,7 +284,7 @@ export function InteractiveRouteFlow() {
               </p>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-2xs">
+            <div className="p-2.5 rounded-xl bg-slate-50/90 border border-slate-200">
               <div className="flex items-center justify-between text-slate-500 text-[11px] mb-1">
                 <span>Legacy Courier</span>
                 <span className="text-rose-600 font-semibold text-[10px]">2-3 Days</span>

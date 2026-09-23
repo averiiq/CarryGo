@@ -134,7 +134,7 @@ export function HeroRouteSimulator() {
       : Car
 
   return (
-    <div className="relative w-full max-w-lg mx-auto">
+    <div className="relative w-full">
       {/* Main Glass HUD Container */}
       <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/30 to-white p-5 sm:p-6 overflow-hidden">
         {/* Top Gradient Hairline Accent */}
@@ -172,7 +172,7 @@ export function HeroRouteSimulator() {
                 {isSelected && (
                   <motion.span
                     layoutId="heroCorridorActivePill"
-                    className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                    className="absolute inset-0 rounded-xl bg-emerald-700"
                     transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                   />
                 )}
@@ -214,7 +214,7 @@ export function HeroRouteSimulator() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border border-slate-200 shadow-2xs">
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border border-slate-200">
                 <VehicleIcon className="w-3.5 h-3.5 text-emerald-600" />
                 <span className="text-xs font-bold text-slate-800 capitalize">
                   {activeCorridor.vehicle}
@@ -223,7 +223,7 @@ export function HeroRouteSimulator() {
             </div>
 
             {/* Traveler Info Box */}
-            <div className="p-3.5 rounded-xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-xl bg-white border border-slate-200/90 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-200">
                   {activeCorridor.traveler.avatar}
@@ -297,7 +297,7 @@ export function HeroRouteSimulator() {
             href={`/search?from=${encodeURIComponent(activeCorridor.from)}&to=${encodeURIComponent(
               activeCorridor.to
             )}&type=trips`}
-            className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+            className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-all cursor-pointer active:scale-[0.98]"
           >
             <span>Match Travelers on {activeCorridor.from} → {activeCorridor.to}</span>
             <ArrowRight className="w-3.5 h-3.5" />

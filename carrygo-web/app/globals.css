@@ -539,6 +539,39 @@ body {
   background-size: 32px 32px;
 }
 
+/* Minimal Engineering Grid Background */
+.bg-grid-minimal {
+  background-image: 
+    linear-gradient(to right, rgba(100, 116, 139, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(100, 116, 139, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.bg-grid-minimal-dense {
+  background-image: 
+    linear-gradient(to right, rgba(100, 116, 139, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(100, 116, 139, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes transitPulseGlow {
+  0%, 100% { opacity: 0.3; transform: scale(0.96); }
+  50% { opacity: 0.8; transform: scale(1.04); }
+}
+
+@keyframes coordinateBreathe {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.7; }
+}
+
+.animate-transit-pulse {
+  animation: transitPulseGlow 4s ease-in-out infinite;
+}
+
+.animate-coordinate-breathe {
+  animation: coordinateBreathe 3s ease-in-out infinite;
+}
+
 .pattern-diagonal-stripes {
   background-image: repeating-linear-gradient(
     -45deg,
