@@ -33,6 +33,8 @@ import { TrackingLookupModal } from '@/components/marketing/tracking-lookup-moda
 import { createClient } from '@/utils/supabase/client'
 import { logout } from '@/app/login/actions'
 
+import { ScrollProgressBar } from '@/components/marketing/parallax-wrapper'
+
 interface AuthUser {
   id: string
   email?: string
@@ -48,8 +50,18 @@ export function SiteHeader() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [trackingOpen, setTrackingOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
+  const [isScrolled, setIsScrolled] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 15)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -108,7 +120,14 @@ export function SiteHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-md transition-all">
+      <header
+        className={`sticky top-0 z-50 w-full transition-all duration-200 ${
+          isScrolled
+            ? 'border-b border-slate-200/90 bg-white/95 backdrop-blur-xl shadow-xs'
+            : 'border-b border-slate-200/60 bg-white/85 backdrop-blur-md'
+        }`}
+      >
+        <ScrollProgressBar className="absolute top-0 left-0 right-0 h-[2.5px]" />
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           {/* Brand Logo */}
           <div className="flex items-center gap-6">

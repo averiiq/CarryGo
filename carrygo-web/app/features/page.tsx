@@ -11,6 +11,7 @@ import {
   Sparkles,
   WalletCards,
 } from 'lucide-react'
+import { Reveal } from '@/components/marketing/animated-reveal'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -121,24 +122,28 @@ export default function FeaturesPage() {
           description='Each module reduces operational friction while improving trust and transparency.'
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1'>
-          {featureCategories.map((category) => (
-            <article key={category.title} className='glass-card space-y-5 p-6 md:p-7'>
-              <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-subtle text-primary'>
-                <category.icon className='h-5 w-5' />
-              </div>
-              <div>
-                <h3 className='text-xl font-heading font-semibold text-foreground'>{category.title}</h3>
-                <p className='mt-2 text-sm leading-relaxed text-muted'>{category.description}</p>
-              </div>
-              <ul className='space-y-2'>
-                {category.bullets.map((bullet) => (
-                  <li key={bullet} className='flex items-center gap-2 text-sm text-muted'>
-                    <Sparkles className='h-3.5 w-3.5 text-primary' />
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
-            </article>
+          {featureCategories.map((category, index) => (
+            <Reveal key={category.title} delay={index * 0.06}>
+              <article className='sturdy-card space-y-5 p-6 md:p-7 h-full flex flex-col justify-between'>
+                <div className="space-y-4">
+                  <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200'>
+                    <category.icon className='h-5 w-5' />
+                  </div>
+                  <div>
+                    <h3 className='text-xl font-heading font-bold text-slate-900'>{category.title}</h3>
+                    <p className='mt-2 text-sm leading-relaxed text-slate-600 font-normal'>{category.description}</p>
+                  </div>
+                </div>
+                <ul className='space-y-2 pt-2 border-t border-slate-100'>
+                  {category.bullets.map((bullet) => (
+                    <li key={bullet} className='flex items-center gap-2 text-sm text-slate-600 font-normal'>
+                      <Sparkles className='h-3.5 w-3.5 text-emerald-600 shrink-0' />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>
@@ -150,18 +155,20 @@ export default function FeaturesPage() {
           description='These feature surfaces bring app-level workflows directly into the web experience.'
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3'>
-          {appFeatureParity.map((item) => (
-            <article key={item.title} className='glass-card p-6 md:p-7'>
-              <div className='flex items-start gap-4'>
-                <div className='mt-1 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>
-                  <item.icon className='h-5 w-5' />
+          {appFeatureParity.map((item, index) => (
+            <Reveal key={item.title} delay={index * 0.05}>
+              <article className='sturdy-card p-6 md:p-7 h-full'>
+                <div className='flex items-start gap-4'>
+                  <div className='mt-1 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700 border border-sky-200 shrink-0'>
+                    <item.icon className='h-5 w-5' />
+                  </div>
+                  <div>
+                    <h3 className='text-base font-heading font-bold text-slate-900'>{item.title}</h3>
+                    <p className='mt-1.5 text-xs sm:text-sm leading-relaxed text-slate-600 font-normal'>{item.description}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className='text-lg font-heading font-semibold text-foreground'>{item.title}</h3>
-                  <p className='mt-2 text-sm leading-relaxed text-muted'>{item.description}</p>
-                </div>
-              </div>
-            </article>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>
@@ -174,18 +181,20 @@ export default function FeaturesPage() {
         />
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2'>
-          {productHighlights.map((item) => (
-            <article key={item.title} className='glass-card p-6 md:p-7'>
-              <div className='flex items-start gap-4'>
-                <div className='mt-1 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>
-                  <item.icon className='h-5 w-5' />
+          {productHighlights.map((item, index) => (
+            <Reveal key={item.title} delay={index * 0.06}>
+              <article className='sturdy-card p-6 md:p-7 h-full'>
+                <div className='flex items-start gap-4'>
+                  <div className='mt-1 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0'>
+                    <item.icon className='h-5 w-5' />
+                  </div>
+                  <div>
+                    <h3 className='text-base font-heading font-bold text-slate-900'>{item.title}</h3>
+                    <p className='mt-1.5 text-xs sm:text-sm leading-relaxed text-slate-600 font-normal'>{item.description}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className='text-lg font-heading font-semibold text-foreground'>{item.title}</h3>
-                  <p className='mt-2 text-sm leading-relaxed text-muted'>{item.description}</p>
-                </div>
-              </div>
-            </article>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>

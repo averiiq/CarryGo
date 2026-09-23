@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -8,12 +10,14 @@ export async function GET(request: Request) {
     const from = searchParams.get('from')
     const to = searchParams.get('to')
 
+    const today = new Date().toISOString().split('T')[0]
     const supabase = createAdminClient()
     let query = supabase
       .from('trips')
-      .select('id, from_city, to_city, date, time, vehicle_type, total_capacity, available_capacity, price_per_kg, status, user_id, user_name, user_rating, notes, created_at')
+      .select('id, from_city, to_city, date, time, vehicle_type, available_capacity, price_per_kg, status, user_id, user_name, user_rating, created_at')
       .eq('status', 'active')
-      .order('created_at', { ascending: false })
+      .gte('date', today)
+      .order('date', { ascending: true })
       .limit(limit)
 
     if (from) query = query.ilike('from_city', `%${from}%`)

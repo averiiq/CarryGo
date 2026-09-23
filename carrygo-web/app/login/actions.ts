@@ -4,83 +4,116 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 
-export async function login(formData: FormData) {
-  const email = formData.get('email')
-  const password = formData.get('password')
-  const next = formData.get('next') as string | null
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
-    redirect('/login?error=auth_failed' + (next ? `&next=${encodeURIComponent(next)}` : ''))
+export async function sendOtp(email: string): Promise<{ success: boolean; error?: string }> {
+  const cleanEmail = email.trim().toLowerCase()
+  if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+    return { success: false, error: 'Please enter a valid email address.' }
+  }
+
+  // Reviewer account special handling: bypass sending actual email
+  if (cleanEmail === 'carrygo.reviewer@gmail.com') {
+    return { success: true }
   }
 
   const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-
-  if (error) {
-    redirect('/login?error=auth_failed' + (next ? `&next=${encodeURIComponent(next)}` : ''))
-  }
-
-  // Check role
-  let redirectTarget = next || '/activity'
-  if (data.user) {
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('system_role')
-      .eq('id', data.user.id)
-      .maybeSingle()
-
-    if (profile?.system_role === 'admin') {
-      const cmsUrl = process.env.NEXT_PUBLIC_CMS_URL || 'http://localhost:3001'
-      redirectTarget = next || `${cmsUrl}/dashboard`
-    }
-  }
-
-  revalidatePath('/', 'layout')
-  redirect(redirectTarget)
-}
-
-export async function signup(formData: FormData) {
-  const email = formData.get('email')
-  const password = formData.get('password')
-  const fullName = formData.get('fullName') as string | null
-  const phone = formData.get('phone') as string | null
-  const next = formData.get('next') as string | null
-
-  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
-    redirect('/login?mode=signup&error=invalid_inputs')
-  }
-
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim(),
-    password,
+  const { error } = await supabase.auth.signInWithOtp({
+    email: cleanEmail,
     options: {
-      data: {
-        full_name: fullName || 'CarryGo User',
-        phone: phone || '',
-      },
+      shouldCreateUser: true,
     },
   })
 
   if (error) {
-    redirect('/login?mode=signup&error=' + encodeURIComponent(error.message))
+    if (error.message.toLowerCase().includes('rate limit')) {
+      return { success: false, error: 'Too many attempts. Please wait a minute before requesting another code.' }
+    }
+    return { success: false, error: error.message || 'Failed to send verification code. Please try again.' }
   }
 
-  // Auto create or update profile if user was created
-  if (data.user) {
-    await supabase.from('user_profiles').upsert({
-      id: data.user.id,
-      email: data.user.email,
-      full_name: fullName || 'CarryGo User',
-      system_role: 'user',
-      phone: phone || null,
+  return { success: true }
+}
+
+export async function verifyOtp(
+  email: string,
+  token: string,
+  nextPath?: string
+): Promise<{ success: boolean; error?: string; redirectUrl?: string }> {
+  const cleanEmail = email.trim().toLowerCase()
+  const cleanToken = token.trim()
+
+  if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+    return { success: false, error: 'Invalid email address.' }
+  }
+
+  if (!cleanToken || cleanToken.length !== 6) {
+    return { success: false, error: 'Please enter all 6 digits of your verification code.' }
+  }
+
+  const supabase = await createClient()
+
+  // Reviewer test account bypass
+  if (cleanEmail === 'carrygo.reviewer@gmail.com' && cleanToken === '202611') {
+    const { data: revData, error: revError } = await supabase.auth.signInWithPassword({
+      email: 'carrygo.reviewer@gmail.com',
+      password: 'CarryGo@Review2026!',
     })
+
+    if (revError || !revData.user) {
+      return { success: false, error: 'Reviewer credentials verification failed.' }
+    }
+
+    revalidatePath('/', 'layout')
+    return { success: true, redirectUrl: nextPath || '/activity' }
   }
 
-  revalidatePath('/', 'layout')
-  redirect(next || '/activity')
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: cleanEmail,
+    token: cleanToken,
+    type: 'email',
+  })
+
+  if (error || !data.user) {
+    return { success: false, error: 'Invalid or expired verification code. Please check your inbox and try again.' }
+  }
+
+  // Ensure user profile exists in user_profiles
+  try {
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
+      .select('id, system_role')
+      .eq('id', data.user.id)
+      .maybeSingle()
+
+    if (!existingProfile) {
+      const defaultName = cleanEmail.split('@')[0]
+      await supabase.from('user_profiles').upsert(
+        {
+          id: data.user.id,
+          email: cleanEmail,
+          full_name: defaultName.charAt(0).toUpperCase() + defaultName.slice(1),
+          system_role: 'user',
+          status: 'active',
+        },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+    }
+
+    // Role-based target redirect
+    let target = nextPath || '/activity'
+    if (existingProfile?.system_role === 'admin') {
+      const cmsUrl = process.env.NEXT_PUBLIC_CMS_URL || 'https://carrygo.averiq.in'
+      target = `${cmsUrl}/dashboard`
+    }
+
+    revalidatePath('/', 'layout')
+    return { success: true, redirectUrl: target }
+  } catch (profileErr) {
+    console.warn('Profile initialization note:', profileErr)
+    revalidatePath('/', 'layout')
+    return { success: true, redirectUrl: nextPath || '/activity' }
+  }
 }
 
 export async function reviewerLogin(nextPath?: string) {
@@ -92,7 +125,6 @@ export async function reviewerLogin(nextPath?: string) {
   })
 
   if (error) {
-    // If reviewer user password wasn't set, fallback to creating session or redirect with message
     redirect('/login?error=reviewer_failed')
   }
 

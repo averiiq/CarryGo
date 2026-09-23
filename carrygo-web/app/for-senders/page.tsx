@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react'
+import { Reveal } from '@/components/marketing/animated-reveal'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -118,25 +119,29 @@ export default function ForSendersPage() {
         />
 
         <div className="mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {senderBenefits.map((benefit) => {
+          {senderBenefits.map((benefit, index) => {
             const Icon = benefit.icon
             return (
-              <div key={benefit.title} className="rounded-3xl bg-surface border border-border p-6 space-y-3 shadow-xs">
-                <div className={`inline-flex p-3 rounded-2xl border ${benefit.tone}`}>
-                  <Icon className="w-5 h-5" />
+              <Reveal key={benefit.title} delay={index * 0.05}>
+                <div className="sturdy-card p-6 space-y-3 h-full flex flex-col justify-between">
+                  <div>
+                    <div className={`inline-flex p-3 rounded-2xl border ${benefit.tone} mb-2`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-base font-heading font-bold text-slate-900">
+                      {benefit.title}
+                    </h3>
+                    <p className="text-xs leading-relaxed text-slate-600 font-normal mt-1.5">{benefit.description}</p>
+                  </div>
                 </div>
-                <h3 className="text-base font-heading font-bold text-foreground">
-                  {benefit.title}
-                </h3>
-                <p className="text-xs leading-relaxed text-muted">{benefit.description}</p>
-              </div>
+              </Reveal>
             )
           })}
         </div>
       </ScrollLinkedSection>
 
-      {/* What You Can & Cannot Ship (Crucial for trust) */}
-      <ScrollLinkedSection className="px-4 py-12 sm:px-6 md:py-16 bg-surface-elevated/40 border-y border-border/70">
+      {/* What You Can & Cannot Ship */}
+      <ScrollLinkedSection className="px-4 py-12 sm:px-6 md:py-16 bg-slate-50/50 border-y border-slate-200/80">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
             label="Safety Guidelines"
@@ -146,36 +151,40 @@ export default function ForSendersPage() {
 
           <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Permitted Items */}
-            <div className="rounded-3xl bg-surface border border-success/30 p-6 sm:p-8 space-y-4 shadow-sm">
-              <div className="flex items-center gap-2.5 text-success font-heading font-bold text-lg">
-                <CheckCircle2 className="w-5 h-5" />
-                <span>Permitted Items</span>
+            <Reveal delay={0.05}>
+              <div className="sturdy-card p-6 sm:p-8 space-y-4 border-emerald-500/30 h-full">
+                <div className="flex items-center gap-2.5 text-emerald-800 font-heading font-bold text-lg">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span>Permitted Items</span>
+                </div>
+                <ul className="space-y-3 pt-2">
+                  {PERMITTED_ITEMS.map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-xs text-slate-600 leading-relaxed font-normal">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-1.5" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-3 pt-2">
-                {PERMITTED_ITEMS.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-xs text-muted leading-relaxed">
-                    <div className="w-1.5 h-1.5 rounded-full bg-success shrink-0 mt-1.5" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            </Reveal>
 
             {/* Prohibited Items */}
-            <div className="rounded-3xl bg-surface border border-danger/30 p-6 sm:p-8 space-y-4 shadow-sm">
-              <div className="flex items-center gap-2.5 text-danger font-heading font-bold text-lg">
-                <Ban className="w-5 h-5" />
-                <span>Strictly Prohibited Items</span>
+            <Reveal delay={0.1}>
+              <div className="sturdy-card p-6 sm:p-8 space-y-4 border-rose-300/80 h-full">
+                <div className="flex items-center gap-2.5 text-rose-800 font-heading font-bold text-lg">
+                  <Ban className="w-5 h-5 text-rose-600" />
+                  <span>Strictly Prohibited Items</span>
+                </div>
+                <ul className="space-y-3 pt-2">
+                  {PROHIBITED_ITEMS.map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-xs text-slate-600 leading-relaxed font-normal">
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose-600 shrink-0 mt-1.5" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-3 pt-2">
-                {PROHIBITED_ITEMS.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-xs text-muted leading-relaxed">
-                    <div className="w-1.5 h-1.5 rounded-full bg-danger shrink-0 mt-1.5" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            </Reveal>
           </div>
         </div>
       </ScrollLinkedSection>
@@ -190,21 +199,23 @@ export default function ForSendersPage() {
           />
 
           <div className="mt-10 space-y-4">
-            {SENDER_FAQS.map((faq) => (
-              <div key={faq.q} className="rounded-2xl bg-surface border border-border p-5 space-y-2">
-                <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                  <span>{faq.q}</span>
-                </h4>
-                <p className="text-xs text-muted leading-relaxed pl-6">{faq.a}</p>
-              </div>
+            {SENDER_FAQS.map((faq, index) => (
+              <Reveal key={faq.q} delay={index * 0.05}>
+                <div className="sturdy-card p-5 space-y-2">
+                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{faq.q}</span>
+                  </h4>
+                  <p className="text-xs text-slate-600 leading-relaxed pl-6 font-normal">{faq.a}</p>
+                </div>
+              </Reveal>
             ))}
           </div>
 
           <div className="pt-8 text-center">
             <Link
               href="/create-parcel"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-lg transition-all"
+              className="button-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5"
             >
               <span>Post a Parcel Request Now</span>
               <ArrowRight className="w-4 h-4" />

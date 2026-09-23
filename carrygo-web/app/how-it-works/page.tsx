@@ -1,4 +1,5 @@
 import { CheckCheck, ClipboardList, Handshake, MessageSquare, Route, ShieldCheck } from 'lucide-react'
+import { Reveal } from '@/components/marketing/animated-reveal'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -84,18 +85,22 @@ export default function HowItWorksPage() {
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {senderFlow.map((step, index) => (
-            <article key={step.title} className='glass-card p-6 md:p-7 group hover:border-primary/40 transition-all duration-300'>
-              <div className="flex items-center justify-between mb-4">
-                <div className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/25 bg-primary-subtle text-xs font-semibold text-primary font-mono'>
-                  {index + 1}
+            <Reveal key={step.title} delay={index * 0.08}>
+              <article className='sturdy-card p-6 md:p-7 flex flex-col justify-between h-full group'>
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-50 text-xs font-semibold text-emerald-800 font-mono'>
+                      {index + 1}
+                    </div>
+                    <InteractiveIconBadge tone={step.tone} className="w-10 h-10">
+                      <step.icon className='h-5 w-5 text-emerald-700' />
+                    </InteractiveIconBadge>
+                  </div>
+                  <h3 className='mt-4 text-lg font-heading font-bold text-slate-900 group-hover:text-emerald-700 transition-colors'>{step.title}</h3>
+                  <p className='mt-2 text-sm leading-relaxed text-slate-600 font-normal'>{step.description}</p>
                 </div>
-                <InteractiveIconBadge tone={step.tone} className="w-10 h-10">
-                  <step.icon className='h-5 w-5 text-primary' />
-                </InteractiveIconBadge>
-              </div>
-              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground group-hover:text-primary transition-colors'>{step.title}</h3>
-              <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
-            </article>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>
@@ -108,10 +113,10 @@ export default function HowItWorksPage() {
               <Route className="w-3.5 h-3.5 text-sky-600" />
               <span>Live Journey Pulse Simulator</span>
             </span>
-            <h2 className="text-2xl sm:text-3xl font-heading font-bold text-foreground">
+            <h2 className="text-2xl sm:text-3xl font-heading font-bold text-slate-900">
               Dynamic Highway &amp; Rail Waypoints
             </h2>
-            <p className="text-sm text-muted max-w-lg mx-auto">
+            <p className="text-sm text-slate-600 max-w-lg mx-auto font-normal">
               Senders and travelers receive live milestone check-ins with automated journey updates.
             </p>
           </div>
@@ -134,18 +139,22 @@ export default function HowItWorksPage() {
         />
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {deliveryFlow.map((step, index) => (
-            <article key={step.title} className='glass-card p-6 md:p-7 group hover:border-accent/40 transition-all duration-300'>
-              <div className="flex items-center justify-between mb-4">
-                <div className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-accent/25 bg-accent-subtle text-xs font-semibold text-accent font-mono'>
-                  {index + 4}
+            <Reveal key={step.title} delay={index * 0.08}>
+              <article className='sturdy-card p-6 md:p-7 flex flex-col justify-between h-full group'>
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-500/25 bg-sky-50 text-xs font-semibold text-sky-800 font-mono'>
+                      {index + 4}
+                    </div>
+                    <InteractiveIconBadge tone={step.tone} className="w-10 h-10">
+                      <step.icon className='h-5 w-5 text-sky-700' />
+                    </InteractiveIconBadge>
+                  </div>
+                  <h3 className='mt-4 text-lg font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors'>{step.title}</h3>
+                  <p className='mt-2 text-sm leading-relaxed text-slate-600 font-normal'>{step.description}</p>
                 </div>
-                <InteractiveIconBadge tone={step.tone} className="w-10 h-10">
-                  <step.icon className='h-5 w-5 text-accent' />
-                </InteractiveIconBadge>
-              </div>
-              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground group-hover:text-accent transition-colors'>{step.title}</h3>
-              <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
-            </article>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>

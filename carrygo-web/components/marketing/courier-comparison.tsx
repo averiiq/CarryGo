@@ -139,16 +139,16 @@ export function CourierComparison() {
         </div>
 
         {/* Bottom Trust Guarantee Strip */}
-        <div className="p-4 sm:p-5 bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+        <div className="p-4 sm:p-5 bg-emerald-50 border-t border-emerald-200 text-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
             <span>
-              <strong className="text-emerald-400 font-bold">100% Guaranteed:</strong> All deliveries are backed by our ₹10,000 transit guarantee and automated SafeVault™ escrow protection.
+              <strong className="text-emerald-800 font-bold">100% Guaranteed:</strong> All deliveries are backed by our ₹10,000 transit guarantee and automated SafeVault™ escrow protection.
             </span>
           </div>
           <a
             href="/create-parcel"
-            className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition shrink-0 shadow-xs"
+            className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold transition shrink-0 shadow-xs"
           >
             Send First Parcel →
           </a>

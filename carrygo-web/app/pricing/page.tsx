@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { CheckCheck, Sparkles, Shield, ArrowRight } from 'lucide-react'
+import { Reveal } from '@/components/marketing/animated-reveal'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -79,80 +80,105 @@ export default function PricingPage() {
         />
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1'>
-          {plans.map((plan) => (
-            <article
-              key={plan.name}
-              className={`glass-card p-6 md:p-7 transition-all duration-300 hover:translate-y-[-2px] ${
-                plan.highlight ? 'border-primary/50 shadow-xl shadow-primary/10 ring-1 ring-primary/20' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <InteractiveIconBadge tone={plan.tone} className="w-12 h-12">
-                  {plan.iconType === 'package' && <AnimatedPackageDelivery size={28} color="#D97706" />}
-                  {plan.iconType === 'vault' && <AnimatedWalletVault size={28} color="#059669" />}
-                  {plan.iconType === 'shield' && <AnimatedShieldBeacon size={28} color="#0284C7" />}
-                </InteractiveIconBadge>
+          {plans.map((plan, index) => (
+            <Reveal key={plan.name} delay={index * 0.08}>
+              <article
+                className={`sturdy-card p-6 md:p-8 h-full flex flex-col justify-between ${
+                  plan.highlight ? 'border-emerald-500/50 shadow-md ring-1 ring-emerald-500/20' : ''
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <InteractiveIconBadge tone={plan.tone} className="w-12 h-12">
+                      {plan.iconType === 'package' && <AnimatedPackageDelivery size={28} color="#D97706" />}
+                      {plan.iconType === 'vault' && <AnimatedWalletVault size={28} color="#059669" />}
+                      {plan.iconType === 'shield' && <AnimatedShieldBeacon size={28} color="#0284C7" />}
+                    </InteractiveIconBadge>
 
-                {plan.highlight && (
-                  <span className='inline-flex items-center gap-1 rounded-full bg-primary-subtle px-3 py-1 text-xs font-semibold text-primary border border-primary/25'>
-                    <Sparkles className="w-3 h-3 text-primary" /> Most Popular
-                  </span>
-                )}
-              </div>
+                    {plan.highlight && (
+                      <span className='inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200'>
+                        <Sparkles className="w-3 h-3 text-emerald-600" /> Most Popular
+                      </span>
+                    )}
+                  </div>
 
-              <h3 className='text-2xl font-heading font-semibold text-foreground'>{plan.name}</h3>
-              <p className='mt-1 text-sm text-muted'>{plan.subtitle}</p>
-              <p className='mt-5 text-4xl font-heading font-bold tracking-tight text-foreground'>{plan.price}</p>
-              <p className='mt-1 text-sm text-muted'>{plan.cadence}</p>
-              <ul className='mt-6 space-y-2.5'>
-                {plan.features.map((feature) => (
-                  <li key={feature} className='flex items-center gap-2 text-sm text-muted'>
-                    <CheckCheck className='h-4 w-4 text-emerald-600 shrink-0' />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
+                  <h3 className='text-2xl font-heading font-bold text-slate-900'>{plan.name}</h3>
+                  <p className='mt-1 text-sm text-slate-500'>{plan.subtitle}</p>
+                  <p className='mt-5 text-4xl font-heading font-extrabold tracking-tight text-slate-900'>{plan.price}</p>
+                  <p className='mt-1 text-xs text-slate-500 font-medium'>{plan.cadence}</p>
+                  <ul className='mt-6 space-y-2.5 pt-4 border-t border-slate-100'>
+                    {plan.features.map((feature) => (
+                      <li key={feature} className='flex items-center gap-2 text-sm text-slate-700 font-normal'>
+                        <CheckCheck className='h-4 w-4 text-emerald-600 shrink-0' />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="pt-6 mt-auto">
+                  <Link
+                    href={plan.name === 'Business' ? '/contact' : '/create-parcel'}
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold text-center inline-flex items-center justify-center gap-1.5 transition ${
+                      plan.highlight
+                        ? 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    <span>{plan.name === 'Business' ? 'Contact Sales' : 'Get Started'}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>
 
       <ScrollLinkedSection className='px-4 sm:px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
-          <article className='glass-card p-6 md:p-8 relative overflow-hidden'>
-            <div className="flex items-center gap-3 mb-4">
-              <AnimatedWalletVault size={32} color="#059669" />
-              <h3 className='text-2xl font-heading font-semibold text-foreground'>Pricing &amp; SafeVault™ Guarantee</h3>
-            </div>
-            <ul className='space-y-3 text-sm text-muted'>
-              {feeNotes.map((note) => (
-                <li key={note} className='flex items-start gap-2.5'>
-                  <Sparkles className='mt-1 h-3.5 w-3.5 text-primary shrink-0' />
-                  <span className="leading-relaxed">{note}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
-
-          <article className='glass-card p-6 md:p-8 flex flex-col justify-between border-primary/20 bg-gradient-to-br from-surface to-primary-subtle/20'>
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-subtle text-primary text-xs font-semibold mb-3 border border-primary/20">
-                <Shield className="w-3.5 h-3.5" />
-                <span>Bespoke Concierge Logistics</span>
+          <Reveal delay={0.05}>
+            <article className='sturdy-card p-6 md:p-8 h-full flex flex-col justify-between'>
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <AnimatedWalletVault size={32} color="#059669" />
+                  <h3 className='text-2xl font-heading font-bold text-slate-900'>Pricing &amp; SafeVault™ Guarantee</h3>
+                </div>
+                <ul className='space-y-3 text-sm text-slate-600 font-normal'>
+                  {feeNotes.map((note) => (
+                    <li key={note} className='flex items-start gap-2.5'>
+                      <Sparkles className='mt-1 h-3.5 w-3.5 text-emerald-600 shrink-0' />
+                      <span className="leading-relaxed">{note}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <h3 className='text-2xl font-heading font-semibold text-foreground'>Need a bespoke enterprise concierge?</h3>
-              <p className='mt-3 text-sm leading-relaxed text-muted'>
-                We support private route networks, dedicated team onboarding, priority SLAs, and customized analytics for high-volume operations.
-              </p>
-            </div>
-            <Link
-              href='/contact'
-              className='button-primary mt-6 w-full sm:w-auto inline-flex items-center justify-center gap-2 text-center'
-            >
-              <span>Connect with Concierge</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </article>
+            </article>
+          </Reveal>
+
+          <Reveal delay={0.1}>
+            <article className='sturdy-card p-6 md:p-8 flex flex-col justify-between border-emerald-500/20 bg-gradient-to-br from-white to-emerald-50/20 h-full'>
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold mb-3 border border-emerald-200">
+                  <Shield className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Bespoke Concierge Logistics</span>
+                </div>
+                <h3 className='text-2xl font-heading font-bold text-slate-900'>Need a bespoke enterprise concierge?</h3>
+                <p className='mt-3 text-sm leading-relaxed text-slate-600 font-normal'>
+                  We support private route networks, dedicated team onboarding, priority SLAs, and customized analytics for high-volume operations.
+                </p>
+              </div>
+              <div className="pt-6 mt-auto">
+                <Link
+                  href='/contact'
+                  className='button-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 text-center'
+                >
+                  <span>Connect with Concierge</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </article>
+          </Reveal>
         </div>
       </ScrollLinkedSection>
     </MarketingShell>

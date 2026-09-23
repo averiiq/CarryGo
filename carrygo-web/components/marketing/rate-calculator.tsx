@@ -183,7 +183,7 @@ export function RateCalculator() {
             </div>
 
             {/* CarryGo Price Card */}
-            <div className="rounded-2xl bg-white border-2 border-emerald-500/40 p-4 sm:p-5 shadow-sm relative">
+            <div className="rounded-2xl bg-white border-2 border-emerald-500/40 p-4 sm:p-5 shadow-sm relative overflow-hidden">
               <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-emerald-600" /> CarryGo Peer-to-Peer

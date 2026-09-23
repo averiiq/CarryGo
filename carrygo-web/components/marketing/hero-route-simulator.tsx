@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { getRouteEstimate } from '@/lib/indian-cities'
+import { InteractiveRouteFlow } from '@/components/marketing/interactive-route-flow'
 
 type LiveCorridor = {
   id: string
@@ -41,103 +42,10 @@ type LiveCorridor = {
   }
 }
 
-const DEFAULT_HARYANA_CORRIDORS: LiveCorridor[] = [
-  {
-    id: 'corridor-ggn-fbd',
-    from: 'Gurugram',
-    to: 'Faridabad',
-    distance: '38 km',
-    duration: '~55m road',
-    vehicle: 'car',
-    traveler: {
-      name: 'Vikas Sharma',
-      avatar: 'VS',
-      rating: 4.9,
-      vehicleDetail: 'Personal Sedan Trunk',
-      spaceAvailable: '8 kg open',
-      ratePerKg: 35,
-      eta: 'Departing today at 4:30 PM',
-      verified: true,
-    },
-  },
-  {
-    id: 'corridor-ggn-panipat',
-    from: 'Gurugram',
-    to: 'Panipat',
-    distance: '115 km',
-    duration: '~2.1h road',
-    vehicle: 'car',
-    traveler: {
-      name: 'Amit Dahiya',
-      avatar: 'AD',
-      rating: 5.0,
-      vehicleDetail: 'SUV Boot Space',
-      spaceAvailable: '12 kg open',
-      ratePerKg: 50,
-      eta: 'Departing today at 6:00 PM',
-      verified: true,
-    },
-  },
-  {
-    id: 'corridor-ambala-karnal',
-    from: 'Ambala',
-    to: 'Karnal',
-    distance: '85 km',
-    duration: '~1.2h rail',
-    vehicle: 'train',
-    traveler: {
-      name: 'Pooja Verma',
-      avatar: 'PV',
-      rating: 4.8,
-      vehicleDetail: 'Vande Bharat Express Luggage',
-      spaceAvailable: '6 kg open',
-      ratePerKg: 45,
-      eta: 'Departing today at 5:15 PM',
-      verified: true,
-    },
-  },
-  {
-    id: 'corridor-rohtak-hisar',
-    from: 'Rohtak',
-    to: 'Hisar',
-    distance: '98 km',
-    duration: '~1.5h road',
-    vehicle: 'car',
-    traveler: {
-      name: 'Sandeep Malik',
-      avatar: 'SM',
-      rating: 4.9,
-      vehicleDetail: 'Hatchback Luggage Space',
-      spaceAvailable: '10 kg open',
-      ratePerKg: 40,
-      eta: 'Departing today at 7:00 PM',
-      verified: true,
-    },
-  },
-  {
-    id: 'corridor-panchkula-ambala',
-    from: 'Panchkula',
-    to: 'Ambala',
-    distance: '45 km',
-    duration: '~45m road',
-    vehicle: 'car',
-    traveler: {
-      name: 'Ritu Saini',
-      avatar: 'RS',
-      rating: 5.0,
-      vehicleDetail: 'Compact Car Trunk',
-      spaceAvailable: '5 kg open',
-      ratePerKg: 35,
-      eta: 'Departing today at 3:45 PM',
-      verified: true,
-    },
-  },
-]
-
 export function HeroRouteSimulator() {
-  const [corridors, setCorridors] = useState<LiveCorridor[]>(DEFAULT_HARYANA_CORRIDORS)
-  const [activeCorridorId, setActiveCorridorId] = useState<string>('corridor-ggn-fbd')
-  const [isLoadingLive, setIsLoadingLive] = useState(false)
+  const [corridors, setCorridors] = useState<LiveCorridor[]>([])
+  const [activeCorridorId, setActiveCorridorId] = useState<string>('')
+  const [isLoadingLive, setIsLoadingLive] = useState(true)
 
   // Fetch real active trips from /api/public/trips on mount
   useEffect(() => {
@@ -197,50 +105,21 @@ export function HeroRouteSimulator() {
 
           setCorridors(mapped)
           setActiveCorridorId(mapped[0].id)
+        } else {
+          setCorridors([])
         }
       } catch {
-        // Retain default Haryana corridors on network error
+        setCorridors([])
+      } finally {
+        setIsLoadingLive(false)
       }
     }
 
     void fetchLiveTrips()
   }, [])
 
-  if (isLoadingLive) {
-    return (
-      <div className="relative w-full max-w-lg mx-auto">
-        <div className="rounded-3xl border border-slate-200 bg-white/95 p-8 text-center space-y-3 shadow-xl">
-          <div className="w-8 h-8 mx-auto border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-slate-500 font-medium">Scanning live transit corridors...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (corridors.length === 0) {
-    return (
-      <div className="relative w-full max-w-lg mx-auto">
-        <div className="rounded-3xl border border-slate-200 bg-white/95 backdrop-blur-xl p-8 text-center shadow-xl space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 mx-auto">
-            <Compass className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-heading font-bold text-slate-900">Live Travel Radar</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              No active community journeys are departing right now. List your journey or request a delivery to match with travelers.
-            </p>
-          </div>
-          <div className="pt-2 flex justify-center gap-3">
-            <Link href="/create-trip" className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition">
-              Post a Journey
-            </Link>
-            <Link href="/create-parcel" className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 transition">
-              Send a Parcel
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
+  if (isLoadingLive || corridors.length === 0) {
+    return <InteractiveRouteFlow />
   }
 
   const activeCorridor =
@@ -282,8 +161,8 @@ export function HeroRouteSimulator() {
                 onClick={() => setActiveCorridorId(c.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-slate-900 text-white shadow-md'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
                 }`}
               >
                 {c.from} ➔ {c.to}
@@ -398,7 +277,7 @@ export function HeroRouteSimulator() {
             href={`/search?from=${encodeURIComponent(activeCorridor.from)}&to=${encodeURIComponent(
               activeCorridor.to
             )}&type=trips`}
-            className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-bold text-white bg-slate-900 hover:bg-emerald-600 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+            className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
           >
             <span>Match Travelers on {activeCorridor.from} → {activeCorridor.to}</span>
             <ArrowRight className="w-3.5 h-3.5" />

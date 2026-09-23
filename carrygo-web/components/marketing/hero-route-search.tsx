@@ -75,7 +75,6 @@ export function HeroRouteSearch() {
   return (
     <div className="w-full max-w-xl mx-auto lg:mx-0">
       <div className="relative rounded-3xl border border-slate-200/90 bg-white shadow-xl p-5 sm:p-7 overflow-hidden card-hover-elevate">
-
         {/* Mode Switcher Segmented Control */}
         <div className="grid grid-cols-2 rounded-2xl bg-slate-100/90 p-1.5 border border-slate-200 mb-5">
           <button
@@ -95,7 +94,7 @@ export function HeroRouteSearch() {
             onClick={() => setMode('travel')}
             className={`inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
               mode === 'travel'
-                ? 'bg-slate-900 text-white shadow-xs'
+                ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >

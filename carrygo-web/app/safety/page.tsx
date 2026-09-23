@@ -1,4 +1,5 @@
 import { AlertTriangle, ClipboardCheck, Fingerprint, ShieldCheck, Siren, UserRoundCheck } from 'lucide-react'
+import { Reveal } from '@/components/marketing/animated-reveal'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -74,14 +75,18 @@ export default function SafetyPage() {
         />
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
-          {safetyLayers.map((layer) => (
-            <article key={layer.title} className='glass-card p-6 md:p-7'>
-              <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
-                <layer.icon className='h-5 w-5' />
-              </div>
-              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{layer.title}</h3>
-              <p className='mt-2 text-sm leading-relaxed text-muted'>{layer.description}</p>
-            </article>
+          {safetyLayers.map((layer, index) => (
+            <Reveal key={layer.title} delay={index * 0.06}>
+              <article className='sturdy-card p-6 md:p-7 h-full flex flex-col justify-between'>
+                <div>
+                  <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200'>
+                    <layer.icon className='h-5 w-5' />
+                  </div>
+                  <h3 className='mt-4 text-lg font-heading font-bold text-slate-900'>{layer.title}</h3>
+                  <p className='mt-2 text-sm leading-relaxed text-slate-600 font-normal'>{layer.description}</p>
+                </div>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>
@@ -95,16 +100,20 @@ export default function SafetyPage() {
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 md:grid-cols-3 [&>*:last-child]:col-span-1 sm:[&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1'>
           {incidentFlow.map((step, index) => (
-            <article key={step.title} className='glass-card p-6 md:p-7'>
-              <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-accent/25 bg-accent-subtle text-xs font-semibold text-accent'>
-                {index + 1}
-              </div>
-              <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>
-                <step.icon className='h-5 w-5' />
-              </div>
-              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{step.title}</h3>
-              <p className='mt-2 text-sm leading-relaxed text-muted'>{step.description}</p>
-            </article>
+            <Reveal key={step.title} delay={index * 0.06}>
+              <article className='sturdy-card p-6 md:p-7 h-full flex flex-col justify-between'>
+                <div>
+                  <div className='mb-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-500/25 bg-sky-50 text-xs font-semibold text-sky-800 font-mono'>
+                    {index + 1}
+                  </div>
+                  <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700 border border-sky-200 mb-3'>
+                    <step.icon className='h-5 w-5' />
+                  </div>
+                  <h3 className='mt-1 text-lg font-heading font-bold text-slate-900'>{step.title}</h3>
+                  <p className='mt-2 text-sm leading-relaxed text-slate-600 font-normal'>{step.description}</p>
+                </div>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>

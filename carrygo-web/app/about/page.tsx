@@ -1,4 +1,5 @@
 import { Compass, Gem, Target, Users } from 'lucide-react'
+import { Reveal } from '@/components/marketing/animated-reveal'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -58,41 +59,53 @@ export default function AboutPage() {
         />
 
         <div className='mx-auto mt-12 grid w-full max-w-6xl gap-5 md:grid-cols-3'>
-          {values.map((value) => (
-            <article key={value.title} className='glass-card p-6 md:p-7'>
-              <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
-                <value.icon className='h-5 w-5' />
-              </div>
-              <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>{value.title}</h3>
-              <p className='mt-2 text-sm leading-relaxed text-muted'>{value.description}</p>
-            </article>
+          {values.map((value, index) => (
+            <Reveal key={value.title} delay={index * 0.08}>
+              <article className='sturdy-card p-6 md:p-7 h-full flex flex-col justify-between'>
+                <div>
+                  <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200'>
+                    <value.icon className='h-5 w-5' />
+                  </div>
+                  <h3 className='mt-4 text-lg font-heading font-bold text-slate-900'>{value.title}</h3>
+                  <p className='mt-2 text-sm leading-relaxed text-slate-600 font-normal'>{value.description}</p>
+                </div>
+              </article>
+            </Reveal>
           ))}
         </div>
       </ScrollLinkedSection>
 
       <ScrollLinkedSection className='px-6 pt-12 pb-24'>
         <div className='mx-auto grid w-full max-w-6xl gap-5 md:grid-cols-2'>
-          <article className='glass-card p-6 md:p-8'>
-            <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent'>
-              <Compass className='h-5 w-5' />
-            </div>
-            <h3 className='mt-4 text-2xl font-heading font-semibold text-foreground'>Our mission</h3>
-            <p className='mt-4 text-sm leading-relaxed text-muted'>
-              Build a dependable delivery layer where people and businesses can move parcels confidently using verified, route-aligned travelers.
-            </p>
-          </article>
+          <Reveal delay={0.05}>
+            <article className='sturdy-card p-6 md:p-8 h-full flex flex-col justify-between'>
+              <div>
+                <div className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 border border-sky-200'>
+                  <Compass className='h-5 w-5' />
+                </div>
+                <h3 className='mt-4 text-2xl font-heading font-bold text-slate-900'>Our mission</h3>
+                <p className='mt-3 text-sm leading-relaxed text-slate-600 font-normal'>
+                  Build a dependable delivery layer where people and businesses can move parcels confidently using verified, route-aligned travelers.
+                </p>
+              </div>
+            </article>
+          </Reveal>
 
-          <article className='glass-card p-6 md:p-8'>
-            <h3 className='text-2xl font-heading font-semibold text-foreground'>Milestones</h3>
-            <ul className='mt-5 space-y-3 text-sm text-muted'>
-              {milestones.map((item) => (
-                <li key={item} className='flex items-start gap-2'>
-                  <span className='mt-1.5 h-2 w-2 rounded-full bg-primary' />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
+          <Reveal delay={0.1}>
+            <article className='sturdy-card p-6 md:p-8 h-full flex flex-col justify-between'>
+              <div>
+                <h3 className='text-2xl font-heading font-bold text-slate-900'>Milestones</h3>
+                <ul className='mt-5 space-y-3 text-sm text-slate-600 font-normal'>
+                  {milestones.map((item) => (
+                    <li key={item} className='flex items-start gap-2.5'>
+                      <span className='mt-1.5 h-2 w-2 rounded-full bg-emerald-600 shrink-0' />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </article>
+          </Reveal>
         </div>
       </ScrollLinkedSection>
     </MarketingShell>

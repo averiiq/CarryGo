@@ -74,7 +74,6 @@ export default async function LoginPage({
       <div className="flex flex-1 items-center justify-center p-6 md:p-12 relative z-10">
         <LoginForm
           initialError={params.error}
-          initialMode={params.mode}
           nextPath={params.next}
         />
       </div>
