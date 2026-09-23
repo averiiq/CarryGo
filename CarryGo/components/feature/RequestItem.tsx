@@ -43,7 +43,7 @@ export function RequestItem({
         <View style={styles.personInfo}>
           <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
             <Text style={[styles.avatarText, { color: C.primary }]}>
-              {request.senderName.charAt(0).toUpperCase()}
+              {(request.senderName || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
           <View>

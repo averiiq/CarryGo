@@ -6,15 +6,18 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { normalizeIndianMobile, updateProfile } from '@/services/profile.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { getCityNames } from '@/constants/indian-cities';
+import { queryKeys } from '@/lib/query/queryKeys';
 
 export default function EditProfileScreen() {
   const { user, updateUser } = useAuth();
+  const queryClient = useQueryClient();
   const { showAlert } = useAlert();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -52,6 +55,10 @@ export default function EditProfileScreen() {
       return;
     }
     updateUser({ name: name.trim(), fullName: name.trim(), phone: normalizedPhone, city });
+    queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.user.all });
     setSaved(true);
     setTimeout(() => {
       setSaved(false);

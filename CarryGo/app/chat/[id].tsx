@@ -20,6 +20,7 @@ import {
   useConversationsRealtime,
   useConversationMessagesQuery,
   useConversationsQuery,
+  useDeleteConversationMutation,
   useMarkMessagesReadMutation,
   useSendMessageMutation,
 } from '@/features/conversations/queries';
@@ -283,6 +284,7 @@ export default function ChatScreen() {
   const messagesQuery = useConversationMessagesQuery(id);
   const { mutateAsync: sendMessageAsync, isPending: isSending } = useSendMessageMutation(user?.id);
   const { mutateAsync: markMessagesReadAsync } = useMarkMessagesReadMutation(user?.id);
+  const { mutateAsync: deleteConversationAsync } = useDeleteConversationMutation(user?.id);
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -361,12 +363,14 @@ export default function ChatScreen() {
       showAlert('Invalid Conversation', 'Conversation link is invalid. Please return to Messages.');
       throw new Error('Missing conversation ID');
     }
+    const recipientId = conversation?.participants?.find(p => p !== user.id);
     try {
       await sendMessageAsync({
         conversationId: id,
         senderId: user.id,
         senderName: user.name || user.fullName || user.email || 'User',
         text: trimmed,
+        recipientId,
       });
       safeScrollToEnd(true);
     } catch (error) {
@@ -377,7 +381,32 @@ export default function ChatScreen() {
       );
       throw error;
     }
-  }, [isDeliveryCompleted, user, id, sendMessageAsync, showAlert, safeScrollToEnd]);
+  }, [isDeliveryCompleted, user, id, conversation, sendMessageAsync, showAlert, safeScrollToEnd]);
+
+  const handleDeleteConversation = useCallback(() => {
+    Haptic.warning();
+    showAlert(
+      'Delete Conversation',
+      'Are you sure you want to delete this completed conversation? All message history with this person will be permanently removed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteConversationAsync(id);
+              Haptic.success();
+              router.replace('/(tabs)/messages');
+            } catch (err) {
+              Haptic.error();
+              showAlert('Could Not Delete', getUserErrorMessage(err, 'Failed to delete this conversation.'));
+            }
+          },
+        },
+      ]
+    );
+  }, [deleteConversationAsync, id, router, showAlert]);
 
   const showScrollBtnRef = useRef(false);
 
@@ -623,22 +652,36 @@ export default function ChatScreen() {
           <Text style={[styles.concludedSub, { color: C.textMuted }]}>
             This delivery is completed and verified. Further messaging is closed until you both connect again for a new trip or parcel.
           </Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.concludedBtn,
-              { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' },
-              pressed && { opacity: 0.8 },
-            ]}
-            onPress={() => {
-              if (conversation?.requestId) {
-                router.push({ pathname: '/delivery/[id]', params: { id: conversation.requestId } });
-              }
-            }}
-            disabled={!conversation?.requestId}
-          >
-            <MaterialIcons name="receipt-long" size={15} color={C.primary} />
-            <Text style={[styles.concludedBtnText, { color: C.primary }]}>View Delivery Details</Text>
-          </Pressable>
+          <View style={styles.concludedActionsRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.concludedBtn,
+                { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => {
+                if (conversation?.requestId) {
+                  router.push({ pathname: '/delivery/[id]', params: { id: conversation.requestId } });
+                }
+              }}
+              disabled={!conversation?.requestId}
+            >
+              <MaterialIcons name="receipt-long" size={15} color={C.primary} />
+              <Text style={[styles.concludedBtnText, { color: C.primary }]}>View Delivery</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.concludedDeleteBtn,
+                { backgroundColor: C.error + '18', borderColor: C.error + '33' },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={handleDeleteConversation}
+            >
+              <MaterialIcons name="delete-outline" size={15} color={C.error} />
+              <Text style={[styles.concludedDeleteBtnText, { color: C.error }]}>Delete Chat</Text>
+            </Pressable>
+          </View>
         </View>
       ) : (
         <ChatInputBar
@@ -820,6 +863,12 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     paddingHorizontal: Spacing.sm,
   },
+  concludedActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: 4,
+  },
   concludedBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -828,9 +877,21 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs + 3,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    marginTop: 4,
   },
   concludedBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  concludedDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  concludedDeleteBtnText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
   },

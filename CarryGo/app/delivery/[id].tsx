@@ -15,6 +15,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import DeliveryMap from '@/components/feature/DeliveryMap';
+import { AppErrorBoundary } from '@/components/ui/AppErrorBoundary';
 import { useAuth } from '@/hooks/useAuth';
 import { useRequestQuery } from '@/features/requests/queries';
 import { useConversationsQuery } from '@/features/conversations/queries';
@@ -51,8 +52,9 @@ import { Delivery } from '@/types';
 import { Haptic } from '@/services/haptics.service';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 
-export default function DeliveryScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+function DeliveryScreenInner() {
+  const rawParams = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = Array.isArray(rawParams.id) ? rawParams.id[0] : (rawParams.id || '');
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const { C, S } = useThemeColors();
@@ -92,24 +94,28 @@ export default function DeliveryScreen() {
 
   const initDelivery = useCallback(async () => {
     if (!id || !request || !isParticipant) return;
-    const { data } = await fetchOrCreateDelivery(id, user?.id);
-    if (data) {
-      setDelivery(data);
-      if (data.pickupOtp) {
-        setPickupOtp(data.pickupOtp);
-      } else if (isSender && ((data.status as DeliveryStep) || 'awaiting_pickup') === 'awaiting_pickup') {
-        // Auto-fetch/generate pickup code immediately for sender
-        setPickupOtpLoading(true);
-        const otpRes = await getOrIssuePickupOtp(data.id || id);
-        setPickupOtpLoading(false);
-        if (otpRes.data) setPickupOtp(otpRes.data);
+    try {
+      const { data } = await fetchOrCreateDelivery(id, user?.id);
+      if (data) {
+        setDelivery(data);
+        if (data.pickupOtp) {
+          setPickupOtp(data.pickupOtp);
+        } else if (isSender && ((data.status as DeliveryStep) || 'awaiting_pickup') === 'awaiting_pickup') {
+          // Auto-fetch/generate pickup code immediately for sender
+          setPickupOtpLoading(true);
+          const otpRes = await getOrIssuePickupOtp(data.id || id);
+          setPickupOtpLoading(false);
+          if (otpRes.data) setPickupOtp(otpRes.data);
+        }
+        if (data.deliveryOtp) {
+          setDeliveryOtp(data.deliveryOtp);
+        } else if (isSender && (data.status as DeliveryStep) === 'in_transit') {
+          const otpRes = await getOrIssueDeliveryOtp(data.id || id);
+          if (otpRes.data) setDeliveryOtp(otpRes.data);
+        }
       }
-      if (data.deliveryOtp) {
-        setDeliveryOtp(data.deliveryOtp);
-      } else if (isSender && (data.status as DeliveryStep) === 'in_transit') {
-        const otpRes = await getOrIssueDeliveryOtp(data.id || id);
-        if (otpRes.data) setDeliveryOtp(otpRes.data);
-      }
+    } catch (err) {
+      console.warn('[DeliveryScreen] initDelivery error caught:', err);
     }
   }, [id, isParticipant, isSender, request, user?.id]);
 
@@ -225,44 +231,48 @@ export default function DeliveryScreen() {
   useEffect(() => {
     if (!id || !isParticipant || step === 'delivered') return;
     const poll = async () => {
-      const { data } = await fetchDelivery(id);
-      if (data) {
-        setDelivery(prev => {
-          if (!prev) return data;
-          if (
-            prev.status !== data.status ||
-            prev.tripStatus !== data.tripStatus ||
-            prev.deliveryOtp !== data.deliveryOtp ||
-            prev.pickupOtp !== data.pickupOtp
-          ) {
-            return data;
+      try {
+        const { data } = await fetchDelivery(id);
+        if (data) {
+          setDelivery(prev => {
+            if (!prev) return data;
+            if (
+              prev.status !== data.status ||
+              prev.tripStatus !== data.tripStatus ||
+              prev.deliveryOtp !== data.deliveryOtp ||
+              prev.pickupOtp !== data.pickupOtp
+            ) {
+              return data;
+            }
+            return prev;
+          });
+
+          if (data.deliveryOtp && !deliveryOtp) {
+            setDeliveryOtp(data.deliveryOtp);
           }
-          return prev;
-        });
 
-        if (data.deliveryOtp && !deliveryOtp) {
-          setDeliveryOtp(data.deliveryOtp);
-        }
+          // If delivery just became 'delivered', invalidate caches and offer rating
+          if (data.status === 'delivered') {
+            queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
+            if (request?.senderId) queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.senderId) });
+            if (request?.travellerId) queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.travellerId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
+            await requestQuery.refetch();
 
-        // If delivery just became 'delivered', invalidate caches and offer rating
-        if (data.status === 'delivered') {
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
-          queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
-          queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
-          queryClient.invalidateQueries({ queryKey: queryKeys.requests.detail(id) });
-          if (request?.senderId) queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.senderId) });
-          if (request?.travellerId) queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.travellerId) });
-          queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
-          await requestQuery.refetch();
-
-          if (isSender && request && !hasAlreadyRated) {
-            Haptic.success();
-            const target = { userId: request.travellerId, name: request.travellerName };
-            setRatingTarget(target);
-            setTimeout(() => setShowRating(true), 600);
+            if (isSender && request && !hasAlreadyRated) {
+              Haptic.success();
+              const target = { userId: request.travellerId, name: request.travellerName || 'Traveller' };
+              setRatingTarget(target);
+              setTimeout(() => setShowRating(true), 600);
+            }
           }
         }
+      } catch (err) {
+        console.warn('[DeliveryScreen] poll error caught:', err);
       }
     };
     const intervalId = setInterval(poll, 3500);
@@ -749,7 +759,7 @@ export default function DeliveryScreen() {
               <View style={styles.metricItem}>
                 <Text style={[styles.metricLabel, { color: C.textMuted }]}>Live Status</Text>
                 <Text style={[styles.metricValue, { color: C.primary }]} numberOfLines={1}>
-                  {step === 'in_transit' && delivery?.etaText ? delivery.etaText : STEPS[stepIndex(step)].label}
+                  {step === 'in_transit' && delivery?.etaText ? delivery.etaText : (STEPS[stepIndex(step)]?.label || 'In Progress')}
                 </Text>
               </View>
             </View>
@@ -790,27 +800,17 @@ export default function DeliveryScreen() {
                   />
 
                   {/* Live GPS Map or subtle standby banner */}
-                  {FeatureFlags.preciseLocationSharing && travellerLocation ? (
+                  {FeatureFlags.preciseLocationSharing ? (
                     <DeliveryMap
-                      travellerName={request.travellerName}
-                      lat={travellerLocation.lat}
-                      lng={travellerLocation.lng}
-                      updatedAt={travellerLocation.updatedAt}
+                      travellerName={request.travellerName || 'Carrier'}
+                      lat={travellerLocation?.lat ?? 28.6139}
+                      lng={travellerLocation?.lng ?? 77.2090}
+                      updatedAt={travellerLocation?.updatedAt ?? new Date().toISOString()}
+                      isLiveBroadcasting={Boolean(travellerLocation)}
+                      fromCity={request.fromCity}
+                      toCity={request.toCity}
                       C={C}
                     />
-                  ) : FeatureFlags.preciseLocationSharing ? (
-                    <View style={[styles.gpsStandbyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-                      <View style={[styles.gpsIconCircle, { backgroundColor: C.primarySubtle }]}>
-                        <Feather name="navigation" size={16} color={C.primary} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.gpsStandbyTitle, { color: C.textPrimary }]}>Live GPS Standby</Text>
-                        <Text style={[styles.gpsStandbySub, { color: C.textMuted }]}>
-                          Traveller hasn't broadcast live location yet. Updates will automatically render here.
-                        </Text>
-                      </View>
-                      <ActivityIndicator size="small" color={C.primary} />
-                    </View>
                   ) : null}
 
                   {/* 6-Digit Delivery Release Code for final handoff */}
@@ -853,12 +853,15 @@ export default function DeliveryScreen() {
                     C={C}
                   />
 
-                  {locationSharing && travellerLocation ? (
+                  {FeatureFlags.preciseLocationSharing ? (
                     <DeliveryMap
                       travellerName="Your Location"
-                      lat={travellerLocation.lat}
-                      lng={travellerLocation.lng}
-                      updatedAt={travellerLocation.updatedAt}
+                      lat={travellerLocation?.lat ?? 28.6139}
+                      lng={travellerLocation?.lng ?? 77.2090}
+                      updatedAt={travellerLocation?.updatedAt ?? new Date().toISOString()}
+                      isLiveBroadcasting={locationSharing && Boolean(travellerLocation)}
+                      fromCity={request.fromCity}
+                      toCity={request.toCity}
                       C={C}
                     />
                   ) : null}
@@ -920,7 +923,7 @@ export default function DeliveryScreen() {
               <View style={[styles.specItem, { borderBottomWidth: 0 }]}>
                 <Text style={[styles.specKey, { color: C.textMuted }]}>Tracking Ref</Text>
                 <Text style={[styles.specVal, { color: C.textSecondary }]}>
-                  {request.id.slice(0, 8)}...
+                  {String(request?.id || id || '').slice(0, 8)}...
                 </Text>
               </View>
             </View>
@@ -936,6 +939,14 @@ export default function DeliveryScreen() {
         </Animated.ScrollView>
       </KeyboardAvoidingView>
     </>
+  );
+}
+
+export default function DeliveryScreen() {
+  return (
+    <AppErrorBoundary>
+      <DeliveryScreenInner />
+    </AppErrorBoundary>
   );
 }
 

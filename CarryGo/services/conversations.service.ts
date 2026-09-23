@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '@/template';
-import { Conversation, ChatMessage } from '@/types';
+import { Conversation, ChatMessage, ServiceResult } from '@/types';
 import type { Database } from '@/types/database';
 import { sanitizeMessageText } from '@/lib/sanitize';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
@@ -121,6 +121,7 @@ export async function sendMessage(msg: {
   senderId: string;
   senderName: string;
   text: string;
+  recipientId?: string;
 }) {
   try {
     const rateCheck = await enforceRateLimit(msg.senderId, 'send_message');
@@ -144,21 +145,25 @@ export async function sendMessage(msg: {
   // Dispatch direct notification to the recipient so they receive in-app alert & push immediately
   void (async () => {
     try {
-      const { data: conv } = await sb
-        .from('conversations')
-        .select('participant_ids')
-        .eq('id', msg.conversationId)
-        .single();
-      if (conv?.participant_ids && Array.isArray(conv.participant_ids)) {
-        const recipientId = conv.participant_ids.find((pid: string) => pid !== msg.senderId);
-        if (recipientId) {
-          await notifyChatMessage({
-            recipientId,
-            senderName: msg.senderName,
-            text: sanitizedText,
-            conversationId: msg.conversationId,
-          });
+      let recipientId = msg.recipientId;
+      if (!recipientId) {
+        const { data: conv } = await sb
+          .from('conversations')
+          .select('participant_ids')
+          .eq('id', msg.conversationId)
+          .single();
+        if (conv?.participant_ids && Array.isArray(conv.participant_ids)) {
+          recipientId = conv.participant_ids.find((pid: string) => pid !== msg.senderId);
         }
+      }
+
+      if (recipientId) {
+        await notifyChatMessage({
+          recipientId,
+          senderName: msg.senderName,
+          text: sanitizedText,
+          conversationId: msg.conversationId,
+        });
       }
     } catch (e) {
       console.warn('[sendMessage] Failed to dispatch chat notification:', e);
@@ -176,3 +181,29 @@ export async function markMessagesRead(conversationId: string, userId: string) {
   if (!user || user.id !== userId) return;
   await sb.rpc('mark_conversation_read', { p_conversation_id: conversationId });
 }
+
+export async function deleteConversation(conversationId: string): Promise<ServiceResult<boolean>> {
+  const sb = getSupabaseClient();
+  try {
+    const { error } = await sb.rpc('delete_conversation_command', {
+      p_conversation_id: conversationId,
+    });
+    if (error) {
+      console.warn('[deleteConversation] RPC failed, trying direct delete:', error.message);
+      const { error: directErr } = await sb
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+      if (directErr) {
+        return { data: null, error: error.message || directErr.message };
+      }
+    }
+    return { data: true, error: null };
+  } catch (err: unknown) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : 'Could not delete conversation',
+    };
+  }
+}
+

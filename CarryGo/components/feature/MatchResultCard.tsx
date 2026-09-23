@@ -116,7 +116,7 @@ export const MatchResultCard = React.memo(function MatchResultCard({
         <View style={[styles.travellerRow, { borderTopColor: C.surfaceBorder }]}>
           <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
             <Text style={[styles.avatarText, { color: C.primary }]}>
-              {trip.userName.charAt(0).toUpperCase()}
+              {(trip.userName || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.travellerInfo}>

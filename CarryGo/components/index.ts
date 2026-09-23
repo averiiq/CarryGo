@@ -30,3 +30,4 @@ export { AnimatedProgressBar, StepProgress } from './ui/AnimatedProgress';
 export { AppErrorBoundary } from './ui/AppErrorBoundary';
 export { GestureBottomSheet } from './ui/GestureBottomSheet';
 export { KycMandatoryModal } from './feature/KycMandatoryModal';
+export { default as DeliveryMap } from './feature/DeliveryMap';

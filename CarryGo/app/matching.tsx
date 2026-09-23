@@ -18,7 +18,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/cons
 import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { LinearGradient } from 'expo-linear-gradient';
-import { scoreMatch, MatchScore, DiagnosticAction } from '@/services/smart-matching.service';
+import { scoreMatch, MatchScore, DiagnosticAction, checkTripParcelRoute } from '@/services/smart-matching.service';
 
 /**
  * Matching screen supports sender-led request flow.
@@ -61,6 +61,7 @@ export default function MatchingScreen() {
   const matchingTripsQuery = useMatchingTrips(
     isParcelMode && currentParcel
       ? {
+          parcelId: currentParcel.id,
           fromCity: currentParcel.fromCity,
           toCity: currentParcel.toCity,
           userId: currentParcel.userId,
@@ -146,6 +147,14 @@ export default function MatchingScreen() {
       showAlert('Participation Error', 'You must be either the parcel owner or the trip traveller to connect this delivery.');
       return;
     }
+
+    const routeCheck = checkTripParcelRoute(trip, currentParcel);
+    if (!routeCheck.isCompatible) {
+      Haptic.error();
+      showAlert('Incompatible Route', routeCheck.rejectionReason || 'This trip route does not match your parcel journey.');
+      return;
+    }
+
     if (isCreatingRequest) {
       showAlert('Request in Progress', 'Please wait while we finish your previous request.');
       return;
@@ -434,12 +443,12 @@ export default function MatchingScreen() {
             ) : (
               <EmptyMatches
                 icon="directions-car"
-                title="No travellers on this route"
+                title="No matching routes available"
                 sub={isParcelMode
-                  ? 'No one is travelling this route right now. Repost quickly or subscribe for alerts when a traveller appears.'
-                  : 'No one is travelling this route right now. Subscribe to get notified when someone is!'}
-                cta={isParcelMode ? 'Repost Now' : 'Subscribe to Route'}
-                onCta={isParcelMode ? handleRepostNow : () => router.push('/subscriptions')}
+                  ? 'No compatible traveler is currently traveling on this route. Set a route alert to get notified the moment a traveler posts this corridor.'
+                  : 'No compatible traveler is currently traveling on this route. Subscribe to get notified when someone is!'}
+                cta={isParcelMode ? 'Set Route Alert' : 'Subscribe to Route'}
+                onCta={() => router.push('/subscriptions')}
                 C={C}
               />
             )

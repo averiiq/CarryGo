@@ -9,10 +9,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useConversationsQuery, useConversationsRealtime } from '@/features/conversations/queries';
+import { useConversationsQuery, useConversationsRealtime, useDeleteConversationMutation } from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { AsyncStateCard, OfflineBanner } from '@/components';
+import { useAlert } from '@/template';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useHeartbeat } from '@/hooks/useAnimations';
@@ -100,7 +100,9 @@ function toConversationRowModel(
 
 export default function MessagesScreen() {
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const conversationsQuery = useConversationsQuery(user?.id);
+  const { mutateAsync: deleteConversationAsync } = useDeleteConversationMutation(user?.id);
   const requestsQuery = useRequestsQuery(user?.id);
   const conversations = useMemo(() => (user ? conversationsQuery.data ?? [] : []), [conversationsQuery.data, user]);
   const router = useRouter();
@@ -201,32 +203,79 @@ export default function MessagesScreen() {
 
   const { isSmallDevice, isTablet } = useResponsive();
 
+  const handleDeleteConversation = useCallback(
+    (item: ConversationRowModel) => {
+      Haptic.warning();
+      showAlert(
+        'Delete Conversation',
+        `Are you sure you want to delete the entire chat with ${item.displayName}? All message history with this person will be permanently removed.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteConversationAsync(item.id);
+                Haptic.success();
+              } catch (err) {
+                Haptic.error();
+                showAlert('Could Not Delete', getUserErrorMessage(err, 'Failed to delete this conversation.'));
+              }
+            },
+          },
+        ]
+      );
+    },
+    [deleteConversationAsync, showAlert]
+  );
+
+  const handleActiveChatNotice = useCallback(
+    (item: ConversationRowModel) => {
+      Haptic.warning();
+      showAlert(
+        'Delivery In Progress',
+        `This conversation is for an active delivery (${item.routeLabel}). Chats can only be deleted once the delivery has been completed and verified.`
+      );
+    },
+    [showAlert]
+  );
+
   const renderRightActions = useCallback(
-    (conversationId: string) => () => (
-      <Pressable
-        onPress={() => {
-          Haptic.tap();
-          openConversation(conversationId);
-        }}
-        style={{
-          width: 76,
-          marginVertical: 4,
-          marginLeft: 8,
-          borderRadius: BorderRadius.xl,
-          backgroundColor: C.primary,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        accessibilityRole="button"
-        accessibilityLabel="Open Chat"
-      >
-        <MaterialIcons name="chat" size={20} color="#FFFFFF" />
-        <Text style={{ color: '#FFFFFF', fontWeight: FontWeight.bold, marginTop: 4, fontSize: FontSize.xs }}>
-          Chat
-        </Text>
-      </Pressable>
+    (item: ConversationRowModel) => () => (
+      <View style={styles.swipeActionsContainer}>
+        {item.isCompleted ? (
+          <Pressable
+            onPress={() => handleDeleteConversation(item)}
+            style={({ pressed }) => [
+              styles.swipeDeleteBtn,
+              { backgroundColor: C.error },
+              pressed && { opacity: 0.82, transform: [{ scale: 0.96 }] },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete completed chat with ${item.displayName}`}
+          >
+            <MaterialIcons name="delete-outline" size={24} color="#FFFFFF" />
+            <Text style={styles.swipeDeleteText}>Delete</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => handleActiveChatNotice(item)}
+            style={({ pressed }) => [
+              styles.swipeLockedBtn,
+              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.82 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Active delivery - cannot delete yet"
+          >
+            <MaterialIcons name="lock-outline" size={20} color={C.textMuted} />
+            <Text style={[styles.swipeLockedText, { color: C.textMuted }]}>In Transit</Text>
+          </Pressable>
+        )}
+      </View>
     ),
-    [C.primary, openConversation]
+    [C.error, C.surfaceElevated, C.surfaceBorder, C.textMuted, handleDeleteConversation, handleActiveChatNotice]
   );
 
   const renderItem = useCallback(
@@ -236,7 +285,7 @@ export default function MessagesScreen() {
         <View style={isTablet ? styles.tabletContainer : undefined}>
           <Swipeable
             rightThreshold={36}
-            renderRightActions={renderRightActions(item.id)}
+            renderRightActions={renderRightActions(item)}
             containerStyle={{ overflow: 'hidden', borderRadius: BorderRadius.xl }}
           >
             <Pressable
@@ -704,5 +753,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptySecBtnText: { fontWeight: FontWeight.semibold, fontSize: FontSize.sm },
+  swipeActionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginVertical: 4,
+    marginLeft: 8,
+  },
+  swipeDeleteBtn: {
+    width: 80,
+    borderRadius: BorderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  swipeDeleteText: {
+    color: '#FFFFFF',
+    fontWeight: FontWeight.bold,
+    fontSize: FontSize.xs,
+  },
+  swipeLockedBtn: {
+    width: 80,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  swipeLockedText: {
+    fontWeight: FontWeight.medium,
+    fontSize: FontSize.xs,
+  },
 });
 

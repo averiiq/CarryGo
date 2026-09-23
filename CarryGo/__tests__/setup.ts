@@ -37,4 +37,26 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
+jest.mock('expo-application', () => ({
+  nativeApplicationVersion: '1.2.2',
+  nativeBuildVersion: '1',
+  applicationId: 'com.carrygo.app',
+}));
+
+jest.mock('expo-notifications', () => ({
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(),
+  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  getExpoPushTokenAsync: jest.fn().mockResolvedValue({ data: 'ExponentPushToken[mock]' }),
+  scheduleNotificationAsync: jest.fn().mockResolvedValue('notif-id'),
+  addNotificationReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+  addNotificationResponseReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+  AndroidImportance: {
+    MAX: 5,
+    HIGH: 4,
+    DEFAULT: 3,
+  },
+}));
+
 (global as Record<string, unknown>).__DEV__ = true;

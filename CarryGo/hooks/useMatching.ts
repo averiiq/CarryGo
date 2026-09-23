@@ -8,6 +8,8 @@ import {
   findBestParcelsForTrip,
   diagnoseParcelTripMatching,
   diagnoseTripParcelMatching,
+  fetchServerMatchingTrips,
+  fetchServerMatchingParcels,
   MatchingDiagnostic,
 } from '@/services/smart-matching.service';
 
@@ -18,6 +20,7 @@ export interface MatchingResult<T> {
 }
 
 interface MatchTripsParams {
+  parcelId?: string;
   fromCity: string;
   toCity: string;
   userId: string;
@@ -30,6 +33,7 @@ interface MatchTripsParams {
 }
 
 interface MatchParcelsParams {
+  tripId?: string;
   fromCity: string;
   toCity: string;
   userId: string;
@@ -79,20 +83,25 @@ export function useMatchingTrips(params: MatchTripsParams | null) {
 
       if (!params) return { matches: [], candidateCount: 0, diagnostic: emptyDiagnostic };
 
-      const [exact, fromNearby, toNearby] = await Promise.all([
+      const [exact, fromCandidates, toCandidates] = await Promise.all([
         fetchTrips({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
-        fetchTrips({ userCity: params.fromCity, limit: 60, offset: 0, includeCount: false }),
-        fetchTrips({ userCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
+        fetchTrips({ fromCity: params.fromCity, limit: 40, offset: 0, includeCount: false }),
+        fetchTrips({ toCity: params.toCity, limit: 40, offset: 0, includeCount: false }),
       ]);
 
-      const firstError = exact.error || fromNearby.error || toNearby.error;
+      const firstError = exact.error || fromCandidates.error || toCandidates.error;
       if (firstError) throw new Error(firstError);
 
-      const allTrips = [...(exact.data ?? []), ...(fromNearby.data ?? []), ...(toNearby.data ?? [])];
+      let serverTrips: Trip[] = [];
+      if (params.parcelId && params.parcelId !== 'matching-source-parcel') {
+        serverTrips = await fetchServerMatchingTrips(params.parcelId);
+      }
+
+      const allTrips = [...serverTrips, ...(exact.data ?? []), ...(fromCandidates.data ?? []), ...(toCandidates.data ?? [])];
       const dedupedTrips = Array.from(new Map(allTrips.map(trip => [trip.id, trip])).values());
 
       const scoringParcel: Parcel = {
-        id: 'matching-source-parcel',
+        id: params.parcelId || 'matching-source-parcel',
         userId: params.userId,
         userName: 'Current User',
         fromCity: params.fromCity,
@@ -151,20 +160,25 @@ export function useMatchingParcels(params: MatchParcelsParams | null) {
 
       if (!params) return { matches: [], candidateCount: 0, diagnostic: emptyDiagnostic };
 
-      const [exact, fromNearby, toNearby] = await Promise.all([
+      const [exact, fromCandidates, toCandidates] = await Promise.all([
         fetchParcels({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
-        fetchParcels({ userCity: params.fromCity, limit: 60, offset: 0, includeCount: false }),
-        fetchParcels({ userCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
+        fetchParcels({ fromCity: params.fromCity, limit: 40, offset: 0, includeCount: false }),
+        fetchParcels({ toCity: params.toCity, limit: 40, offset: 0, includeCount: false }),
       ]);
 
-      const firstError = exact.error || fromNearby.error || toNearby.error;
+      const firstError = exact.error || fromCandidates.error || toCandidates.error;
       if (firstError) throw new Error(firstError);
 
-      const allParcels = [...(exact.data ?? []), ...(fromNearby.data ?? []), ...(toNearby.data ?? [])];
+      let serverParcels: Parcel[] = [];
+      if (params.tripId && params.tripId !== 'matching-source-trip') {
+        serverParcels = await fetchServerMatchingParcels(params.tripId);
+      }
+
+      const allParcels = [...serverParcels, ...(exact.data ?? []), ...(fromCandidates.data ?? []), ...(toCandidates.data ?? [])];
       const dedupedParcels = Array.from(new Map(allParcels.map(parcel => [parcel.id, parcel])).values());
 
       const scoringTrip: Trip = {
-        id: 'matching-source-trip',
+        id: params.tripId || 'matching-source-trip',
         userId: params.userId,
         userName: params.userName,
         userRating: params.userRating,
@@ -215,16 +229,16 @@ export function useMatchingTripsOnRoute(params: MatchTripsOnRouteParams | null) 
 
       if (!params) return { matches: [], candidateCount: 0, diagnostic: emptyDiagnostic };
 
-      const [exact, fromNearby, toNearby] = await Promise.all([
+      const [exact, fromCandidates, toCandidates] = await Promise.all([
         fetchTrips({ fromCity: params.fromCity, toCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
-        fetchTrips({ userCity: params.fromCity, limit: 60, offset: 0, includeCount: false }),
-        fetchTrips({ userCity: params.toCity, limit: 60, offset: 0, includeCount: false }),
+        fetchTrips({ fromCity: params.fromCity, limit: 40, offset: 0, includeCount: false }),
+        fetchTrips({ toCity: params.toCity, limit: 40, offset: 0, includeCount: false }),
       ]);
 
-      const firstError = exact.error || fromNearby.error || toNearby.error;
+      const firstError = exact.error || fromCandidates.error || toCandidates.error;
       if (firstError) throw new Error(firstError);
 
-      const allTrips = [...(exact.data ?? []), ...(fromNearby.data ?? []), ...(toNearby.data ?? [])];
+      const allTrips = [...(exact.data ?? []), ...(fromCandidates.data ?? []), ...(toCandidates.data ?? [])];
       const dedupedTrips = Array.from(new Map(allTrips.map(trip => [trip.id, trip])).values());
 
       const scoringParcel: Parcel = {

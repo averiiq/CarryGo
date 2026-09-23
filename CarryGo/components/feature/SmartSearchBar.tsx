@@ -19,12 +19,12 @@ const RECENT_SEARCHES_KEY = 'carrygo_smart_recent_searches';
 const MAX_RECENT = 6;
 
 const POPULAR_ROUTES = [
-  { from: 'Mumbai', to: 'Delhi' },
-  { from: 'Bangalore', to: 'Chennai' },
-  { from: 'Delhi', to: 'Jaipur' },
-  { from: 'Hyderabad', to: 'Bangalore' },
-  { from: 'Pune', to: 'Mumbai' },
-  { from: 'Kolkata', to: 'Patna' },
+  { from: 'Gurugram', to: 'Faridabad' },
+  { from: 'Hisar', to: 'Bhiwani' },
+  { from: 'Panipat', to: 'Karnal' },
+  { from: 'Rohtak', to: 'Sonipat' },
+  { from: 'Ambala', to: 'Panchkula' },
+  { from: 'Rewari', to: 'Gurugram' },
 ];
 
 interface SmartSearchBarProps {

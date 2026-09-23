@@ -32,4 +32,8 @@ export const queryKeys = {
     all: ['support'] as const,
     tickets: (userId: string) => ['support', 'tickets', userId] as const,
   },
+  user: {
+    all: ['user'] as const,
+    profile: (userId: string) => ['user', 'profile', userId] as const,
+  },
 };

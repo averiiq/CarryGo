@@ -91,6 +91,8 @@ export interface Request {
   toCity?: string;
   parcelCategory?: string;
   parcelWeight?: number;
+  createdBy?: string;
+  expiresAt?: string;
   createdAt: string;
   updatedAt: string;
 }

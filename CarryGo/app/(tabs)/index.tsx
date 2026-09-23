@@ -22,6 +22,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAlert } from '@/template';
 import { Haptic } from '@/services/haptics.service';
+import { checkTripParcelRoute } from '@/services/route-compatibility.service';
 import { FilterOptions, Parcel, Trip, Request } from '@/types';
 
 const DEFAULT_FILTERS: FilterOptions = { fromCity: '', toCity: '', vehicleType: '', dateFrom: '', dateTo: '' };
@@ -374,8 +375,9 @@ export default function HomeScreen() {
     ]).start();
   }, [heroFade, heroTranslateY]);
 
-  const tripsQuery = useTripsQuery(true);
-  const parcelsQuery = useParcelsQuery(true);
+  const userCity = user?.city?.trim() || undefined;
+  const tripsQuery = useTripsQuery(true, userCity);
+  const parcelsQuery = useParcelsQuery(true, userCity);
   const requestsQuery = useRequestsQuery(user?.id);
   const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
   const createTripMutation = useCreateTripMutation();
@@ -484,6 +486,13 @@ export default function HomeScreen() {
     const chosenTrip = trips.find(t => t.id === tripId);
     if (!chosenTrip) return;
 
+    const routeCheck = checkTripParcelRoute(chosenTrip, targetParcel);
+    if (!routeCheck.isCompatible) {
+      Haptic.error();
+      showAlert('Incompatible Route', routeCheck.rejectionReason || 'This trip route does not match the parcel journey.');
+      return;
+    }
+
     try {
       const result = await createRequestAsync({
         parcelId: targetParcel.id,
@@ -522,6 +531,13 @@ export default function HomeScreen() {
     if (!user) return;
     const chosenParcel = parcels.find(p => p.id === parcelId);
     if (!chosenParcel) return;
+
+    const routeCheck = checkTripParcelRoute(targetTrip, chosenParcel);
+    if (!routeCheck.isCompatible) {
+      Haptic.error();
+      showAlert('Incompatible Route', routeCheck.rejectionReason || 'This parcel journey does not match the trip route.');
+      return;
+    }
 
     try {
       const result = await createRequestAsync({
@@ -761,7 +777,9 @@ export default function HomeScreen() {
             <View style={styles.marketplaceHead}>
               <View>
                 <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Live Marketplace</Text>
-                <Text style={[styles.sectionSub, { color: C.textMuted }]}>Direct traveler-to-sender delivery routes</Text>
+                <Text style={[styles.sectionSub, { color: C.textMuted }]}>
+                  {userCity ? `Personalized for ${userCity} routes` : 'Direct traveler-to-sender delivery routes'}
+                </Text>
               </View>
               <Pressable
                 onPress={() => {

@@ -625,4 +625,56 @@ describe('smart-matching.service', () => {
       expect(diagnostic.actions.some(a => a.id === 'increase_capacity')).toBe(true);
     });
   });
+
+  describe('Bhiwani to Delhi Corridor Matching (Real-world scenario)', () => {
+    it('reliably matches a parcel and trip on the Bhiwani to Delhi route', () => {
+      const parcel = makeParcel({
+        id: 'parcel-bhiwani-delhi',
+        fromCity: 'Bhiwani',
+        toCity: 'Delhi',
+        weight: 5,
+        priceOffer: 300,
+        userId: 'phone-a-sender',
+        deliveryDate: '2026-09-25',
+      });
+
+      const trip = makeTrip({
+        id: 'trip-bhiwani-delhi',
+        fromCity: 'Bhiwani',
+        toCity: 'Delhi',
+        availableCapacity: 15,
+        pricePerKg: 50,
+        userId: 'phone-b-traveler',
+        date: '2026-09-25',
+      });
+
+      const matches = findBestMatches(parcel, [trip]);
+      expect(matches.length).toBe(1);
+      expect(matches[0].trip.id).toBe('trip-bhiwani-delhi');
+      expect(matches[0].score.breakdown.routeScore).toBe(100);
+      expect(matches[0].score.total).toBeGreaterThanOrEqual(80);
+      expect(matches[0].score.grade).toBe('excellent');
+    });
+
+    it('prevents self-matching on Bhiwani to Delhi route when sender and traveler are same user', () => {
+      const parcel = makeParcel({
+        id: 'parcel-bhiwani-delhi',
+        fromCity: 'Bhiwani',
+        toCity: 'Delhi',
+        weight: 5,
+        userId: 'same-user-id',
+      });
+
+      const trip = makeTrip({
+        id: 'trip-bhiwani-delhi',
+        fromCity: 'Bhiwani',
+        toCity: 'Delhi',
+        availableCapacity: 15,
+        userId: 'same-user-id',
+      });
+
+      const matches = findBestMatches(parcel, [trip]);
+      expect(matches.length).toBe(0);
+    });
+  });
 });

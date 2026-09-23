@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -32,7 +32,7 @@ function MenuItem({ icon, label, onPress, danger, right, C, subtitle }: MenuItem
     <Pressable
       style={({ pressed }) => [
         styles.menuItem,
-        pressed && { backgroundColor: C.primarySubtle, opacity: 0.9, transform: [{ scale: 0.97 }] },
+        pressed && { backgroundColor: C.primarySubtle, opacity: 0.9, transform: [{ scale: 0.98 }] },
       ]}
       hitSlop={TouchTarget.smallHitSlop}
       onPress={() => { if (onPress) { Haptic.tap(); onPress(); } }}
@@ -41,7 +41,7 @@ function MenuItem({ icon, label, onPress, danger, right, C, subtitle }: MenuItem
       <View style={[styles.menuIconWrap, { backgroundColor: danger ? C.errorSubtle : C.surfaceElevated }]}>
         {icon}
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={styles.menuLabelWrap}>
         <Text style={[styles.menuLabel, { color: danger ? C.error : C.textPrimary }]}>{label}</Text>
         {subtitle ? <Text style={[styles.menuSubtitle, { color: C.textMuted }]}>{subtitle}</Text> : null}
       </View>
@@ -55,33 +55,70 @@ function MenuItem({ icon, label, onPress, danger, right, C, subtitle }: MenuItem
   );
 }
 
-function StatPill({
+function BentoStatCard({
   label,
   value,
+  sublabel,
   icon,
   color,
   C,
+  onPress,
   iconAnim,
   isSmallDevice,
 }: {
   label: string;
   value: string;
+  sublabel?: string;
   icon: keyof typeof MaterialIcons.glyphMap;
   color: string;
   C: ThemeColors;
+  onPress?: () => void;
   iconAnim?: Animated.Value;
   isSmallDevice?: boolean;
 }) {
   return (
-    <View style={[styles.statPill, isSmallDevice && { paddingHorizontal: 2 }, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-      <Animated.View style={[styles.statPillIcon, { backgroundColor: color + '14' }, iconAnim ? { transform: [{ scale: iconAnim }] } : undefined]}>
-        <MaterialIcons name={icon} size={14} color={color} />
+    <Pressable
+      style={({ pressed }) => [
+        styles.statCard,
+        isSmallDevice && styles.statCardSmall,
+        { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+        pressed && onPress && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+      ]}
+      hitSlop={TouchTarget.smallHitSlop}
+      onPress={() => {
+        if (onPress) {
+          Haptic.select();
+          onPress();
+        }
+      }}
+      disabled={!onPress}
+    >
+      <Animated.View
+        style={[
+          styles.statCardIcon,
+          { backgroundColor: color + '16' },
+          iconAnim ? { transform: [{ scale: iconAnim }] } : undefined,
+        ]}
+      >
+        <MaterialIcons name={icon} size={isSmallDevice ? 14 : 16} color={color} />
       </Animated.View>
-      <View style={styles.statPillContent}>
-        <Text style={[styles.statPillVal, isSmallDevice && { fontSize: FontSize.md }, { color: C.textPrimary }]}>{value}</Text>
-        <Text style={[styles.statPillLabel, { color: C.textMuted }]}>{label}</Text>
+      <View style={styles.statCardContent}>
+        <Text
+          style={[styles.statCardVal, isSmallDevice && { fontSize: FontSize.md }, { color: C.textPrimary }]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+        <Text style={[styles.statCardLabel, { color: C.textMuted }]} numberOfLines={1}>
+          {label}
+        </Text>
+        {sublabel ? (
+          <Text style={[styles.statCardSublabel, { color: C.textMuted + 'AA' }]} numberOfLines={1}>
+            {sublabel}
+          </Text>
+        ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -90,7 +127,7 @@ export default function ProfileScreen() {
   const { showAlert } = useAlert();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const { isSmallDevice, isTablet } = useResponsive();
   const heroEntrance = useFadeIn(0, 520);
   const statsEntrance = useFadeIn(120, 440);
@@ -134,42 +171,50 @@ export default function ProfileScreen() {
     showAlert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Logout', style: 'destructive', onPress: async () => {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
           await logout();
           router.replace('/login');
         },
       },
     ]);
   };
+
   const handleDeleteAccount = () => {
     Haptic.warning();
-    showAlert('Delete account?', 'This permanently removes your CarryGo account and signs you out. This action cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete Account',
-        style: 'destructive',
-        onPress: () => {
-          Haptic.warning();
-          showAlert('Final confirmation', 'Please confirm you want to permanently delete this account.', [
-            { text: 'Keep Account', style: 'cancel' },
-            {
-              text: 'Delete Permanently',
-              style: 'destructive',
-              onPress: async () => {
-                const result = await deleteAccount();
-                if (result.error) {
-                  showAlert('Deletion failed', result.error);
-                  return;
-                }
-                showAlert('Account deleted', 'Your account has been deleted successfully.');
-                router.replace('/login');
+    showAlert(
+      'Delete account?',
+      'This permanently removes your CarryGo account and signs you out. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            Haptic.warning();
+            showAlert('Final confirmation', 'Please confirm you want to permanently delete this account.', [
+              { text: 'Keep Account', style: 'cancel' },
+              {
+                text: 'Delete Permanently',
+                style: 'destructive',
+                onPress: async () => {
+                  const result = await deleteAccount();
+                  if (result.error) {
+                    showAlert('Deletion failed', result.error);
+                    return;
+                  }
+                  showAlert('Account deleted', 'Your account has been deleted successfully.');
+                  router.replace('/login');
+                },
               },
-            },
-          ]);
+            ]);
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
+
   if (!user) return null;
 
   const displayName = user.fullName || user.name || user.email?.split('@')[0] || 'User';
@@ -196,7 +241,7 @@ export default function ProfileScreen() {
     ? C.warning
     : !isKycAvailable
     ? C.warning
-    : C.error;
+    : C.primary;
 
   const kycBg = isKycApproved
     ? C.successSubtle
@@ -204,7 +249,15 @@ export default function ProfileScreen() {
     ? C.warningSubtle
     : !isKycAvailable
     ? C.warningSubtle
-    : C.errorSubtle;
+    : C.primarySubtle;
+
+  const kycBorder = isKycApproved
+    ? C.successBorder
+    : isKycSubmitted
+    ? C.warningBorder
+    : !isKycAvailable
+    ? C.warningBorder
+    : C.primaryBorder;
 
   const kycTitle = isKycApproved
     ? 'Identity Verified'
@@ -222,6 +275,14 @@ export default function ProfileScreen() {
     ? disabledFeatureMessage.kyc
     : 'Needed to send or carry parcels - 2 min process.';
 
+  // Format joined date
+  const joinedDateFormatted = user.joinedAt
+    ? new Date(user.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    : 'Recent';
+
+  // Format phone display
+  const phoneDisplay = user.phone ? user.phone : null;
+
   return (
     <>
       <KycOnboarding
@@ -233,7 +294,11 @@ export default function ProfileScreen() {
         ref={scrollRef}
         keyboardDismissMode="on-drag"
         style={[styles.container, { backgroundColor: C.background }]}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 120 }, isTablet && styles.tabletContainer]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + Spacing.xs, paddingBottom: insets.bottom + 120 },
+          isTablet && styles.tabletContainer,
+        ]}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -241,37 +306,56 @@ export default function ProfileScreen() {
         )}
         scrollEventThrottle={16}
       >
-        {/* Modern Horizontal Executive Hero */}
-        <Animated.View style={{ opacity: heroEntrance.opacity, transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }] }}>
-          <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, isSmallDevice && styles.heroCardSmall]}>
-            {/* Subtle Gradient Backing */}
+        {/* Executive Theme-Adaptive Identity Card */}
+        <Animated.View
+          style={{
+            opacity: heroEntrance.opacity,
+            transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }],
+          }}
+        >
+          <View
+            style={[
+              styles.heroCard,
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              isSmallDevice && styles.heroCardSmall,
+            ]}
+          >
+            {/* Theme-Adaptive Gradient Backing */}
             <LinearGradient
-              colors={['#FFFFFF', '#FAFDFB', '#F8FAFC']}
+              colors={
+                isDark
+                  ? [C.surface, C.surfaceElevated, C.surface]
+                  : ['#FFFFFF', '#F8FAFC', '#F1F5F9']
+              }
               style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
             />
 
             {/* Main Horizontal Identity Block */}
             <View style={styles.heroMainRow}>
-              {/* Avatar on Left */}
+              {/* Avatar on Left with Breathing Pulse */}
               <Animated.View style={[styles.avatarOuter, { transform: [{ scale: avatarBreathing }] }]}>
                 <LinearGradient
                   colors={[C.primary, C.primaryLight]}
                   style={styles.avatarGradientRing}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
                 />
                 <View style={[styles.avatarInner, { backgroundColor: C.surface }]}>
-                  <View style={[styles.avatar, { backgroundColor: '#ECFDF5' }]}>
-                    <Text style={[styles.avatarText, { color: '#064E3B' }]}>
+                  <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
+                    <Text style={[styles.avatarText, { color: C.primary }]}>
                       {displayName.charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 </View>
                 {isKycApproved ? (
-                  <View style={[styles.verifiedBadge, { backgroundColor: '#059669', borderColor: '#FFFFFF' }]}>
+                  <View style={[styles.verifiedBadge, { backgroundColor: C.primary, borderColor: C.surface }]}>
                     <MaterialIcons name="check" size={10} color="#fff" />
                   </View>
-                ) : null}
+                ) : (
+                  <View style={[styles.onlineDot, { backgroundColor: C.primary, borderColor: C.surface }]} />
+                )}
               </Animated.View>
 
               {/* User Identity Details */}
@@ -281,35 +365,41 @@ export default function ProfileScreen() {
                     {displayName}
                   </Text>
                   {isKycApproved ? (
-                    <View style={[styles.trustTag, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                      <MaterialIcons name="verified" size={11} color="#059669" />
-                      <Text style={[styles.trustTagText, { color: '#064E3B' }]}>Verified</Text>
+                    <View style={[styles.trustTag, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
+                      <MaterialIcons name="verified" size={11} color={C.primary} />
+                      <Text style={[styles.trustTagText, { color: C.primary }]}>Verified</Text>
                     </View>
                   ) : null}
                 </View>
 
-                <View style={styles.emailRow}>
+                {/* Email Row */}
+                <View style={styles.infoRow}>
                   <Ionicons name="mail-outline" size={12} color={C.textMuted} />
-                  <Text style={[styles.profileEmail, { color: C.textMuted }]} numberOfLines={1}>
+                  <Text style={[styles.infoRowText, { color: C.textMuted }]} numberOfLines={1}>
                     {user.email}
                   </Text>
                 </View>
 
-                {/* Rating & Member Chips Row */}
-                <View style={styles.heroChipsRow}>
-                  <View style={[styles.ratingPill, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-                    <MaterialIcons name="star" size={12} color="#D97706" />
-                    <Text style={[styles.ratingPillText, { color: '#B45309' }]}>
-                      {user.totalRatings && user.totalRatings > 0
-                        ? `${(user.rating || 5.0).toFixed(1)} ★ (${user.totalRatings} ${user.totalRatings === 1 ? 'review' : 'reviews'})`
-                        : 'New Member'}
-                    </Text>
-                  </View>
+                {/* Phone & City Row */}
+                <View style={styles.chipsRow}>
+                  {user.city ? (
+                    <View style={[styles.locationChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                      <Ionicons name="location-outline" size={11} color={C.primary} />
+                      <Text style={[styles.locationChipText, { color: C.textSecondary }]}>{user.city}</Text>
+                    </View>
+                  ) : null}
 
-                  <View style={[styles.memberPill, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
-                    <MaterialIcons name="shield" size={11} color="#64748B" />
-                    <Text style={[styles.memberPillText, { color: '#475569' }]}>
-                      Since {new Date(user.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                  {phoneDisplay ? (
+                    <View style={[styles.locationChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                      <Ionicons name="call-outline" size={11} color={C.textMuted} />
+                      <Text style={[styles.locationChipText, { color: C.textSecondary }]}>{phoneDisplay}</Text>
+                    </View>
+                  ) : null}
+
+                  <View style={[styles.memberPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                    <Feather name="calendar" size={10} color={C.textMuted} />
+                    <Text style={[styles.memberPillText, { color: C.textMuted }]}>
+                      Since {joinedDateFormatted}
                     </Text>
                   </View>
                 </View>
@@ -317,23 +407,28 @@ export default function ProfileScreen() {
             </View>
 
             {/* Bottom Quick Action Strip */}
-            <View style={[styles.heroBottomDivider, { backgroundColor: C.surfaceBorder + '66' }]} />
+            <View style={[styles.heroBottomDivider, { backgroundColor: C.surfaceBorder + '88' }]} />
             <Pressable
               style={({ pressed }) => [
                 styles.editProfileFullBtn,
                 { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }
+                pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
               ]}
               hitSlop={TouchTarget.smallHitSlop}
-              onPress={() => { Haptic.tap(); router.push('/edit-profile'); }}
+              onPress={() => {
+                Haptic.tap();
+                router.push('/edit-profile');
+              }}
             >
               <View style={styles.editBtnLeft}>
-                <View style={[styles.editIconCircle, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                  <Ionicons name="pencil" size={12} color="#059669" />
+                <View style={[styles.editIconCircle, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
+                  <Ionicons name="pencil" size={13} color={C.primary} />
                 </View>
                 <View style={styles.editTextWrap}>
-                  <Text style={[styles.editProfileFullBtnText, { color: C.textPrimary }]}>Edit Profile & Settings</Text>
-                  <Text style={[styles.editProfileSubText, { color: C.textMuted }]}>Manage profile details, security & alerts</Text>
+                  <Text style={[styles.editProfileFullBtnText, { color: C.textPrimary }]}>Edit Profile</Text>
+                  <Text style={[styles.editProfileSubText, { color: C.textMuted }]}>
+                    Update name, phone number, and location
+                  </Text>
                 </View>
               </View>
               <View style={[styles.editChevronWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -343,27 +438,63 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* Stats */}
+        {/* Bento Stat Highlights */}
         <Animated.View style={{ opacity: statsEntrance.opacity, transform: statsEntrance.transform }}>
           <View style={styles.statsGrid}>
-            <StatPill
+            <BentoStatCard
               label="Rating"
               value={user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0).toFixed(1) : 'New'}
+              sublabel={user.totalRatings && user.totalRatings > 0 ? `${user.totalRatings} rev` : 'Member'}
               icon="star"
               color={C.warning}
               C={C}
               iconAnim={starHeartbeat}
               isSmallDevice={isSmallDevice}
+              onPress={() => {
+                showAlert(
+                  'User Rating',
+                  user.totalRatings && user.totalRatings > 0
+                    ? `Current Rating: ${(user.rating || 5.0).toFixed(1)}/5.0 based on ${user.totalRatings} verified peer ${user.totalRatings === 1 ? 'review' : 'reviews'}.`
+                    : 'You have not received any delivery ratings yet. Complete delivery trips to build trust and increase match priority.'
+                );
+              }}
             />
-            <StatPill label="Trips" value={String(myTrips.length)} icon="directions-car" color={C.primary} C={C} isSmallDevice={isSmallDevice} />
-            <StatPill label="Parcels" value={String(myParcels.length)} icon="inventory-2" color={C.success} C={C} isSmallDevice={isSmallDevice} />
-            <StatPill label="Delivered" value={String(completed)} icon="check-circle" color={C.info} C={C} isSmallDevice={isSmallDevice} />
+            <BentoStatCard
+              label="Trips"
+              value={String(myTrips.length)}
+              sublabel="Active"
+              icon="directions-car"
+              color={C.primary}
+              C={C}
+              isSmallDevice={isSmallDevice}
+              onPress={() => router.push('/my-activity')}
+            />
+            <BentoStatCard
+              label="Parcels"
+              value={String(myParcels.length)}
+              sublabel="Listed"
+              icon="inventory-2"
+              color={C.success}
+              C={C}
+              isSmallDevice={isSmallDevice}
+              onPress={() => router.push('/my-activity')}
+            />
+            <BentoStatCard
+              label="Delivered"
+              value={String(completed)}
+              sublabel="Completed"
+              icon="check-circle"
+              color={C.info}
+              C={C}
+              isSmallDevice={isSmallDevice}
+              onPress={() => router.push('/my-activity')}
+            />
           </View>
         </Animated.View>
 
-        {/* KYC Banner */}
+        {/* Trust & KYC Verification Card */}
         <Pressable
-          style={[styles.kycBanner, { backgroundColor: kycBg, borderColor: kycColor + '30' }]}
+          style={[styles.kycBanner, { backgroundColor: kycBg, borderColor: kycBorder }]}
           hitSlop={TouchTarget.smallHitSlop}
           onPress={canOpenKycBanner ? () => setShowKyc(true) : undefined}
           disabled={!canOpenKycBanner}
@@ -377,7 +508,7 @@ export default function ProfileScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.kycTitle, { color: kycColor }]}>{kycTitle}</Text>
-            <Text style={[styles.kycBody, { color: kycColor + 'AA' }]}>{kycBody}</Text>
+            <Text style={[styles.kycBody, { color: C.textSecondary }]}>{kycBody}</Text>
           </View>
           {canOpenKycBanner ? (
             <View style={[styles.kycCta, { backgroundColor: kycColor }]}>
@@ -385,70 +516,75 @@ export default function ProfileScreen() {
               <MaterialIcons name="arrow-forward" size={11} color="#fff" />
             </View>
           ) : isKycApproved ? (
-            <MaterialIcons name="check-circle" size={20} color={C.success} />
+            <MaterialIcons name="check-circle" size={22} color={C.success} />
           ) : isKycSubmitted ? (
-            <View style={[styles.pendingChip, { backgroundColor: C.warning + '20' }]}>
+            <View style={[styles.pendingChip, { backgroundColor: C.warning + '24' }]}>
               <Text style={[styles.pendingChipText, { color: C.warning }]}>In Review</Text>
             </View>
           ) : null}
         </Pressable>
 
-        {/* Sections */}
+        {/* Organized Settings Groups */}
         <Animated.View style={[styles.sectionsWrap, { opacity: sectionsEntrance.opacity, transform: sectionsEntrance.transform }]}>
 
-          {/* Activity */}
+          {/* Group 1: Activity & History */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Activity</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Activity & History</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <MenuItem C={C}
-                icon={<MaterialIcons name="bar-chart" size={17} color={C.primary} />}
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="bar-chart" size={18} color={C.primary} />}
                 label="My Activity"
                 subtitle={`${myTrips.length} trips • ${myParcels.length} parcels`}
                 onPress={() => router.push('/my-activity')}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
-              <MenuItem C={C}
-                icon={<MaterialIcons name="receipt-long" size={17} color={C.warning} />}
-                label="Transactions"
-                subtitle={FeatureFlags.payments ? 'Payment history' : 'Unavailable'}
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="receipt-long" size={18} color={C.warning} />}
+                label="Transactions & Receipts"
+                subtitle={FeatureFlags.payments ? 'Escrow payment history and invoices' : 'Unavailable'}
                 onPress={() => router.push('/transactions')}
               />
             </View>
           </View>
 
-          {/* Preferences */}
+          {/* Group 2: Preferences & Alerts */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Preferences</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Preferences & Alerts</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <MenuItem C={C}
-                icon={<MaterialIcons name="notifications-active" size={17} color={C.primary} />}
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="notifications-active" size={18} color={C.primary} />}
                 label="Route Alerts"
-                subtitle="Matching route notifications"
+                subtitle="Instant matches for preferred travel corridors"
                 onPress={() => router.push('/subscriptions')}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
-              <MenuItem C={C}
-                icon={<MaterialIcons name="tune" size={17} color={C.info} />}
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="tune" size={18} color={C.info} />}
                 label="Notification Preferences"
-                subtitle="Customize which alerts you receive"
+                subtitle="Manage push alerts, sounds, and order updates"
                 onPress={() => router.push('/notification-settings' as any)}
               />
             </View>
           </View>
 
-          {/* Support & Legal */}
+          {/* Group 3: Support & Legal */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Support & Legal</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <MenuItem C={C}
-                icon={<MaterialIcons name="support-agent" size={17} color={C.primary} />}
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="support-agent" size={18} color={C.primary} />}
                 label="Help & Support Desk"
-                subtitle="FAQs, 24/7 AI Chatbot, Raise Incident"
+                subtitle="FAQs, 24/7 AI Chatbot, incident reporting"
                 right={
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.primarySubtle, paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 10 }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' }} />
-                      <Text style={{ fontSize: 10, fontWeight: FontWeight.bold, color: C.primary }}>24/7</Text>
+                    <View style={[styles.onlineTag, { backgroundColor: C.primarySubtle }]}>
+                      <View style={[styles.liveDot, { backgroundColor: C.primary }]} />
+                      <Text style={[styles.onlineTagText, { color: C.primary }]}>24/7</Text>
                     </View>
                     <View style={[styles.menuChevronWrap, { backgroundColor: C.surfaceElevated }]}>
                       <MaterialIcons name="chevron-right" size={16} color={C.textMuted} />
@@ -457,38 +593,64 @@ export default function ProfileScreen() {
                 }
                 onPress={() => router.push('/support' as any)}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
-              <MenuItem C={C}
-                icon={<MaterialIcons name="description" size={17} color={C.info} />}
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="description" size={18} color={C.info} />}
                 label="Terms of Service"
-                subtitle="Platform rules, escrow & cancellation"
+                subtitle="Platform rules, escrow protocols & policies"
                 onPress={() => router.push('/legal/terms')}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
-              <MenuItem C={C}
-                icon={<MaterialIcons name="privacy-tip" size={17} color={C.success} />}
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="privacy-tip" size={18} color={C.success} />}
                 label="Privacy Policy"
-                subtitle="Data protection & verification safeguards"
+                subtitle="Data protection and identity encryption"
                 onPress={() => router.push('/legal/privacy')}
               />
             </View>
           </View>
 
-          {/* Account */}
+          {/* Group 4: Account & App */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Account</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Account & App</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <MenuItem C={C}
-                icon={<MaterialIcons name={isKycApproved ? 'verified' : 'verified-user'} size={17} color={isKycApproved ? C.success : isKycSubmitted ? C.warning : !isKycAvailable ? C.warning : C.error} />}
+              <MenuItem
+                C={C}
+                icon={
+                  <MaterialIcons
+                    name={isKycApproved ? 'verified' : 'verified-user'}
+                    size={18}
+                    color={
+                      isKycApproved
+                        ? C.success
+                        : isKycSubmitted
+                        ? C.warning
+                        : !isKycAvailable
+                        ? C.warning
+                        : C.error
+                    }
+                  />
+                }
                 label="KYC Verification"
-                subtitle={isKycApproved ? '100% Officially Verified' : isKycSubmitted ? 'Under Review' : !isKycAvailable ? 'Provider required' : 'Not started'}
+                subtitle={
+                  isKycApproved
+                    ? '100% Officially Verified'
+                    : isKycSubmitted
+                    ? 'Documents Under Review'
+                    : !isKycAvailable
+                    ? 'Verification provider unavailable'
+                    : 'Not started - Tap to verify'
+                }
                 right={isKycApproved ? <MaterialIcons name="check-circle" size={18} color={C.success} /> : undefined}
                 onPress={!isKycAvailable || isKycApproved ? undefined : () => setShowKyc(true)}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
-              <MenuItem C={C}
-                icon={<Ionicons name="cloud-download-outline" size={17} color={C.primary} />}
-                label="Check for Updates"
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<Ionicons name="cloud-download-outline" size={18} color={C.primary} />}
+                label="Check for App Updates"
                 subtitle={
                   isCheckingUpdates
                     ? 'Checking update servers...'
@@ -509,17 +671,19 @@ export default function ProfileScreen() {
                 }
                 onPress={isUpdateReady ? applyUpdate : checkForUpdate}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
-              <MenuItem C={C}
-                icon={<MaterialIcons name="delete-outline" size={17} color={C.error} />}
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="delete-outline" size={18} color={C.error} />}
                 label="Delete Account"
                 subtitle="Permanently remove your profile and data"
                 onPress={handleDeleteAccount}
                 danger
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '66' }]} />
-              <MenuItem C={C}
-                icon={<Ionicons name="log-out-outline" size={17} color={C.error} />}
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<Ionicons name="log-out-outline" size={18} color={C.error} />}
                 label="Logout"
                 onPress={handleLogout}
                 danger
@@ -529,12 +693,12 @@ export default function ProfileScreen() {
 
           {/* Footer */}
           <View style={styles.footer}>
-            <View style={[styles.footerDivider, { backgroundColor: C.surfaceBorder + '44' }]} />
+            <View style={[styles.footerDivider, { backgroundColor: C.surfaceBorder + '66' }]} />
             <View style={styles.footerContent}>
-              <MaterialIcons name="local-shipping" size={12} color={C.textMuted + '88'} />
-              <Text style={[styles.footerText, { color: C.textMuted + '88' }]}>CarryGo v1.2.2</Text>
-              <View style={[styles.footerDot, { backgroundColor: C.textMuted + '44' }]} />
-              <Text style={[styles.footerText, { color: C.textMuted + '88' }]}>Peer-to-Peer Logistics</Text>
+              <MaterialIcons name="local-shipping" size={13} color={C.textMuted + '99'} />
+              <Text style={[styles.footerText, { color: C.textMuted + '99' }]}>CarryGo v1.2.2</Text>
+              <View style={[styles.footerDot, { backgroundColor: C.textMuted + '55' }]} />
+              <Text style={[styles.footerText, { color: C.textMuted + '99' }]}>Peer-to-Peer Logistics</Text>
             </View>
           </View>
         </Animated.View>
@@ -545,94 +709,111 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: Spacing.md + 2, gap: Spacing.md + 4 },
+  content: { paddingHorizontal: Spacing.md, gap: Spacing.md + 2 },
   tabletContainer: {
     maxWidth: 620,
     width: '100%',
     alignSelf: 'center',
   },
 
-  // Hero
+  // Hero Card
   heroCard: {
     borderRadius: BorderRadius.xl + 4,
-    paddingTop: Spacing.lg + 6,
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md + 2,
     gap: Spacing.md,
     borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
-    marginTop: Spacing.sm,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
+    marginTop: Spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 3,
   },
   heroCardSmall: {
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md + 2,
+    paddingTop: Spacing.md,
   },
   heroMainRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md + 2,
+    alignItems: 'flex-start',
+    gap: Spacing.md,
   },
 
   // Avatar
   avatarOuter: {
-    width: 72,
-    height: 72,
+    width: 68,
+    height: 68,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 2,
   },
   avatarGradientRing: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 36,
+    borderRadius: 34,
   },
   avatarInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
+  avatarText: {
+    fontSize: 22,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.5,
+  },
   verifiedBadge: {
     position: 'absolute',
     bottom: -1,
     right: -1,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    borderWidth: 2,
     elevation: 2,
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
   },
 
   // Identity Meta
-  heroMetaWrap: { flex: 1, gap: 3 },
-  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  heroMetaWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  heroNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
   profileName: {
-    fontSize: FontSize.lg + 2,
+    fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
     letterSpacing: -0.4,
   },
@@ -640,44 +821,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  trustTagText: { fontSize: 10, fontWeight: FontWeight.bold },
-  emailRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  profileEmail: { fontSize: FontSize.xs, letterSpacing: 0.1 },
-  heroChipsRow: {
+  trustTagText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  infoRowText: {
+    fontSize: FontSize.xs,
+    letterSpacing: 0.1,
+  },
+  chipsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 3,
+    marginTop: 2,
     flexWrap: 'wrap',
   },
-  ratingPill: {
+  locationChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  ratingPillText: { fontSize: 11, fontWeight: FontWeight.bold },
+  locationChipText: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+  },
   memberPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  memberPillText: { fontSize: 11, fontWeight: FontWeight.medium },
+  memberPillText: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+  },
 
   // Bottom action
-  heroBottomDivider: { height: 1 },
+  heroBottomDivider: { height: 1, marginTop: Spacing.xs },
   editProfileFullBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -708,12 +905,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  // Stats
+  // Stats Grid
   statsGrid: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },
-  statPill: {
+  statCard: {
     flex: 1,
     flexDirection: 'column',
     alignItems: 'center',
@@ -721,25 +918,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    gap: 5,
+    gap: 4,
   },
-  statPillIcon: {
+  statCardSmall: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: 2,
+  },
+  statCardIcon: {
     width: 28,
     height: 28,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statPillContent: { alignItems: 'center', gap: 1 },
-  statPillVal: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
-  statPillLabel: { fontSize: 9, fontWeight: FontWeight.medium, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statCardContent: { alignItems: 'center', gap: 1 },
+  statCardVal: { fontSize: FontSize.md + 1, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
+  statCardLabel: { fontSize: 9, fontWeight: FontWeight.medium, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statCardSublabel: { fontSize: 8, fontWeight: FontWeight.regular },
 
   // KYC
   kycBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm + 2,
-    padding: Spacing.mdl,
+    padding: Spacing.md,
     borderRadius: BorderRadius.lg + 2,
     borderWidth: 1,
   },
@@ -759,7 +961,7 @@ const styles = StyleSheet.create({
   pendingChipText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   // Sections
-  sectionsWrap: { gap: Spacing.lg, marginTop: Spacing.sm },
+  sectionsWrap: { gap: Spacing.lg, marginTop: Spacing.xs },
   section: { gap: Spacing.sm },
   sectionTitle: {
     fontSize: 10,
@@ -776,10 +978,10 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.md - 2,
     paddingHorizontal: Spacing.md,
     gap: Spacing.md - 2,
-    minHeight: 58,
+    minHeight: 56,
   },
   menuIconWrap: {
     width: 36,
@@ -788,6 +990,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  menuLabelWrap: { flex: 1 },
   menuLabel: { fontSize: FontSize.md - 1, fontWeight: FontWeight.medium, letterSpacing: -0.1 },
   menuSubtitle: { fontSize: FontSize.xs - 1, marginTop: 2, letterSpacing: 0.1 },
   menuChevronWrap: {
@@ -798,6 +1001,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   div: { height: StyleSheet.hairlineWidth, marginLeft: Spacing.md + 36 + Spacing.md - 2 },
+
+  // Online Tag in Support
+  onlineTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: BorderRadius.full,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  onlineTagText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
 
   // Footer
   footer: { paddingTop: Spacing.sm, paddingBottom: Spacing.xs },
@@ -821,9 +1043,3 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
 });
-
-
-
-
-
-

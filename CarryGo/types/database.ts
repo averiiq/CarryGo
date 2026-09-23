@@ -867,6 +867,8 @@ export type Database = {
       requests: {
         Row: {
           created_at: string
+          created_by: string | null
+          expires_at: string | null
           id: string
           message: string | null
           parcel_id: string
@@ -881,6 +883,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
           id?: string
           message?: string | null
           parcel_id: string
@@ -895,6 +899,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
           id?: string
           message?: string | null
           parcel_id?: string
@@ -1320,6 +1326,33 @@ export type Database = {
           updated_at: string
         }[]
       }
+      delete_conversation_command: {
+        Args: {
+          p_conversation_id: string
+        }
+        Returns: boolean
+      }
+      dispatch_notification_command: {
+        Args: {
+          p_data?: Json
+          p_deep_link?: string
+          p_recipient_id: string
+          p_related_id?: string
+          p_body: string
+          p_title: string
+          p_type: string
+        }
+        Returns: {
+          notification_id: string
+          push_tokens: string[]
+        }[]
+      }
+      get_user_push_tokens: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: string[]
+      }
       emit_domain_event: {
         Args: {
           p_actor_id: string
@@ -1542,6 +1575,95 @@ export type Database = {
       verify_delivery_otp: {
         Args: { p_delivery_id: string; p_otp: string }
         Returns: undefined
+      }
+      find_matching_trips_for_parcel: {
+        Args: {
+          p_parcel_id: string
+        }
+        Returns: {
+          available_capacity: number
+          created_at: string
+          date: string
+          estimated_cost: number
+          from_city: string
+          match_score: number
+          price_per_kg: number
+          status: Database["public"]["Enums"]["trip_status"]
+          time: string
+          to_city: string
+          trip_id: string
+          user_id: string
+          user_name: string
+          user_rating: number
+          vehicle_type: Database["public"]["Enums"]["vehicle_type"]
+        }[]
+      }
+      find_matching_parcels_for_trip: {
+        Args: {
+          p_trip_id: string
+        }
+        Returns: {
+          category: Database["public"]["Enums"]["parcel_category"]
+          created_at: string
+          delivery_date: string | null
+          description: string
+          from_city: string
+          image_url: string | null
+          match_score: number
+          parcel_id: string
+          price_offer: number
+          status: Database["public"]["Enums"]["parcel_status"]
+          to_city: string
+          user_id: string
+          user_name: string
+          weight: number
+        }[]
+      }
+      fetch_city_marketplace_trips: {
+        Args: {
+          p_city?: string | null
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          id: string
+          user_id: string
+          user_name: string
+          user_rating: number
+          from_city: string
+          to_city: string
+          date: string
+          time: string
+          vehicle_type: Database["public"]["Enums"]["vehicle_type"]
+          available_capacity: number
+          price_per_kg: number
+          status: Database["public"]["Enums"]["trip_status"]
+          created_at: string
+          total_count: number
+        }[]
+      }
+      fetch_city_marketplace_parcels: {
+        Args: {
+          p_city?: string | null
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          id: string
+          user_id: string
+          user_name: string
+          from_city: string
+          to_city: string
+          category: Database["public"]["Enums"]["parcel_category"]
+          description: string
+          weight: number
+          price_offer: number
+          image_url: string | null
+          status: Database["public"]["Enums"]["parcel_status"]
+          delivery_date: string | null
+          created_at: string
+          total_count: number
+        }[]
       }
     }
     Enums: {

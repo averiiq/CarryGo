@@ -236,8 +236,8 @@ export default function SubscriptionsScreen() {
         fetchTrips({ fromCity: sub.fromCity, toCity: sub.toCity }),
         fetchParcels({ fromCity: sub.fromCity, toCity: sub.toCity }),
       ]);
-      const trips = (tripsRes.data || []).filter(t => t.status === 'active' && t.userId !== userId);
-      const parcels = (parcelsRes.data || []).filter(p => p.status === 'open' && p.userId !== userId);
+      const trips = (tripsRes.data || []).filter((t: Trip) => t.status === 'active' && t.userId !== userId);
+      const parcels = (parcelsRes.data || []).filter((p: Parcel) => p.status === 'open' && p.userId !== userId);
       const totalCount = trips.length + parcels.length;
       const prevCount = prevMatchCounts.current[sub.id] ?? -1;
 

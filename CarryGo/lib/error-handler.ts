@@ -224,11 +224,11 @@ function mapDatabaseError(error: unknown): AppError {
     });
   }
 
-  if (code.startsWith('5') || lower.includes('internal server error')) {
+  if (code === 'P0001' || isUserFriendlyMessage(message)) {
     return new AppError({
-      code: ErrorCode.SERVER_ERROR,
+      code: ErrorCode.UNKNOWN,
       message,
-      userMessage: 'Our servers are experiencing issues. Please try again shortly.',
+      userMessage: message,
     });
   }
 

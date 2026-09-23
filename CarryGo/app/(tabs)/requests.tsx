@@ -25,6 +25,7 @@ import { useFadeIn, useStaggeredList } from '@/hooks/useAnimations';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { ProductIllustration } from '@/components/illustrations';
 import { Request } from '@/types';
+import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
 
 type TabType = 'incoming' | 'outgoing';
 type StatusFilterKey = 'all' | 'pending' | 'accepted' | 'completed';
@@ -165,8 +166,8 @@ export default function RequestsScreen() {
     });
   }, [rawRequests, parcelMap]);
 
-  const incoming = requests.filter(r => r.travellerId === user?.id);
-  const outgoing = requests.filter(r => r.senderId === user?.id);
+  const incoming = requests.filter(r => isRequestIncoming(r, user?.id));
+  const outgoing = requests.filter(r => isRequestOutgoing(r, user?.id));
   const base = tab === 'incoming' ? incoming : outgoing;
   const pendingCount = incoming.filter(r => r.status === 'pending').length;
 
@@ -232,35 +233,47 @@ export default function RequestsScreen() {
   }, [requestedParcelIds.length, user]);
 
   const handleAccept = (requestId: string, req: Request) => {
-    if (!user || req.travellerId !== user.id) {
+    const isIncoming = isRequestIncoming(req, user?.id);
+    if (!user || !isIncoming) {
       Haptic.warning();
-      showAlert('Not Allowed', 'Only the selected traveller can accept this request.');
+      showAlert('Not Allowed', 'Only the intended recipient can accept this request.');
       return;
     }
 
+    const otherUserName = req.senderId === user.id ? req.travellerName : req.senderName;
+    const otherUserId = req.senderId === user.id ? req.travellerId : req.senderId;
+    const isOffer = req.createdBy ? req.createdBy !== req.senderId : false;
+    const promptText = isOffer
+      ? `Accept carrier offer for ₹${req.price} from ${otherUserName}?`
+      : `Accept delivery for ₹${req.price} from ${otherUserName}?`;
+
     Haptic.warning();
-    showAlert('Accept Request?', `Accept delivery for Rs ${req.price} from ${req.senderName}?`, [
+    showAlert('Accept Request?', promptText, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Accept', onPress: async () => {
           if (!user) return;
           try {
             await updateRequestStatusMutation.mutateAsync({ requestId, status: 'accepted' });
-            const parcel = parcelMap.get(req.parcelId);
-            const route = parcel ? `${parcel.fromCity} to ${parcel.toCity}` : `${req.fromCity || 'Pickup'} to ${req.toCity || 'Drop'}`;
-            const existing = conversations.find(c => c.requestId === requestId);
-            if (!existing) {
-              await createConversationMutation.mutateAsync({
-                requestId,
-                participantIds: [user?.id || '', req.senderId],
-                participantNames: { [user?.id || '']: user?.name || 'You', [req.senderId]: req.senderName },
-                parcelDescription: parcel?.description || 'Parcel delivery',
-                route,
-              });
+            try {
+              const parcel = parcelMap.get(req.parcelId);
+              const route = parcel ? `${parcel.fromCity} to ${parcel.toCity}` : `${req.fromCity || 'Pickup'} to ${req.toCity || 'Drop'}`;
+              const existing = conversations.find(c => c.requestId === requestId);
+              if (!existing) {
+                await createConversationMutation.mutateAsync({
+                  requestId,
+                  participantIds: [user.id, otherUserId],
+                  participantNames: { [user.id]: user.name || 'You', [otherUserId]: otherUserName },
+                  parcelDescription: parcel?.description || 'Parcel delivery',
+                  route,
+                });
+              }
+              await createDelivery(requestId);
+              await sendRequestNotification('received', otherUserName, req.price);
+              await sendLocalNotification('Accepted', `Delivery with ${otherUserName} accepted!`);
+            } catch (auxError) {
+              console.warn('Post-accept auxiliary step error (non-fatal):', auxError);
             }
-            await createDelivery(requestId);
-            await sendRequestNotification('received', req.senderName, req.price);
-            await sendLocalNotification('Accepted', `Delivery from ${req.senderName} accepted!`);
             await requestsQuery.refetch();
             Haptic.success();
             showAlert('Accepted!', 'A chat has opened to coordinate pickup.');
@@ -278,14 +291,17 @@ export default function RequestsScreen() {
 
   const handleReject = (requestId: string, _req: Request) => {
     const req = _req;
-    if (!user || req.travellerId !== user.id) {
+    const isIncoming = isRequestIncoming(req, user?.id);
+    if (!user || !isIncoming) {
       Haptic.warning();
-      showAlert('Not Allowed', 'Only the selected traveller can reject this request.');
+      showAlert('Not Allowed', 'Only the intended recipient can decline this request.');
       return;
     }
 
+    const otherUserName = req.senderId === user.id ? req.travellerName : req.senderName;
+
     Haptic.warning();
-    showAlert('Decline Request?', `Are you sure you want to decline this delivery request from ${req.senderName}?`, [
+    showAlert('Decline Request?', `Are you sure you want to decline this request from ${otherUserName}?`, [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Decline', style: 'destructive', onPress: async () => {
@@ -307,20 +323,23 @@ export default function RequestsScreen() {
   };
 
   const handleCancel = (requestId: string, req: Request) => {
-    if (!user || req.senderId !== user.id) {
+    const isOutgoing = isRequestOutgoing(req, user?.id);
+    if (!user || !isOutgoing) {
       Haptic.warning();
-      showAlert('Not Allowed', 'Only the parcel sender can cancel this request.');
+      showAlert('Not Allowed', 'Only the user who created this request can cancel it.');
       return;
     }
 
     Haptic.warning();
-    showAlert('Cancel Request?', 'Cancel this request to the traveller?', [
+    showAlert('Cancel Request?', 'Cancel this request?', [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Cancel Request', style: 'destructive', onPress: async () => {
           try {
             await updateRequestStatusMutation.mutateAsync({ requestId, status: 'cancelled' });
             Haptic.success();
+            await requestsQuery.refetch();
+            showAlert('Cancelled', 'Your request has been cancelled.');
           } catch (error) {
             Haptic.error();
             showAlert(

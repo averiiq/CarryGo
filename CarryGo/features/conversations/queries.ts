@@ -4,6 +4,7 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import { getSupabaseClient } from '@/template';
 import {
   createConversation,
+  deleteConversation,
   fetchConversations,
   fetchMessagesPage,
   markMessagesRead,
@@ -301,6 +302,7 @@ export function useSendMessageMutation(userId?: string) {
       senderId: string;
       senderName: string;
       text: string;
+      recipientId?: string;
     }) => {
       const { data, error } = await sendMessage(message);
       if (error || !data) throw serviceError(error, 'Failed to send message');
@@ -375,6 +377,29 @@ export function useMarkMessagesReadMutation(userId?: string) {
     },
   });
 }
+
+export function useDeleteConversationMutation(userId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { error } = await deleteConversation(conversationId);
+      if (error) throw serviceError(error, 'Failed to delete conversation');
+      return conversationId;
+    },
+    onSuccess: (deletedId) => {
+      if (userId) {
+        queryClient.setQueryData<Conversation[]>(
+          queryKeys.conversations.byUser(userId),
+          (current = []) => current.filter(c => c.id !== deletedId)
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
+      queryClient.removeQueries({ queryKey: queryKeys.conversations.messages(deletedId) });
+    },
+  });
+}
+
 
 
 

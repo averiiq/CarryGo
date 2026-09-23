@@ -75,6 +75,15 @@ export async function fetchTrips(filters?: {
   if (filters?.fromCity) query = query.ilike('from_city', `%${sanitizeLikeInput(filters.fromCity)}%`);
   if (filters?.toCity) query = query.ilike('to_city', `%${sanitizeLikeInput(filters.toCity)}%`);
   if (filters?.userCity && !filters.fromCity && !filters.toCity) {
+    try {
+      const { fetchCityMarketplaceTrips } = require('@/services/marketplace-relevance.service');
+      const cityRes = await fetchCityMarketplaceTrips(filters.userCity, limit, offset);
+      if (!cityRes.error && cityRes.data) {
+        return { data: cityRes.data, error: null, total: cityRes.total };
+      }
+    } catch {
+      // Fallback to table query if RPC is temporarily unavailable
+    }
     const city = sanitizeLikeInput(filters.userCity);
     query = query.or(`from_city.ilike.%${city}%,to_city.ilike.%${city}%`);
   }

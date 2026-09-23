@@ -15,6 +15,7 @@ import { SendRequestModal } from '@/components/feature/SendRequestModal';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Trip, Parcel } from '@/types';
+import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
 import { createDelivery } from '@/services/deliveries.service';
 import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
@@ -151,8 +152,8 @@ export default function TripDetailScreen() {
   };
 
   const handleAccept = (req: Request) => {
-    if (!user || req.travellerId !== user.id) {
-      showAlert('Not Allowed', 'Only the assigned traveller can accept this request.');
+    if (!user || !isRequestIncoming(req, user.id)) {
+      showAlert('Not Allowed', 'Only the intended recipient can accept this request.');
       return;
     }
 
@@ -160,35 +161,43 @@ export default function TripDetailScreen() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Accept', onPress: async () => {
-          await updateRequestStatusAsync({ requestId: req.id, status: 'accepted' });
-          const parcel = parcels.find(p => p.id === req.parcelId);
-          const route = parcel ? `${parcel.fromCity} → ${parcel.toCity}` : trip ? `${trip.fromCity} → ${trip.toCity}` : 'Route';
-          const existingConversation = conversations.find(conversation => conversation.requestId === req.id);
-          if (!existingConversation) {
-            await createConversationAsync({
-              requestId: req.id,
-              participantIds: [user?.id || '', req.senderId],
-              participantNames: { [user?.id || '']: user?.name || 'You', [req.senderId]: req.senderName },
-              parcelDescription: parcel?.description || 'Parcel delivery',
-              route,
-            });
+          try {
+            await updateRequestStatusAsync({ requestId: req.id, status: 'accepted' });
+            try {
+              const parcel = parcels.find(p => p.id === req.parcelId);
+              const route = parcel ? `${parcel.fromCity} → ${parcel.toCity}` : trip ? `${trip.fromCity} → ${trip.toCity}` : 'Route';
+              const existingConversation = conversations.find(conversation => conversation.requestId === req.id);
+              if (!existingConversation) {
+                await createConversationAsync({
+                  requestId: req.id,
+                  participantIds: [user?.id || '', req.senderId],
+                  participantNames: { [user?.id || '']: user?.name || 'You', [req.senderId]: req.senderName },
+                  parcelDescription: parcel?.description || 'Parcel delivery',
+                  route,
+                });
+              }
+              await createDelivery(req.id);
+              await sendLocalNotification('Request Accepted', `You accepted delivery from ${req.senderName}`);
+            } catch (auxError) {
+              console.warn('Post-accept auxiliary step error (non-fatal):', auxError);
+            }
+            await Promise.all([
+              requestsQuery.refetch(),
+              conversationsQuery.refetch(),
+              requestedParcelIds.length > 0 ? parcelsQuery.refetch() : Promise.resolve(),
+            ]);
+            showAlert('Accepted!', 'Chat opened to coordinate pickup details.');
+          } catch (error) {
+            showAlert('Could Not Accept', getUserErrorMessage(error, 'Could not accept request. Please try again.'));
           }
-          await createDelivery(req.id);
-          await sendLocalNotification('Request Accepted', `You accepted delivery from ${req.senderName}`);
-          await Promise.all([
-            requestsQuery.refetch(),
-            conversationsQuery.refetch(),
-            requestedParcelIds.length > 0 ? parcelsQuery.refetch() : Promise.resolve(),
-          ]);
-          showAlert('Accepted!', 'Chat opened to coordinate pickup details.');
         },
       },
     ]);
   };
 
   const handleReject = (req: Request) => {
-    if (!user || req.travellerId !== user.id) {
-      showAlert('Not Allowed', 'Only the assigned traveller can reject this request.');
+    if (!user || !isRequestIncoming(req, user.id)) {
+      showAlert('Not Allowed', 'Only the intended recipient can reject this request.');
       return;
     }
 

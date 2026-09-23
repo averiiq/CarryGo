@@ -43,6 +43,8 @@ type TabFilter = 'all' | 'pending' | 'active' | 'done';
 interface ProposalCardProps {
   request: Request;
   viewerRole: 'sender' | 'traveller' | 'observer';
+  onAccept?: () => void;
+  onDecline?: () => void;
   onCancel: () => void;
   onChat: () => void;
   onTrack: () => void;
@@ -53,6 +55,8 @@ interface ProposalCardProps {
 function ProposalCard({
   request,
   viewerRole,
+  onAccept,
+  onDecline,
   onCancel,
   onChat,
   onTrack,
@@ -71,7 +75,7 @@ function ProposalCard({
         <View style={styles.carrierLeft}>
           <View style={[styles.carrierAvatar, { backgroundColor: C.primarySubtle }]}>
             <Text style={[styles.carrierAvatarText, { color: C.primary }]}>
-              {request.travellerName.charAt(0).toUpperCase()}
+              {(request.travellerName || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.carrierMeta}>
@@ -115,7 +119,7 @@ function ProposalCard({
               { borderColor: C.surfaceBorder },
               pressed && { opacity: 0.7 }
             ]}
-            onPress={onCancel}
+            onPress={onDecline || onCancel}
           >
             <MaterialIcons name="close" size={15} color={C.error} />
             <Text style={[styles.cancelOfferText, { color: C.error }]}>Decline</Text>
@@ -132,6 +136,20 @@ function ProposalCard({
             <Ionicons name="chatbubble-outline" size={15} color={C.textPrimary} />
             <Text style={[styles.chatOfferText, { color: C.textPrimary }]}>Chat</Text>
           </Pressable>
+
+          {onAccept ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.acceptOfferBtn,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }
+              ]}
+              onPress={onAccept}
+            >
+              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              <Text style={styles.acceptOfferText}>Accept</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
@@ -349,6 +367,46 @@ export default function ParcelDetailScreen() {
       Haptic.error();
       showAlert('Error', err?.message || 'Could not post trip and send offer.');
     }
+  };
+
+  const handleAcceptProposal = (req: Request) => {
+    showAlert('Accept Offer?', `Accept ${req.travellerName}'s offer to carry this parcel for ₹${req.price}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Accept Offer',
+        onPress: async () => {
+          try {
+            await updateRequestStatusAsync({ requestId: req.id, status: 'accepted' });
+            Haptic.success();
+            await Promise.all([requestsQuery.refetch(), parcelQuery.refetch()]);
+            showAlert('Offer Accepted! 🎉', 'You can now coordinate pickup details directly in chat.');
+          } catch (error) {
+            Haptic.error();
+            showAlert('Could Not Accept', getUserErrorMessage(error, 'Failed to accept proposal.'));
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeclineProposal = (req: Request) => {
+    showAlert('Decline Offer?', `Decline ${req.travellerName}'s offer to carry this parcel?`, [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Decline Offer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await updateRequestStatusAsync({ requestId: req.id, status: 'rejected' });
+            Haptic.tap();
+            await requestsQuery.refetch();
+          } catch (error) {
+            Haptic.error();
+            showAlert('Could Not Decline', getUserErrorMessage(error, 'Failed to decline proposal.'));
+          }
+        },
+      },
+    ]);
   };
 
   const handleCancel = (req: Request) => {
@@ -752,6 +810,8 @@ export default function ParcelDetailScreen() {
                   key={req.id}
                   request={req}
                   viewerRole={viewerRole}
+                  onAccept={() => handleAcceptProposal(req)}
+                  onDecline={() => handleDeclineProposal(req)}
                   onCancel={() => handleCancel(req)}
                   onChat={() => handleChat(req)}
                   onTrack={() => router.push({ pathname: '/delivery/[id]', params: { id: req.id } })}
@@ -1295,6 +1355,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chatOfferText: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
+  acceptOfferBtn: {
+    flex: 1.4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 11,
+    borderRadius: 14,
+  },
+  acceptOfferText: {
+    color: '#fff',
     fontSize: 12,
     fontWeight: FontWeight.bold,
   },

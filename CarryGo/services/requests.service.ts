@@ -7,7 +7,14 @@ import { isAwsBackendEnabled } from '@/lib/backend/provider';
 import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
 import { fetchParcelById } from '@/services/parcels.service';
 import { fetchTripById } from '@/services/trips.service';
-import { notifyNewRequest, notifyRequestAccepted, notifyRequestDeclined } from '@/services/notifications.service';
+import {
+  notifyNewRequest,
+  notifyNewCarryOffer,
+  notifyRequestAccepted,
+  notifyRequestDeclined,
+  notifyOfferAccepted,
+  notifyOfferDeclined,
+} from '@/services/notifications.service';
 
 interface RequestRow {
   id: string;
@@ -20,6 +27,8 @@ interface RequestRow {
   status: string;
   price: number | string;
   message?: string | null;
+  created_by?: string | null;
+  expires_at?: string | null;
   created_at: string;
   updated_at: string;
   parcels?: { id: string; from_city: string; to_city: string; category?: string; weight?: number } | { id: string; from_city: string; to_city: string; category?: string; weight?: number }[] | null;
@@ -58,6 +67,8 @@ function mapRow(row: RequestRow): Request {
     toCity,
     parcelCategory: parcel?.category,
     parcelWeight: parcel?.weight ? parseFloat(String(parcel.weight)) : undefined,
+    createdBy: row.created_by || undefined,
+    expiresAt: row.expires_at || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -229,14 +240,25 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
 
   if (!rpcError && rpcData) {
     const mapped = mapRow(rpcData as unknown as RequestRow);
-    void notifyNewRequest({
-      travellerId: mapped.travellerId,
-      senderName: mapped.senderName,
-      price: mapped.price,
-      requestId: mapped.id,
-      fromCity: mapped.fromCity,
-      toCity: mapped.toCity,
-    }).catch(err => console.warn('Failed to dispatch new request notification:', err));
+    if (mapped.createdBy && mapped.createdBy === mapped.travellerId) {
+      void notifyNewCarryOffer({
+        senderId: mapped.senderId,
+        travellerName: mapped.travellerName,
+        price: mapped.price,
+        requestId: mapped.id,
+        fromCity: mapped.fromCity,
+        toCity: mapped.toCity,
+      }).catch(err => console.warn('Failed to dispatch carry offer notification:', err));
+    } else {
+      void notifyNewRequest({
+        travellerId: mapped.travellerId,
+        senderName: mapped.senderName,
+        price: mapped.price,
+        requestId: mapped.id,
+        fromCity: mapped.fromCity,
+        toCity: mapped.toCity,
+      }).catch(err => console.warn('Failed to dispatch new request notification:', err));
+    }
     return { data: mapped, error: null };
   }
 
@@ -289,6 +311,7 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
       sender_name: parcel.userName,
       traveller_id: trip.userId,
       traveller_name: trip.userName,
+      created_by: actorUserId || req.senderId,
       status: 'pending',
       price: req.price,
       message: message || undefined,
@@ -304,14 +327,25 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
     return { data: null, error: rpcError?.message || fallbackError.message };
   }
   const mapped = mapRow(fallbackData as unknown as RequestRow);
-  void notifyNewRequest({
-    travellerId: mapped.travellerId,
-    senderName: mapped.senderName,
-    price: mapped.price,
-    requestId: mapped.id,
-    fromCity: mapped.fromCity,
-    toCity: mapped.toCity,
-  }).catch(err => console.warn('Failed to dispatch new request notification (fallback):', err));
+  if (mapped.createdBy && mapped.createdBy === mapped.travellerId) {
+    void notifyNewCarryOffer({
+      senderId: mapped.senderId,
+      travellerName: mapped.travellerName,
+      price: mapped.price,
+      requestId: mapped.id,
+      fromCity: mapped.fromCity,
+      toCity: mapped.toCity,
+    }).catch(err => console.warn('Failed to dispatch carry offer notification (fallback):', err));
+  } else {
+    void notifyNewRequest({
+      travellerId: mapped.travellerId,
+      senderName: mapped.senderName,
+      price: mapped.price,
+      requestId: mapped.id,
+      fromCity: mapped.fromCity,
+      toCity: mapped.toCity,
+    }).catch(err => console.warn('Failed to dispatch new request notification (fallback):', err));
+  }
   return { data: mapped, error: null };
 }
 
@@ -380,12 +414,22 @@ export async function checkDuplicateRequest(parcelId: string, tripId: string): P
 }
 
 function validateStatusTransition(request: Request, status: Request['status'], actorUserId: string): string | null {
+  const requesterId = request.createdBy || request.senderId;
+  const intendedRecipientId = request.createdBy
+    ? (request.createdBy === request.senderId ? request.travellerId : request.senderId)
+    : request.travellerId;
+
   if (status === 'accepted' || status === 'rejected') {
     if (request.status !== 'pending') {
       return `Only pending requests can be ${status}.`;
     }
-    if (request.travellerId !== actorUserId) {
-      return `Only the assigned traveller can ${status} this request.`;
+    // STRICT SECURITY: Requester cannot accept/reject their own request
+    if (actorUserId === requesterId) {
+      return `Requesters cannot ${status} their own request.`;
+    }
+    // Only the intended recipient can accept/reject
+    if (actorUserId !== intendedRecipientId) {
+      return `Only the intended recipient can ${status} this request.`;
     }
     return null;
   }
@@ -394,8 +438,9 @@ function validateStatusTransition(request: Request, status: Request['status'], a
     if (request.status !== 'pending') {
       return 'Only pending requests can be cancelled.';
     }
-    if (request.senderId !== actorUserId) {
-      return 'Only the parcel sender can cancel this request.';
+    // Only the requester who created the request can cancel it
+    if (actorUserId !== requesterId) {
+      return 'Only the user who created this request can cancel it.';
     }
     return null;
   }
@@ -469,49 +514,64 @@ export async function updateRequestStatus(requestId: string, status: Request['st
     p_next_status: status,
   }).single();
 
-  if (!error && data) {
-    const mapped = mapRow(data as unknown as RequestRow);
-    if (status === 'accepted') {
+  if (error || !data) {
+    const errorMsg = error?.message || 'Failed to update request status';
+    console.error('transition_request_status RPC error:', errorMsg);
+    return { data: null, error: errorMsg };
+  }
+
+  const mapped = mapRow(data as unknown as RequestRow);
+  const requesterId = mapped.createdBy || mapped.senderId;
+
+  if (status === 'accepted') {
+    if (requesterId === mapped.senderId) {
       void notifyRequestAccepted({
         senderId: mapped.senderId,
         travellerName: mapped.travellerName,
         requestId: mapped.id,
       }).catch(err => console.warn('Failed to dispatch request accepted notification:', err));
-    } else if (status === 'rejected') {
+    } else {
+      void notifyOfferAccepted({
+        travellerId: mapped.travellerId,
+        senderName: mapped.senderName,
+        requestId: mapped.id,
+      }).catch(err => console.warn('Failed to dispatch offer accepted notification:', err));
+    }
+  } else if (status === 'rejected') {
+    if (requesterId === mapped.senderId) {
       void notifyRequestDeclined({
         senderId: mapped.senderId,
         travellerName: mapped.travellerName,
         requestId: mapped.id,
       }).catch(err => console.warn('Failed to dispatch request declined notification:', err));
+    } else {
+      void notifyOfferDeclined({
+        travellerId: mapped.travellerId,
+        senderName: mapped.senderName,
+        requestId: mapped.id,
+      }).catch(err => console.warn('Failed to dispatch offer declined notification:', err));
     }
-    return { data: mapped, error: null };
   }
 
-  // Fallback: Direct table update if RPC fails (e.g. auth context mismatch or RPC unavailable)
-  console.warn('transition_request_status RPC failed, trying direct table update:', error?.message);
-  const { data: fallbackData, error: fallbackError } = await sb
-    .from('requests')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', requestId)
-    .select('*, parcels(id, from_city, to_city, category, weight), trips(id, from_city, to_city, vehicle_type)')
-    .single();
+  return { data: mapped, error: null };
+}
 
-  if (fallbackError) {
-    return { data: null, error: error?.message || fallbackError.message };
+export async function cancelRequest(requestId: string, userId: string) {
+  return updateRequestStatus(requestId, 'cancelled', userId);
+}
+
+export function isRequestIncoming(request: Request, currentUserId?: string): boolean {
+  if (!currentUserId) return false;
+  if (request.createdBy) {
+    return request.createdBy !== currentUserId && (request.senderId === currentUserId || request.travellerId === currentUserId);
   }
-  const fallbackMapped = mapRow(fallbackData as unknown as RequestRow);
-  if (status === 'accepted') {
-    void notifyRequestAccepted({
-      senderId: fallbackMapped.senderId,
-      travellerName: fallbackMapped.travellerName,
-      requestId: fallbackMapped.id,
-    }).catch(err => console.warn('Failed to dispatch request accepted notification (fallback):', err));
-  } else if (status === 'rejected') {
-    void notifyRequestDeclined({
-      senderId: fallbackMapped.senderId,
-      travellerName: fallbackMapped.travellerName,
-      requestId: fallbackMapped.id,
-    }).catch(err => console.warn('Failed to dispatch request declined notification (fallback):', err));
+  return request.travellerId === currentUserId;
+}
+
+export function isRequestOutgoing(request: Request, currentUserId?: string): boolean {
+  if (!currentUserId) return false;
+  if (request.createdBy) {
+    return request.createdBy === currentUserId;
   }
-  return { data: fallbackMapped, error: null };
+  return request.senderId === currentUserId;
 }

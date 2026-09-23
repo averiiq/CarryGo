@@ -61,6 +61,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
         lightColor: '#4F8EF7',
         sound: 'default',
       });
+      await Notifications.setNotificationChannelAsync('messages', {
+        name: 'Chat & Messages',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 200, 200, 200],
+        lightColor: '#00D09E',
+        sound: 'default',
+      });
       await Notifications.setNotificationChannelAsync('deliveries', {
         name: 'Deliveries',
         importance: Notifications.AndroidImportance.HIGH,
@@ -291,49 +298,106 @@ export async function dispatchNotification(payload: DispatchNotificationPayload)
     const trimmedBody = payload.body?.trim();
 
     if (!trimmedTitle || !trimmedBody || !payload.userId) {
+      console.warn('[dispatchNotification] Missing required fields:', { title: !!trimmedTitle, body: !!trimmedBody, userId: !!payload.userId });
       return { success: false, error: 'Missing required notification fields' };
     }
 
-    // 1. Insert into public.notifications
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: dbError } = await sb.from('notifications').insert({
-      user_id: payload.userId,
-      title: trimmedTitle,
-      body: trimmedBody,
-      type: payload.type as any,
-      related_id: payload.relatedId,
-    });
+    // 1. Dispatch through secure RPC (inserts notification & returns target user push tokens)
+    let tokens: string[] = [];
+    let dbInsertSucceeded = false;
 
-    if (dbError) {
-      console.warn('[dispatchNotification] DB insert warning:', dbError.message);
+    try {
+      const { data: cmdData, error: cmdErr } = await sb.rpc('dispatch_notification_command', {
+        p_recipient_id: payload.userId,
+        p_title: trimmedTitle,
+        p_body: trimmedBody,
+        p_type: payload.type,
+        p_related_id: payload.relatedId || undefined,
+        p_deep_link: payload.deepLink || undefined,
+        p_data: (payload.data || {}) as any,
+      });
+
+      if (!cmdErr && cmdData) {
+        dbInsertSucceeded = true;
+        // PostgREST returns table-returning functions as an array of rows
+        const row = Array.isArray(cmdData) ? cmdData[0] : cmdData;
+        if (row && typeof row === 'object') {
+          // push_tokens comes as a Postgres text[] — may be an array or a stringified array
+          const rawTokens = (row as any).push_tokens;
+          if (Array.isArray(rawTokens)) {
+            tokens = rawTokens.filter((t: unknown) => typeof t === 'string' && t.length > 0);
+          } else if (typeof rawTokens === 'string' && rawTokens.startsWith('{')) {
+            // Postgres array literal: {token1,token2}
+            tokens = rawTokens.slice(1, -1).split(',').filter(Boolean);
+          }
+        }
+        console.log('[dispatchNotification] RPC success, tokens found:', tokens.length);
+      } else {
+        if (cmdErr) console.warn('[dispatchNotification] RPC error:', cmdErr.message, cmdErr.code);
+      }
+    } catch (e) {
+      console.warn('[dispatchNotification] RPC exception:', e);
     }
 
-    // 2. Fetch target user's active push tokens
-    const { data: devices } = await sb
-      .from('user_devices')
-      .select('expo_push_token')
-      .eq('user_id', payload.userId)
-      .is('invalidated_at', null);
-
-    let tokens: string[] = (devices || [])
-      .map((d: { expo_push_token: string | null }) => d.expo_push_token)
-      .filter((t): t is string => Boolean(t));
-
+    // Fallback: if RPC failed or returned no tokens, try get_user_push_tokens RPC
     if (tokens.length === 0) {
-      const { data: profile } = await sb
-        .from('user_profiles')
-        .select('push_token')
-        .eq('id', payload.userId)
-        .single();
-      if (profile?.push_token) {
-        tokens = [profile.push_token];
+      try {
+        const { data: tokenData, error: tokenErr } = await sb.rpc('get_user_push_tokens', { p_user_id: payload.userId });
+        if (!tokenErr && tokenData) {
+          const rawFallback: any = tokenData;
+          if (Array.isArray(rawFallback)) {
+            tokens = (rawFallback as string[]).filter(Boolean);
+          } else if (typeof rawFallback === 'string' && rawFallback.startsWith('{')) {
+            tokens = rawFallback.slice(1, -1).split(',').filter(Boolean);
+          }
+          console.log('[dispatchNotification] Fallback RPC tokens:', tokens.length);
+        } else if (tokenErr) {
+          console.warn('[dispatchNotification] get_user_push_tokens error:', tokenErr.message);
+        }
+      } catch (e) {
+        console.warn('[dispatchNotification] get_user_push_tokens exception:', e);
       }
     }
 
-    // 3. Dispatch to Expo Push API if tokens exist
+    // Last resort fallback: read user_profiles push_token directly
+    // (will only work if the caller has RLS access, e.g., reading own profile)
+    if (tokens.length === 0) {
+      try {
+        const { data: profile } = await sb
+          .from('user_profiles')
+          .select('push_token')
+          .eq('id', payload.userId)
+          .single();
+        if (profile?.push_token) {
+          tokens = [profile.push_token];
+          console.log('[dispatchNotification] Profile fallback token found');
+        }
+      } catch {
+        // RLS blocks cross-user reads — expected to fail silently
+      }
+    }
+
+    // If the RPC didn't insert the notification (it failed), do a direct insert as fallback
+    if (!dbInsertSucceeded) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await sb.from('notifications').insert({
+          user_id: payload.userId,
+          title: trimmedTitle,
+          body: trimmedBody,
+          type: payload.type as any,
+          related_id: payload.relatedId,
+        });
+        console.log('[dispatchNotification] Fallback DB insert succeeded');
+      } catch {
+        console.warn('[dispatchNotification] Fallback DB insert also failed (RLS may block cross-user inserts)');
+      }
+    }
+
+    // 2. Dispatch to Expo Push API if tokens exist
     if (tokens.length > 0) {
       const channelId = payload.type === 'chat_message'
-        ? 'default'
+        ? 'messages'
         : payload.type.startsWith('delivery')
           ? 'deliveries'
           : payload.type.startsWith('payment')
@@ -344,8 +408,8 @@ export async function dispatchNotification(payload: DispatchNotificationPayload)
         to: token,
         title: trimmedTitle,
         body: trimmedBody,
-        sound: 'default',
-        priority: payload.priority === 'high' ? 'high' : 'default',
+        sound: 'default' as const,
+        priority: (payload.priority === 'high' || payload.type === 'chat_message') ? 'high' as const : 'default' as const,
         channelId,
         data: {
           type: payload.type,
@@ -356,7 +420,7 @@ export async function dispatchNotification(payload: DispatchNotificationPayload)
       }));
 
       try {
-        await fetch('https://exp.host/--/api/v2/push/send', {
+        const pushResponse = await fetch('https://exp.host/--/api/v2/push/send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -364,9 +428,13 @@ export async function dispatchNotification(payload: DispatchNotificationPayload)
           },
           body: JSON.stringify(pushMessages),
         });
+        const pushResult = await pushResponse.json().catch(() => null);
+        console.log('[dispatchNotification] Expo push response:', pushResponse.status, JSON.stringify(pushResult));
       } catch (pushErr) {
         console.warn('[dispatchNotification] Expo push network error:', pushErr);
       }
+    } else {
+      console.warn('[dispatchNotification] No push tokens found for user:', payload.userId);
     }
 
     return { success: true };
@@ -441,6 +509,58 @@ export async function notifyRequestDeclined(params: {
     userId: params.senderId,
     title: '❌ Request Declined',
     body: `${params.travellerName} was unable to carry your parcel this time. Tap to explore other routes.`,
+    type: 'request_rejected',
+    priority: 'normal',
+    relatedId: params.requestId,
+    deepLink: '/(tabs)/requests',
+  });
+}
+
+export async function notifyNewCarryOffer(params: {
+  senderId: string;
+  travellerName: string;
+  price: number;
+  requestId: string;
+  fromCity?: string;
+  toCity?: string;
+}) {
+  const routeText = params.fromCity && params.toCity ? ` (${params.fromCity} → ${params.toCity})` : '';
+  return dispatchNotification({
+    userId: params.senderId,
+    title: '🚗 New Carry Offer!',
+    body: `${params.travellerName} offered to carry your parcel for ₹${params.price}${routeText}. Tap to review and accept.`,
+    type: 'new_request',
+    priority: 'high',
+    relatedId: params.requestId,
+    deepLink: '/(tabs)/requests',
+  });
+}
+
+export async function notifyOfferAccepted(params: {
+  travellerId: string;
+  senderName: string;
+  requestId: string;
+}) {
+  return dispatchNotification({
+    userId: params.travellerId,
+    title: '✅ Offer Accepted!',
+    body: `${params.senderName} accepted your carry offer. Open chat to coordinate pickup.`,
+    type: 'request_accepted',
+    priority: 'high',
+    relatedId: params.requestId,
+    deepLink: '/(tabs)/requests',
+  });
+}
+
+export async function notifyOfferDeclined(params: {
+  travellerId: string;
+  senderName: string;
+  requestId: string;
+}) {
+  return dispatchNotification({
+    userId: params.travellerId,
+    title: '❌ Offer Declined',
+    body: `${params.senderName} declined your carry offer.`,
     type: 'request_rejected',
     priority: 'normal',
     relatedId: params.requestId,

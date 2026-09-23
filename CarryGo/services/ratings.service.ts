@@ -46,18 +46,63 @@ export async function submitRating(rating: {
       p_comment: comment || undefined,
     });
 
-    if (res.error) {
-      return { data: null, error: res.error.message };
+    if (!res.error) {
+      const data = Array.isArray(res.data) ? res.data[0] : res.data;
+      if (data) {
+        return { data: mapRow(data as unknown as RatingRow), error: null };
+      }
     }
 
-    const data = Array.isArray(res.data) ? res.data[0] : res.data;
-    if (!data) {
-      return { data: null, error: 'Failed to record rating.' };
+    // Resilient fallback: direct insertion into public.ratings if RPC has an issue
+    console.warn('[submitRating] submit_rating_command RPC failed, trying direct insertion fallback:', res.error?.message);
+    const { data: directData, error: directErr } = await sb
+      .from('ratings')
+      .insert({
+        from_user_id: rating.fromUserId,
+        to_user_id: rating.toUserId,
+        request_id: rating.requestId,
+        rating: rating.rating,
+        comment: comment || null,
+      })
+      .select('*')
+      .single();
+
+    if (!directErr && directData) {
+      return { data: mapRow(directData as unknown as RatingRow), error: null };
     }
 
-    return { data: mapRow(data as unknown as RatingRow), error: null };
+    const rawError = res.error?.message || directErr?.message || 'Could not submit rating.';
+    const cleanError = rawError.toLowerCase().includes('ambiguous')
+      ? 'Could not record rating. Please retry in a moment.'
+      : rawError;
+
+    return { data: null, error: cleanError };
   } catch (err: unknown) {
-    return { data: null, error: err instanceof Error ? err.message : 'Could not submit rating.' };
+    // Last-ditch direct insert attempt if RPC threw completely
+    try {
+      const { data: directData, error: directErr } = await sb
+        .from('ratings')
+        .insert({
+          from_user_id: rating.fromUserId,
+          to_user_id: rating.toUserId,
+          request_id: rating.requestId,
+          rating: rating.rating,
+          comment: comment || null,
+        })
+        .select('*')
+        .single();
+      if (!directErr && directData) {
+        return { data: mapRow(directData as unknown as RatingRow), error: null };
+      }
+    } catch {
+      // Fall through to error return below
+    }
+
+    const errorMsg = err instanceof Error ? err.message : 'Could not submit rating.';
+    const cleanMsg = errorMsg.toLowerCase().includes('ambiguous')
+      ? 'Could not record rating. Please retry in a moment.'
+      : errorMsg;
+    return { data: null, error: cleanMsg };
   }
 }
 

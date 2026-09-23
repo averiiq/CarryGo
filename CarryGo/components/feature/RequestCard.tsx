@@ -62,8 +62,17 @@ export const RequestCard = React.memo(function RequestCard({
   const pressScale = useRef(new Animated.Value(1)).current;
 
   const sc = STATUS_CONFIG(C)[request.status] || STATUS_CONFIG(C).pending;
-  const personName = type === 'incoming' ? request.senderName : request.travellerName;
   const isIncoming = type === 'incoming';
+  const personName = request.createdBy
+    ? (isIncoming
+        ? (request.createdBy === request.senderId ? request.senderName : request.travellerName)
+        : (request.createdBy === request.senderId ? request.travellerName : request.senderName))
+    : (isIncoming ? request.senderName : request.travellerName);
+  const roleLabel = request.createdBy
+    ? (isIncoming
+        ? (request.createdBy === request.senderId ? 'Sender' : 'Traveler')
+        : (request.createdBy === request.senderId ? 'Traveler' : 'Sender'))
+    : (isIncoming ? 'Sender' : 'Traveler');
   const showSwipeHint = isIncoming && request.status === 'pending';
   const { pickup, drop } = getRouteLocations(request);
 
@@ -249,7 +258,7 @@ export const RequestCard = React.memo(function RequestCard({
                   <MaterialIcons name="verified" size={13} color={C.info} />
                 </View>
                 <Text style={[styles.userSubText, { color: C.textMuted }]}>
-                  4.8 ★ · {isIncoming ? 'Sender' : 'Traveler'}
+                  4.8 ★ · {roleLabel}
                 </Text>
               </View>
             </View>

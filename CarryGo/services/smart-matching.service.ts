@@ -1,5 +1,16 @@
 import { Trip, Parcel } from '@/types';
 import { getDistance, findCity } from '@/constants/indian-cities';
+import {
+  checkTripParcelRoute,
+  checkRouteCompatibility,
+  RouteCompatibilityResult,
+} from './route-compatibility.service';
+
+export {
+  checkTripParcelRoute,
+  checkRouteCompatibility,
+  RouteCompatibilityResult,
+};
 
 export interface MatchScore {
   total: number;
@@ -12,6 +23,9 @@ export interface MatchScore {
     reliabilityScore: number;
   };
   grade: 'excellent' | 'good' | 'fair' | 'poor';
+  isEligible?: boolean;
+  rejectionReason?: string;
+  routeCompatibility?: RouteCompatibilityResult;
 }
 
 export interface RankedTripMatch {
@@ -148,55 +162,7 @@ function areCitiesEquivalent(left: string, right: string): boolean {
 }
 
 function routeCompatibility(trip: Trip, parcel: Parcel): number {
-  const fromExact = areCitiesEquivalent(trip.fromCity, parcel.fromCity);
-  const toExact = areCitiesEquivalent(trip.toCity, parcel.toCity);
-
-  if (fromExact && toExact) {
-    return 100;
-  }
-
-  const tripFrom = findCity(normalizeCityName(trip.fromCity));
-  const tripTo = findCity(normalizeCityName(trip.toCity));
-  const parcelFrom = findCity(normalizeCityName(parcel.fromCity));
-  const parcelTo = findCity(normalizeCityName(parcel.toCity));
-
-  if (!tripFrom || !tripTo || !parcelFrom || !parcelTo) {
-    return fromExact || toExact ? 40 : 0;
-  }
-
-  const fromDistance = getDistance(tripFrom, parcelFrom);
-  const toDistance = getDistance(tripTo, parcelTo);
-
-  const legacyBandScore =
-    fromDistance <= 50 && toDistance <= 50 ? 80 :
-    fromDistance <= 100 && toDistance <= 100 ? 60 :
-    fromDistance <= 200 && toDistance <= 200 ? 30 : 0;
-
-  const pickupProximityScore = distanceDecayScore(fromDistance, 80);
-  const dropoffProximityScore = distanceDecayScore(toDistance, 80);
-
-  const baseRouteDistance = Math.max(getDistance(tripFrom, tripTo), 1);
-  const routeWithParcel =
-    getDistance(tripFrom, parcelFrom) +
-    getDistance(parcelFrom, parcelTo) +
-    getDistance(parcelTo, tripTo);
-  const extraDetour = Math.max(routeWithParcel - baseRouteDistance, 0);
-  const detourRatio = extraDetour / baseRouteDistance;
-
-  const dispatchScore = clampScore(
-    pickupProximityScore * 0.30 +
-    dropoffProximityScore * 0.30 +
-    detourScore(detourRatio) * 0.25 +
-    directionAlignmentScore(tripFrom, tripTo, parcelFrom, parcelTo) * 0.15,
-  );
-
-  const finalRouteScore = clampScore(legacyBandScore * 0.55 + dispatchScore * 0.45);
-
-  if (finalRouteScore === 0 && (fromExact || toExact)) {
-    return 40;
-  }
-
-  return finalRouteScore;
+  return checkTripParcelRoute(trip, parcel).overallRouteScore;
 }
 
 function dateAlignment(tripDate: string, parcelCreatedAt: string, parcelDeliveryDate?: string): number {
@@ -250,14 +216,45 @@ function ratingScore(rating: number): number {
 }
 
 export function scoreMatch(trip: Trip, parcel: Parcel): MatchScore {
+  const routeCompat = checkTripParcelRoute(trip, parcel);
+  const dateScore = dateAlignment(trip.date, parcel.createdAt, parcel.deliveryDate);
+  const capacityScore = capacityFit(trip.availableCapacity, parcel.weight);
+
+  const deadlineMissed = parcel.deliveryDate
+    ? (new Date(trip.date).getTime() - new Date(parcel.deliveryDate).getTime()) / (1000 * 60 * 60 * 24) > 1
+    : false;
+
+  // HARD ELIGIBILITY ENFORCEMENT:
+  // 1. Route MUST be compatible. If route is not compatible, candidate is strictly ineligible with 0 score.
+  // 2. Capacity MUST fit.
+  // 3. Must not miss parcel delivery deadline.
+  const isEligible = routeCompat.isCompatible && capacityScore > 0 && !deadlineMissed;
+
   const breakdown = {
-    routeScore: routeCompatibility(trip, parcel),
-    dateScore: dateAlignment(trip.date, parcel.createdAt, parcel.deliveryDate),
-    capacityScore: capacityFit(trip.availableCapacity, parcel.weight),
+    routeScore: routeCompat.overallRouteScore,
+    dateScore,
+    capacityScore,
     priceScore: priceCompatibility(trip.pricePerKg, parcel.priceOffer, parcel.weight),
     ratingScore: ratingScore(trip.userRating),
     reliabilityScore: 70,
   };
+
+  if (!isEligible) {
+    const rejectionReason = !routeCompat.isCompatible
+      ? (routeCompat.rejectionReason || 'Route is not compatible with parcel journey')
+      : capacityScore === 0
+        ? 'Parcel weight exceeds available luggage capacity'
+        : 'Trip departs after parcel delivery deadline';
+
+    return {
+      total: 0,
+      breakdown,
+      grade: 'poor',
+      isEligible: false,
+      rejectionReason,
+      routeCompatibility: routeCompat,
+    };
+  }
 
   const deadlineGapDays = parcel.deliveryDate
     ? (new Date(parcel.deliveryDate).getTime() - new Date(trip.date).getTime()) / (1000 * 60 * 60 * 24)
@@ -295,7 +292,13 @@ export function scoreMatch(trip: Trip, parcel: Parcel): MatchScore {
     total >= 60 ? 'good' :
     total >= 40 ? 'fair' : 'poor';
 
-  return { total, breakdown, grade };
+  return {
+    total,
+    breakdown,
+    grade,
+    isEligible: true,
+    routeCompatibility: routeCompat,
+  };
 }
 
 export function findBestMatches(
@@ -309,7 +312,7 @@ export function findBestMatches(
   const scored = trips
     .filter(t => t.userId !== parcel.userId && t.status === 'active')
     .map(trip => ({ trip, score: scoreMatch(trip, parcel) }))
-    .filter(m => m.score.total >= minScore)
+    .filter(m => m.score.isEligible && m.score.total >= minScore)
     .sort((a, b) => b.score.total - a.score.total)
     .slice(0, limit);
 
@@ -327,7 +330,7 @@ export function findBestParcelsForTrip(
   const scored = parcels
     .filter(parcel => parcel.userId !== trip.userId && parcel.status === 'open' && parcel.weight <= trip.availableCapacity)
     .map(parcel => ({ parcel, score: scoreMatch(trip, parcel) }))
-    .filter(match => match.score.total >= minScore)
+    .filter(match => match.score.isEligible && match.score.total >= minScore)
     .sort((left, right) => right.score.total - left.score.total)
     .slice(0, limit);
 
@@ -394,7 +397,7 @@ export function diagnoseParcelTripMatching(
   }
 
   // 3. Route compatibility check
-  const routeTrips = activeTrips.filter(t => routeCompatibility(t, parcel) >= 20);
+  const routeTrips = activeTrips.filter(t => checkTripParcelRoute(t, parcel).isCompatible);
   if (routeTrips.length === 0) {
     return {
       reason: 'corridor_unserved',
@@ -598,7 +601,7 @@ export function diagnoseTripParcelMatching(
     };
   }
 
-  const routeParcels = openParcels.filter(p => routeCompatibility(trip, p) >= 20);
+  const routeParcels = openParcels.filter(p => checkTripParcelRoute(trip, p).isCompatible);
   if (routeParcels.length === 0) {
     return {
       reason: 'corridor_unserved',
@@ -657,4 +660,70 @@ export function diagnoseTripParcelMatching(
     ],
     details: { corridorName },
   };
+}
+
+/**
+ * Calls server-side PostgreSQL RPC `find_matching_trips_for_parcel`
+ * Uses database-level route compatibility, capacity checks, date filtering, and self-matching prevention.
+ */
+export async function fetchServerMatchingTrips(parcelId: string): Promise<Trip[]> {
+  try {
+    const { getSupabaseClient } = require('@/template');
+    const sb = getSupabaseClient();
+    const { data, error } = await sb.rpc('find_matching_trips_for_parcel', {
+      p_parcel_id: parcelId,
+    });
+    if (error || !data) return [];
+    return (data as any[]).map(row => ({
+      id: row.trip_id,
+      userId: row.user_id,
+      userName: row.user_name,
+      userRating: parseFloat(String(row.user_rating || 4.5)),
+      fromCity: row.from_city,
+      toCity: row.to_city,
+      date: row.date,
+      time: row.time,
+      vehicleType: row.vehicle_type,
+      availableCapacity: parseFloat(String(row.available_capacity)),
+      pricePerKg: parseFloat(String(row.price_per_kg)),
+      status: row.status,
+      createdAt: row.created_at,
+    }));
+  } catch (err) {
+    console.warn('fetchServerMatchingTrips RPC error:', err);
+    return [];
+  }
+}
+
+/**
+ * Calls server-side PostgreSQL RPC `find_matching_parcels_for_trip`
+ * Uses database-level route compatibility, capacity checks, and self-matching prevention.
+ */
+export async function fetchServerMatchingParcels(tripId: string): Promise<Parcel[]> {
+  try {
+    const { getSupabaseClient } = require('@/template');
+    const sb = getSupabaseClient();
+    const { data, error } = await sb.rpc('find_matching_parcels_for_trip', {
+      p_trip_id: tripId,
+    });
+    if (error || !data) return [];
+    return (data as any[]).map(row => ({
+      id: row.parcel_id,
+      userId: row.user_id,
+      userName: row.user_name,
+      fromCity: row.from_city,
+      toCity: row.to_city,
+      category: row.category,
+      description: row.description,
+      weight: parseFloat(String(row.weight)),
+      priceOffer: parseFloat(String(row.price_offer)),
+      imageUrl: row.image_url,
+      status: row.status,
+      deliveryDate: row.delivery_date,
+      createdAt: row.created_at,
+    }));
+  } catch (err) {
+    console.warn('fetchServerMatchingParcels RPC error:', err);
+    return [];
+  }
 }
