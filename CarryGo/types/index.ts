@@ -151,6 +151,8 @@ export type NotificationType =
   | 'request_accepted'
   | 'request_rejected'
   | 'delivery_otp'
+  | 'delivery_pickup'
+  | 'delivery_completed'
   | 'rating'
   | 'general'
   | 'route_match'

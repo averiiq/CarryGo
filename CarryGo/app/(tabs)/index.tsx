@@ -583,7 +583,7 @@ export default function HomeScreen() {
       const newTrip = await createTripMutation.mutateAsync({
         userId: user.id,
         userName: user.fullName || user.name || 'Traveller',
-        userRating: user.rating || 4.5,
+        userRating: user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0) : 0,
         fromCity: targetParcel.fromCity,
         toCity: targetParcel.toCity,
         date: quickParams.date,

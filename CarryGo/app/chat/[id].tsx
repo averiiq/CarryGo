@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, TextInput, Pressable,
   KeyboardAvoidingView, Platform, Animated, FlatList,
+  ScrollView, Keyboard,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -132,6 +133,14 @@ interface ChatInputBarProps {
   onFocus?: () => void;
 }
 
+const QUICK_PROMPTS = [
+  { id: '1', label: '📍 Exact location?', text: 'Hi! Could you share the exact pickup location and landmark?' },
+  { id: '2', label: '📦 Ready for pickup', text: 'The package is packed, verified, and ready for pickup.' },
+  { id: '3', label: '🚗 Reaching in 10m', text: 'On my way now! Reaching in about 10-15 minutes.' },
+  { id: '4', label: '⏰ Best handoff time?', text: 'What time is best for the package handoff today?' },
+  { id: '5', label: '👍 Sounds good', text: 'Sounds good! See you soon.' },
+];
+
 const ChatInputBar = React.memo(function ChatInputBar({
   onSend,
   isSending,
@@ -144,7 +153,7 @@ const ChatInputBar = React.memo(function ChatInputBar({
   const [isFocused, setIsFocused] = useState(false);
   const sendBtnScale = useRef(new Animated.Value(1)).current;
   const { bottomInset } = useKeyboardPadding({
-    activePadding: Spacing.xs + 4,
+    activePadding: Spacing.xs + 2,
     inactivePadding: Spacing.sm,
   });
 
@@ -167,68 +176,99 @@ const ChatInputBar = React.memo(function ChatInputBar({
     }
   };
 
+  const handleQuickPrompt = (chipText: string) => {
+    Haptic.tap();
+    setText(chipText);
+    onFocus?.();
+  };
+
   const hasText = text.trim().length > 0;
 
   return (
-    <View
-      style={[
-        styles.inputRow,
-        {
-          backgroundColor: C.surface,
-          borderTopColor: C.surfaceBorder,
-          paddingBottom: bottomInset,
-        },
-      ]}
-    >
+    <View style={[styles.inputBarContainer, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
+      {/* Quick Suggestion Chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.quickChipsContent}
+        style={styles.quickChipsScroll}
+        keyboardShouldPersistTaps="always"
+      >
+        {QUICK_PROMPTS.map(chip => (
+          <Pressable
+            key={chip.id}
+            accessibilityRole="button"
+            accessibilityLabel={chip.label}
+            onPress={() => handleQuickPrompt(chip.text)}
+            style={({ pressed }) => [
+              styles.quickChip,
+              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+            ]}
+          >
+            <Text style={[styles.quickChipText, { color: C.textPrimary }]}>{chip.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
       <View
         style={[
-          styles.inputWrap,
+          styles.inputRow,
           {
-            backgroundColor: isFocused ? C.primarySubtle : C.inputBg,
-            borderColor: isFocused ? C.primary : C.surfaceBorder,
+            paddingBottom: bottomInset,
           },
         ]}
       >
-        <TextInput
+        <View
           style={[
-            styles.input,
+            styles.inputWrap,
             {
-              color: C.textPrimary,
-              ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+              backgroundColor: isFocused ? C.primarySubtle : C.inputBg,
+              borderColor: isFocused ? C.primary : C.surfaceBorder,
             },
           ]}
-          value={text}
-          onChangeText={setText}
-          placeholder={`Message ${otherName}...`}
-          placeholderTextColor={C.textMuted}
-          multiline
-          maxLength={500}
-          onFocus={() => {
-            setIsFocused(true);
-            onFocus?.();
-          }}
-          onBlur={() => setIsFocused(false)}
-        />
-      </View>
-      <Animated.View style={{ transform: [{ scale: sendBtnScale }] }}>
-        <Pressable
-          style={[
-            styles.sendBtn,
-            { backgroundColor: hasText && !isSending ? C.primaryDark : C.surfaceElevated },
-          ]}
-          onPress={handleSend}
-          disabled={!hasText || isSending}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Send message"
         >
-          <Ionicons
-            name="send"
-            size={18}
-            color={hasText && !isSending ? C.textInverse : C.textMuted}
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: C.textPrimary,
+                ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+              },
+            ]}
+            value={text}
+            onChangeText={setText}
+            placeholder={`Message ${otherName}...`}
+            placeholderTextColor={C.textMuted}
+            multiline
+            maxLength={500}
+            onFocus={() => {
+              setIsFocused(true);
+              onFocus?.();
+            }}
+            onBlur={() => setIsFocused(false)}
           />
-        </Pressable>
-      </Animated.View>
+        </View>
+        <Animated.View style={{ transform: [{ scale: sendBtnScale }] }}>
+          <Pressable
+            style={[
+              styles.sendBtn,
+              { backgroundColor: hasText && !isSending ? C.primaryDark : C.surfaceElevated },
+            ]}
+            onPress={handleSend}
+            disabled={!hasText || isSending}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+          >
+            <Ionicons
+              name="send"
+              size={18}
+              color={hasText && !isSending ? C.textInverse : C.textMuted}
+            />
+          </Pressable>
+        </Animated.View>
+      </View>
     </View>
   );
 });
@@ -291,6 +331,14 @@ export default function ChatScreen() {
       safeScrollToEnd(false);
     }
   }, [chatMessages.length, safeScrollToEnd]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const sub = Keyboard.addListener(showEvent, () => {
+      safeScrollToEnd(true);
+    });
+    return () => sub.remove();
+  }, [safeScrollToEnd]);
 
   const handleInputFocus = useCallback(() => {
     setTimeout(() => {
@@ -440,8 +488,8 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: C.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 25}
     >
       {/* Delivery CTA bar */}
       {!id ? (
@@ -463,32 +511,44 @@ export default function ChatScreen() {
           style={[
             styles.deliveryCTA,
             {
-              backgroundColor: isDeliveryCompleted ? C.successSubtle : C.primarySubtle,
-              borderBottomColor: C.surfaceBorder,
+              backgroundColor: isDeliveryCompleted ? C.successSubtle : C.surface,
+              borderColor: C.surfaceBorder,
             },
           ]}
           onPress={() => router.push({ pathname: '/delivery/[id]', params: { id: conversation.requestId } })}
         >
-          <MaterialIcons
-            name={isDeliveryCompleted ? 'verified' : 'local-shipping'}
-            size={15}
-            color={isDeliveryCompleted ? C.success : C.primary}
-          />
-          <Text
-            style={[
-              styles.deliveryCTAText,
-              { color: isDeliveryCompleted ? C.success : C.primary },
-            ]}
-          >
-            {isDeliveryCompleted
-              ? `${conversation.route || 'Delivery'} · Concluded`
-              : conversation.route || 'Track Delivery Status'}
-          </Text>
-          <MaterialIcons
-            name="chevron-right"
-            size={14}
-            color={isDeliveryCompleted ? C.success : C.primary}
-          />
+          <View style={[styles.deliveryCTAIconBox, { backgroundColor: isDeliveryCompleted ? C.success + '20' : C.primarySubtle }]}>
+            <MaterialIcons
+              name={isDeliveryCompleted ? 'verified' : 'local-shipping'}
+              size={18}
+              color={isDeliveryCompleted ? C.success : C.primary}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.deliveryCTATitle, { color: C.textPrimary }]} numberOfLines={1}>
+                {conversation.route || 'Delivery Route'}
+              </Text>
+              {requestQuery.data?.price ? (
+                <View style={[styles.feePill, { backgroundColor: C.successSubtle }]}>
+                  <Text style={[styles.feePillText, { color: C.success }]}>₹{requestQuery.data.price}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={[styles.deliveryCTASub, { color: C.textMuted }]} numberOfLines={1}>
+              {isDeliveryCompleted ? 'Delivery completed & verified' : 'Tap to track live parcel progress'}
+            </Text>
+          </View>
+          <View style={[styles.trackNavBtn, { backgroundColor: C.primarySubtle }]}>
+            <Text style={[styles.trackNavBtnText, { color: C.primary }]}>
+              {isDeliveryCompleted ? 'View' : 'Track'}
+            </Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={14}
+              color={C.primary}
+            />
+          </View>
         </Pressable>
       ) : null}
 
@@ -597,11 +657,48 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   deliveryCTA: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
     borderBottomWidth: 1,
   },
-  deliveryCTAText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  deliveryCTAIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryCTATitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  deliveryCTASub: {
+    fontSize: FontSize.xs,
+  },
+  feePill: {
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: BorderRadius.full,
+  },
+  feePillText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
+  trackNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.full,
+  },
+  trackNavBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
   invalidWrap: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
   messageList: { paddingHorizontal: Spacing.md, paddingTop: Spacing.mdl },
@@ -660,9 +757,32 @@ const styles = StyleSheet.create({
     shadowColor: '#111827', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4,
   },
 
+  inputBarContainer: {
+    borderTopWidth: 1,
+    paddingTop: Spacing.xs,
+  },
+  quickChipsScroll: {
+    maxHeight: 44,
+  },
+  quickChipsContent: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: 2,
+    paddingBottom: Spacing.xs,
+    gap: Spacing.xs + 2,
+  },
+  quickChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  quickChipText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
-    paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1,
+    paddingHorizontal: Spacing.md, paddingTop: 4,
   },
   inputWrap: {
     flex: 1, borderRadius: BorderRadius.full,

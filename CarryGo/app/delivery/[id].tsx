@@ -299,6 +299,12 @@ export default function DeliveryScreen() {
         return false;
       }
 
+      setTravellerLocation({
+        lat: data.lat,
+        lng: data.lng,
+        updatedAt: new Date().toISOString(),
+      });
+
       const update = await updateDeliveryLocation(delivery.id, data.lat, data.lng, user.id);
       if (update.error) {
         showAlert('Location Error', update.error);
@@ -846,6 +852,16 @@ export default function DeliveryScreen() {
                     loading={tripUpdateLoading}
                     C={C}
                   />
+
+                  {locationSharing && travellerLocation ? (
+                    <DeliveryMap
+                      travellerName="Your Location"
+                      lat={travellerLocation.lat}
+                      lng={travellerLocation.lng}
+                      updatedAt={travellerLocation.updatedAt}
+                      C={C}
+                    />
+                  ) : null}
 
                   <DeliveryOtpActionCard
                     enteredOtp={enteredDeliveryOtp}

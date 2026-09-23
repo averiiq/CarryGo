@@ -3,6 +3,7 @@ import { Conversation, ChatMessage } from '@/types';
 import type { Database } from '@/types/database';
 import { sanitizeMessageText } from '@/lib/sanitize';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
+import { notifyChatMessage } from '@/services/notifications.service';
 
 type ConversationRow = Database['public']['Tables']['conversations']['Row'];
 
@@ -139,6 +140,31 @@ export async function sendMessage(msg: {
     p_text: sanitizedText,
   });
   if (error) return { data: null, error: error.message };
+
+  // Dispatch direct notification to the recipient so they receive in-app alert & push immediately
+  void (async () => {
+    try {
+      const { data: conv } = await sb
+        .from('conversations')
+        .select('participant_ids')
+        .eq('id', msg.conversationId)
+        .single();
+      if (conv?.participant_ids && Array.isArray(conv.participant_ids)) {
+        const recipientId = conv.participant_ids.find((pid: string) => pid !== msg.senderId);
+        if (recipientId) {
+          await notifyChatMessage({
+            recipientId,
+            senderName: msg.senderName,
+            text: sanitizedText,
+            conversationId: msg.conversationId,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[sendMessage] Failed to dispatch chat notification:', e);
+    }
+  })();
+
   const row = Array.isArray(data) ? data[0] : data;
   return { data: row ? mapMsgRow(row) : null, error: null };
 }

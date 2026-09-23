@@ -256,7 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: '',
             city: '',
             role: undefined,
-            rating: 4.5,
+            rating: 0,
             totalRatings: 0,
             totalDeliveries: 0,
             totalTrips: 0,

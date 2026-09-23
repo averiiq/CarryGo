@@ -266,6 +266,220 @@ export async function createNotification(notif: {
   return { error: error?.message || null };
 }
 
+export interface DispatchNotificationPayload {
+  userId: string;
+  title: string;
+  body: string;
+  type: AppNotification['type'];
+  category?: string;
+  priority?: 'normal' | 'high';
+  relatedId?: string;
+  deepLink?: string;
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Dispatches an end-to-end notification:
+ * 1. Inserts into database notifications table (for in-app notification center & realtime listener).
+ * 2. Fetches user push tokens from user_devices / user_profiles.
+ * 3. Delivers push notification directly via Expo Push Notification API.
+ */
+export async function dispatchNotification(payload: DispatchNotificationPayload): Promise<{ success: boolean; error?: string }> {
+  try {
+    const sb = getSupabaseClient();
+    const trimmedTitle = payload.title?.trim();
+    const trimmedBody = payload.body?.trim();
+
+    if (!trimmedTitle || !trimmedBody || !payload.userId) {
+      return { success: false, error: 'Missing required notification fields' };
+    }
+
+    // 1. Insert into public.notifications
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: dbError } = await sb.from('notifications').insert({
+      user_id: payload.userId,
+      title: trimmedTitle,
+      body: trimmedBody,
+      type: payload.type as any,
+      related_id: payload.relatedId,
+    });
+
+    if (dbError) {
+      console.warn('[dispatchNotification] DB insert warning:', dbError.message);
+    }
+
+    // 2. Fetch target user's active push tokens
+    const { data: devices } = await sb
+      .from('user_devices')
+      .select('expo_push_token')
+      .eq('user_id', payload.userId)
+      .is('invalidated_at', null);
+
+    let tokens: string[] = (devices || [])
+      .map((d: { expo_push_token: string | null }) => d.expo_push_token)
+      .filter((t): t is string => Boolean(t));
+
+    if (tokens.length === 0) {
+      const { data: profile } = await sb
+        .from('user_profiles')
+        .select('push_token')
+        .eq('id', payload.userId)
+        .single();
+      if (profile?.push_token) {
+        tokens = [profile.push_token];
+      }
+    }
+
+    // 3. Dispatch to Expo Push API if tokens exist
+    if (tokens.length > 0) {
+      const channelId = payload.type === 'chat_message'
+        ? 'default'
+        : payload.type.startsWith('delivery')
+          ? 'deliveries'
+          : payload.type.startsWith('payment')
+            ? 'payments'
+            : 'default';
+
+      const pushMessages = tokens.map((token) => ({
+        to: token,
+        title: trimmedTitle,
+        body: trimmedBody,
+        sound: 'default',
+        priority: payload.priority === 'high' ? 'high' : 'default',
+        channelId,
+        data: {
+          type: payload.type,
+          relatedId: payload.relatedId,
+          deepLink: payload.deepLink,
+          ...(payload.data || {}),
+        },
+      }));
+
+      try {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(pushMessages),
+        });
+      } catch (pushErr) {
+        console.warn('[dispatchNotification] Expo push network error:', pushErr);
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.warn('[dispatchNotification] Unexpected error:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// ── Specialized Event Dispatchers ──────────────────────────────────────────
+
+export async function notifyChatMessage(params: {
+  recipientId: string;
+  senderName: string;
+  text: string;
+  conversationId: string;
+}) {
+  const preview = params.text.length > 80 ? params.text.substring(0, 77) + '...' : params.text;
+  return dispatchNotification({
+    userId: params.recipientId,
+    title: `💬 ${params.senderName}`,
+    body: preview,
+    type: 'chat_message',
+    priority: 'high',
+    relatedId: params.conversationId,
+    deepLink: `/chat/${params.conversationId}`,
+  });
+}
+
+export async function notifyNewRequest(params: {
+  travellerId: string;
+  senderName: string;
+  price: number;
+  requestId: string;
+  fromCity?: string;
+  toCity?: string;
+}) {
+  const routeText = params.fromCity && params.toCity ? ` (${params.fromCity} → ${params.toCity})` : '';
+  return dispatchNotification({
+    userId: params.travellerId,
+    title: '📦 New Delivery Request!',
+    body: `${params.senderName} requested you to carry their parcel for ₹${params.price}${routeText}. Tap to review.`,
+    type: 'new_request',
+    priority: 'high',
+    relatedId: params.requestId,
+    deepLink: '/(tabs)/requests',
+  });
+}
+
+export async function notifyRequestAccepted(params: {
+  senderId: string;
+  travellerName: string;
+  requestId: string;
+}) {
+  return dispatchNotification({
+    userId: params.senderId,
+    title: '✅ Request Accepted!',
+    body: `${params.travellerName} accepted your delivery request. Open chat to coordinate pickup.`,
+    type: 'request_accepted',
+    priority: 'high',
+    relatedId: params.requestId,
+    deepLink: '/(tabs)/requests',
+  });
+}
+
+export async function notifyRequestDeclined(params: {
+  senderId: string;
+  travellerName: string;
+  requestId: string;
+}) {
+  return dispatchNotification({
+    userId: params.senderId,
+    title: '❌ Request Declined',
+    body: `${params.travellerName} was unable to carry your parcel this time. Tap to explore other routes.`,
+    type: 'request_rejected',
+    priority: 'normal',
+    relatedId: params.requestId,
+    deepLink: '/(tabs)/requests',
+  });
+}
+
+export async function notifyPickupConfirmed(params: {
+  senderId: string;
+  travellerName: string;
+  deliveryId: string;
+}) {
+  return dispatchNotification({
+    userId: params.senderId,
+    title: '🚗 Parcel Picked Up!',
+    body: `${params.travellerName} has verified pickup OTP. Your parcel is now in transit!`,
+    type: 'delivery_pickup',
+    priority: 'high',
+    relatedId: params.deliveryId,
+    deepLink: `/delivery/${params.deliveryId}`,
+  });
+}
+
+export async function notifyDeliveryCompleted(params: {
+  senderId: string;
+  travellerName: string;
+  deliveryId: string;
+}) {
+  return dispatchNotification({
+    userId: params.senderId,
+    title: '🎉 Delivery Completed!',
+    body: `Your parcel was successfully delivered by ${params.travellerName}. Tap to rate your experience.`,
+    type: 'delivery_completed',
+    priority: 'high',
+    relatedId: params.deliveryId,
+    deepLink: `/delivery/${params.deliveryId}`,
+  });
+}
+
 export async function markAllNotificationsRead(userId: string) {
   const sb = getSupabaseClient();
   await sb.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);

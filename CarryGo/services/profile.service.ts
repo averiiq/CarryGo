@@ -48,7 +48,7 @@ function mapProfileRow(data: ProfileRow): User {
     email: data.email || '',
     phone: data.phone || undefined,
     username: data.username || undefined,
-    rating: parseFloat(String(data.rating ?? '4.5')) || 4.5,
+    rating: (data.total_ratings && data.total_ratings > 0) ? (parseFloat(String(data.rating ?? '0')) || 0) : 0,
     totalRatings: data.total_ratings || 0,
     totalDeliveries: data.total_deliveries || 0,
     totalTrips: data.total_trips || 0,

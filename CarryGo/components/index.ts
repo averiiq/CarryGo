@@ -29,3 +29,4 @@ export { AnimatedTabIndicator } from './ui/AnimatedTabIndicator';
 export { AnimatedProgressBar, StepProgress } from './ui/AnimatedProgress';
 export { AppErrorBoundary } from './ui/AppErrorBoundary';
 export { GestureBottomSheet } from './ui/GestureBottomSheet';
+export { KycMandatoryModal } from './feature/KycMandatoryModal';

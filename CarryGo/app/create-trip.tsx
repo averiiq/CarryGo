@@ -17,6 +17,7 @@ import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
+import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateTripMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
@@ -97,6 +98,12 @@ export default function CreateTripScreen() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showKyc, setShowKyc] = useState(false);
+  const isKycApproved = Boolean(
+    user?.kycStatus === 'approved' ||
+    user?.kycStatus === 'submitted' ||
+    user?.verified ||
+    user?.isAadhaarVerified
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
   const [locationHint, setLocationHint] = useState<string | null>(null);
@@ -317,28 +324,20 @@ export default function CreateTripScreen() {
       ]);
       return;
     }
-    const isKycApproved = user?.kycStatus === 'approved' || Boolean(user?.verified);
     if (!isKycApproved) {
-      if (!FeatureFlags.kycProvider) {
-        Haptic.warning();
-        showAlert('Trip Posting Unavailable', `${disabledFeatureMessage.kyc} Trip posting stays paused in this build.`);
-        return;
-      }
       Haptic.warning();
-      showAlert('KYC Required', 'You need to complete identity verification before posting a trip.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Verify Now', onPress: () => setShowKyc(true) },
-      ]);
+      setShowKyc(true);
       return;
     }
     setFieldErrors({});
     setIsSubmitting(true);
     Haptic.confirm();
     try {
+      const realRating = user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0) : 0;
       const result = await createTripMutation.mutateAsync({
         userId: user.id,
         userName: user.fullName || user.name || 'User',
-        userRating: user.rating || 4.5,
+        userRating: realRating,
         fromCity: prepared.fromCity,
         toCity: prepared.toCity,
         date: prepared.date,
@@ -376,10 +375,10 @@ export default function CreateTripScreen() {
 
   return (
     <>
-      <KycOnboarding
+      <KycMandatoryModal
         visible={showKyc}
         onClose={() => setShowKyc(false)}
-        onComplete={() => { setShowKyc(false); refreshUser(); }}
+        actionType="trip"
       />
       <SevenDaySchedulePicker
         visible={showDatePicker}
@@ -426,7 +425,7 @@ export default function CreateTripScreen() {
           />
         )}
         {step === 1 && <StepDetails form={form} updateField={updateField} fieldErrors={fieldErrors} C={C} />}
-        {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} />}
+        {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} hasKyc={isKycApproved} />}
 
         <View style={[styles.footer, { backgroundColor: C.background, borderTopColor: C.surfaceBorder, paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
           {step > 0 && (
@@ -660,10 +659,11 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
   );
 }
 
-function StepReview({ form, C, onEdit }: {
+function StepReview({ form, C, onEdit, hasKyc }: {
   form: TripDraft;
   C: any;
   onEdit: (step: number) => void;
+  hasKyc?: boolean;
 }) {
   const selectedVehicle = VEHICLES.find((v) => v.type === form.vehicle);
 
@@ -733,6 +733,15 @@ function StepReview({ form, C, onEdit }: {
           </View>
         </View>
       </View>
+
+      {!hasKyc ? (
+        <View style={[styles.infoBox, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+          <MaterialIcons name="security" size={16} color="#D97706" />
+          <Text style={[styles.infoText, { color: '#92400E' }]}>
+            Identity verification is mandatory before publishing trips. You will be prompted to verify via Aadhaar OTP upon tapping Post Trip.
+          </Text>
+        </View>
+      ) : null}
 
       <View style={[styles.infoBox, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
         <MaterialIcons name="info-outline" size={16} color={C.primary} />

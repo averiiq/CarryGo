@@ -15,7 +15,7 @@ export const FeatureFlags = {
   kycProvider: productionReady.kycProvider && process.env.EXPO_PUBLIC_ENABLE_KYC_PROVIDER !== 'false',
   payments: productionReady.payments && enabled(process.env.EXPO_PUBLIC_ENABLE_PAYMENTS),
   secureDeliveryConfirmation: true,
-  preciseLocationSharing: productionReady.preciseLocationSharing && enabled(process.env.EXPO_PUBLIC_ENABLE_PRECISE_LOCATION),
+  preciseLocationSharing: productionReady.preciseLocationSharing && process.env.EXPO_PUBLIC_ENABLE_PRECISE_LOCATION !== 'false',
 } as const;
 
 export const disabledFeatureMessage = {

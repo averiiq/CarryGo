@@ -3,6 +3,7 @@ import { DELIVERY_OTP_LENGTH, isFixedLengthNumericCode } from '@/constants/secur
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { Delivery } from '@/types';
 import type { Database } from '@/types/database';
+import { notifyPickupConfirmed, notifyDeliveryCompleted } from '@/services/notifications.service';
 
 type DeliveryRow = Database['public']['Tables']['deliveries']['Row'];
 
@@ -184,6 +185,65 @@ export async function getOrIssuePickupOtp(
   return { data: generatedCode, error: null };
 }
 
+async function triggerPickupNotification(sb: any, deliveryOrRequestId: string) {
+  try {
+    const { data: deliv } = await (sb.from('deliveries') as any)
+      .select('id, request_id, requests(sender_id, traveller_name)')
+      .or(`id.eq.${deliveryOrRequestId},request_id.eq.${deliveryOrRequestId}`)
+      .maybeSingle();
+    let senderId = deliv?.requests?.sender_id;
+    let travellerName = deliv?.requests?.traveller_name;
+    if (!senderId) {
+      const { data: req } = await sb
+        .from('requests')
+        .select('id, sender_id, traveller_name')
+        .or(`id.eq.${deliveryOrRequestId}`)
+        .maybeSingle();
+      senderId = req?.sender_id;
+      travellerName = req?.traveller_name;
+    }
+    if (senderId) {
+      await notifyPickupConfirmed({
+        senderId,
+        travellerName: travellerName || 'Traveller',
+        deliveryId: deliv?.id || deliveryOrRequestId,
+      });
+    }
+  } catch (err) {
+    console.warn('[triggerPickupNotification] Failed:', err);
+  }
+}
+
+async function triggerDeliveryCompleteNotification(sb: any, deliveryId: string, requestId?: string) {
+  try {
+    const { data: deliv } = await (sb.from('deliveries') as any)
+      .select('id, request_id, requests(sender_id, traveller_name)')
+      .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`)
+      .maybeSingle();
+    let senderId = deliv?.requests?.sender_id;
+    let travellerName = deliv?.requests?.traveller_name;
+    if (!senderId && (requestId || deliv?.request_id)) {
+      const targetReqId = requestId || deliv?.request_id;
+      const { data: req } = await sb
+        .from('requests')
+        .select('id, sender_id, traveller_name')
+        .eq('id', targetReqId)
+        .maybeSingle();
+      senderId = req?.sender_id;
+      travellerName = req?.traveller_name;
+    }
+    if (senderId) {
+      await notifyDeliveryCompleted({
+        senderId,
+        travellerName: travellerName || 'Traveller',
+        deliveryId: deliv?.id || deliveryId,
+      });
+    }
+  } catch (err) {
+    console.warn('[triggerDeliveryCompleteNotification] Failed:', err);
+  }
+}
+
 export async function confirmPickupWithOtp(
   deliveryOrRequestId: string,
   enteredOtp: string
@@ -203,6 +263,7 @@ export async function confirmPickupWithOtp(
     }).single();
 
     if (!rpcErr && rpcData) {
+      void triggerPickupNotification(sb, deliveryOrRequestId);
       return { data: mapRow(rpcData as unknown as ExtendedDeliveryRow), error: null };
     }
     if (rpcErr && !rpcErr.message.includes('function') && !rpcErr.message.includes('not found') && !rpcErr.message.includes('permission')) {
@@ -242,6 +303,7 @@ export async function confirmPickupWithOtp(
     }).single();
 
     if (!standardErr && standardData) {
+      void triggerPickupNotification(sb, deliveryOrRequestId);
       return { data: mapRow(standardData as unknown as ExtendedDeliveryRow), error: null };
     }
   } catch {
@@ -262,6 +324,7 @@ export async function confirmPickupWithOtp(
       .maybeSingle();
 
     if (!updateErr && updated) {
+      void triggerPickupNotification(sb, deliveryOrRequestId);
       return { data: mapRow(updated as unknown as ExtendedDeliveryRow), error: null };
     }
   } catch {
@@ -269,6 +332,7 @@ export async function confirmPickupWithOtp(
   }
 
   // 5. Virtual transition fallback so flow never stalls
+  void triggerPickupNotification(sb, deliveryOrRequestId);
   return {
     data: {
       id: deliveryOrRequestId,
@@ -345,6 +409,7 @@ export async function confirmDelivery(deliveryId: string, enteredOtp: string, us
     }).maybeSingle();
 
     if (!error && data) {
+      void triggerDeliveryCompleteNotification(sb, deliveryId);
       return { success: true, data: mapRow(data as unknown as ExtendedDeliveryRow), error: null };
     }
     if (error) {
@@ -452,6 +517,7 @@ export async function confirmDelivery(deliveryId: string, enteredOtp: string, us
       }
     }
 
+    void triggerDeliveryCompleteNotification(sb, deliveryId, currentDelivery.request_id);
     return {
       success: true,
       data: mapRow(updatedDelivery as unknown as ExtendedDeliveryRow),

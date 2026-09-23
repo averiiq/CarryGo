@@ -102,7 +102,7 @@ export function useRecommendations(): RecommendationsReturn {
         id: row.id,
         userId: row.user_id,
         userName: row.user_name,
-        userRating: parseFloat(String(row.user_rating)) || 4.5,
+        userRating: parseFloat(String(row.user_rating)) || 0,
         fromCity: row.from_city,
         toCity: row.to_city,
         date: row.date,

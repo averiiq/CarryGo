@@ -7,6 +7,7 @@ import { isAwsBackendEnabled } from '@/lib/backend/provider';
 import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
 import { fetchParcelById } from '@/services/parcels.service';
 import { fetchTripById } from '@/services/trips.service';
+import { notifyNewRequest, notifyRequestAccepted, notifyRequestDeclined } from '@/services/notifications.service';
 
 interface RequestRow {
   id: string;
@@ -227,7 +228,16 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
   }).single();
 
   if (!rpcError && rpcData) {
-    return { data: mapRow(rpcData as unknown as RequestRow), error: null };
+    const mapped = mapRow(rpcData as unknown as RequestRow);
+    void notifyNewRequest({
+      travellerId: mapped.travellerId,
+      senderName: mapped.senderName,
+      price: mapped.price,
+      requestId: mapped.id,
+      fromCity: mapped.fromCity,
+      toCity: mapped.toCity,
+    }).catch(err => console.warn('Failed to dispatch new request notification:', err));
+    return { data: mapped, error: null };
   }
 
   // Fallback: RPC unavailable/auth mismatch — fetch parcel+trip to get verified IDs then insert directly
@@ -293,7 +303,16 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
     }
     return { data: null, error: rpcError?.message || fallbackError.message };
   }
-  return { data: mapRow(fallbackData as unknown as RequestRow), error: null };
+  const mapped = mapRow(fallbackData as unknown as RequestRow);
+  void notifyNewRequest({
+    travellerId: mapped.travellerId,
+    senderName: mapped.senderName,
+    price: mapped.price,
+    requestId: mapped.id,
+    fromCity: mapped.fromCity,
+    toCity: mapped.toCity,
+  }).catch(err => console.warn('Failed to dispatch new request notification (fallback):', err));
+  return { data: mapped, error: null };
 }
 
 export async function fetchRequestsByTripId(tripId: string) {
@@ -451,7 +470,21 @@ export async function updateRequestStatus(requestId: string, status: Request['st
   }).single();
 
   if (!error && data) {
-    return { data: mapRow(data as unknown as RequestRow), error: null };
+    const mapped = mapRow(data as unknown as RequestRow);
+    if (status === 'accepted') {
+      void notifyRequestAccepted({
+        senderId: mapped.senderId,
+        travellerName: mapped.travellerName,
+        requestId: mapped.id,
+      }).catch(err => console.warn('Failed to dispatch request accepted notification:', err));
+    } else if (status === 'rejected') {
+      void notifyRequestDeclined({
+        senderId: mapped.senderId,
+        travellerName: mapped.travellerName,
+        requestId: mapped.id,
+      }).catch(err => console.warn('Failed to dispatch request declined notification:', err));
+    }
+    return { data: mapped, error: null };
   }
 
   // Fallback: Direct table update if RPC fails (e.g. auth context mismatch or RPC unavailable)
@@ -466,5 +499,19 @@ export async function updateRequestStatus(requestId: string, status: Request['st
   if (fallbackError) {
     return { data: null, error: error?.message || fallbackError.message };
   }
-  return { data: mapRow(fallbackData as unknown as RequestRow), error: null };
+  const fallbackMapped = mapRow(fallbackData as unknown as RequestRow);
+  if (status === 'accepted') {
+    void notifyRequestAccepted({
+      senderId: fallbackMapped.senderId,
+      travellerName: fallbackMapped.travellerName,
+      requestId: fallbackMapped.id,
+    }).catch(err => console.warn('Failed to dispatch request accepted notification (fallback):', err));
+  } else if (status === 'rejected') {
+    void notifyRequestDeclined({
+      senderId: fallbackMapped.senderId,
+      travellerName: fallbackMapped.travellerName,
+      requestId: fallbackMapped.id,
+    }).catch(err => console.warn('Failed to dispatch request declined notification (fallback):', err));
+  }
+  return { data: fallbackMapped, error: null };
 }

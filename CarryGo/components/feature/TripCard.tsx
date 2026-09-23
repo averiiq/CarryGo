@@ -53,9 +53,8 @@ export const TripCard = React.memo(function TripCard({
   const userName = rawName.trim();
   const avatarLetter = (userName.charAt(0) || 'U').toUpperCase();
 
-  const userRating = typeof trip.userRating === 'number' && !isNaN(trip.userRating)
-    ? trip.userRating
-    : 5.0;
+  const hasRating = typeof trip.userRating === 'number' && !isNaN(trip.userRating) && trip.userRating > 0;
+  const userRating = hasRating ? trip.userRating : 0;
 
   const fromCity = trip.fromCity || 'Origin';
   const toCity = trip.toCity || 'Destination';
@@ -117,12 +116,18 @@ export const TripCard = React.memo(function TripCard({
                   </View>
                 ) : null}
               </View>
-              <View style={styles.ratingBadge}>
-                <Ionicons name="star" size={11} color="#F59E0B" />
-                <Text style={[styles.ratingText, { color: C.textSecondary }]}>
-                  {userRating.toFixed(1)}
-                </Text>
-              </View>
+              {hasRating ? (
+                <View style={styles.ratingBadge}>
+                  <Ionicons name="star" size={11} color="#F59E0B" />
+                  <Text style={[styles.ratingText, { color: C.textSecondary }]}>
+                    {userRating.toFixed(1)}
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.newBadge, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                  <Text style={[styles.newBadgeText, { color: C.textMuted }]}>NEW</Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -354,6 +359,17 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 11,
     fontWeight: FontWeight.semibold,
+  },
+  newBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  newBadgeText: {
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
   },
   vehicleChip: {
     flexDirection: 'row',

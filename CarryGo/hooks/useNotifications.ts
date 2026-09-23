@@ -129,7 +129,31 @@ export function useNotifications() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        () => { void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] }); }
+        (payload) => {
+          void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+          if (payload.eventType === 'INSERT' && payload.new) {
+            const newNotif = payload.new as {
+              title?: string;
+              body?: string;
+              type?: string;
+              related_id?: string;
+            };
+            if (newNotif.title && newNotif.body) {
+              void Notifications.scheduleNotificationAsync({
+                content: {
+                  title: newNotif.title,
+                  body: newNotif.body,
+                  sound: true,
+                  data: {
+                    type: newNotif.type,
+                    relatedId: newNotif.related_id,
+                  },
+                },
+                trigger: null,
+              }).catch(() => {});
+            }
+          }
+        }
       )
       .subscribe();
 

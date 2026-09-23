@@ -19,6 +19,7 @@ import { detectCurrentCity } from '@/services/location.service';
 import { uploadParcelImage } from '@/services/storage.service';
 import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
+import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateParcelMutation } from '@/features/listings/queries';
@@ -97,6 +98,12 @@ export default function CreateParcelScreen() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showKyc, setShowKyc] = useState(false);
+  const isKycApproved = Boolean(
+    user?.kycStatus === 'approved' ||
+    user?.kycStatus === 'submitted' ||
+    user?.verified ||
+    user?.isAadhaarVerified
+  );
   const [showSafety, setShowSafety] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
@@ -328,18 +335,9 @@ export default function CreateParcelScreen() {
       setShowSafety(true);
       return;
     }
-    const isKycApproved = user?.kycStatus === 'approved' || Boolean(user?.verified);
     if (!isKycApproved) {
-      if (!FeatureFlags.kycProvider) {
-        Haptic.warning();
-        showAlert('Parcel Listing Unavailable', `${disabledFeatureMessage.kyc} Parcel listing stays paused in this build.`);
-        return;
-      }
       Haptic.warning();
-      showAlert('KYC Required', 'You need to complete identity verification before sending a parcel.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Verify Now', onPress: () => setShowKyc(true) },
-      ]);
+      setShowKyc(true);
       return;
     }
     setFieldErrors({});
@@ -408,10 +406,10 @@ export default function CreateParcelScreen() {
           setShowSafety(false);
         }}
       />
-      <KycOnboarding
+      <KycMandatoryModal
         visible={showKyc}
         onClose={() => setShowKyc(false)}
-        onComplete={() => setShowKyc(false)}
+        actionType="parcel"
       />
       <SevenDaySchedulePicker
         visible={showDatePicker}
@@ -457,7 +455,7 @@ export default function CreateParcelScreen() {
           />
         )}
         {step === 1 && <StepDetails form={form} updateField={updateField} fieldErrors={fieldErrors} C={C} />}
-        {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} />}
+        {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} hasKyc={isKycApproved} />}
 
         <View style={[styles.footer, { backgroundColor: C.background, borderTopColor: C.surfaceBorder, paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
           {step > 0 && (
@@ -696,10 +694,11 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
   );
 }
 
-function StepReview({ form, C, onEdit }: {
+function StepReview({ form, C, onEdit, hasKyc }: {
   form: ParcelDraft;
   C: any;
   onEdit: (step: number) => void;
+  hasKyc?: boolean;
 }) {
   const selectedCategory = CATEGORIES.find((c) => c.type === form.category);
 
@@ -785,6 +784,15 @@ function StepReview({ form, C, onEdit }: {
           </View>
         ) : null}
       </View>
+
+      {!hasKyc ? (
+        <View style={[styles.infoBox, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+          <MaterialIcons name="security" size={16} color="#D97706" />
+          <Text style={[styles.infoText, { color: '#92400E' }]}>
+            Identity verification is mandatory before listing parcels. You will be prompted to verify via Aadhaar OTP upon tapping Send Parcel.
+          </Text>
+        </View>
+      ) : null}
 
       <View style={[styles.infoBox, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
         <MaterialIcons name="info-outline" size={16} color={C.primary} />

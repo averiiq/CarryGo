@@ -131,12 +131,20 @@ export const MatchResultCard = React.memo(function MatchResultCard({
               )}
             </View>
             <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <MaterialIcons name="star" size={12} color={C.warning} />
-                <Text style={[styles.statText, { color: C.textMuted }]}>
-                  {trip.userRating.toFixed(1)}
-                </Text>
-              </View>
+              {trip.userRating > 0 ? (
+                <View style={styles.statItem}>
+                  <MaterialIcons name="star" size={12} color={C.warning} />
+                  <Text style={[styles.statText, { color: C.textMuted }]}>
+                    {trip.userRating.toFixed(1)}
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.statItem, { backgroundColor: C.surfaceElevated, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }]}>
+                  <Text style={[styles.statText, { color: C.textMuted, fontSize: 10, fontWeight: '700' }]}>
+                    NEW
+                  </Text>
+                </View>
+              )}
               <View style={styles.statItem}>
                 <MaterialIcons name="directions-car" size={12} color={C.textMuted} />
                 <Text style={[styles.statText, { color: C.textMuted }]}>
