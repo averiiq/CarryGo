@@ -51,10 +51,10 @@
   --shadow-md: 0 4px 14px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
   --shadow-lg: 0 12px 32px -4px rgba(15, 23, 42, 0.07), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
   --shadow-xl: 0 24px 48px -8px rgba(15, 23, 42, 0.09), 0 8px 16px -4px rgba(15, 23, 42, 0.03);
-  --shadow-sturdy: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
-  --shadow-lift: 0 16px 36px -4px rgba(15, 23, 42, 0.08), 0 6px 14px -2px rgba(15, 23, 42, 0.04);
-  --shadow-glow: 0 0 24px rgba(5, 150, 105, 0.12);
-  --shadow-bento: 0 0 0 1px rgba(15, 23, 42, 0.06), 0 8px 24px -4px rgba(15, 23, 42, 0.05);
+  --shadow-sturdy: none;
+  --shadow-lift: none;
+  --shadow-glow: none;
+  --shadow-bento: none;
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -150,7 +150,7 @@ body {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-bento);
+  box-shadow: none;
   border-radius: var(--radius-2xl);
   transition: all var(--transition-base);
   position: relative;
@@ -159,8 +159,7 @@ body {
 
 .glass-card:hover {
   border-color: rgba(5, 150, 105, 0.35);
-  box-shadow: 0 0 0 1px rgba(5, 150, 105, 0.15), 0 16px 36px -4px rgba(15, 23, 42, 0.08);
-  transform: translateY(-2px);
+  box-shadow: none;
 }
 
 /* Interactive Glow Card in Light Mode */
@@ -390,13 +389,12 @@ body {
 
 /* Card & Interactive Micro-Interactions */
 .card-hover-elevate {
-  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+  transition: border-color var(--transition-base);
 }
 
 .card-hover-elevate:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.06);
   border-color: rgba(5, 150, 105, 0.3);
+  box-shadow: none;
 }
 
 .gradient-border-emerald {
@@ -441,33 +439,28 @@ body {
   background: #FFFFFF;
   border-radius: 1.5rem;
   border: 1px solid #E2E8F0;
-  box-shadow: var(--shadow-xs);
-  transition: all var(--transition-base);
+  box-shadow: none;
+  transition: border-color var(--transition-base), background-color var(--transition-base);
 }
 
 .boarding-pass-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(5, 150, 105, 0.3);
-  box-shadow: var(--shadow-md);
+  border-color: rgba(5, 150, 105, 0.4);
+  box-shadow: none;
 }
 
-/* Sturdy Elevation Card (2D only, no 3D tilt) */
+/* Sturdy Elevation Card (2D flat seamless, no heavy shadows) */
 .sturdy-card {
   position: relative;
   background: #FFFFFF;
   border-radius: 1.25rem;
   border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: var(--shadow-sturdy);
-  transition: transform 220ms cubic-bezier(0.21, 0.47, 0.32, 0.98),
-              box-shadow 220ms cubic-bezier(0.21, 0.47, 0.32, 0.98),
-              border-color 220ms ease;
-  will-change: transform;
+  box-shadow: none;
+  transition: border-color 220ms ease, background-color 220ms ease;
 }
 
 .sturdy-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(5, 150, 105, 0.35);
-  box-shadow: var(--shadow-lift);
+  border-color: rgba(5, 150, 105, 0.4);
+  box-shadow: none;
 }
 
 /* Soft ambient mesh for hero backgrounds */
@@ -528,3 +521,82 @@ body {
 .spotlight-card:hover::before {
   opacity: 1;
 }
+
+/* Professional & Elegant Background Patterns & Gradients */
+.pattern-dots {
+  background-image: radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.06) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.pattern-dots-emerald {
+  background-image: radial-gradient(circle at 1px 1px, rgba(5, 150, 105, 0.1) 1.2px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.pattern-grid {
+  background-image: linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.pattern-diagonal-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(15, 23, 42, 0.015) 8px,
+    rgba(15, 23, 42, 0.015) 16px
+  );
+}
+
+.mask-radial-vignette {
+  mask-image: radial-gradient(ellipse 70% 65% at 50% 50%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 65% at 50% 50%, #000 40%, transparent 100%);
+}
+
+.mask-fade-b {
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+/* Luxury Multi-Stop Light Gradients */
+.gradient-mesh-aurora {
+  background-color: #F8FAFC;
+  background-image: 
+    radial-gradient(ellipse 90% 60% at 50% -15%, rgba(5, 150, 105, 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 45% at 90% 20%, rgba(2, 132, 199, 0.06), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 10% 30%, rgba(16, 185, 129, 0.05), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(5, 150, 105, 0.04), transparent 70%);
+}
+
+.gradient-mesh-section {
+  background-image: 
+    radial-gradient(ellipse 60% 50% at 20% 0%, rgba(5, 150, 105, 0.04), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(2, 132, 199, 0.035), transparent 60%);
+}
+
+.card-surface-luxury {
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAFCFB 100%);
+}
+
+.card-surface-emerald {
+  background: linear-gradient(145deg, #FFFFFF 0%, rgba(236, 253, 245, 0.5) 100%);
+}
+
+.card-surface-sky {
+  background: linear-gradient(145deg, #FFFFFF 0%, rgba(240, 249, 255, 0.5) 100%);
+}
+
+.card-surface-amber {
+  background: linear-gradient(145deg, #FFFFFF 0%, rgba(254, 243, 199, 0.5) 100%);
+}
+
+.card-surface-indigo {
+  background: linear-gradient(145deg, #FFFFFF 0%, rgba(238, 242, 255, 0.5) 100%);
+}
+
+.divider-gradient {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(226, 232, 240, 0.9) 20%, rgba(5, 150, 105, 0.3) 50%, rgba(226, 232, 240, 0.9) 80%, transparent 100%);
+}
+

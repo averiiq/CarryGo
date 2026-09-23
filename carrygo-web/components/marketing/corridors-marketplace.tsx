@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
 import {
   ArrowRight,
   Car,
@@ -60,7 +61,7 @@ export function CorridorsMarketplace({ trips }: Props) {
           </p>
         </div>
 
-        {/* Vehicle Filter Tabs */}
+        {/* Vehicle Filter Tabs with Smooth Sliding Pill */}
         <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 border border-slate-200 overflow-x-auto no-scrollbar">
           {VEHICLE_FILTERS.map((filter) => {
             const Icon = filter.icon
@@ -70,14 +71,23 @@ export function CorridorsMarketplace({ trips }: Props) {
                 key={filter.id}
                 type="button"
                 onClick={() => setSelectedVehicle(filter.id)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
                   active
-                    ? 'bg-white text-slate-950 shadow-sm border border-slate-200'
+                    ? 'text-slate-950 font-bold'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                 }`}
               >
-                {Icon && <Icon className="w-3.5 h-3.5 text-emerald-600" />}
-                <span>{filter.label}</span>
+                {active && (
+                  <motion.span
+                    layoutId="corridorVehicleTab"
+                    className="absolute inset-0 rounded-xl bg-white shadow-xs border border-slate-200"
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                  />
+                )}
+                {Icon && (
+                  <Icon className={`relative z-10 w-3.5 h-3.5 ${active ? 'text-emerald-700' : 'text-slate-500'}`} />
+                )}
+                <span className="relative z-10">{filter.label}</span>
               </button>
             )
           })}
@@ -95,7 +105,7 @@ export function CorridorsMarketplace({ trips }: Props) {
             return (
               <div
                 key={trip.id}
-                className="boarding-pass-card p-5 flex flex-col justify-between group"
+                className="boarding-pass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:border-emerald-400"
               >
                 <div className="space-y-4">
                   {/* Header with Vehicle Badge & Capacity */}
@@ -153,7 +163,7 @@ export function CorridorsMarketplace({ trips }: Props) {
                     href={`/search?from=${encodeURIComponent(trip.from_city)}&to=${encodeURIComponent(
                       trip.to_city
                     )}&type=trips`}
-                    className="inline-flex items-center justify-center gap-1 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-white group-hover:bg-emerald-600 transition-all cursor-pointer shadow-xs active:scale-95"
+                    className="inline-flex items-center justify-center gap-1 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white transition-all cursor-pointer shadow-xs active:scale-95"
                   >
                     <span>Match</span>
                     <ArrowRight className="w-3 h-3" />

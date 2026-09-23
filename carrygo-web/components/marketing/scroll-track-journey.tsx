@@ -153,27 +153,41 @@ export function ScrollTrackJourney() {
           <button
             type="button"
             onClick={() => setPersona('senders')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`relative flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
               persona === 'senders'
-                ? 'bg-emerald-700 text-white shadow-xs'
+                ? 'text-white'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Package className="w-4 h-4" />
-            <span>How Senders Ship</span>
+            {persona === 'senders' && (
+              <motion.span
+                layoutId="journeyPersonaTab"
+                className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+              />
+            )}
+            <Package className="relative z-10 w-4 h-4" />
+            <span className="relative z-10">How Senders Ship</span>
           </button>
 
           <button
             type="button"
             onClick={() => setPersona('travelers')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`relative flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
               persona === 'travelers'
-                ? 'bg-emerald-700 text-white shadow-xs'
+                ? 'text-white'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Plane className="w-4 h-4" />
-            <span>How Travelers Earn</span>
+            {persona === 'travelers' && (
+              <motion.span
+                layoutId="journeyPersonaTab"
+                className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+              />
+            )}
+            <Plane className="relative z-10 w-4 h-4" />
+            <span className="relative z-10">How Travelers Earn</span>
           </button>
         </div>
       </div>
@@ -208,11 +222,20 @@ export function ScrollTrackJourney() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="sturdy-card p-5 sm:p-6 relative overflow-hidden transition-all hover:border-emerald-300"
+                className={`sturdy-card p-5 sm:p-6 relative overflow-hidden transition-all hover:border-emerald-400 ${
+                  index === 0
+                    ? 'bg-gradient-to-r from-white via-emerald-50/30 to-white'
+                    : index === 1
+                    ? 'bg-gradient-to-r from-white via-teal-50/30 to-white'
+                    : index === 2
+                    ? 'bg-gradient-to-r from-white via-sky-50/30 to-white'
+                    : 'bg-gradient-to-r from-white via-amber-50/30 to-white'
+                }`}
               >
+                <div className="absolute inset-0 pattern-dots opacity-20 pointer-events-none -z-10" />
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-sm shadow-2xs">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-sm">
                       0{step.step}
                     </div>
 

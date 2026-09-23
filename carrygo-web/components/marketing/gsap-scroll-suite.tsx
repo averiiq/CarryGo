@@ -41,12 +41,10 @@ export function GsapScrollExpand({
         {
           scale: startScale,
           borderRadius: '32px',
-          boxShadow: '0 4px 14px -2px rgba(15, 23, 42, 0.04)',
         },
         {
           scale: endScale,
           borderRadius: '24px',
-          boxShadow: '0 20px 40px -10px rgba(15, 23, 42, 0.08)',
           ease: 'power2.out',
           scrollTrigger: {
             trigger: el,

@@ -261,7 +261,7 @@ export default function ForTravelersPage() {
               <div className="pt-4">
                 <Link
                   href="/create-trip"
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-xs bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition active:scale-95 cursor-pointer"
                 >
                   <span>Post a Trip &amp; Start Earning</span>
                   <ArrowRight className="w-3.5 h-3.5" />

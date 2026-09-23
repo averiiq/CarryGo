@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   CheckCircle2,
   KeyRound,
@@ -22,9 +23,14 @@ export function MobileAppShowcase() {
 
   return (
     <div className="w-full max-w-6xl mx-auto">
-      <div className="relative rounded-3xl border border-slate-200/90 bg-white shadow-xl p-6 sm:p-10 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center overflow-hidden">
+      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50/50 to-emerald-50/20 p-6 sm:p-10 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center overflow-hidden">
+        {/* Top Hairline Gradient Accent */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500" />
+        {/* Subtle Luxury Pattern with Vignette Fade */}
+        <div className="absolute inset-0 pattern-dots opacity-25 mask-radial-vignette pointer-events-none" />
+
         {/* Left Side: Copywriting, Screen Switcher, & Ratings */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-7 space-y-6 relative z-10">
           <div>
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-3">
               <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
@@ -38,7 +44,7 @@ export function MobileAppShowcase() {
             </p>
           </div>
 
-          {/* Interactive Screen Feature Switcher */}
+          {/* Interactive Screen Feature Switcher with Framer Motion layoutId */}
           <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 sm:gap-3">
             {[
               {
@@ -73,19 +79,26 @@ export function MobileAppShowcase() {
                   key={item.id}
                   type="button"
                   onClick={() => setActiveScreen(item.id)}
-                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                  className={`relative p-3.5 rounded-2xl border text-left transition-colors cursor-pointer ${
                     isActive
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-900 shadow-xs'
+                      ? 'border-emerald-500 text-emerald-950 font-bold'
                       : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  {isActive && (
+                    <motion.span
+                      layoutId="appFeaturePill"
+                      className="absolute inset-0 rounded-2xl bg-emerald-50 border border-emerald-400"
+                      transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                    />
+                  )}
+                  <div className="relative z-10 flex items-center gap-2 mb-1">
                     <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-700' : 'text-slate-500'}`} />
                     <span className="text-xs sm:text-sm font-bold">
                       {item.title}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 line-clamp-1">{item.desc}</p>
+                  <p className="relative z-10 text-[11px] text-slate-500 line-clamp-1">{item.desc}</p>
                 </button>
               )
             })}
@@ -111,147 +124,160 @@ export function MobileAppShowcase() {
           </div>
         </div>
 
-        {/* Right Side: Interactive Smartphone Device Mockup */}
-        <div className="lg:col-span-5 flex justify-center w-full">
-          <div className="w-[270px] sm:w-[300px] rounded-[44px] p-3 bg-slate-900 shadow-2xl border-4 border-slate-700 relative">
+        {/* Right Side: Interactive Smartphone Device Mockup (Silver Titanium Chassis) */}
+        <div className="lg:col-span-5 flex justify-center w-full relative">
+          {/* Ambient Soft Aurora Aura behind device */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] rounded-full bg-gradient-to-tr from-emerald-400/15 via-teal-300/10 to-sky-400/10 blur-3xl pointer-events-none -z-10" />
+
+          <div className="w-[270px] sm:w-[305px] rounded-[48px] p-3 bg-gradient-to-b from-slate-200 via-slate-100 to-slate-200 border-4 border-slate-300 relative">
             {/* Dynamic Island */}
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-full z-20 flex items-center justify-end px-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 w-24 h-5 bg-slate-900 rounded-full z-20 flex items-center justify-end px-2.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             </div>
 
             {/* Screen Glass Container (Light Theme App Screen Inside Phone) */}
-            <div className="w-full aspect-[9/18.5] rounded-[36px] overflow-hidden bg-slate-50 text-slate-900 flex flex-col justify-between p-4 border border-slate-200 relative select-none">
+            <div className="w-full aspect-[9/18.5] rounded-[38px] overflow-hidden bg-slate-50 text-slate-900 flex flex-col justify-between p-4 border border-slate-200 relative select-none">
               {/* Top Status Bar */}
-              <div className="flex justify-between items-center text-[10px] text-slate-500 pt-3 px-2">
+              <div className="flex justify-between items-center text-[10px] text-slate-500 pt-2 px-2">
                 <span className="font-bold">09:41</span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[9px] font-semibold">5G</span>
-                  <div className="w-4 h-2 rounded-xs border border-slate-500 flex items-center p-0.5">
+                  <div className="w-4 h-2 rounded-xs border border-slate-400 flex items-center p-0.5">
                     <div className="w-full h-full bg-emerald-600 rounded-xs" />
                   </div>
                 </div>
               </div>
 
-              {/* Dynamic Screen Content */}
-              <div className="my-auto space-y-3 pt-4">
-                {activeScreen === 'match' && (
-                  <div className="space-y-2.5 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900">Verified Matches</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-                        3 Traveling Now
-                      </span>
-                    </div>
-
-                    {/* Traveler Card */}
-                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+              {/* Dynamic Screen Content with AnimatePresence */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeScreen}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="my-auto space-y-3 pt-3"
+                >
+                  {activeScreen === 'match' && (
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">
-                            RK
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-slate-900 flex items-center gap-1">
-                              Rahul K. <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                            </div>
-                            <div className="text-[10px] text-slate-500">Car • Departs 4:30 PM</div>
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold text-emerald-700">₹380</span>
+                        <span className="text-xs font-bold text-slate-900">Verified Matches</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                          3 Traveling Now
+                        </span>
                       </div>
 
-                      <div className="text-[11px] font-medium text-slate-700 flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100">
-                        <span>Gurugram</span>
-                        <span className="text-emerald-600 font-bold">→</span>
-                        <span>Panipat</span>
-                        <span className="text-[10px] text-slate-500">6 kg space</span>
+                      {/* Traveler Card */}
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">
+                              RK
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-slate-900 flex items-center gap-1">
+                                Rahul K. <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              </div>
+                              <div className="text-[10px] text-slate-500">Car • Departs 4:30 PM</div>
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-emerald-700">₹380</span>
+                        </div>
+
+                        <div className="text-[11px] font-medium text-slate-700 flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100">
+                          <span>Gurugram</span>
+                          <span className="text-emerald-600 font-bold">→</span>
+                          <span>Panipat</span>
+                          <span className="text-[10px] text-slate-500">6 kg space</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="w-full py-2 rounded-xl text-[11px] font-bold bg-emerald-700 text-white text-center hover:bg-emerald-800 transition cursor-pointer"
+                        >
+                          Book Baggage Space
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeScreen === 'otp' && (
+                    <div className="space-y-2.5 text-center">
+                      <div className="inline-flex p-2.5 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 mx-auto">
+                        <KeyRound className="w-5 h-5 text-emerald-600" />
+                      </div>
+
+                      <div>
+                        <div className="text-xs font-bold text-slate-900">Dual-OTP Handover</div>
+                        <p className="text-[10px] text-slate-500">Protected in-person verification</p>
+                      </div>
+
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-2 text-left">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase text-slate-500">Pickup Code</span>
+                          <span className="text-xs font-mono font-bold text-emerald-800 tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            7492
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase text-slate-500">Delivery OTP</span>
+                          <span className="text-xs font-mono font-bold text-sky-800 tracking-widest bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                            3815
+                          </span>
+                        </div>
+                        <div className="text-[9px] text-slate-500 pt-1 flex items-center gap-1">
+                          <Lock className="w-3 h-3 text-emerald-600" /> Funds held safely in Smart Escrow
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeScreen === 'chat' && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                        <span>Rahul (Traveler)</span>
+                        <span className="text-[10px] text-emerald-600 font-semibold">Online</span>
+                      </div>
+
+                      <div className="space-y-1.5 text-[11px]">
+                        <div className="p-2.5 rounded-2xl rounded-tl-xs bg-white border border-slate-200 text-slate-800 max-w-[85%]">
+                          Hi! I have a 1.5kg sealed parcel. Can we meet near IFFCO Chowk, Gurugram?
+                        </div>
+                        <div className="p-2.5 rounded-2xl rounded-tr-xs bg-emerald-700 text-white font-medium ml-auto max-w-[85%]">
+                          Sure! I am reaching IFFCO Chowk by 4:30 PM. I will enter pickup OTP.
+                        </div>
+                      </div>
+
+                      <div className="p-2 rounded-xl bg-white border border-slate-200 text-[10px] text-slate-400 flex items-center justify-between">
+                        <span>Type a message...</span>
+                        <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeScreen === 'wallet' && (
+                    <div className="space-y-2.5">
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1.5 text-center">
+                        <span className="text-[10px] uppercase font-bold text-slate-500">Available Balance</span>
+                        <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                          ₹3,450
+                        </div>
+                        <span className="text-[10px] text-emerald-700 font-semibold flex items-center justify-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 8 Trips Completed
+                        </span>
                       </div>
 
                       <button
                         type="button"
-                        className="w-full py-1.5 rounded-xl text-[11px] font-bold bg-emerald-600 text-white text-center shadow-xs"
+                        className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white text-center flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
-                        Book Baggage Space
+                        <Wallet className="w-3.5 h-3.5" />
+                        <span>Instant UPI Withdrawal</span>
                       </button>
                     </div>
-                  </div>
-                )}
-
-                {activeScreen === 'otp' && (
-                  <div className="space-y-2.5 animate-in fade-in duration-200 text-center">
-                    <div className="inline-flex p-2 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 mx-auto">
-                      <KeyRound className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">Dual-OTP Handover</div>
-                      <p className="text-[10px] text-slate-500">Protected in-person verification</p>
-                    </div>
-
-                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2 text-left">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase text-slate-500">Pickup Code</span>
-                        <span className="text-xs font-mono font-bold text-emerald-800 tracking-widest bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                          7492
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase text-slate-500">Delivery OTP</span>
-                        <span className="text-xs font-mono font-bold text-sky-800 tracking-widest bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
-                          3815
-                        </span>
-                      </div>
-                      <div className="text-[9px] text-slate-500 pt-1 flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-emerald-600" /> Funds held safely in Smart Escrow
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeScreen === 'chat' && (
-                  <div className="space-y-2 animate-in fade-in duration-200">
-                    <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                      <span>Rahul (Traveler)</span>
-                      <span className="text-[10px] text-emerald-600 font-semibold">Online</span>
-                    </div>
-
-                    <div className="space-y-1.5 text-[11px]">
-                      <div className="p-2 rounded-2xl rounded-tl-xs bg-white border border-slate-200 text-slate-800 shadow-xs max-w-[85%]">
-                        Hi! I have a 1.5kg sealed parcel. Can we meet near IFFCO Chowk, Gurugram?
-                      </div>
-                      <div className="p-2 rounded-2xl rounded-tr-xs bg-emerald-600 text-white font-medium ml-auto max-w-[85%] shadow-xs">
-                        Sure! I am reaching IFFCO Chowk by 4:30 PM. I will enter pickup OTP.
-                      </div>
-                    </div>
-
-                    <div className="p-2 rounded-xl bg-white border border-slate-200 text-[10px] text-slate-400 flex items-center justify-between shadow-xs">
-                      <span>Type a message...</span>
-                      <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                    </div>
-                  </div>
-                )}
-
-                {activeScreen === 'wallet' && (
-                  <div className="space-y-2.5 animate-in fade-in duration-200">
-                    <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1.5 text-center">
-                      <span className="text-[10px] uppercase font-bold text-slate-500">Available Balance</span>
-                      <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        ₹3,450
-                      </div>
-                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center justify-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 8 Trips Completed
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="w-full py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white text-center flex items-center justify-center gap-1.5 shadow-xs"
-                    >
-                      <Wallet className="w-3.5 h-3.5" />
-                      <span>Instant UPI Withdrawal</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
 
               {/* Bottom App Navigation Bar */}
               <div className="pt-2 border-t border-slate-200 flex justify-around items-center text-[9px] text-slate-500">

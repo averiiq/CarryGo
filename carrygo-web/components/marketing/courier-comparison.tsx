@@ -67,13 +67,15 @@ export function CourierComparison() {
       </div>
 
       {/* Comparison Matrix Table */}
-      <div className="rounded-3xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
+      <div className="rounded-3xl border border-slate-200 bg-white overflow-hidden relative">
+        {/* Top Gradient Hairline Accent */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500 z-20" />
         {/* Table Header */}
         <div className="grid grid-cols-1 md:grid-cols-12 border-b border-slate-200 bg-slate-50/80">
           <div className="md:col-span-4 p-5 font-bold text-xs uppercase tracking-wider text-slate-500 flex items-center">
             Comparison Metric
           </div>
-          <div className="md:col-span-4 p-5 bg-emerald-50/90 border-x border-emerald-200/80 flex items-center justify-between">
+          <div className="md:col-span-4 p-5 bg-gradient-to-b from-emerald-100/70 via-emerald-50/90 to-emerald-50/60 border-x border-emerald-200/80 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="font-heading font-bold text-sm sm:text-base text-emerald-950">
@@ -105,8 +107,8 @@ export function CourierComparison() {
                 </span>
               </div>
 
-              {/* CarryGo Column */}
-              <div className="md:col-span-4 p-4 sm:p-5 bg-emerald-50/40 border-x border-emerald-100 flex items-start gap-3">
+              {/* CarryGo Column with Gradient */}
+              <div className="md:col-span-4 p-4 sm:p-5 bg-gradient-to-b from-emerald-50/40 to-emerald-50/20 border-x border-emerald-100 flex items-start gap-3">
                 <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>

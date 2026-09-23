@@ -2,12 +2,12 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import {
   ArrowRight,
   ArrowRightLeft,
   Calendar,
   Clock,
-  Compass,
   MapPin,
   Package,
   Plane,
@@ -34,6 +34,7 @@ export function HeroRouteSearch() {
   const [fromCity, setFromCity] = useState('')
   const [toCity, setToCity] = useState('')
   const [date, setDate] = useState('')
+  const [isSwapping, setIsSwapping] = useState(false)
 
   // Route calculation based on verified Indian coordinates
   const routeEstimate = useMemo(() => {
@@ -43,9 +44,11 @@ export function HeroRouteSearch() {
   }, [fromCity, toCity])
 
   const handleSwap = () => {
+    setIsSwapping(true)
     const temp = fromCity
     setFromCity(toCity)
     setToCity(temp)
+    setTimeout(() => setIsSwapping(false), 350)
   }
 
   const handleQuickSelect = (from: string, to: string) => {
@@ -74,32 +77,46 @@ export function HeroRouteSearch() {
 
   return (
     <div className="w-full max-w-xl mx-auto lg:mx-0">
-      <div className="relative rounded-3xl border border-slate-200/90 bg-white shadow-xl p-5 sm:p-7 overflow-hidden card-hover-elevate">
-        {/* Mode Switcher Segmented Control */}
-        <div className="grid grid-cols-2 rounded-2xl bg-slate-100/90 p-1.5 border border-slate-200 mb-5">
+      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/30 to-white p-5 sm:p-7 overflow-hidden">
+        {/* Top Gradient Hairline Accent */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500" />
+        <div className="absolute inset-0 pattern-dots opacity-30 pointer-events-none -z-10" />
+        {/* Mode Switcher Segmented Control with Smooth Sliding Pill */}
+        <div className="relative grid grid-cols-2 rounded-2xl bg-slate-100 p-1.5 border border-slate-200 mb-5">
           <button
             type="button"
             onClick={() => setMode('send')}
-            className={`inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-              mode === 'send'
-                ? 'bg-emerald-700 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+            className={`relative z-10 inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
+              mode === 'send' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Package className="w-4 h-4 shrink-0" />
-            <span>Send a Parcel</span>
+            {mode === 'send' && (
+              <motion.span
+                layoutId="heroModeTab"
+                className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+              />
+            )}
+            <Package className="relative z-10 w-4 h-4 shrink-0" />
+            <span className="relative z-10">Send a Parcel</span>
           </button>
+
           <button
             type="button"
             onClick={() => setMode('travel')}
-            className={`inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-              mode === 'travel'
-                ? 'bg-emerald-700 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+            className={`relative z-10 inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
+              mode === 'travel' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Plane className="w-4 h-4 shrink-0" />
-            <span>Travel &amp; Earn</span>
+            {mode === 'travel' && (
+              <motion.span
+                layoutId="heroModeTab"
+                className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+              />
+            )}
+            <Plane className="relative z-10 w-4 h-4 shrink-0" />
+            <span className="relative z-10">Travel &amp; Earn</span>
           </button>
         </div>
 
@@ -116,17 +133,20 @@ export function HeroRouteSearch() {
               iconColor="text-emerald-600"
             />
 
-            {/* Swap Button */}
+            {/* Swap Button with Smooth Spring Rotation */}
             <div className="flex justify-center sm:pt-4">
-              <button
+              <motion.button
                 type="button"
                 onClick={handleSwap}
-                className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 hover:text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50/50 shadow-xs transition-all cursor-pointer group active:scale-95"
+                animate={{ rotate: isSwapping ? 180 : 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 hover:text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50/50 shadow-xs transition-colors cursor-pointer"
                 title="Swap origin and destination"
                 aria-label="Swap cities"
               >
-                <ArrowRightLeft className="w-4 h-4 transition-transform group-hover:rotate-180 duration-300" />
-              </button>
+                <ArrowRightLeft className="w-4 h-4" />
+              </motion.button>
             </div>
 
             {/* Destination City with Autocomplete */}
@@ -140,39 +160,42 @@ export function HeroRouteSearch() {
             />
           </div>
 
-          {/* Live Route Intelligence Banner */}
+          {/* Dynamic Travel Corridor Route Preview */}
           {routeEstimate && (
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-1 duration-200 shadow-xs">
-              <div className="flex items-center gap-2 text-slate-800">
-                <Compass className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span className="font-bold">
-                  {routeEstimate.distanceKm} km transit
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/90 text-xs text-emerald-950 space-y-1.5"
+            >
+              <div className="flex items-center justify-between font-bold">
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  Estimated Highway Route
                 </span>
-                <span className="text-slate-400">•</span>
-                <span className="text-slate-600 flex items-center gap-1.5 font-medium">
-                  <Car className="w-3 h-3 text-emerald-600" />
-                  ~{routeEstimate.driveHours}h
-                  <Train className="w-3 h-3 text-sky-600 ml-1" />
-                  ~{routeEstimate.trainHours}h
+                <span className="font-mono text-emerald-800 font-bold">{routeEstimate.distanceKm} km</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-600 text-[11px]">
+                <span className="flex items-center gap-1">
+                  <Car className="w-3 h-3 text-emerald-600" /> ~{routeEstimate.driveHours}h road
+                </span>
+                <span className="flex items-center gap-1">
+                  <Train className="w-3 h-3 text-sky-600" /> ~{routeEstimate.trainHours}h rail
+                </span>
+                <span className="font-bold text-emerald-700 font-mono">
+                  From ₹{Math.round(routeEstimate.distanceKm * 1.5 + 80)}
                 </span>
               </div>
-              <span className="font-mono font-bold text-emerald-800 bg-white px-2.5 py-1 rounded-xl border border-emerald-200 shadow-xs">
-                From ₹{routeEstimate.basePriceEstimate}/kg
-              </span>
-            </div>
+            </motion.div>
           )}
 
-          {/* Date Selector & Submit Button */}
-          <div className="grid grid-cols-1 sm:grid-cols-[1.1fr_1fr] gap-2.5 pt-1">
-            <div className="relative">
-              <label
-                htmlFor="hero-travel-date"
-                className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 pl-1"
-              >
-                Travel / Delivery Date
+          {/* Date Picker & Search Button Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="space-y-1">
+              <label htmlFor="hero-travel-date" className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Travel Date
               </label>
               <div className="relative">
-                <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   id="hero-travel-date"
                   type="date"
@@ -184,21 +207,23 @@ export function HeroRouteSearch() {
             </div>
 
             <div className="flex items-end">
-              <button
+              <motion.button
                 type="submit"
-                className="w-full h-[46px] rounded-2xl font-bold text-sm text-white bg-emerald-700 hover:bg-emerald-800 shadow-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 group"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full h-[46px] rounded-2xl font-bold text-sm text-white bg-emerald-700 hover:bg-emerald-800 shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 group"
               >
                 <Search className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 <span>
                   {mode === 'send' ? 'Find Travelers' : 'Find Parcels'}
                 </span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
+              </motion.button>
             </div>
           </div>
         </form>
 
-        {/* Popular Corridors Quick Filter */}
+        {/* Popular Corridors Quick Filter with Tactile Hover */}
         <div className="mt-4 pt-4 border-t border-slate-100">
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -208,21 +233,23 @@ export function HeroRouteSearch() {
             {POPULAR_CORRIDORS.map((corridor) => {
               const active = isCurrentCorridor(corridor.from, corridor.to)
               return (
-                <button
+                <motion.button
                   key={`${corridor.from}-${corridor.to}`}
                   type="button"
                   onClick={() => handleQuickSelect(corridor.from, corridor.to)}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.96 }}
                   className={`text-[11px] font-semibold px-2.5 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                     active
-                      ? 'bg-emerald-600 text-white shadow-xs'
+                      ? 'bg-emerald-700 text-white shadow-xs'
                       : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300'
                   }`}
                 >
                   <span>{corridor.from} → {corridor.to}</span>
-                  <span className={`text-[9px] px-1 rounded ${active ? 'bg-emerald-700 text-white' : 'bg-white text-slate-500'}`}>
+                  <span className={`text-[9px] px-1 rounded ${active ? 'bg-emerald-800 text-white' : 'bg-white text-slate-500'}`}>
                     {corridor.tag}
                   </span>
-                </button>
+                </motion.button>
               )
             })}
           </div>

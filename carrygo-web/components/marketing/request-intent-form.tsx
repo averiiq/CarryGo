@@ -424,7 +424,7 @@ export function RequestIntentForm(props: Props) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting || !selectedListingId}
-                className="w-full py-2.5 rounded-xl font-bold text-xs text-white bg-slate-900 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                className="w-full py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
               >
                 {isSubmitting ? (
                   <>

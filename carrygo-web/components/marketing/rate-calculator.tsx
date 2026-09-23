@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
   CheckCircle2,
@@ -62,7 +63,9 @@ export function RateCalculator() {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <div className="relative rounded-3xl border border-slate-200/90 bg-white shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/20 to-white overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+        {/* Top Gradient Hairline Accent */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500" />
 
         {/* Left Side: Interactive Controls */}
         <div className="lg:col-span-7 p-6 sm:p-8 space-y-6">
@@ -79,8 +82,9 @@ export function RateCalculator() {
             </p>
           </div>
 
-          {/* Weight Slider */}
-          <div className="space-y-3 rounded-2xl bg-slate-50 border border-slate-200 p-4 sm:p-5">
+          {/* Weight Slider with Subtle Pattern */}
+          <div className="space-y-3 rounded-2xl bg-gradient-to-b from-slate-50 to-white border border-slate-200/80 p-4 sm:p-5 relative overflow-hidden">
+            <div className="absolute inset-0 pattern-dots opacity-20 pointer-events-none -z-10" />
             <div className="flex items-center justify-between">
               <label htmlFor="package-weight-slider" className="text-xs font-bold uppercase tracking-wider text-slate-600">
                 Parcel Weight
@@ -123,21 +127,28 @@ export function RateCalculator() {
                     key={cat.id}
                     type="button"
                     onClick={() => setCategory(cat.id)}
-                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                    className={`relative p-3 rounded-2xl border text-left transition-colors cursor-pointer flex items-center gap-2.5 ${
                       isSelected
-                        ? 'bg-emerald-50 border-emerald-400 text-emerald-900 shadow-xs'
+                        ? 'border-emerald-500 text-emerald-950 font-bold'
                         : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-emerald-700' : 'text-slate-500'}`} />
-                    <span className="text-xs font-semibold truncate">{cat.label}</span>
+                    {isSelected && (
+                      <motion.span
+                        layoutId="activeCategoryPill"
+                        className="absolute inset-0 rounded-2xl bg-emerald-50 border border-emerald-400 shadow-2xs"
+                        transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                      />
+                    )}
+                    <Icon className={`relative z-10 w-4 h-4 shrink-0 ${isSelected ? 'text-emerald-700' : 'text-slate-500'}`} />
+                    <span className="relative z-10 text-xs font-semibold truncate">{cat.label}</span>
                   </button>
                 )
               })}
             </div>
           </div>
 
-          {/* Urgency Selection */}
+          {/* Urgency Selection with Sliding Pill */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
               Delivery Window
@@ -146,33 +157,44 @@ export function RateCalculator() {
               <button
                 type="button"
                 onClick={() => setUrgency('express')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  urgency === 'express'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  urgency === 'express' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Zap className="w-3.5 h-3.5 fill-current" />
-                <span>Same-Day Transit</span>
+                {urgency === 'express' && (
+                  <motion.span
+                    layoutId="activeUrgencyPill"
+                    className="absolute inset-0 rounded-lg bg-emerald-600 shadow-xs"
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <Zap className="relative z-10 w-3.5 h-3.5 fill-current" />
+                <span className="relative z-10">Same-Day Transit</span>
               </button>
               <button
                 type="button"
                 onClick={() => setUrgency('standard')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  urgency === 'standard'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  urgency === 'standard' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Flexible (24h)
+                {urgency === 'standard' && (
+                  <motion.span
+                    layoutId="activeUrgencyPill"
+                    className="absolute inset-0 rounded-lg bg-emerald-600 shadow-xs"
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <span className="relative z-10">Flexible (24h)</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Right Side: Cost Comparison & Savings Display */}
-        <div className="lg:col-span-5 bg-slate-50 border-t lg:border-t-0 lg:border-l border-slate-200 p-6 sm:p-8 flex flex-col justify-between space-y-6">
-          <div className="space-y-5">
+        {/* Right Side: Cost Comparison & Savings Display with Micro-Grid */}
+        <div className="lg:col-span-5 bg-gradient-to-b from-slate-50/90 via-emerald-50/20 to-slate-50 border-t lg:border-t-0 lg:border-l border-slate-200/90 p-6 sm:p-8 flex flex-col justify-between space-y-6 relative overflow-hidden">
+          <div className="absolute inset-0 pattern-grid opacity-30 pointer-events-none -z-10" />
+          <div className="space-y-5 relative z-10">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
                 Cost Comparison
@@ -182,8 +204,8 @@ export function RateCalculator() {
               </span>
             </div>
 
-            {/* CarryGo Price Card */}
-            <div className="rounded-2xl bg-white border-2 border-emerald-500/40 p-4 sm:p-5 shadow-sm relative overflow-hidden">
+            {/* CarryGo Price Card with Smooth Value Spring & Gradient */}
+            <div className="rounded-2xl bg-gradient-to-br from-white via-emerald-50/50 to-teal-50/30 border-2 border-emerald-500/40 p-4 sm:p-5 relative overflow-hidden">
               <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-emerald-600" /> CarryGo Peer-to-Peer
@@ -193,9 +215,15 @@ export function RateCalculator() {
                 </span>
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-heading font-extrabold text-slate-900">
+                <motion.span
+                  key={calculation.carrygoEst}
+                  initial={{ opacity: 0.7, y: -2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="text-3xl sm:text-4xl font-heading font-extrabold text-slate-900 tabular-nums"
+                >
                   ₹{calculation.carrygoEst}
-                </span>
+                </motion.span>
                 <span className="text-xs text-slate-500">all-inclusive</span>
               </div>
               <div className="mt-2 text-[11px] text-emerald-700 font-medium flex items-center gap-1.5">
@@ -205,7 +233,7 @@ export function RateCalculator() {
             </div>
 
             {/* Courier Benchmark */}
-            <div className="rounded-2xl bg-white border border-slate-200 p-4 text-xs text-slate-600 shadow-xs">
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 text-xs text-slate-600">
               <div className="flex items-center justify-between">
                 <span>Traditional Courier (DTDC / Bluedart)</span>
                 <span className="text-slate-400 line-through font-bold text-sm">

@@ -127,6 +127,11 @@ export default async function LandingPage() {
     <MarketingShell>
       {/* 1. HERO SECTION: Split Layout with Interactive Route Simulator */}
       <ScrollLinkedSection className="px-4 pt-10 pb-16 sm:px-6 md:pt-16 md:pb-24 relative z-10 ambient-mesh-subtle overflow-hidden">
+        {/* Ambient Subtle Multi-stop Mesh Aurora */}
+        <div className="absolute inset-0 -z-10 gradient-mesh-aurora pointer-events-none" />
+        {/* Subtle Micro-dot Geometric Pattern with Radial Vignette */}
+        <div className="absolute inset-0 -z-10 pattern-dots mask-radial-vignette opacity-50 pointer-events-none" />
+
         {/* Subtle decorative background blur layer with gentle parallax */}
         <ParallaxLayer speed={-0.12} className="absolute inset-0 -z-10 pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-r from-emerald-500/8 via-teal-500/5 to-sky-500/8 blur-3xl rounded-full" />
@@ -166,24 +171,28 @@ export default async function LandingPage() {
 
           {/* Trust Highlights Strip with Animated Number Tickers */}
           <Reveal delay={0.2}>
-            <div className="mt-14 sm:mt-16 pt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 max-w-5xl mx-auto border-t border-slate-200 text-center">
-              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs transition-transform hover:-translate-y-1 duration-200">
+            <div className="mt-14 sm:mt-16 pt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 max-w-5xl mx-auto border-t border-slate-200/80 text-center">
+              <div className="p-4 rounded-2xl bg-gradient-to-b from-white via-slate-50/40 to-white border border-slate-200/90 relative overflow-hidden transition-colors">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-slate-400/50 to-transparent" />
                 <p className="text-2xl sm:text-3xl font-heading font-extrabold text-slate-900">
                   <NumberTicker value={10480} suffix="+" />
                 </p>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">Parcels Safely Moved</p>
               </div>
-              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs transition-transform hover:-translate-y-1 duration-200">
+              <div className="p-4 rounded-2xl bg-gradient-to-b from-white via-emerald-50/30 to-white border border-slate-200/90 relative overflow-hidden transition-colors">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent" />
                 <p className="text-2xl sm:text-3xl font-heading font-extrabold text-emerald-700">
                   <NumberTicker value={100} suffix="%" />
                 </p>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">Aadhaar &amp; Face Verified</p>
               </div>
-              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs transition-transform hover:-translate-y-1 duration-200">
+              <div className="p-4 rounded-2xl bg-gradient-to-b from-white via-sky-50/30 to-white border border-slate-200/90 relative overflow-hidden transition-colors">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-sky-400 to-transparent" />
                 <p className="text-2xl sm:text-3xl font-heading font-extrabold text-sky-700">₹0 Risk</p>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">Smart Escrow Vault</p>
               </div>
-              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs transition-transform hover:-translate-y-1 duration-200">
+              <div className="p-4 rounded-2xl bg-gradient-to-b from-white via-amber-50/30 to-white border border-slate-200/90 relative overflow-hidden transition-colors">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
                 <p className="text-2xl sm:text-3xl font-heading font-extrabold text-amber-600">
                   <NumberTicker value={4.9} decimalPlaces={1} suffix=" ★" />
                 </p>
@@ -233,7 +242,10 @@ export default async function LandingPage() {
       </ScrollLinkedSection>
 
       {/* 6. BENTO TRUST & SECURITY FORTRESS */}
-      <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10 overflow-hidden">
+      <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10 overflow-hidden bg-slate-50/30">
+        {/* Subtle Geometric Dot Pattern with Radial Vignette */}
+        <div className="absolute inset-0 -z-10 pattern-dots mask-radial-vignette opacity-40 pointer-events-none" />
+
         {/* Ambient Mesh Aurora Wallpaper Backdrop */}
         <div className="absolute inset-0 -z-10 pointer-events-none opacity-[0.05] dark:opacity-[0.12] overflow-hidden">
           <Image
@@ -257,8 +269,12 @@ export default async function LandingPage() {
             {/* Bento Cell 1: 100% Verified Travel Companions (Spans 7 Cols) */}
             <div className="md:col-span-7">
               <Reveal delay={0.05}>
-                <div className="sturdy-card p-6 sm:p-8 h-full flex flex-col justify-between group relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/30">
-                  <div className="space-y-4">
+                <div className="sturdy-card p-6 sm:p-8 h-full flex flex-col justify-between group relative overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/40 border border-slate-200/90">
+                  {/* Top Hairline Gradient Accent */}
+                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500" />
+                  <div className="absolute inset-0 pattern-dots opacity-20 mask-radial-vignette pointer-events-none" />
+
+                  <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between">
                       <InteractiveIconBadge tone="emerald" className="w-14 h-14">
                         <AnimatedShieldBeacon size={36} color="#059669" />
@@ -279,7 +295,7 @@ export default async function LandingPage() {
                     </div>
 
                     {/* Interactive Telemetry Chip */}
-                    <div className="p-3.5 rounded-2xl bg-white border border-emerald-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="p-3.5 rounded-2xl bg-white border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
                       <div className="flex items-center gap-2">
                         <BadgeCheck className="w-4 h-4 text-emerald-600" />
                         <span className="font-semibold text-slate-800">Aadhaar OCR Validated</span>
@@ -294,7 +310,7 @@ export default async function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs relative z-10">
                     <span className="text-slate-500 font-medium">Haryana Commuter Network Standard</span>
                     <span className="font-bold text-emerald-700 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Strict Zero-Tolerance Policy
@@ -307,8 +323,12 @@ export default async function LandingPage() {
             {/* Bento Cell 2: Dual Golden Handshake PIN (Spans 5 Cols) */}
             <div className="md:col-span-5">
               <Reveal delay={0.1}>
-                <div className="sturdy-card p-6 sm:p-8 h-full flex flex-col justify-between group relative overflow-hidden bg-gradient-to-br from-white to-sky-50/30">
-                  <div className="space-y-4">
+                <div className="sturdy-card p-6 sm:p-8 h-full flex flex-col justify-between group relative overflow-hidden bg-gradient-to-br from-white via-white to-sky-50/40 border border-slate-200/90">
+                  {/* Top Hairline Gradient Accent */}
+                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-sky-500 via-teal-400 to-indigo-500" />
+                  <div className="absolute inset-0 pattern-dots opacity-20 mask-radial-vignette pointer-events-none" />
+
+                  <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between">
                       <InteractiveIconBadge tone="sky" className="w-14 h-14">
                         <AnimatedRouteNode size={36} color="#0284C7" />
@@ -328,11 +348,11 @@ export default async function LandingPage() {
                     </div>
 
                     {/* Visual PIN Preview Blocks */}
-                    <div className="p-3 rounded-2xl bg-white border border-sky-200/80 shadow-2xs flex items-center justify-center gap-2">
+                    <div className="p-3 rounded-2xl bg-white border border-sky-200/80 flex items-center justify-center gap-2">
                       {['4', '9', '2', '0'].map((digit, i) => (
                         <div
                           key={i}
-                          className="w-9 h-11 rounded-xl bg-sky-50 text-sky-950 border border-sky-300 font-mono font-extrabold text-base flex items-center justify-center shadow-2xs"
+                          className="w-9 h-11 rounded-xl bg-sky-50 text-sky-950 border border-sky-300 font-mono font-extrabold text-base flex items-center justify-center"
                         >
                           {digit}
                         </div>
@@ -340,7 +360,7 @@ export default async function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs relative z-10">
                     <span className="text-slate-500 font-medium">Pickup &amp; Dropoff Protected</span>
                     <span className="font-bold text-sky-700">Encrypted In Transit</span>
                   </div>
@@ -351,8 +371,12 @@ export default async function LandingPage() {
             {/* Bento Cell 3: SafeVault™ Payout Protection (Spans 5 Cols) */}
             <div className="md:col-span-5">
               <Reveal delay={0.15}>
-                <div className="sturdy-card p-6 sm:p-8 h-full flex flex-col justify-between group relative overflow-hidden bg-gradient-to-br from-white to-amber-50/30">
-                  <div className="space-y-4">
+                <div className="sturdy-card p-6 sm:p-8 h-full flex flex-col justify-between group relative overflow-hidden bg-gradient-to-br from-white via-white to-amber-50/40 border border-slate-200/90">
+                  {/* Top Hairline Gradient Accent */}
+                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-amber-500 via-orange-400 to-emerald-500" />
+                  <div className="absolute inset-0 pattern-dots opacity-20 mask-radial-vignette pointer-events-none" />
+
+                  <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between">
                       <InteractiveIconBadge tone="amber" className="w-14 h-14">
                         <AnimatedWalletVault size={36} color="#D97706" />
@@ -371,7 +395,7 @@ export default async function LandingPage() {
                       </p>
                     </div>
 
-                    <div className="p-3 rounded-2xl bg-white border border-amber-200/80 shadow-2xs flex items-center justify-between text-xs">
+                    <div className="p-3 rounded-2xl bg-white border border-amber-200/80 flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
                         <Lock className="w-4 h-4 text-amber-600" />
                         <span className="font-bold text-slate-800">100% Upfront Reserve</span>
@@ -380,7 +404,7 @@ export default async function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs relative z-10">
                     <span className="text-slate-500 font-medium">Instant Bank Settlement</span>
                     <span className="font-bold text-amber-700">Zero Payment Disputes</span>
                   </div>
@@ -391,8 +415,12 @@ export default async function LandingPage() {
             {/* Bento Cell 4: ₹10,000 Signature Peace of Mind (Spans 7 Cols) */}
             <div className="md:col-span-7">
               <Reveal delay={0.2}>
-                <div className="sturdy-card p-6 sm:p-8 h-full flex flex-col justify-between group relative overflow-hidden bg-gradient-to-br from-white to-indigo-50/30">
-                  <div className="space-y-4">
+                <div className="sturdy-card p-6 sm:p-8 h-full flex flex-col justify-between group relative overflow-hidden bg-gradient-to-br from-white via-white to-indigo-50/40 border border-slate-200/90">
+                  {/* Top Hairline Gradient Accent */}
+                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-500 via-purple-400 to-sky-500" />
+                  <div className="absolute inset-0 pattern-dots opacity-20 mask-radial-vignette pointer-events-none" />
+
+                  <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between">
                       <InteractiveIconBadge tone="indigo" className="w-14 h-14">
                         <AnimatedPackageDelivery size={36} color="#6366F1" />
@@ -411,7 +439,7 @@ export default async function LandingPage() {
                       </p>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-white border border-indigo-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="p-3.5 rounded-2xl bg-white border border-indigo-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
                       <div className="flex items-center gap-2">
                         <ShieldCheck className="w-4 h-4 text-indigo-600" />
                         <span className="font-semibold text-slate-800">Direct Resolution Concierge</span>
@@ -423,7 +451,7 @@ export default async function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs relative z-10">
                     <span className="text-slate-500 font-medium">CarryGo Community Trust Covenant</span>
                     <span className="font-bold text-indigo-700 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Full Value Protection
@@ -444,7 +472,10 @@ export default async function LandingPage() {
       </ScrollLinkedSection>
 
       {/* 8. REAL VERIFIED REVIEWS WITH ROUTE STAMPS */}
-      <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10">
+      <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10 bg-slate-50/40 overflow-hidden">
+        {/* Subtle Grid Pattern with Radial Vignette */}
+        <div className="absolute inset-0 -z-10 pattern-grid opacity-20 mask-radial-vignette pointer-events-none" />
+
         <div className="mx-auto max-w-6xl">
           <SectionHeading
             label="Verified Reviews"
@@ -455,8 +486,12 @@ export default async function LandingPage() {
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {testimonials.map((review, index) => (
               <Reveal key={review.name} delay={index * 0.05}>
-                <div className="sturdy-card p-6 space-y-4 flex flex-col justify-between h-full">
-                  <div className="space-y-3">
+                <div className="p-6 space-y-4 flex flex-col justify-between h-full rounded-3xl bg-gradient-to-b from-white via-slate-50/30 to-white border border-slate-200/90 relative overflow-hidden">
+                  {/* Subtle Top Accent */}
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
+                  <div className="absolute inset-0 pattern-dots opacity-15 mask-radial-vignette pointer-events-none" />
+
+                  <div className="space-y-3 relative z-10">
                     <div className="flex items-center text-amber-500 gap-1">
                       {[...Array(5)].map((_, i) => (
                         <Star key={i} className="w-3.5 h-3.5 fill-current" />
@@ -467,7 +502,7 @@ export default async function LandingPage() {
                     </p>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+                  <div className="pt-4 border-t border-slate-100 flex items-center gap-3 relative z-10">
                     <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center font-bold text-xs">
                       {review.name.charAt(0)}
                     </div>
@@ -489,9 +524,16 @@ export default async function LandingPage() {
       {/* 9. HIGH-IMPACT FINAL CTA BANNER */}
       <ScrollLinkedSection className="px-4 pt-8 pb-20 sm:px-6 md:pb-28 relative z-10">
         <Reveal>
-          <div className="mx-auto max-w-5xl rounded-3xl bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/70 border border-emerald-200/90 text-slate-900 shadow-xl p-8 sm:p-14 text-center relative overflow-hidden">
+          <div className="mx-auto max-w-5xl rounded-3xl bg-gradient-to-br from-emerald-50 via-teal-50/70 to-emerald-100/50 border border-emerald-300/80 text-slate-900 p-8 sm:p-14 text-center relative overflow-hidden">
+            {/* Top Hairline Gradient Accent */}
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500" />
+            {/* Elegant Micro-dot Pattern with Radial Vignette */}
+            <div className="absolute inset-0 pattern-dots-emerald opacity-25 mask-radial-vignette pointer-events-none" />
+            {/* Soft Ambient Glow */}
+            <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[550px] h-[250px] bg-gradient-to-b from-emerald-400/15 via-teal-300/10 to-transparent blur-3xl pointer-events-none" />
+
             <div className="relative z-10 space-y-5 max-w-2xl mx-auto">
-              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-100/90 text-emerald-800 border border-emerald-300/90">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Join India&apos;s Fastest Delivery Network</span>
               </span>
@@ -507,7 +549,7 @@ export default async function LandingPage() {
               <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5">
                 <Link
                   href="/create-parcel"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white transition-all active:scale-95 cursor-pointer shadow-xs"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white transition-all active:scale-95 cursor-pointer"
                 >
                   <span>Send a Parcel Now</span>
                   <ArrowRight className="w-4 h-4" />
@@ -515,7 +557,7 @@ export default async function LandingPage() {
 
                 <Link
                   href="/create-trip"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-all active:scale-95 cursor-pointer"
                 >
                   <Plane className="w-4 h-4 text-emerald-600" />
                   <span>Post Travel Route</span>

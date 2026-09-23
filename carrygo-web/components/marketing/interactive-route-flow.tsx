@@ -76,7 +76,7 @@ export function InteractiveRouteFlow() {
 
   return (
     <div className="relative w-full max-w-xl mx-auto">
-      <div className="relative rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-xl overflow-hidden">
+      <div className="relative rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 overflow-hidden">
         {/* Header Strip: Live Radar & Active Traveler Counter */}
         <div className="flex items-center justify-between gap-3 pb-5 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
@@ -98,7 +98,7 @@ export function InteractiveRouteFlow() {
           </div>
         </div>
 
-        {/* Corridor Route Tabs - Crisp Light Styling */}
+        {/* Corridor Route Tabs - Crisp Light Styling with Smooth Sliding Pill */}
         <div className="mt-5 grid grid-cols-3 gap-2">
           {PRESETS.map((preset) => {
             const isSelected = preset.id === selectedPreset.id
@@ -107,22 +107,31 @@ export function InteractiveRouteFlow() {
                 key={preset.id}
                 type="button"
                 onClick={() => setSelectedPreset(preset)}
-                className={`px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer border ${
+                className={`relative px-2.5 py-2 rounded-xl text-left transition-colors cursor-pointer border ${
                   isSelected
-                    ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
-                    : 'bg-slate-50 text-slate-700 border-slate-200/80 hover:bg-emerald-50/60 hover:text-emerald-900'
+                    ? 'border-emerald-700 text-white'
+                    : 'border-slate-200/80 bg-slate-50 text-slate-700 hover:bg-emerald-50/60 hover:text-emerald-900'
                 }`}
               >
-                <p className="text-[11px] font-bold truncate">
-                  {preset.from} → {preset.to}
-                </p>
-                <p
-                  className={`text-[10px] mt-0.5 truncate ${
-                    isSelected ? 'text-emerald-100 font-medium' : 'text-slate-500'
-                  }`}
-                >
-                  {preset.distanceKm} km • {preset.driveHours}
-                </p>
+                {isSelected && (
+                  <motion.span
+                    layoutId="activeCorridorTab"
+                    className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <div className="relative z-10">
+                  <p className="text-[11px] font-bold truncate">
+                    {preset.from} → {preset.to}
+                  </p>
+                  <p
+                    className={`text-[10px] mt-0.5 truncate ${
+                      isSelected ? 'text-emerald-100 font-medium' : 'text-slate-500'
+                    }`}
+                  >
+                    {preset.distanceKm} km • {preset.driveHours}
+                  </p>
+                </div>
               </button>
             )
           })}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
   Car,
@@ -135,7 +136,10 @@ export function HeroRouteSimulator() {
   return (
     <div className="relative w-full max-w-lg mx-auto">
       {/* Main Glass HUD Container */}
-      <div className="relative rounded-3xl border border-slate-200/80 bg-white shadow-xl p-5 sm:p-6 overflow-hidden">
+      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/30 to-white p-5 sm:p-6 overflow-hidden">
+        {/* Top Gradient Hairline Accent */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-sky-500 via-teal-400 to-emerald-500" />
+        <div className="absolute inset-0 pattern-dots opacity-30 pointer-events-none -z-10" />
         {/* Header Strip with Live Status */}
         <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -150,7 +154,7 @@ export function HeroRouteSimulator() {
           </div>
         </div>
 
-        {/* Interactive Corridor Selector Pills */}
+        {/* Interactive Corridor Selector Pills with Smooth Sliding Pill */}
         <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           {corridors.map((c) => {
             const isSelected = c.id === activeCorridor.id
@@ -159,100 +163,116 @@ export function HeroRouteSimulator() {
                 key={c.id}
                 type="button"
                 onClick={() => setActiveCorridorId(c.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                className={`relative px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
                   isSelected
-                    ? 'bg-emerald-700 text-white shadow-xs'
+                    ? 'text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
                 }`}
               >
-                {c.from} ➔ {c.to}
+                {isSelected && (
+                  <motion.span
+                    layoutId="heroCorridorActivePill"
+                    className="absolute inset-0 rounded-xl bg-emerald-700 shadow-xs"
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <span className="relative z-10">{c.from} ➔ {c.to}</span>
               </button>
             )
           })}
         </div>
 
-        {/* Active Corridor Card HUD */}
-        <div className="mt-4 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
-          {/* Top route & distance stats */}
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg sm:text-xl font-heading font-extrabold text-slate-900">
-                  {activeCorridor.from}
-                </span>
-                <span className="text-emerald-600 font-bold">➔</span>
-                <span className="text-lg sm:text-xl font-heading font-extrabold text-slate-900">
-                  {activeCorridor.to}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                <span className="font-semibold text-slate-700">{activeCorridor.distance}</span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-sky-600" />
-                  {activeCorridor.duration}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border border-slate-200 shadow-2xs">
-              <VehicleIcon className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="text-xs font-bold text-slate-800 capitalize">
-                {activeCorridor.vehicle}
-              </span>
-            </div>
-          </div>
-
-          {/* Traveler Info Box */}
-          <div className="p-3.5 rounded-xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-200">
-                {activeCorridor.traveler.avatar}
-              </div>
+        {/* Active Corridor Card HUD with AnimatePresence */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeCorridor.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="mt-4 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4"
+          >
+            {/* Top route & distance stats */}
+            <div className="flex items-start justify-between gap-2">
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-900">
-                    {activeCorridor.traveler.name}
+                <div className="flex items-center gap-2">
+                  <span className="text-lg sm:text-xl font-heading font-extrabold text-slate-900">
+                    {activeCorridor.from}
                   </span>
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                    KYC
+                  <span className="text-emerald-600 font-bold">➔</span>
+                  <span className="text-lg sm:text-xl font-heading font-extrabold text-slate-900">
+                    {activeCorridor.to}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                  <span className="flex items-center gap-0.5 text-amber-600 font-bold">
-                    <Star className="w-3 h-3 fill-current" />
-                    {activeCorridor.traveler.rating}
-                  </span>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                  <span className="font-semibold text-slate-700">{activeCorridor.distance}</span>
                   <span>•</span>
-                  <span>{activeCorridor.traveler.vehicleDetail}</span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-sky-600" />
+                    {activeCorridor.duration}
+                  </span>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <VehicleIcon className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-xs font-bold text-slate-800 capitalize">
+                  {activeCorridor.vehicle}
+                </span>
               </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-[10px] text-slate-400 uppercase font-bold block">Capacity</span>
-              <span className="text-xs font-bold font-mono text-emerald-700">
-                {activeCorridor.traveler.spaceAvailable}
-              </span>
-            </div>
-          </div>
+            {/* Traveler Info Box */}
+            <div className="p-3.5 rounded-xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-200">
+                  {activeCorridor.traveler.avatar}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-900">
+                      {activeCorridor.traveler.name}
+                    </span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      KYC
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                    <span className="flex items-center gap-0.5 text-amber-600 font-bold">
+                      <Star className="w-3 h-3 fill-current" />
+                      {activeCorridor.traveler.rating}
+                    </span>
+                    <span>•</span>
+                    <span>{activeCorridor.traveler.vehicleDetail}</span>
+                  </div>
+                </div>
+              </div>
 
-          {/* Pricing & Departure Pill */}
-          <div className="flex items-center justify-between text-xs pt-1">
-            <div className="flex items-center gap-1.5 text-slate-600">
-              <Clock className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="font-semibold">{activeCorridor.traveler.eta}</span>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Capacity</span>
+                <span className="text-xs font-bold font-mono text-emerald-700">
+                  {activeCorridor.traveler.spaceAvailable}
+                </span>
+              </div>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-slate-400 text-[11px]">Starting from</span>
-              <span className="text-base font-extrabold font-heading text-slate-900">
-                ₹{activeCorridor.traveler.ratePerKg}
-              </span>
-              <span className="text-[10px] text-slate-500">/kg</span>
+
+            {/* Pricing & Departure Pill */}
+            <div className="flex items-center justify-between text-xs pt-1">
+              <div className="flex items-center gap-1.5 text-slate-600">
+                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="font-semibold">{activeCorridor.traveler.eta}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-slate-400 text-[11px]">Starting from</span>
+                <span className="text-base font-extrabold font-heading text-slate-900">
+                  ₹{activeCorridor.traveler.ratePerKg}
+                </span>
+                <span className="text-[10px] text-slate-500">/kg</span>
+              </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </AnimatePresence>
 
         {/* Dual-OTP Escrow Trust Guarantee */}
         <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">

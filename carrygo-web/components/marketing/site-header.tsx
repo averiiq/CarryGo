@@ -123,7 +123,7 @@ export function SiteHeader() {
       <header
         className={`sticky top-0 z-50 w-full transition-all duration-200 ${
           isScrolled
-            ? 'border-b border-slate-200/90 bg-white/95 backdrop-blur-xl shadow-xs'
+            ? 'border-b border-slate-200/90 bg-white/95 backdrop-blur-xl'
             : 'border-b border-slate-200/60 bg-white/85 backdrop-blur-md'
         }`}
       >
@@ -132,7 +132,7 @@ export function SiteHeader() {
           {/* Brand Logo */}
           <div className="flex items-center gap-6">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-emerald-400 transition-transform group-hover:scale-105 shadow-xs">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white transition-transform group-hover:scale-105 shadow-xs">
                 <Navigation className="h-4 w-4" />
               </div>
               <div className="flex items-center gap-2">
@@ -285,10 +285,10 @@ export function SiteHeader() {
                 href={process.env.NEXT_PUBLIC_CMS_URL || 'http://localhost:3001/dashboard'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-xs"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-xs"
                 title="Open Admin Operations CMS"
               >
-                <Terminal className="w-3 h-3 text-emerald-400" />
+                <Terminal className="w-3 h-3 text-emerald-700" />
                 <span>Admin CMS</span>
               </a>
             )}
@@ -301,7 +301,7 @@ export function SiteHeader() {
                   onClick={() => setUserMenuOpen((prev) => !prev)}
                   className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition cursor-pointer"
                 >
-                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[11px]">
+                  <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center justify-center font-bold text-[11px]">
                     {currentUser.name?.[0]?.toUpperCase() || 'U'}
                   </div>
                   <span className="text-xs font-semibold text-slate-800 max-w-[85px] truncate hidden min-[480px]:inline">
@@ -415,7 +415,7 @@ export function SiteHeader() {
             {/* Primary Action Button */}
             <Link
               href="/create-parcel"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
             >
               <span>Send<span className="hidden min-[360px]:inline"> Parcel</span></span>
               <ArrowRight className="h-3 w-3 hidden sm:inline" />
