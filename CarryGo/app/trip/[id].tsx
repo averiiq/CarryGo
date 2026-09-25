@@ -15,7 +15,7 @@ import { SendRequestModal } from '@/components/feature/SendRequestModal';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Trip, Parcel } from '@/types';
-import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
+import { isRequestIncoming } from '@/services/requests.service';
 import { createDelivery } from '@/services/deliveries.service';
 import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';

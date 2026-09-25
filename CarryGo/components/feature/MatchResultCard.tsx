@@ -77,7 +77,7 @@ export const MatchResultCard = React.memo(function MatchResultCard({
         <View style={styles.routeSection}>
           <View style={styles.routeFrom}>
             <View style={[styles.routeDot, { backgroundColor: C.success }]} />
-            <Text style={[styles.routeCity, { color: C.textPrimary }]}>{trip.fromCity}</Text>
+            <Text style={[styles.routeCity, { color: C.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">{trip.fromCity}</Text>
           </View>
           <View style={styles.routeLineContainer}>
             <View style={[styles.routeLineDash, { borderColor: C.textMuted + '44' }]} />
@@ -89,7 +89,7 @@ export const MatchResultCard = React.memo(function MatchResultCard({
           </View>
           <View style={styles.routeTo}>
             <View style={[styles.routeDot, { backgroundColor: C.error }]} />
-            <Text style={[styles.routeCity, { color: C.textPrimary }]}>{trip.toCity}</Text>
+            <Text style={[styles.routeCity, { color: C.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">{trip.toCity}</Text>
           </View>
         </View>
 

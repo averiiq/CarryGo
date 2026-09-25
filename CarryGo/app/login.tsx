@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
-  TextInput, Animated, Dimensions, Pressable, Platform,
+  TextInput, Animated, Pressable, Platform, useWindowDimensions,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing, BorderRadius, Gradients } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, Gradients } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,14 +19,13 @@ import { DELAYS } from '@/constants/timing';
 import { useBreathing, useFadeIn } from '@/hooks/useAnimations';
 import { LoginEmailForm } from '@/components/feature/LoginEmailForm';
 import { LoginOtpForm } from '@/components/feature/LoginOtpForm';
-import { ProductIllustration } from '@/components/illustrations';
 
 type Step = 'email' | 'otp';
 const OTP_LENGTH = AUTH_OTP_LENGTH;
 const RESEND_COOLDOWN = 60;
-const { width: W } = Dimensions.get('window');
 
 export default function LoginScreen() {
+  const { width: W } = useWindowDimensions();
   const { sendOTP, verifyOTP } = useAuth();
   const { showAlert } = useAlert();
   const { C } = useThemeColors();

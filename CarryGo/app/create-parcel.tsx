@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -21,12 +21,11 @@ import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
-import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateParcelMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
-import { DocumentsIllustration, ElectronicsIllustration, ClothingIllustration, FoodIllustration, MedicineIllustration, OtherIllustration, ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
+import { DocumentsIllustration, ElectronicsIllustration, ClothingIllustration, FoodIllustration, MedicineIllustration, OtherIllustration } from '@/components/illustrations';
 
 const STEPS = [
   { label: 'Route' },

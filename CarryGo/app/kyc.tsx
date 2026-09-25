@@ -26,7 +26,6 @@ import {
   verifyAadhaarOtp,
   uploadSelfie,
   submitSandboxKyc,
-  completeSandboxKyc,
   fetchLatestKycSession,
 } from '@/services/kyc.service';
 import { verifyHumanFace, FaceVerificationResult } from '@/services/face-verification.service';

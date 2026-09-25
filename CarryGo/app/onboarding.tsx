@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Dimensions,
   ScrollView,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,7 +20,6 @@ import { Haptic } from '@/services/haptics.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
 
-const { width: W } = Dimensions.get('window');
 const ONBOARDING_KEY = 'carrygo_onboarding_seen';
 
 const SLIDES = [
@@ -54,6 +53,7 @@ const SLIDES = [
 ];
 
 export default function OnboardingScreen() {
+  const { width: W } = useWindowDimensions();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { C, G } = useThemeColors();
@@ -70,7 +70,7 @@ export default function OnboardingScreen() {
       setActiveIndex(idx);
       Haptic.select();
     }
-  }, [activeIndex]);
+  }, [activeIndex, W]);
 
   const goNext = () => {
     Haptic.tap();
@@ -111,7 +111,7 @@ export default function OnboardingScreen() {
         scrollEventThrottle={16}
       >
         {SLIDES.map((slide) => (
-          <View key={slide.key} style={styles.slide}>
+          <View key={slide.key} style={[styles.slide, { width: W }]}>
             <View style={styles.illustrationWrap}>
               <ProductIllustration variant={slide.illustration} size={230} />
             </View>
@@ -196,7 +196,6 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
   slide: {
-    width: W,
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',

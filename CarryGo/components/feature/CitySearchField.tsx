@@ -51,7 +51,10 @@ export function CitySearchField({
 
   const showCurrentLocationOption = Boolean(onUseCurrentLocation);
 
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleSelect = useCallback((city: string) => {
+    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     onSelect(city);
     setQuery(city);
     setIsOpen(false);
@@ -60,6 +63,7 @@ export function CitySearchField({
   }, [onSelect]);
 
   const handleLocationPress = useCallback(() => {
+    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     if (isDetectingCurrentLocation) return;
     Haptic.tap();
     setIsOpen(false);
@@ -68,15 +72,16 @@ export function CitySearchField({
   }, [isDetectingCurrentLocation, onUseCurrentLocation]);
 
   const handleFocus = () => {
+    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     setIsOpen(true);
     setQuery(value || '');
   };
 
   const handleBlur = () => {
-    setTimeout(() => {
+    blurTimeoutRef.current = setTimeout(() => {
       setIsOpen(false);
       setQuery(value || '');
-    }, 200);
+    }, 280);
   };
 
   const handleClear = () => {
@@ -212,6 +217,8 @@ export function CitySearchField({
                 styles.option,
                 { backgroundColor: pressed ? C.surfaceElevated : 'transparent' },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Select ${city}`}
               onPress={() => handleSelect(city)}
             >
               <View style={[styles.optionDot, { backgroundColor: dotColor }]} />

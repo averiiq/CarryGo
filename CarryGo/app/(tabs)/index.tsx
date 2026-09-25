@@ -3,15 +3,13 @@ import { ActivityIndicator, Animated, Pressable, RefreshControl, StyleSheet, Tex
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AsyncStateCard, FeedSkeletonList, OfflineBanner, ParcelCard, TripCard } from '@/components';
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
 import { SendRequestModal } from '@/components/feature/SendRequestModal';
-import { ProductIllustration } from '@/components/illustrations';
-import { BorderRadius, FontSize, FontWeight, Gradients, Spacing, TouchTarget } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
@@ -94,6 +92,8 @@ function SearchBarTrigger({
         Haptic.tap();
         onSearchPress();
       }}
+      accessibilityRole="button"
+      accessibilityLabel="Search routes and deliveries"
       style={({ pressed }) => [
         styles.searchBar,
         { backgroundColor: C.card, borderColor: hasFilter ? C.primary : C.surfaceBorder },
@@ -125,6 +125,8 @@ function QuickActions() {
           Haptic.confirm();
           router.push('/create-parcel');
         }}
+        accessibilityRole="button"
+        accessibilityLabel="Send Parcel, match with travelers"
         style={({ pressed }) => [
           styles.quickActionCard,
           styles.quickActionPrimaryCard,
@@ -149,6 +151,8 @@ function QuickActions() {
           Haptic.confirm();
           router.push('/create-trip');
         }}
+        accessibilityRole="button"
+        accessibilityLabel="Post a Trip, earn from bag space"
         style={({ pressed }) => [
           styles.quickActionCard,
           { backgroundColor: C.card, borderColor: C.surfaceBorder },

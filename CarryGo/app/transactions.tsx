@@ -248,6 +248,20 @@ export default function TransactionsScreen() {
   const totalEarned = payments.filter(p => p.status === 'released' && p.travellerId === user?.id).reduce((s, p) => s + p.amount, 0);
   const totalSpent  = payments.filter(p => p.status === 'released' && p.senderId   === user?.id).reduce((s, p) => s + p.amount, 0);
 
+  const renderTxItem = useCallback(({ item }: { item: Payment }) => (
+    <TxRow
+      item={item}
+      userId={user?.id || ''}
+      onPress={() => router.push({ pathname: '/payment/[id]', params: { id: item.requestId } })}
+    />
+  ), [user?.id, router]);
+
+  const renderMonthHeader = useCallback(({ section }: { section: { title: string; data: Payment[] } }) => (
+    <MonthHeader title={section.title} payments={section.data} userId={user?.id || ''} />
+  ), [user?.id]);
+
+  const renderTxSeparator = useCallback(() => <View style={{ height: 6 }} />, []);
+
   if (!FeatureFlags.payments) {
     return (
       <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -348,16 +362,8 @@ export default function TransactionsScreen() {
         <SectionList
           sections={sections}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <TxRow
-              item={item}
-              userId={user?.id || ''}
-              onPress={() => router.push({ pathname: '/payment/[id]', params: { id: item.requestId } })}
-            />
-          )}
-          renderSectionHeader={({ section }) => (
-            <MonthHeader title={section.title} payments={section.data} userId={user?.id || ''} />
-          )}
+          renderItem={renderTxItem}
+          renderSectionHeader={renderMonthHeader}
           ListHeaderComponent={
             <View style={{ paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm, gap: Spacing.md }}>
               {/* One-time PAN verification banner or verified badge */}
@@ -435,7 +441,7 @@ export default function TransactionsScreen() {
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 32 }]}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
-          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+          ItemSeparatorComponent={renderTxSeparator}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />
           }

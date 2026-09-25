@@ -358,6 +358,19 @@ export default function SubscriptionsScreen() {
     router.push({ pathname: '/matching', params: { mode: 'browse_trips', fromCity: sub.fromCity, toCity: sub.toCity } });
   };
 
+  const renderSubItem = useCallback(({ item }: { item: RouteSubscription }) => (
+    <View style={{ marginBottom: Spacing.sm }}>
+      <SubCard
+        item={item}
+        onToggle={() => handleToggle(item)}
+        onDelete={() => handleDelete(item)}
+        onView={() => handleView(item)}
+        matchData={matchData[item.id]}
+        C={C}
+      />
+    </View>
+  ), [handleToggle, handleDelete, handleView, matchData, C]);
+
   const activeSubs = subs.filter(s => s.active).length;
   const totalMatches = Object.values(matchData).reduce((s, m) => s + m.trips.length + m.parcels.length, 0);
 
@@ -475,18 +488,8 @@ export default function SubscriptionsScreen() {
           <FlashList
             data={subs}
             keyExtractor={s => s.id}
-            renderItem={({ item }) => (
-              <View style={{ marginBottom: Spacing.sm }}>
-                <SubCard
-                  item={item}
-                  onToggle={() => handleToggle(item)}
-                  onDelete={() => handleDelete(item)}
-                  onView={() => handleView(item)}
-                  matchData={matchData[item.id]}
-                  C={C}
-                />
-              </View>
-            )}
+            renderItem={renderSubItem}
+            estimatedItemSize={120}
             contentContainerStyle={styles.list as any}
             showsVerticalScrollIndicator={false}
             refreshControl={

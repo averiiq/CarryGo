@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,10 +18,9 @@ import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
-import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useCreateTripMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
-import { BikeIllustration, CarIllustration, BusIllustration, TrainIllustration, FlightIllustration, ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
+import { BikeIllustration, CarIllustration, BusIllustration, TrainIllustration, FlightIllustration } from '@/components/illustrations';
 
 const STEPS = [
   { label: 'Route' },

@@ -4,7 +4,7 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   StyleProp,
   ViewStyle,
   KeyboardAvoidingView,
@@ -24,7 +24,6 @@ import { Haptic } from '@/services/haptics.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { BorderRadius, Spacing } from '@/constants/theme';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 110;
 const DISMISS_VELOCITY = 700;
 
@@ -49,6 +48,7 @@ export function GestureBottomSheet({
   enablePanDownToClose = true,
   dismissOnBackdropPress = true,
 }: GestureBottomSheetProps) {
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const { C } = useThemeColors();
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const backdropProgress = useSharedValue(0);
@@ -74,7 +74,7 @@ export function GestureBottomSheet({
         runOnJS(handleDismissFinished)();
       }
     });
-  }, [backdropProgress, handleDismissFinished, translateY]);
+  }, [backdropProgress, handleDismissFinished, translateY, SCREEN_HEIGHT]);
 
   const triggerCloseWithHaptic = useCallback(() => {
     Haptic.tap();

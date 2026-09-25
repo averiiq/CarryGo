@@ -6,7 +6,6 @@ import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { AsyncStateCard, OfflineBanner, RequestCard } from '@/components';
@@ -23,7 +22,6 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useStaggeredList } from '@/hooks/useAnimations';
 import { getUserErrorMessage } from '@/lib/error-handler';
-import { ProductIllustration } from '@/components/illustrations';
 import { Request } from '@/types';
 import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
 
@@ -352,22 +350,39 @@ export default function RequestsScreen() {
     ]);
   };
 
-  const handleChat = (req: Request) => {
+  const handleChat = useCallback((req: Request) => {
     Haptic.tap();
     const conv = conversations.find(c => c.requestId === req.id);
     if (conv?.id) router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
     else showAlert('No Chat Yet', 'Chat opens automatically once the request is accepted.');
-  };
+  }, [conversations, router, showAlert]);
 
-  const handleDelivery = (req: Request) => {
+  const handleDelivery = useCallback((req: Request) => {
     Haptic.tap();
     router.push({ pathname: '/delivery/[id]', params: { id: req.id } });
-  };
+  }, [router]);
 
-  const handlePayment = (req: Request) => {
+  const handlePayment = useCallback((req: Request) => {
     Haptic.tap();
     router.push({ pathname: '/payment/[id]', params: { id: req.id } });
-  };
+  }, [router]);
+
+  const renderRequestItem = useCallback(({ item, index }: { item: Request; index: number }) => (
+    <RequestListItem
+      item={item}
+      tab={tab}
+      isTablet={isTablet}
+      anim={cardAnims[index]}
+      onAccept={handleAccept}
+      onReject={handleReject}
+      onCancel={handleCancel}
+      onChat={handleChat}
+      onDelivery={handleDelivery}
+      onPayment={handlePayment}
+    />
+  ), [tab, isTablet, cardAnims, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment]);
+
+  const renderItemSeparator = useCallback(() => <View style={{ height: Spacing.md }} />, []);
 
   const tabLabel = tab === 'incoming' ? 'Requests to carry parcels' : 'Requests you have sent';
 
@@ -418,7 +433,7 @@ export default function RequestsScreen() {
       ) : null}
 
       {/* Segmented Mode Switcher: Incoming vs Outgoing */}
-      <View style={[styles.segmentedWrap, { backgroundColor: '#F1F5F9', borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
+      <View style={[styles.segmentedWrap, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
         {(['incoming', 'outgoing'] as const).map((t) => {
           const active = tab === t;
           const count = t === 'incoming' ? incoming.length : outgoing.length;
@@ -507,24 +522,11 @@ export default function RequestsScreen() {
         <FlashList
           data={requestsQuery.error || requestsQuery.isLoading ? [] : displayed}
           keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <RequestListItem
-              item={item}
-              tab={tab}
-              isTablet={isTablet}
-              anim={cardAnims[index]}
-              onAccept={handleAccept}
-              onReject={handleReject}
-              onCancel={handleCancel}
-              onChat={handleChat}
-              onDelivery={handleDelivery}
-              onPayment={handlePayment}
-            />
-          )}
+          renderItem={renderRequestItem}
           estimatedItemSize={220}
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+          ItemSeparatorComponent={renderItemSeparator}
           contentContainerStyle={{ paddingBottom: insets.bottom + 108 }}
           refreshControl={
             <RefreshControl

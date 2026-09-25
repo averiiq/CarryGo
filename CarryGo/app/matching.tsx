@@ -292,6 +292,28 @@ export default function MatchingScreen() {
     }
   }, [handleRepostNow, router, fromCity, toCity, currentParcel, showAlert]);
 
+  const renderTripItem = useCallback(({ item }: { item: Trip }) => (
+    <View style={{ marginBottom: Spacing.md }}>
+      <TripCard
+        trip={item}
+        matchScore={isParcelMode ? tripMatchBreakdowns.get(item.id)?.total : undefined}
+        onMatchPress={isParcelMode
+          ? () => {
+            const score = tripMatchBreakdowns.get(item.id);
+            if (!score) return;
+            setActiveMatchDetails({
+              title: `${item.fromCity} → ${item.toCity}`,
+              score,
+            });
+          }
+          : undefined}
+        showRequestButton={!sentRequests.has(item.id)}
+        onRequest={() => handleSendRequest(item)}
+        onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
+      />
+    </View>
+  ), [isParcelMode, tripMatchBreakdowns, sentRequests, handleSendRequest, router]);
+
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
@@ -457,27 +479,8 @@ export default function MatchingScreen() {
               <FlashList
                 data={sortedTrips}
                 keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                  <View style={{ marginBottom: Spacing.md }}>
-                    <TripCard
-                      trip={item}
-                      matchScore={isParcelMode ? tripMatchBreakdowns.get(item.id)?.total : undefined}
-                      onMatchPress={isParcelMode
-                        ? () => {
-                          const score = tripMatchBreakdowns.get(item.id);
-                          if (!score) return;
-                          setActiveMatchDetails({
-                            title: `${item.fromCity} → ${item.toCity}`,
-                            score,
-                          });
-                        }
-                        : undefined}
-                      showRequestButton={!sentRequests.has(item.id)}
-                      onRequest={() => handleSendRequest(item)}
-                      onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
-                    />
-                  </View>
-                )}
+                renderItem={renderTripItem}
+                estimatedItemSize={210}
                 contentContainerStyle={styles.list as any}
                 showsVerticalScrollIndicator={false}
               />

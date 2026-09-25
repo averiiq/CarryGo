@@ -29,6 +29,8 @@ export const CityDropdown = React.memo(function CityDropdown({
             i === suggestions.length - 1 && { borderBottomWidth: 0 },
             pressed && { backgroundColor: C.primarySubtle },
           ]}
+          accessibilityRole="button"
+          accessibilityLabel={`Select ${city}`}
           onPress={() => { Haptic.select(); onSelect(city); }}
         >
           <View style={[styles.dropdownIcon, { backgroundColor: accent + '18' }]}>

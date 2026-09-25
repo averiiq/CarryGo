@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, PanResponder } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Request } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Motion, TouchTarget, LetterSpacing } from '@/constants/theme';
+import { FontSize, FontWeight, BorderRadius, ThemeColors, TouchTarget } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';

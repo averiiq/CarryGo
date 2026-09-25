@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { captureException } from '@/lib/monitoring';
 import { getUserErrorMessage, getErrorTitle } from '@/lib/error-handler';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 type Props = {
   children: React.ReactNode;
@@ -14,6 +15,42 @@ type State = {
   hasError: boolean;
   error: Error | null;
 };
+
+function DefaultErrorFallback({
+  error,
+  onReset,
+}: {
+  error: Error | null;
+  onReset: () => void;
+}) {
+  const { C } = useThemeColors();
+  const title = getErrorTitle(error, 'Something went wrong');
+  const userMessage = getUserErrorMessage(
+    error,
+    'An unexpected error occurred while displaying this content.'
+  );
+
+  return (
+    <View style={[s.container, { backgroundColor: C.background }]}>
+      <View style={[s.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={[s.iconWrap, { backgroundColor: C.errorSubtle }]}>
+          <MaterialIcons name="error-outline" size={36} color={C.error} />
+        </View>
+        <Text style={[s.title, { color: C.textPrimary }]}>{title}</Text>
+        <Text style={[s.message, { color: C.textSecondary }]}>{userMessage}</Text>
+        <Pressable
+          style={({ pressed }) => [s.button, { backgroundColor: C.primary }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+          onPress={onReset}
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+        >
+          <MaterialIcons name="refresh" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={s.buttonText}>Try Again</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
 export class AppErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false, error: null };
@@ -37,33 +74,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
-
-      const title = getErrorTitle(this.state.error, 'Something went wrong');
-      const userMessage = getUserErrorMessage(
-        this.state.error,
-        'An unexpected error occurred while displaying this content.'
-      );
-
-      return (
-        <View style={s.container}>
-          <View style={s.card}>
-            <View style={s.iconWrap}>
-              <MaterialIcons name="error-outline" size={36} color="#DC2626" />
-            </View>
-            <Text style={s.title}>{title}</Text>
-            <Text style={s.message}>{userMessage}</Text>
-            <Pressable
-              style={({ pressed }) => [s.button, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-              onPress={this.handleReset}
-              accessibilityRole="button"
-              accessibilityLabel="Try again"
-            >
-              <MaterialIcons name="refresh" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={s.buttonText}>Try Again</Text>
-            </Pressable>
-          </View>
-        </View>
-      );
+      return <DefaultErrorFallback error={this.state.error} onReset={this.handleReset} />;
     }
 
     return this.props.children;
@@ -76,7 +87,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#F8FAFC',
   },
   card: {
     width: '100%',
@@ -84,9 +94,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     padding: 28,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
@@ -97,7 +105,6 @@ const s = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FEE2E2',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -105,13 +112,11 @@ const s = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: '#64748B',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
@@ -123,7 +128,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#059669',
     minWidth: 140,
   },
   buttonText: {

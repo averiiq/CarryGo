@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
+  useWindowDimensions,
   KeyboardAvoidingView,
   Linking,
   Pressable,
@@ -33,8 +33,6 @@ import {
 import { UserRole } from '@/types';
 import { getCityNames } from '@/constants/indian-cities';
 import { detectCurrentCity } from '@/services/location.service';
-
-const { width: W } = Dimensions.get('window');
 
 type Step = 'username' | 'name' | 'phone' | 'city' | 'role';
 
@@ -73,6 +71,7 @@ function formatMobileInput(value?: string) {
 }
 
 export default function ProfileSetupScreen() {
+  const { width: W } = useWindowDimensions();
   const { user, isLoading, updateUser, refreshUser } = useAuth();
   const { showAlert } = useAlert();
   const { C } = useThemeColors();

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import DeliveryMap from '@/components/feature/DeliveryMap';
 import { AppErrorBoundary } from '@/components/ui/AppErrorBoundary';
 import { useAuth } from '@/hooks/useAuth';

@@ -6,7 +6,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  Dimensions,
 } from 'react-native';
 import Animated, {
   FadeInRight,
@@ -30,7 +29,6 @@ interface SafetyOnboardingProps {
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
 const TOTAL_STEPS = 9;
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function SafetyOnboarding({ visible, onComplete, onClose }: SafetyOnboardingProps) {
   const { C, S } = useThemeColors();
@@ -766,7 +764,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 2) / 3,
+    flexBasis: '30%',
+    flexGrow: 1,
+    maxWidth: '32%',
   },
   itemIconBox: {
     width: 40,
