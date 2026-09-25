@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
 interface KycMandatoryModalProps {
   visible: boolean;
@@ -33,25 +34,14 @@ export function KycMandatoryModal({ visible, onClose, actionType = 'trip' }: Kyc
   const actionNoun = actionType === 'trip' ? 'posting a trip' : 'sending a parcel';
 
   return (
-    <Modal
+    <GestureBottomSheet
       visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
-      statusBarTranslucent
+      onClose={onClose}
+      showHandle
+      enablePanDownToClose
+      maxHeight="88%"
     >
-      <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
-        <View
-          style={[
-            styles.modalCard,
-            {
-              backgroundColor: C.surface,
-              borderColor: C.surfaceBorder,
-              paddingBottom: Math.max(insets.bottom, Spacing.md) + Spacing.sm,
-            },
-            S.md,
-          ]}
-        >
+      <View style={{ paddingHorizontal: Spacing.xl, paddingBottom: Spacing.lg }}>
           {/* Header Shield Beacon */}
           <View style={styles.topBadgeRow}>
             <View style={[styles.beaconIconBox, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
@@ -161,9 +151,8 @@ export function KycMandatoryModal({ visible, onClose, actionType = 'trip' }: Kyc
               <Text style={[styles.secondaryBtnText, { color: C.textMuted }]}>Save Draft & Return Later</Text>
             </Pressable>
           </View>
-        </View>
       </View>
-    </Modal>
+    </GestureBottomSheet>
   );
 }
 

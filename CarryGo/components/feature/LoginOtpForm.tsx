@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Animated } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import Reanimated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { useKeyboardAware } from '@/components/ui/KeyboardAwareScrollView';
 
 type LoginOtpFormProps = {
   email: string;
@@ -39,6 +40,8 @@ export function LoginOtpForm({
   otpRefs,
   C,
 }: LoginOtpFormProps) {
+  const containerRef = useRef<View>(null);
+  const keyboardAware = useKeyboardAware();
   const progressStyle = useAnimatedStyle(
     () => ({
       width: withSpring(`${(otpFilled / otpLength) * 100}%`, { damping: 18, stiffness: 150 }),
@@ -47,7 +50,7 @@ export function LoginOtpForm({
   );
 
   return (
-    <Animated.View style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, { transform: [{ scale: successScale }] }]}>
+    <Animated.View ref={containerRef} style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, { transform: [{ scale: successScale }] }]}>
       <Pressable onPress={onBack} style={styles.backRow} hitSlop={10}>
         <MaterialIcons name={'arrow-back-ios'} size={13} color={C.primary} />
         <Text style={[styles.backText, { color: C.primary }]}>Change email</Text>
@@ -87,6 +90,12 @@ export function LoginOtpForm({
               value={digit}
               onChangeText={(value) => onOtpChange(value, idx)}
               onKeyPress={({ nativeEvent }) => onOtpKeyPress(nativeEvent.key, idx)}
+              onFocus={() => {
+                if (otpRefs.current[idx]) keyboardAware?.registerFocusedInput(containerRef.current || otpRefs.current[idx]);
+              }}
+              onBlur={() => {
+                keyboardAware?.registerFocusedInput(null);
+              }}
               keyboardType={'number-pad'}
               maxLength={otpLength}
               selectTextOnFocus

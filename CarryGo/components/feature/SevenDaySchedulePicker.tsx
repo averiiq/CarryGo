@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BorderRadius, FontSize, FontWeight, Gradients, Spacing, ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
 const TIMES = [
   '06:00 AM',
@@ -106,7 +107,7 @@ export function SevenDaySchedulePicker({
   includeTime = true,
   title = 'Schedule within 7 days',
   subtitle = 'Choose one of the next seven days.',
-  timeLabel = 'Time',
+  timeLabel = 'Preferred Departure Time',
   confirmLabel = 'Confirm Schedule',
 }: SevenDaySchedulePickerProps) {
   const [days, setDays] = useState(() => getNextSevenDays());
@@ -134,26 +135,48 @@ export function SevenDaySchedulePicker({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={[styles.pickerOverlay, { backgroundColor: C.overlay }]} onPress={onClose} />
-      <View style={[styles.pickerSheet, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
-        <View style={[styles.pickerHandle, { backgroundColor: C.surfaceBorderLight }]} />
-
+    <GestureBottomSheet
+      visible={visible}
+      onClose={onClose}
+      maxHeight="86%"
+      showHandle
+      enablePanDownToClose
+    >
+      <View style={styles.sheetBody}>
+        {/* Header Row */}
         <View style={styles.headerRow}>
           <View style={[styles.headerIcon, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons name="event-available" size={20} color={C.primary} />
+            <MaterialIcons name="event-available" size={22} color={C.primary} />
           </View>
           <View style={styles.headerCopy}>
             <Text style={[styles.pickerTitle, { color: C.textPrimary }]}>{title}</Text>
             <Text style={[styles.pickerSubtitle, { color: C.textMuted }]}>{subtitle}</Text>
           </View>
+          <Pressable
+            onPress={onClose}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.closeCircle,
+              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <MaterialIcons name="close" size={18} color={C.textSecondary} />
+          </Pressable>
         </View>
 
-        <Text style={[styles.pickerLabel, { color: C.textMuted }]}>Next 7 days</Text>
+        {/* Next 7 Days Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.pickerLabel, { color: C.textMuted }]}>Choose Date</Text>
+          <Text style={[styles.selectedDateBadge, { color: C.primary }]}>
+            {selectedDay?.relative} ({selectedDay?.label})
+          </Text>
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
+          style={styles.horizontalScroll}
           contentContainerStyle={styles.dayRow}
         >
           {days.map(day => {
@@ -166,28 +189,42 @@ export function SevenDaySchedulePicker({
                   styles.dayCell,
                   { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                   selected && { backgroundColor: C.primary, borderColor: C.primary },
-                  pressed && { transform: [{ scale: 0.97 }] },
+                  pressed && { transform: [{ scale: 0.96 }] },
                 ]}
                 onPress={() => {
                   setSelectedDate(day.key);
                   Haptic.select();
                 }}
               >
-                <Text style={[styles.dayRelative, { color: selected ? '#fff' : C.textMuted }]}>{day.relative}</Text>
-                <Text style={[styles.dayNum, { color: selected ? '#fff' : C.textPrimary }]}>{day.day}</Text>
-                <Text style={[styles.dayMonth, { color: selected ? '#fff' : C.textSecondary }]}>{day.month}</Text>
+                <Text style={[styles.dayRelative, { color: selected ? '#ffffff' : C.textMuted }]}>
+                  {day.relative}
+                </Text>
+                <Text style={[styles.dayNum, { color: selected ? '#ffffff' : C.textPrimary }]}>
+                  {day.day}
+                </Text>
+                <Text style={[styles.dayMonth, { color: selected ? 'rgba(255,255,255,0.85)' : C.textSecondary }]}>
+                  {day.month}
+                </Text>
+                {selected && (
+                  <View style={styles.selectedDot} />
+                )}
               </Pressable>
             );
           })}
         </ScrollView>
 
+        {/* Time Selection Carousel */}
         {includeTime ? (
           <>
-            <Text style={[styles.pickerLabel, { color: C.textMuted }]}>{timeLabel}</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.pickerLabel, { color: C.textMuted }]}>{timeLabel}</Text>
+              <Text style={[styles.selectedTimeBadge, { color: C.primary }]}>{selectedTime}</Text>
+            </View>
+
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{ flexGrow: 0 }}
+              style={styles.horizontalScroll}
               contentContainerStyle={styles.timeRow}
             >
               {TIMES.map(time => {
@@ -200,15 +237,17 @@ export function SevenDaySchedulePicker({
                       styles.timeChip,
                       { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                       selected && { backgroundColor: C.primarySubtle, borderColor: C.primary },
-                      pressed && { transform: [{ scale: 0.97 }] },
+                      pressed && { transform: [{ scale: 0.96 }] },
                     ]}
                     onPress={() => {
                       setSelectedTime(time);
                       Haptic.select();
                     }}
                   >
-                    <MaterialIcons name="schedule" size={12} color={selected ? C.primary : C.textMuted} />
-                    <Text style={[styles.timeText, { color: selected ? C.primary : C.textSecondary }]}>{time}</Text>
+                    <MaterialIcons name="schedule" size={13} color={selected ? C.primary : C.textMuted} />
+                    <Text style={[styles.timeText, { color: selected ? C.primary : C.textSecondary, fontWeight: selected ? FontWeight.bold : FontWeight.medium }]}>
+                      {time}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -216,15 +255,25 @@ export function SevenDaySchedulePicker({
           </>
         ) : null}
 
+        {/* Schedule Preview Bar */}
         <View style={[styles.previewRow, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-          <MaterialIcons name={includeTime ? 'departure-board' : 'calendar-today'} size={16} color={C.primary} />
-          <Text style={[styles.previewText, { color: C.textPrimary }]}>
-            {selectedDay?.label}{includeTime ? ` at ${selectedTime}` : ''}
-          </Text>
+          <View style={[styles.previewIconBox, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name={includeTime ? 'departure-board' : 'calendar-today'} size={18} color={C.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.previewHeaderLabel, { color: C.textMuted }]}>SCHEDULE SUMMARY</Text>
+            <Text style={[styles.previewText, { color: C.textPrimary }]}>
+              {selectedDay?.label}{includeTime ? ` at ${selectedTime}` : ''}
+            </Text>
+          </View>
         </View>
 
+        {/* Confirm Action Button */}
         <Pressable
-          style={({ pressed }) => [styles.applyBtn, { backgroundColor: C.primary, opacity: pressed ? 0.9 : 1 }]}
+          style={({ pressed }) => [
+            styles.applyBtn,
+            { backgroundColor: C.primary, opacity: pressed ? 0.92 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
+          ]}
           onPress={handleApply}
         >
           <LinearGradient
@@ -233,77 +282,167 @@ export function SevenDaySchedulePicker({
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0.5 }}
           />
-          <MaterialIcons name="check" size={18} color="#fff" />
+          <MaterialIcons name="check-circle" size={19} color="#fff" />
           <Text style={styles.applyText}>{confirmLabel}</Text>
         </Pressable>
       </View>
-    </Modal>
+    </GestureBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  pickerOverlay: { flex: 1 },
-  pickerSheet: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderTopWidth: 1,
-    padding: Spacing.lg,
+  sheetBody: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.md,
     gap: Spacing.md,
   },
-  pickerHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 4 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  headerIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  headerCopy: { flex: 1, gap: 2 },
-  pickerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  pickerSubtitle: { fontSize: FontSize.sm, lineHeight: 18 },
-  pickerLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
-  dayRow: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: 4 },
-  dayCell: {
-    width: 76,
-    minHeight: 86,
-    borderRadius: BorderRadius.md,
+  headerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  pickerTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+  },
+  pickerSubtitle: {
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+  },
+  closeCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    paddingVertical: Spacing.sm,
   },
-  dayRelative: { fontSize: 10, fontWeight: FontWeight.semibold },
-  dayNum: { fontSize: FontSize.xxl, fontWeight: FontWeight.extrabold },
-  dayMonth: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  timeRow: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: 4 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  selectedDateBadge: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  selectedTimeBadge: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  horizontalScroll: {
+    flexGrow: 0,
+  },
+  dayRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingVertical: 2,
+  },
+  dayCell: {
+    width: 74,
+    minHeight: 88,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    paddingVertical: Spacing.sm,
+    position: 'relative',
+  },
+  selectedDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#ffffff',
+    position: 'absolute',
+    bottom: 6,
+  },
+  dayRelative: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    textTransform: 'uppercase',
+  },
+  dayNum: {
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.extrabold,
+    lineHeight: 28,
+  },
+  dayMonth: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingVertical: 2,
+  },
   timeChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  timeText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
+  timeText: {
+    fontSize: FontSize.xs,
+  },
   previewRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: BorderRadius.md,
+    gap: Spacing.md,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     borderWidth: 1,
   },
-  previewText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  previewIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewHeaderLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.6,
+  },
+  previewText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    marginTop: 2,
+  },
   applyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    paddingVertical: 14,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
-  applyText: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: '#fff' },
+  applyText: {
+    color: '#fff',
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
 });

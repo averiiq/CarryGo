@@ -7,6 +7,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, Motion } from
 import { DeliveryOtpEntry } from './DeliveryOtpEntry';
 import { DELIVERY_OTP_LENGTH } from '@/constants/security';
 import { Haptic } from '@/services/haptics.service';
+import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
 
 // --- 1. SENDER: Pickup OTP Display Card ---
 type SenderPickupOtpCardProps = {
@@ -576,8 +577,8 @@ export function DeliverySuccessCard({ onRate, onViewPayment, showPayment, hasRat
     <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.success + '44' }]}>
       <LinearGradient colors={[C.success + '12', 'transparent']} style={StyleSheet.absoluteFillObject} />
       <View style={styles.successHeader}>
-        <View style={[styles.successCircle, { backgroundColor: C.successSubtle }]}>
-          <Ionicons name="checkmark-circle" size={40} color={C.success} />
+        <View style={{ width: 110, height: 110, alignItems: 'center', justifyContent: 'center' }}>
+          <LottieAnimation name="successCheck" loop={false} style={{ width: 110, height: 110 }} />
         </View>
         <Text style={[styles.successTitle, { color: C.textPrimary }]}>Parcel Delivered!</Text>
         <Text style={[styles.successSubtitle, { color: C.textMuted }]}>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInRight, FadeOutLeft, FadeInLeft, FadeOutRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -31,11 +31,7 @@ export function WizardContainer({
   const exiting = direction === 'forward' ? FadeOutLeft.duration(200) : FadeOutRight.duration(200);
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: C.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
-    >
+    <View style={[styles.container, { backgroundColor: C.background }]}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <LinearGradient
           colors={[C.primarySubtle, 'transparent']}
@@ -53,7 +49,7 @@ export function WizardContainer({
       >
         {children}
       </Animated.View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

@@ -19,6 +19,7 @@ import { DELAYS } from '@/constants/timing';
 import { useBreathing, useFadeIn } from '@/hooks/useAnimations';
 import { LoginEmailForm } from '@/components/feature/LoginEmailForm';
 import { LoginOtpForm } from '@/components/feature/LoginOtpForm';
+import { KeyboardAwareScrollView } from '@/components';
 
 type Step = 'email' | 'otp';
 const OTP_LENGTH = AUTH_OTP_LENGTH;
@@ -220,13 +221,13 @@ export default function LoginScreen() {
         style={[styles.root, { backgroundColor: C.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{ flex: 1 }}
           contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          automaticallyAdjustKeyboardInsets={true}
+          extraScrollHeight={60}
         >
           {/* Hero */}
           <Animated.View style={[styles.hero, { paddingTop: insets.top + Spacing.lg, opacity: heroFade.opacity, transform: heroFade.transform }]}>
@@ -298,7 +299,7 @@ export default function LoginScreen() {
               </Pressable>
             </View>
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </>
   );

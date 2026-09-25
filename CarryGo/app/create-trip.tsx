@@ -5,7 +5,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { Button, Input } from '@/components';
+import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
+import { Button, Input, KeyboardAwareScrollView } from '@/components';
 import { CitySearchField } from '@/components/feature/CitySearchField';
 import { WizardContainer } from '@/components/feature/WizardContainer';
 import { formatScheduleDate, SevenDaySchedulePicker, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
@@ -18,6 +19,8 @@ import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
+import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
+import { findCity, getDistance } from '@/constants/indian-cities';
 import { useCreateTripMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { BikeIllustration, CarIllustration, BusIllustration, TrainIllustration, FlightIllustration } from '@/components/illustrations';
@@ -90,6 +93,7 @@ export default function CreateTripScreen() {
   const { C } = useThemeColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { footerOffset } = useKeyboardPadding();
 
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
@@ -106,6 +110,36 @@ export default function CreateTripScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
   const [locationHint, setLocationHint] = useState<string | null>(null);
+
+  // Corridor distance and recommended fare guidance
+  const corridorDistance = useMemo(() => {
+    if (!form.fromCity || !form.toCity) return null;
+    const c1 = findCity(form.fromCity);
+    const c2 = findCity(form.toCity);
+    if (!c1 || !c2) return 160;
+    return getDistance(c1, c2);
+  }, [form.fromCity, form.toCity]);
+
+  const recommendedPrice = useMemo(() => {
+    if (!corridorDistance) return null;
+    const vehicleMultipliers: Record<VehicleType, number> = {
+      bike: 0.8,
+      car: 1.0,
+      bus: 0.85,
+      train: 0.75,
+      flight: 1.8,
+    };
+    const mult = vehicleMultipliers[form.vehicle] || 1.0;
+    let base = 60;
+    if (corridorDistance > 250) base = 110;
+    else if (corridorDistance > 120) base = 85;
+    else base = 65;
+
+    const rec = Math.round(base * mult);
+    const min = Math.max(30, Math.round(rec * 0.75));
+    const max = Math.round(rec * 1.35);
+    return { suggested: rec, min, max, distanceKm: corridorDistance };
+  }, [corridorDistance, form.vehicle]);
 
   const hasExternalPrefill = Boolean(
     params.fromCity ||
@@ -423,10 +457,18 @@ export default function CreateTripScreen() {
             locationHint={locationHint}
           />
         )}
-        {step === 1 && <StepDetails form={form} updateField={updateField} fieldErrors={fieldErrors} C={C} />}
+        {step === 1 && (
+          <StepDetails
+            form={form}
+            updateField={updateField}
+            fieldErrors={fieldErrors}
+            C={C}
+            recommendedPrice={recommendedPrice}
+          />
+        )}
         {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} hasKyc={isKycApproved} />}
 
-        <View style={[styles.footer, { backgroundColor: C.background, borderTopColor: C.surfaceBorder, paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
+        <View style={[styles.footer, { backgroundColor: C.background, borderTopColor: C.surfaceBorder, paddingBottom: Math.max(insets.bottom, Spacing.md), bottom: footerOffset }]}>
           {step > 0 && (
             <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
           )}
@@ -459,20 +501,30 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
   locationHint: string | null;
 }) {
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={styles.stepContent}
       contentContainerStyle={styles.stepInner}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       keyboardDismissMode="on-drag"
-      automaticallyAdjustKeyboardInsets={true}
+      extraScrollHeight={130}
     >
       <StepHeader
         title="Where are you going?"
         subtitle="Choose route, date, and departure time in one pass"
         icon="flight-takeoff"
         C={C}
+      />
+
+      <HaryanaCorridorChips
+        activeFromCity={form.fromCity}
+        activeToCity={form.toCity}
+        onSelectCorridor={(from, to) => {
+          updateField('fromCity', from);
+          updateField('toCity', to);
+        }}
+        title="Popular Corridors (1-Tap Route)"
       />
 
       <View style={styles.fieldGroup}>
@@ -540,18 +592,33 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
           <MaterialIcons name={form.date ? 'edit' : 'chevron-right'} size={18} color={form.date ? C.primary : C.textMuted} />
         </Pressable>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
-function StepDetails({ form, updateField, fieldErrors, C }: {
+function StepDetails({
+  form,
+  updateField,
+  fieldErrors,
+  C,
+  recommendedPrice,
+}: {
   form: TripDraft;
   updateField: <K extends keyof TripDraft>(key: K, value: TripDraft[K]) => void;
   fieldErrors: Record<string, string>;
   C: any;
+  recommendedPrice?: { suggested: number; min: number; max: number; distanceKm: number } | null;
 }) {
+  const activePricePresets = recommendedPrice
+    ? Array.from(new Set([
+        String(recommendedPrice.min),
+        String(recommendedPrice.suggested),
+        String(recommendedPrice.max),
+      ]))
+    : PRICE_PRESETS;
+
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
+    <KeyboardAwareScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag" extraScrollHeight={130}>
       <StepHeader
         title="Trip details"
         subtitle="How are you travelling and how much can you carry?"
@@ -592,6 +659,47 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
         </View>
       </View>
 
+      {/* Smart Route Guidance Card */}
+      {recommendedPrice ? (
+        <View style={[styles.smartPriceCard, { backgroundColor: C.surface, borderColor: C.primary + '40' }]}>
+          <View style={styles.smartPriceTop}>
+            <View style={[styles.smartPriceBadge, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name="auto-awesome" size={13} color={C.primary} />
+              <Text style={[styles.smartPriceBadgeText, { color: C.primary }]}>Corridor Rate Guidance</Text>
+            </View>
+            <Text style={[styles.smartPriceDemandText, { color: C.primary }]}>
+              ~{recommendedPrice.distanceKm} km route
+            </Text>
+          </View>
+
+          <View style={styles.smartPriceBody}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.smartPriceAmount, { color: C.textPrimary }]}>
+                ₹{recommendedPrice.suggested} <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.regular, color: C.textSecondary }}>/ kg</Text>
+              </Text>
+              <Text style={[styles.smartPriceRange, { color: C.textMuted }]}>
+                Typical corridor bracket: ₹{recommendedPrice.min} – ₹{recommendedPrice.max} / kg
+              </Text>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.smartPriceApplyBtn,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => {
+                Haptic.success();
+                updateField('price', String(recommendedPrice.suggested));
+              }}
+            >
+              <Text style={styles.smartPriceApplyText}>Apply ₹{recommendedPrice.suggested}/kg</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.fieldGroup}>
         <View style={styles.row}>
           <Input
@@ -630,7 +738,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
               </Text>
             </Pressable>
           ))}
-          {PRICE_PRESETS.map((value) => (
+          {activePricePresets.map((value) => (
             <Pressable
               key={`price-${value}`}
               style={({ pressed }) => [
@@ -654,7 +762,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
           </View>
         ) : null}
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -667,7 +775,7 @@ function StepReview({ form, C, onEdit, hasKyc }: {
   const selectedVehicle = VEHICLES.find((v) => v.type === form.vehicle);
 
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
+    <KeyboardAwareScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag" extraScrollHeight={130}>
       <StepHeader
         title="Review your trip"
         subtitle="Confirm every detail before publishing your trip"
@@ -748,7 +856,7 @@ function StepReview({ form, C, onEdit, hasKyc }: {
           After posting, you&apos;ll immediately see open parcels on your route.
         </Text>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -877,6 +985,58 @@ const styles = StyleSheet.create({
   },
   draftBannerText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   draftBannerAction: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  smartPriceCard: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.2,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  smartPriceTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  smartPriceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  smartPriceBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  smartPriceDemandText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  smartPriceBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  smartPriceAmount: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.5,
+  },
+  smartPriceRange: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  smartPriceApplyBtn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+  },
+  smartPriceApplyText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
   footer: {
     flexDirection: 'row', gap: Spacing.md,
     position: 'absolute', bottom: 0, left: 0, right: 0,

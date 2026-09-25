@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, FontWeight, Spacing, BorderRadius, Shadow } from '@/constants/theme';
 import { submitRating } from '@/services/ratings.service';
 import { useAlert } from '@/template';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
 interface RatingModalProps {
   visible: boolean;
@@ -42,18 +43,14 @@ export function RatingModal({ visible, requestId, fromUserId, toUserId, toUserNa
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.overlay}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.card}>
+    <GestureBottomSheet
+      visible={visible}
+      onClose={onDone}
+      showHandle
+      enablePanDownToClose
+      maxHeight="88%"
+    >
+      <View style={{ paddingHorizontal: Spacing.xl, paddingBottom: Spacing.lg }}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.iconRing}>
@@ -121,10 +118,8 @@ export function RatingModal({ visible, requestId, fromUserId, toUserId, toUserNa
                 <Text style={styles.submitText}>{loading ? 'Saving...' : 'Submit Rating'}</Text>
               </Pressable>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Modal>
+      </View>
+    </GestureBottomSheet>
   );
 }
 

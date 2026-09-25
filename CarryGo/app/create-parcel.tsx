@@ -6,7 +6,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { Button, Input } from '@/components';
+import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
+import { Button, Input, KeyboardAwareScrollView } from '@/components';
 import { CitySearchField } from '@/components/feature/CitySearchField';
 import { WizardContainer } from '@/components/feature/WizardContainer';
 import { formatScheduleDate, SevenDaySchedulePicker, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
@@ -21,6 +22,8 @@ import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
+import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
+import { estimatePrice, PriceEstimate } from '@/services/price-estimator.service';
 import { useCreateParcelMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -107,6 +110,45 @@ export default function CreateParcelScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
   const [locationHint, setLocationHint] = useState<string | null>(null);
+  const [priceRecommendation, setPriceRecommendation] = useState<PriceEstimate | null>(null);
+  const [isEstimatingPrice, setIsEstimatingPrice] = useState(false);
+  const { footerOffset } = useKeyboardPadding();
+
+  // Auto-calculate smart pricing recommendation when route, weight or category are specified
+  useEffect(() => {
+    if (!form.fromCity || !form.toCity) {
+      setPriceRecommendation(null);
+      return;
+    }
+
+    let isMounted = true;
+    const weightNum = Number(form.weight) || 1;
+    setIsEstimatingPrice(true);
+
+    const timer = setTimeout(() => {
+      estimatePrice({
+        fromCity: form.fromCity,
+        toCity: form.toCity,
+        weight: weightNum,
+        category: form.category,
+        deliveryDate: form.deliveryDate,
+      })
+        .then((est) => {
+          if (isMounted) {
+            setPriceRecommendation(est);
+            setIsEstimatingPrice(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setIsEstimatingPrice(false);
+        });
+    }, 200);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [form.fromCity, form.toCity, form.weight, form.category, form.deliveryDate]);
 
   const { hasAgreed: hasSafetyAgreed, markAgreed: markSafetyAgreed } = useSafetyAgreement(user?.id);
 
@@ -453,10 +495,29 @@ export default function CreateParcelScreen() {
             locationHint={locationHint}
           />
         )}
-        {step === 1 && <StepDetails form={form} updateField={updateField} fieldErrors={fieldErrors} C={C} />}
+        {step === 1 && (
+          <StepDetails
+            form={form}
+            updateField={updateField}
+            fieldErrors={fieldErrors}
+            C={C}
+            priceRecommendation={priceRecommendation}
+            isEstimatingPrice={isEstimatingPrice}
+          />
+        )}
         {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} hasKyc={isKycApproved} />}
 
-        <View style={[styles.footer, { backgroundColor: C.background, borderTopColor: C.surfaceBorder, paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
+        <View
+          style={[
+            styles.footer,
+            {
+              backgroundColor: C.background,
+              borderTopColor: C.surfaceBorder,
+              paddingBottom: Math.max(insets.bottom, Spacing.md),
+              bottom: footerOffset,
+            },
+          ]}
+        >
           {step > 0 && (
             <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
           )}
@@ -489,20 +550,30 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
   locationHint: string | null;
 }) {
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={styles.stepContent}
       contentContainerStyle={styles.stepInner}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       keyboardDismissMode="on-drag"
-      automaticallyAdjustKeyboardInsets={true}
+      extraScrollHeight={130}
     >
       <StepHeader
         title="Where's it going?"
         subtitle="Choose route and preferred handover day"
         icon="alt-route"
         C={C}
+      />
+
+      <HaryanaCorridorChips
+        activeFromCity={form.fromCity}
+        activeToCity={form.toCity}
+        onSelectCorridor={(from, to) => {
+          updateField('fromCity', from);
+          updateField('toCity', to);
+        }}
+        title="Popular Corridors (1-Tap Route)"
       />
 
       <View style={styles.fieldGroup}>
@@ -570,18 +641,35 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
           <MaterialIcons name={form.deliveryDate ? 'edit' : 'chevron-right'} size={18} color={form.deliveryDate ? C.primary : C.textMuted} />
         </Pressable>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
-function StepDetails({ form, updateField, fieldErrors, C }: {
+function StepDetails({
+  form,
+  updateField,
+  fieldErrors,
+  C,
+  priceRecommendation,
+  isEstimatingPrice,
+}: {
   form: ParcelDraft;
   updateField: <K extends keyof ParcelDraft>(key: K, value: ParcelDraft[K]) => void;
   fieldErrors: Record<string, string>;
   C: any;
+  priceRecommendation?: PriceEstimate | null;
+  isEstimatingPrice?: boolean;
 }) {
+  const activeOfferPresets = priceRecommendation
+    ? Array.from(new Set([
+        String(priceRecommendation.minPrice),
+        String(priceRecommendation.suggestedPrice),
+        String(priceRecommendation.maxPrice),
+      ]))
+    : OFFER_PRESETS;
+
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
+    <KeyboardAwareScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag" extraScrollHeight={130}>
       <StepHeader
         title="Parcel details"
         subtitle="Add parcel category, photos, weight and offer"
@@ -637,6 +725,54 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
         <Text style={[styles.charCount, { color: C.textMuted }]}>{form.description.length}/300</Text>
       </View>
 
+      {/* Smart Price Guidance Card (Uber / Ola / Zepto style) */}
+      {priceRecommendation ? (
+        <View style={[styles.smartPriceCard, { backgroundColor: C.surface, borderColor: C.primary + '40' }]}>
+          <View style={styles.smartPriceTop}>
+            <View style={[styles.smartPriceBadge, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name="auto-awesome" size={13} color={C.primary} />
+              <Text style={[styles.smartPriceBadgeText, { color: C.primary }]}>CarryGo Smart Estimate</Text>
+            </View>
+            <Text style={[styles.smartPriceDemandText, { color: priceRecommendation.demandLevel === 'high' ? C.warning : C.success }]}>
+              {priceRecommendation.demandLevel === 'high' ? '🔥 High Traveler Demand' : '⚡ Recommended Rate'}
+            </Text>
+          </View>
+
+          <View style={styles.smartPriceBody}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.smartPriceAmount, { color: C.textPrimary }]}>
+                ₹{priceRecommendation.suggestedPrice}
+              </Text>
+              <Text style={[styles.smartPriceRange, { color: C.textMuted }]}>
+                Suggested bracket: ₹{priceRecommendation.minPrice} – ₹{priceRecommendation.maxPrice}
+              </Text>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.smartPriceApplyBtn,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => {
+                Haptic.success();
+                updateField('priceOffer', String(priceRecommendation.suggestedPrice));
+              }}
+            >
+              <Text style={styles.smartPriceApplyText}>Apply ₹{priceRecommendation.suggestedPrice}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : isEstimatingPrice ? (
+        <View style={[styles.smartPriceLoadingCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <MaterialIcons name="hourglass-empty" size={16} color={C.primary} />
+          <Text style={[styles.smartPriceLoadingText, { color: C.textMuted }]}>
+            Calculating best corridor rate...
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.fieldGroup}>
         <View style={styles.row}>
           <Input
@@ -673,7 +809,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
               <Text style={[styles.presetText, { color: form.weight === value ? C.primary : C.textSecondary }]}>{value} kg</Text>
             </Pressable>
           ))}
-          {OFFER_PRESETS.map((value) => (
+          {activeOfferPresets.map((value) => (
             <Pressable
               key={'offer-' + value}
               style={({ pressed }) => [
@@ -689,7 +825,7 @@ function StepDetails({ form, updateField, fieldErrors, C }: {
           ))}
         </View>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -702,7 +838,7 @@ function StepReview({ form, C, onEdit, hasKyc }: {
   const selectedCategory = CATEGORIES.find((c) => c.type === form.category);
 
   return (
-    <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag">
+    <KeyboardAwareScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag" extraScrollHeight={130}>
       <StepHeader
         title="Review your parcel"
         subtitle="Double-check details before publishing to travelers"
@@ -799,7 +935,7 @@ function StepReview({ form, C, onEdit, hasKyc }: {
           After listing, you&apos;ll see travellers on your route. Tap Send Request to book one.
         </Text>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -933,6 +1069,69 @@ const styles = StyleSheet.create({
   },
   draftBannerText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   draftBannerAction: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  smartPriceCard: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.2,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  smartPriceTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  smartPriceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  smartPriceBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  smartPriceDemandText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  smartPriceBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  smartPriceAmount: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.5,
+  },
+  smartPriceRange: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  smartPriceApplyBtn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+  },
+  smartPriceApplyText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  smartPriceLoadingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.sm + 2,
+  },
+  smartPriceLoadingText: {
+    fontSize: FontSize.xs,
+  },
   footer: {
     flexDirection: 'row', gap: Spacing.md,
     position: 'absolute', bottom: 0, left: 0, right: 0,

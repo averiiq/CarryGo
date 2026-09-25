@@ -33,6 +33,7 @@ import {
 import { UserRole } from '@/types';
 import { getCityNames } from '@/constants/indian-cities';
 import { detectCurrentCity } from '@/services/location.service';
+import { KeyboardAwareScrollView } from '@/components';
 
 type Step = 'username' | 'name' | 'phone' | 'city' | 'role';
 
@@ -360,13 +361,13 @@ export default function ProfileSetupScreen() {
           <Animated.View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: C.primary }]} />
         </View>
 
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{ flex: 1 }}
           contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          automaticallyAdjustKeyboardInsets={true}
+          extraScrollHeight={70}
         >
           <Animated.View style={[styles.slideWrap, { transform: [{ translateX: slideAnim }, { translateX: shakeAnim }] }]}>
             {step === 'username' ? (
@@ -729,7 +730,7 @@ export default function ProfileSetupScreen() {
               </View>
             ) : null}
           </Animated.View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </>
   );

@@ -51,6 +51,7 @@ import {
   useCreateSupportTicketMutation,
 } from '@/features/support/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
+import { KeyboardAwareScrollView } from '@/components';
 
 if (
   RNPlatform.OS === 'android' &&
@@ -661,7 +662,7 @@ export default function SupportScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: insets.bottom + Spacing.xxl + 30 },
@@ -670,7 +671,7 @@ export default function SupportScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        automaticallyAdjustKeyboardInsets={true}
+        extraScrollHeight={80}
         refreshControl={
           activeTab === 'tickets' ? (
             <RefreshControl
@@ -1481,7 +1482,7 @@ export default function SupportScreen() {
             )}
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* CarryGo AI Support Assistant Modal */}
       <Modal

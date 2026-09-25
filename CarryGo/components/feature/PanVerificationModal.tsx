@@ -18,6 +18,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { verifyTransactionPan } from '@/services/kyc.service';
 import { Haptic } from '@/services/haptics.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
 interface PanVerificationModalProps {
   visible: boolean;
@@ -40,6 +42,7 @@ export const PanVerificationModal: React.FC<PanVerificationModalProps> = ({
 }) => {
   const { C } = useThemeColors();
   const { user, updateUser } = useAuth();
+  const { keyboardHeight, isKeyboardVisible } = useKeyboardPadding();
   const [pan, setPan] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -97,19 +100,14 @@ export const PanVerificationModal: React.FC<PanVerificationModalProps> = ({
   };
 
   return (
-    <Modal
+    <GestureBottomSheet
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleDismiss}
+      onClose={handleDismiss}
+      showHandle={canDismiss}
+      enablePanDownToClose={canDismiss && !isVerifying}
+      maxHeight="88%"
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.overlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.keyboardView}
-          >
-            <View style={[styles.modalCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      <View style={{ paddingHorizontal: Spacing.xl, paddingBottom: Spacing.lg }}>
               {/* Header */}
               <View style={styles.header}>
                 <View style={[styles.badgeCircle, { backgroundColor: C.primarySubtle }]}>
@@ -235,11 +233,8 @@ export const PanVerificationModal: React.FC<PanVerificationModalProps> = ({
                   <Text style={[styles.cancelText, { color: C.textSecondary }]}>Do This Later</Text>
                 </Pressable>
               )}
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      </View>
+    </GestureBottomSheet>
   );
 };
 

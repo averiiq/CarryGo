@@ -6,6 +6,7 @@ import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import { useKeyboardAware } from '@/components/ui/KeyboardAwareScrollView';
 
 const ALL_CITY_NAMES = INDIAN_CITIES.map(c => c.name);
 
@@ -35,6 +36,7 @@ export function CitySearchField({
   const { C } = useThemeColors();
   const [query, setQuery] = useState(value || '');
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<View>(null);
   const inputRef = useRef<TextInput>(null);
 
   // Sync internal query when value prop changes from outside (e.g. location auto-detect)
@@ -71,13 +73,17 @@ export function CitySearchField({
     onUseCurrentLocation?.();
   }, [isDetectingCurrentLocation, onUseCurrentLocation]);
 
+  const keyboardAware = useKeyboardAware();
+
   const handleFocus = () => {
     if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     setIsOpen(true);
     setQuery(value || '');
+    keyboardAware?.registerFocusedInput(containerRef.current || inputRef.current);
   };
 
   const handleBlur = () => {
+    keyboardAware?.registerFocusedInput(null);
     blurTimeoutRef.current = setTimeout(() => {
       setIsOpen(false);
       setQuery(value || '');
@@ -91,7 +97,7 @@ export function CitySearchField({
   };
 
   return (
-    <View style={styles.container}>
+    <View ref={containerRef} style={styles.container}>
       <View style={styles.labelRow}>
         <Text style={[styles.label, { color: error ? C.error : C.textSecondary }]}>{label}</Text>
         {showCurrentLocationOption && !value && (

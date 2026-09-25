@@ -14,6 +14,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { getCityNames } from '@/constants/indian-cities';
 import { queryKeys } from '@/lib/query/queryKeys';
+import { KeyboardAwareScrollView } from '@/components';
 
 export default function EditProfileScreen() {
   const { user, updateUser } = useAuth();
@@ -93,12 +94,12 @@ export default function EditProfileScreen() {
         )}
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        automaticallyAdjustKeyboardInsets={true}
+        extraScrollHeight={70}
       >
         {/* Avatar */}
         <View style={styles.avatarSection}>
@@ -289,7 +290,7 @@ export default function EditProfileScreen() {
             Make changes to your name or phone to enable save
           </Text>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </KeyboardAvoidingView>
   );
 }

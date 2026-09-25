@@ -2,17 +2,19 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { LottieAnimation, AnimationKey } from './LottieViewWrapper';
 
 interface AnimatedEmptyStateProps {
-  icon: keyof typeof MaterialIcons.glyphMap;
+  icon?: keyof typeof MaterialIcons.glyphMap;
+  animationName?: AnimationKey;
   title: string;
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-export function AnimatedEmptyState({ icon, title, subtitle, actionLabel, onAction }: AnimatedEmptyStateProps) {
+export function AnimatedEmptyState({ icon, animationName, title, subtitle, actionLabel, onAction }: AnimatedEmptyStateProps) {
   const { C } = useThemeColors();
   const iconScale = useRef(new Animated.Value(0)).current;
   const iconFloat = useRef(new Animated.Value(0)).current;
@@ -42,14 +44,20 @@ export function AnimatedEmptyState({ icon, title, subtitle, actionLabel, onActio
 
   return (
     <View style={styles.container}>
-      <Animated.View
-        style={[
-          styles.iconContainer,
-          { backgroundColor: C.primarySubtle, transform: [{ scale: iconScale }, { translateY: iconFloat }] },
-        ]}
-      >
-        <MaterialIcons name={icon} size={36} color={C.primary} />
-      </Animated.View>
+      {animationName ? (
+        <View style={{ width: 140, height: 120, alignItems: 'center', justifyContent: 'center' }}>
+          <LottieAnimation name={animationName} style={{ width: 140, height: 120 }} />
+        </View>
+      ) : (
+        <Animated.View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: C.primarySubtle, transform: [{ scale: iconScale }, { translateY: iconFloat }] },
+          ]}
+        >
+          <MaterialIcons name={icon || 'inventory-2'} size={36} color={C.primary} />
+        </Animated.View>
+      )}
 
       <Animated.View style={{ opacity: textOpacity, transform: [{ translateY: textTranslate }] }}>
         <Text style={[styles.title, { color: C.textPrimary }]}>{title}</Text>

@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, ViewStyle, TextInputProps, Animated } from 'react-native';
 import { BorderRadius, FontSize, FontWeight, Spacing, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useKeyboardAware } from './KeyboardAwareScrollView';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -29,6 +30,21 @@ export const Input = React.forwardRef<TextInput, InputProps>(function Input(
   const [focused, setFocused] = useState(false);
   const borderAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+  const containerRef = useRef<View | null>(null);
+  const internalInputRef = useRef<TextInput | null>(null);
+  const keyboardAware = useKeyboardAware();
+
+  const setRefs = useCallback(
+    (node: TextInput | null) => {
+      internalInputRef.current = node;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<TextInput | null>).current = node;
+      }
+    },
+    [ref]
+  );
 
   const handleFocus: NonNullable<TextInputProps['onFocus']> = (event) => {
     setFocused(true);
@@ -36,6 +52,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(function Input(
       Animated.spring(borderAnim, { toValue: 1, useNativeDriver: false, ...Motion.springFast }),
       Animated.timing(glowAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
     ]).start();
+    keyboardAware?.registerFocusedInput(containerRef.current || internalInputRef.current || event.target);
     onFocus?.(event);
   };
 
@@ -45,6 +62,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(function Input(
       Animated.spring(borderAnim, { toValue: 0, useNativeDriver: false, ...Motion.springDefault }),
       Animated.timing(glowAnim, { toValue: 0, duration: 180, useNativeDriver: false }),
     ]).start();
+    keyboardAware?.registerFocusedInput(null);
     onBlur?.(event);
   };
 
@@ -55,7 +73,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(function Input(
   const shadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.08] });
 
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View ref={containerRef} style={[styles.container, containerStyle]}>
       {label ? (
         <Text style={[styles.label, { color: error ? C.error : focused ? C.primary : C.textSecondary }]}>{label}</Text>
       ) : null}
@@ -76,7 +94,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(function Input(
       >
         {leftIcon ? <View style={styles.iconLeft}>{leftIcon}</View> : null}
         <TextInput
-          ref={ref}
+          ref={setRefs}
           style={[
             styles.input,
             { color: C.textPrimary },

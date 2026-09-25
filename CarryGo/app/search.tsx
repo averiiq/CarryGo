@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { TripCard, ParcelCard } from '@/components';
+import { TripCard, ParcelCard, KeyboardAwareScrollView } from '@/components';
 import { Trip, Parcel, Request } from '@/types';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { Spacing } from '@/constants/theme';
@@ -352,13 +352,13 @@ export default function SearchScreen() {
           </View>
         </View>
 
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{ flex: 1 }}
           contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          automaticallyAdjustKeyboardInsets={true}
+          extraScrollHeight={60}
           scrollEventThrottle={16}
         >
           <View style={[styles.searchCard, { backgroundColor: C.surface, borderColor: focused ? C.primary + '66' : C.surfaceBorder }, isTablet && styles.tabletContainer]}>
@@ -740,7 +740,7 @@ export default function SearchScreen() {
               </View>
             </View>
           )}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     </KeyboardAvoidingView>
   );

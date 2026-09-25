@@ -8,7 +8,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
-import { AsyncStateCard, OfflineBanner, RequestCard } from '@/components';
+import { AsyncStateCard, OfflineBanner, RequestCard, LottieAnimation } from '@/components';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { sendLocalNotification, sendRequestNotification } from '@/services/notifications.service';
@@ -559,8 +559,11 @@ export default function RequestsScreen() {
               </View>
             ) : (
               <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
-                <View style={[styles.emptyVisual, { backgroundColor: C.surfaceElevated }]}> 
-                  <EmptyRequestsSVG width={176} height={132} />
+                <View style={{ width: 150, height: 115, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+                  <LottieAnimation
+                    name={tab === 'incoming' ? 'deliveryCar' : 'packageBox'}
+                    style={{ width: 150, height: 115 }}
+                  />
                 </View>
 
                 <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>

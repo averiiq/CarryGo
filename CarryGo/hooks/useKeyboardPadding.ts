@@ -46,10 +46,20 @@ export function useKeyboardPadding(options?: UseKeyboardPaddingOptions) {
     ? activePadding
     : Math.max(insets.bottom, Spacing.xs) + inactivePadding;
 
+  // Dynamic scroll view bottom padding that ensures inputs are never obscured by the keyboard
+  const scrollPaddingBottom = isKeyboardVisible
+    ? keyboardHeight + (options?.activePadding ?? Spacing.xl)
+    : Math.max(insets.bottom, Spacing.md) + (options?.inactivePadding ?? 0);
+
+  // Offset for absolute footers above the software keyboard
+  const footerOffset = isKeyboardVisible ? keyboardHeight : 0;
+
   return {
     isKeyboardVisible,
     keyboardHeight,
     bottomInset,
+    scrollPaddingBottom,
+    footerOffset,
     rawBottomInset: insets.bottom,
   };
 }

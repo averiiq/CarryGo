@@ -60,3 +60,11 @@ jest.mock('expo-notifications', () => ({
 }));
 
 (global as Record<string, unknown>).__DEV__ = true;
+
+jest.mock('lottie-react-native', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return React.forwardRef((props: any, ref: any) => {
+    return React.createElement(View, { ...props, ref, testID: props.testID || 'lottie-animation' });
+  });
+});

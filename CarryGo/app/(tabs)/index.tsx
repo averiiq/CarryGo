@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ActivityIndicator, Animated, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AsyncStateCard, FeedSkeletonList, OfflineBanner, ParcelCard, TripCard } from '@/components';
+import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, ParcelCard, SwipeableCard, TripCard } from '@/components';
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
 import { SendRequestModal } from '@/components/feature/SendRequestModal';
+import { LiveActivityBanner } from '@/components/feature/LiveActivityBanner';
+import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
 import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation } from '@/features/listings/queries';
@@ -231,11 +233,10 @@ function EmptyMarketplace({
 
   return (
     <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-      <View style={[styles.emptyIconWrap, { backgroundColor: C.primarySubtle }]}>
-        <MaterialIcons
-          name={activeTab === 'trips' ? 'explore' : 'local-shipping'}
-          size={36}
-          color={C.primary}
+      <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+        <LottieAnimation
+          name={hasFilter ? 'searchEmpty' : activeTab === 'trips' ? 'deliveryCar' : 'packageBox'}
+          style={{ width: 140, height: 110 }}
         />
       </View>
       <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
@@ -270,6 +271,7 @@ const FeedTripItem = React.memo(function FeedTripItem({
   isOwner,
   onPress,
   onRequest,
+  onShare,
   existingRequest,
   onTrackDelivery,
   onViewRequest,
@@ -279,6 +281,7 @@ const FeedTripItem = React.memo(function FeedTripItem({
   isOwner: boolean;
   onPress: (id: string) => void;
   onRequest: (tripId: string) => void;
+  onShare: (trip: Trip) => void;
   existingRequest?: Request | null;
   onTrackDelivery?: (requestId: string) => void;
   onViewRequest?: (requestId: string) => void;
@@ -288,19 +291,27 @@ const FeedTripItem = React.memo(function FeedTripItem({
     () => onRequest(trip.id),
     [onRequest, trip.id]
   );
+  const handleShare = useCallback(() => onShare(trip), [onShare, trip]);
 
   return (
     <View style={isTablet ? styles.tabletCardWrap : undefined}>
-      <TripCard
-        trip={trip}
-        isOwner={isOwner}
-        existingRequest={existingRequest}
-        onPress={handlePress}
-        showRequestButton={!isOwner && trip.status === 'active' && FeatureFlags.payments && !existingRequest}
-        onRequest={handleRequest}
-        onTrackDelivery={onTrackDelivery}
-        onViewRequest={onViewRequest}
-      />
+      <SwipeableCard
+        onShare={handleShare}
+        onSecondaryAction={!isOwner && trip.status === 'active' && FeatureFlags.payments && !existingRequest ? handleRequest : undefined}
+        secondaryLabel="Request"
+        secondaryIcon="send"
+      >
+        <TripCard
+          trip={trip}
+          isOwner={isOwner}
+          existingRequest={existingRequest}
+          onPress={handlePress}
+          showRequestButton={!isOwner && trip.status === 'active' && FeatureFlags.payments && !existingRequest}
+          onRequest={handleRequest}
+          onTrackDelivery={onTrackDelivery}
+          onViewRequest={onViewRequest}
+        />
+      </SwipeableCard>
     </View>
   );
 });
@@ -311,6 +322,7 @@ const FeedParcelItem = React.memo(function FeedParcelItem({
   isOwner,
   onPress,
   onCarry,
+  onShare,
   existingRequest,
   onTrackDelivery,
   onViewRequest,
@@ -320,25 +332,34 @@ const FeedParcelItem = React.memo(function FeedParcelItem({
   isOwner: boolean;
   onPress: (id: string) => void;
   onCarry: (id: string) => void;
+  onShare: (parcel: Parcel) => void;
   existingRequest?: Request | null;
   onTrackDelivery?: (requestId: string) => void;
   onViewRequest?: (requestId: string) => void;
 }) {
   const handlePress = useCallback(() => onPress(parcel.id), [onPress, parcel.id]);
   const handleCarry = useCallback(() => onCarry(parcel.id), [onCarry, parcel.id]);
+  const handleShare = useCallback(() => onShare(parcel), [onShare, parcel]);
 
   return (
     <View style={isTablet ? styles.tabletCardWrap : undefined}>
-      <ParcelCard
-        parcel={parcel}
-        isOwner={isOwner}
-        existingRequest={existingRequest}
-        onPress={handlePress}
-        showCarryButton={!isOwner && parcel.status === 'open' && !existingRequest}
-        onCarry={handleCarry}
-        onTrackDelivery={onTrackDelivery}
-        onViewRequest={onViewRequest}
-      />
+      <SwipeableCard
+        onShare={handleShare}
+        onSecondaryAction={!isOwner && parcel.status === 'open' && !existingRequest ? handleCarry : undefined}
+        secondaryLabel="Carry"
+        secondaryIcon="luggage"
+      >
+        <ParcelCard
+          parcel={parcel}
+          isOwner={isOwner}
+          existingRequest={existingRequest}
+          onPress={handlePress}
+          showCarryButton={!isOwner && parcel.status === 'open' && !existingRequest}
+          onCarry={handleCarry}
+          onTrackDelivery={onTrackDelivery}
+          onViewRequest={onViewRequest}
+        />
+      </SwipeableCard>
     </View>
   );
 });
@@ -360,6 +381,53 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [carryParcelTarget, setCarryParcelTarget] = useState<Parcel | null>(null);
   const [requestTripTarget, setRequestTripTarget] = useState<Trip | null>(null);
+
+  const flashListRef = useRef<any>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
+  const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
+
+  const handleSelectTab = useCallback((tab: 'trips' | 'parcels') => {
+    Haptic.select();
+    setActiveTab(tab);
+    Animated.spring(tabIndicatorAnim, {
+      toValue: tab === 'trips' ? 0 : 1,
+      useNativeDriver: false,
+      tension: 260,
+      friction: 20,
+    }).start();
+  }, [tabIndicatorAnim]);
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const y = event?.nativeEvent?.contentOffset?.y || 0;
+        if (y > 200 && !isScrolledDown) {
+          setIsScrolledDown(true);
+        } else if (y <= 200 && isScrolledDown) {
+          setIsScrolledDown(false);
+        }
+      },
+    }
+  );
+
+  const handleShareTrip = useCallback((trip: Trip) => {
+    Haptic.confirm();
+    Share.share({
+      title: `CarryGo Trip: ${trip.fromCity} to ${trip.toCity}`,
+      message: `Traveler going from ${trip.fromCity} to ${trip.toCity} on ${trip.date}. Capacity: ${trip.availableCapacity}kg available (₹${trip.pricePerKg}/kg). Check it out on CarryGo!`,
+    }).catch(() => {});
+  }, []);
+
+  const handleShareParcel = useCallback((parcel: Parcel) => {
+    Haptic.confirm();
+    Share.share({
+      title: `CarryGo Parcel: ${parcel.fromCity} to ${parcel.toCity}`,
+      message: `Parcel delivery request from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ${parcel.category}). Earn ₹${parcel.priceOffer} carrying this package on CarryGo!`,
+    }).catch(() => {});
+  }, []);
 
   const heroFade = useRef(new Animated.Value(0)).current;
   const heroTranslateY = useRef(new Animated.Value(8)).current;
@@ -414,6 +482,14 @@ export default function HomeScreen() {
     });
     return map;
   }, [userRequests]);
+
+  const activeDeliveryRequest = useMemo(() => {
+    const inTransit = userRequests.find((r) => r.status === 'accepted');
+    if (inTransit) return inTransit;
+    const pendingAction = userRequests.find((r) => r.status === 'pending' && r.travellerId === user?.id);
+    if (pendingAction) return pendingAction;
+    return userRequests.find((r) => r.status === 'pending');
+  }, [userRequests, user?.id]);
 
   const trips = flattenInfiniteData(tripsQuery.data);
   const parcels = flattenInfiniteData(parcelsQuery.data);
@@ -679,6 +755,7 @@ export default function HomeScreen() {
           existingRequest={requestsByTripId.get(item.data.id)}
           onPress={handlePressTrip}
           onRequest={handleRequestTrip}
+          onShare={handleShareTrip}
           onTrackDelivery={handleTrackDelivery}
           onViewRequest={handleViewRequest}
         />
@@ -693,11 +770,12 @@ export default function HomeScreen() {
         existingRequest={requestsByParcelId.get(item.data.id)}
         onPress={handlePressParcel}
         onCarry={handleCarryParcel}
+        onShare={handleShareParcel}
         onTrackDelivery={handleTrackDelivery}
         onViewRequest={handleViewRequest}
       />
     );
-  }, [handleCarryParcel, handlePressParcel, handlePressTrip, handleRequestTrip, handleTrackDelivery, handleViewRequest, isTablet, requestsByParcelId, requestsByTripId, user?.id]);
+  }, [handleCarryParcel, handlePressParcel, handlePressTrip, handleRequestTrip, handleShareParcel, handleShareTrip, handleTrackDelivery, handleViewRequest, isTablet, requestsByParcelId, requestsByTripId, user?.id]);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -748,11 +826,112 @@ export default function HomeScreen() {
         isSubmitting={isCreatingRequest}
       />
 
+      {/* Sticky Animated Glass Mini-Header */}
+      <Animated.View
+        pointerEvents={isScrolledDown ? 'auto' : 'none'}
+        style={[
+          styles.miniHeader,
+          {
+            paddingTop: insets.top + Spacing.xs,
+            backgroundColor: C.surface + 'FA',
+            borderColor: C.surfaceBorder,
+            opacity: scrollY.interpolate({
+              inputRange: [140, 200],
+              outputRange: [0, 1],
+              extrapolate: 'clamp',
+            }),
+            transform: [
+              {
+                translateY: scrollY.interpolate({
+                  inputRange: [140, 200],
+                  outputRange: [-24, 0],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Pressable
+          onPress={() => {
+            Haptic.tap();
+            flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
+          }}
+          style={styles.miniHeaderLeft}
+          accessibilityRole="button"
+          accessibilityLabel="Scroll to top"
+        >
+          <View style={[styles.miniAvatar, { backgroundColor: C.primarySubtle }]}>
+            <Text style={[styles.miniAvatarText, { color: C.primary }]}>
+              {(user?.fullName || user?.name || 'C').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View>
+            <Text style={[styles.miniHeaderTitle, { color: C.textPrimary }]}>CarryGo</Text>
+            <Text style={[styles.miniHeaderSub, { color: C.textMuted }]}>
+              {activeTab === 'trips' ? `Trips (${filteredTrips.length})` : `Parcels (${filteredParcels.length})`}
+            </Text>
+          </View>
+        </Pressable>
+
+        <View style={[styles.miniTabGroup, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+          <Pressable
+            onPress={() => handleSelectTab('trips')}
+            style={[
+              styles.miniTabBtn,
+              activeTab === 'trips' && { backgroundColor: C.primary },
+            ]}
+          >
+            <Text style={[styles.miniTabText, { color: activeTab === 'trips' ? '#FFF' : C.textSecondary }]}>
+              Trips
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleSelectTab('parcels')}
+            style={[
+              styles.miniTabBtn,
+              activeTab === 'parcels' && { backgroundColor: C.primary },
+            ]}
+          >
+            <Text style={[styles.miniTabText, { color: activeTab === 'parcels' ? '#FFF' : C.textSecondary }]}>
+              Parcels
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.miniHeaderRight}>
+          <Pressable
+            onPress={() => {
+              Haptic.tap();
+              setShowFilters(true);
+            }}
+            hitSlop={TouchTarget.smallHitSlop}
+            style={[styles.miniIconBtn, { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface }]}
+          >
+            <MaterialIcons name="tune" size={17} color={hasFilter ? C.primary : C.textPrimary} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptic.tap();
+              setShowNotifications(true);
+            }}
+            hitSlop={TouchTarget.smallHitSlop}
+            style={[styles.miniIconBtn, { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}
+          >
+            <MaterialIcons name="notifications-none" size={18} color={C.textPrimary} />
+            {unreadCount > 0 ? <View style={[styles.miniBadge, { backgroundColor: C.error }]} /> : null}
+          </Pressable>
+        </View>
+      </Animated.View>
+
       <FlashList
+        ref={flashListRef}
         data={feedData}
         keyExtractor={(item) => `${item.type}-${item.data.id}`}
         renderItem={renderItem}
         estimatedItemSize={236}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         ListHeaderComponent={
           <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}>
             <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
@@ -763,9 +942,25 @@ export default function HomeScreen() {
               />
             </Animated.View>
 
+            {activeDeliveryRequest ? (
+              <LiveActivityBanner
+                request={activeDeliveryRequest}
+                isTraveller={activeDeliveryRequest.travellerId === user?.id}
+                onTrack={handleTrackDelivery}
+                onViewRequests={() => router.push('/(tabs)/requests')}
+              />
+            ) : null}
+
             <SearchBarTrigger
               onSearchPress={() => setShowFilters(true)}
               hasFilter={hasFilter}
+            />
+
+            <HaryanaCorridorChips
+              activeFromCity={filters.fromCity}
+              activeToCity={filters.toCity}
+              onSelectCorridor={(fromCity, toCity) => setFilters((prev) => ({ ...prev, fromCity, toCity }))}
+              onClear={() => setFilters((prev) => ({ ...prev, fromCity: '', toCity: '' }))}
             />
 
             <QuickActions />
@@ -806,32 +1001,53 @@ export default function HomeScreen() {
             {!isOnline ? <OfflineBanner C={C} /> : null}
 
             <View style={[styles.segmented, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-              {(['trips', 'parcels'] as const).map((tab) => {
-                const active = activeTab === tab;
-                const count = tab === 'trips' ? filteredTrips.length : filteredParcels.length;
-
-                return (
-                  <Pressable
-                    key={tab}
-                    onPress={() => {
-                      Haptic.select();
-                      setActiveTab(tab);
-                    }}
-                    hitSlop={TouchTarget.smallHitSlop}
-                    style={({ pressed }) => [
-                      styles.segment,
-                      {
-                        backgroundColor: active ? C.primary : 'transparent',
-                      },
-                      pressed && { opacity: 0.78, transform: [{ scale: 0.98 }] },
-                    ]}
-                  >
-                    <Text style={[styles.segmentText, { color: active ? '#FFFFFF' : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium }]}>
-                      {tab === 'trips' ? 'Available Trips' : 'Parcels to Carry'} ({count})
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              {/* Smooth sliding indicator pill */}
+              <Animated.View
+                style={[
+                  styles.activeIndicatorPill,
+                  {
+                    backgroundColor: C.primary,
+                    left: tabIndicatorAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '50%'],
+                    }) as any,
+                  },
+                ]}
+              />
+              <Pressable
+                onPress={() => handleSelectTab('trips')}
+                hitSlop={TouchTarget.smallHitSlop}
+                style={styles.segment}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    {
+                      color: activeTab === 'trips' ? '#FFFFFF' : C.textSecondary,
+                      fontWeight: activeTab === 'trips' ? FontWeight.bold : FontWeight.medium,
+                    },
+                  ]}
+                >
+                  Available Trips ({filteredTrips.length})
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleSelectTab('parcels')}
+                hitSlop={TouchTarget.smallHitSlop}
+                style={styles.segment}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    {
+                      color: activeTab === 'parcels' ? '#FFFFFF' : C.textSecondary,
+                      fontWeight: activeTab === 'parcels' ? FontWeight.bold : FontWeight.medium,
+                    },
+                  ]}
+                >
+                  Parcels to Carry ({filteredParcels.length})
+                </Text>
+              </Pressable>
             </View>
 
             {hasFilter ? (
@@ -883,6 +1099,65 @@ export default function HomeScreen() {
         }}
         contentContainerStyle={{ ...styles.listContent, paddingBottom: Math.max(116, insets.bottom + 104) }}
       />
+
+      {/* Floating Action Button (FAB) for fast one-tap creation on scroll */}
+      <Animated.View
+        pointerEvents={isScrolledDown ? 'auto' : 'none'}
+        style={[
+          styles.fabWrap,
+          {
+            bottom: insets.bottom + 68,
+            opacity: scrollY.interpolate({
+              inputRange: [220, 280],
+              outputRange: [0, 1],
+              extrapolate: 'clamp',
+            }),
+            transform: [
+              {
+                scale: scrollY.interpolate({
+                  inputRange: [220, 280],
+                  outputRange: [0.75, 1],
+                  extrapolate: 'clamp',
+                }),
+              },
+              {
+                translateY: scrollY.interpolate({
+                  inputRange: [220, 280],
+                  outputRange: [20, 0],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Pressable
+          onPress={() => {
+            Haptic.confirm();
+            if (activeTab === 'trips') {
+              router.push('/create-trip');
+            } else {
+              router.push('/create-parcel');
+            }
+          }}
+          style={({ pressed }) => [
+            styles.fabBtn,
+            { backgroundColor: C.primary },
+            pressed && { opacity: 0.9, transform: [{ scale: 0.96 }] },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={activeTab === 'trips' ? 'Post a Trip' : 'Send a Parcel'}
+        >
+          <MaterialIcons
+            name={activeTab === 'trips' ? 'flight-takeoff' : 'inventory-2'}
+            size={18}
+            color="#FFFFFF"
+          />
+          <Text style={styles.fabBtnText}>
+            {activeTab === 'trips' ? 'Post Trip' : 'Send Parcel'}
+          </Text>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -1106,7 +1381,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 3,
     flexDirection: 'row',
-    gap: 3,
+    position: 'relative',
+  },
+  activeIndicatorPill: {
+    position: 'absolute',
+    top: 3,
+    bottom: 3,
+    width: '50%',
+    borderRadius: BorderRadius.md - 2,
+    zIndex: 1,
   },
   segment: {
     flex: 1,
@@ -1114,9 +1397,115 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md - 2,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
   },
   segmentText: {
     fontSize: FontSize.sm - 0.5,
+    letterSpacing: -0.1,
+  },
+  miniHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    borderBottomWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  miniHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+  },
+  miniAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniAvatarText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  miniHeaderTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  miniHeaderSub: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+  },
+  miniTabGroup: {
+    flexDirection: 'row',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    padding: 2,
+    alignItems: 'center',
+  },
+  miniTabBtn: {
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  miniTabText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+  },
+  miniHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  miniIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  miniBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  fabWrap: {
+    position: 'absolute',
+    right: Spacing.lg,
+    zIndex: 60,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+    paddingHorizontal: Spacing.md + 2,
+    paddingVertical: Spacing.sm + 4,
+    borderRadius: BorderRadius.full,
+  },
+  fabBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
     letterSpacing: -0.1,
   },
   tabletContainer: {

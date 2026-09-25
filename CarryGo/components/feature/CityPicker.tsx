@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Input } from '@/components/ui/Input';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
@@ -50,113 +51,206 @@ export function CityPicker({
   };
 
   return (
-    <Modal
+    <GestureBottomSheet
       visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
+      onClose={handleClose}
+      maxHeight="82%"
+      showHandle
+      enablePanDownToClose
     >
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <Pressable
-          style={[styles.pickerOverlay, { backgroundColor: C.overlay }]}
-          onPress={handleClose}
-        />
-        <View style={[styles.pickerSheet, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
-          <View style={[styles.pickerHandle, { backgroundColor: C.surfaceBorderLight }]} />
-          <Text style={[styles.pickerTitle, { color: C.textPrimary }]}>{title}</Text>
+      <View style={styles.contentWrap}>
+        {/* Header with Title and Close button */}
+        <View style={styles.headerRow}>
+          <View style={styles.titleWrap}>
+            <View style={[styles.titleDot, { backgroundColor: dotColor }]} />
+            <Text style={[styles.pickerTitle, { color: C.textPrimary }]}>{title}</Text>
+          </View>
+          <Pressable
+            onPress={handleClose}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.closeCircle,
+              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <MaterialIcons name="close" size={18} color={C.textSecondary} />
+          </Pressable>
+        </View>
+
+        {/* Search Field with Clear Button */}
+        <View style={styles.searchWrap}>
           <Input
             placeholder="Search or type any city..."
             value={search}
             onChangeText={setSearch}
             autoFocus
+            leftIcon={<MaterialIcons name="search" size={20} color={C.textMuted} />}
+            rightIcon={
+              search.length > 0 ? (
+                <Pressable onPress={() => setSearch('')} hitSlop={8}>
+                  <MaterialIcons name="cancel" size={18} color={C.textMuted} />
+                </Pressable>
+              ) : null
+            }
           />
-          <ScrollView
-            style={{ maxHeight: 300 }}
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
-          >
-            {showCustomOption && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.cityOption,
-                  styles.customCityOption,
-                  {
-                    borderBottomColor: C.surfaceBorder,
-                    backgroundColor: pressed ? C.primarySubtle : C.surfaceElevated,
-                  },
-                ]}
-                onPress={() => handleSelect(search.trim())}
-              >
-                <MaterialIcons name="add-location" size={18} color={dotColor} />
+        </View>
+
+        {/* Scrollable City List */}
+        <ScrollView
+          style={styles.listScroll}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          {showCustomOption && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.cityOption,
+                styles.customCityOption,
+                {
+                  borderBottomColor: C.surfaceBorder,
+                  backgroundColor: pressed ? C.primarySubtle : C.surfaceElevated,
+                  borderColor: C.primary + '40',
+                },
+              ]}
+              onPress={() => handleSelect(search.trim())}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: C.primarySubtle }]}>
+                <MaterialIcons name="add-location-alt" size={18} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
                 <Text style={[styles.cityOptionText, { color: C.textPrimary, fontWeight: FontWeight.semibold }]}>
                   Use &quot;{search.trim()}&quot;
                 </Text>
-              </Pressable>
-            )}
-            {filteredCities.map(city => (
-              <Pressable
-                key={city}
-                style={({ pressed }) => [
-                  styles.cityOption,
-                  {
-                    borderBottomColor: C.surfaceBorder,
-                    backgroundColor: pressed ? C.surfaceElevated : 'transparent',
-                  },
-                ]}
-                onPress={() => handleSelect(city)}
-              >
-                <View style={[styles.cityDotSmall, { backgroundColor: dotColor }]} />
-                <Text style={[styles.cityOptionText, { color: C.textPrimary }]}>{city}</Text>
-              </Pressable>
-            ))}
-            {filteredCities.length === 0 && !showCustomOption && (
-              <View style={styles.emptyState}>
-                <Text style={[styles.emptyText, { color: C.textMuted }]}>No cities found</Text>
+                <Text style={[styles.customCitySub, { color: C.textMuted }]}>Custom Indian Location</Text>
               </View>
-            )}
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+              <MaterialIcons name="arrow-forward-ios" size={12} color={C.primary} />
+            </Pressable>
+          )}
+
+          {filteredCities.map((city) => (
+            <Pressable
+              key={city}
+              style={({ pressed }) => [
+                styles.cityOption,
+                {
+                  borderBottomColor: C.surfaceBorder,
+                  backgroundColor: pressed ? C.surfaceElevated : 'transparent',
+                },
+              ]}
+              onPress={() => handleSelect(city)}
+            >
+              <View style={[styles.cityDotSmall, { backgroundColor: dotColor }]} />
+              <Text style={[styles.cityOptionText, { color: C.textPrimary }]}>{city}</Text>
+              <MaterialIcons name="north-west" size={14} color={C.textMuted} style={styles.selectIcon} />
+            </Pressable>
+          ))}
+
+          {filteredCities.length === 0 && !showCustomOption && (
+            <View style={styles.emptyState}>
+              <MaterialIcons name="location-off" size={32} color={C.textMuted} />
+              <Text style={[styles.emptyText, { color: C.textMuted }]}>No matching cities</Text>
+              <Text style={[styles.emptySub, { color: C.textMuted }]}>Type full city name to select custom</Text>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </GestureBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoid: { flex: 1, justifyContent: 'flex-end' },
-  pickerOverlay: { flex: 1 },
-  pickerSheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-    maxHeight: '75%',
+  contentWrap: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.md,
   },
-  pickerHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 4,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  titleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  titleDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   pickerTitle: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
+  },
+  closeCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchWrap: {
+    marginBottom: Spacing.sm,
+  },
+  listScroll: {
+    maxHeight: 320,
+  },
+  listContent: {
+    paddingBottom: Spacing.lg,
   },
   cityOption: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
     paddingVertical: 14,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
+    paddingHorizontal: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  cityDotSmall: { width: 8, height: 8, borderRadius: 4 },
-  cityOptionText: { fontSize: FontSize.md },
-  customCityOption: { borderRadius: BorderRadius.md, marginBottom: Spacing.xs },
-  emptyState: { paddingVertical: Spacing.xl, alignItems: 'center' as const },
-  emptyText: { fontSize: FontSize.sm },
+  cityDotSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  cityOptionText: {
+    fontSize: FontSize.md,
+    flex: 1,
+  },
+  selectIcon: {
+    opacity: 0.6,
+  },
+  customCityOption: {
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    marginVertical: Spacing.xs,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customCitySub: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  emptyState: {
+    paddingVertical: Spacing.xxl,
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  emptyText: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.medium,
+  },
+  emptySub: {
+    fontSize: FontSize.xs,
+  },
 });

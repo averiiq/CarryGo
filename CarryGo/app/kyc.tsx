@@ -31,6 +31,7 @@ import {
 import { verifyHumanFace, FaceVerificationResult } from '@/services/face-verification.service';
 import KycStepIndicator from '@/components/feature/kyc/KycStepIndicator';
 import { Haptic } from '@/services/haptics.service';
+import { KeyboardAwareScrollView } from '@/components';
 
 type KycStep =
   | 'aadhaar_number'
@@ -1049,18 +1050,18 @@ export default function KycScreen() {
         <KycStepIndicator currentStep={stepNumber} totalSteps={4} stepLabel={stepLabel} />
       ) : null}
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.xxl + 20 }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        automaticallyAdjustKeyboardInsets={true}
+        extraScrollHeight={80}
       >
         {step === 'aadhaar_number' && renderAadhaarNumberStep()}
         {step === 'aadhaar_otp' && renderAadhaarOtpStep()}
         {step === 'aadhaar_verified' && renderAadhaarVerifiedStep()}
         {step === 'selfie' && renderSelfieStep()}
         {step === 'completed' && renderCompletedStep()}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </KeyboardAvoidingView>
   );
 }

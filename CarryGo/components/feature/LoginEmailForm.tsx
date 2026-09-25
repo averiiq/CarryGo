@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontSize, FontWeight, Spacing, BorderRadius, Gradients, ThemeColors } from '@/constants/theme';
+import { useKeyboardAware } from '@/components/ui/KeyboardAwareScrollView';
 
 type LoginEmailFormProps = {
   email: string;
@@ -27,8 +28,11 @@ export function LoginEmailForm({
   otpLength,
   C,
 }: LoginEmailFormProps) {
+  const containerRef = useRef<View>(null);
+  const inputRef = useRef<TextInput>(null);
+  const keyboardAware = useKeyboardAware();
   return (
-    <View style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
+    <View ref={containerRef} style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
       <View style={styles.formHeaderRow}>
         <View style={[styles.stepIconBox, { backgroundColor: C.primarySubtle }]}>
           <MaterialIcons name="email" size={20} color={C.primary} />
@@ -48,6 +52,7 @@ export function LoginEmailForm({
       ]}>
         <MaterialIcons name="alternate-email" size={17} color={emailFocused ? C.primary : C.textMuted} />
         <TextInput
+          ref={inputRef}
           style={[styles.emailInput, { color: C.textPrimary }]}
           placeholder="your@email.com"
           placeholderTextColor={C.textMuted}
@@ -56,8 +61,14 @@ export function LoginEmailForm({
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
-          onFocus={onEmailFocus}
-          onBlur={onEmailBlur}
+          onFocus={() => {
+            onEmailFocus();
+            if (inputRef.current) keyboardAware?.registerFocusedInput(containerRef.current || inputRef.current);
+          }}
+          onBlur={() => {
+            onEmailBlur();
+            keyboardAware?.registerFocusedInput(null);
+          }}
           onSubmitEditing={onSendOTP}
           returnKeyType="send"
         />

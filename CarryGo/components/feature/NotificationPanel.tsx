@@ -5,6 +5,7 @@ import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { AppNotification } from '@/types';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 import { styles } from '@/styles/tabs/index.styles';
 
 type NotificationPanelProps = {
@@ -201,7 +202,6 @@ export function NotificationPanel({
   onPressSettings,
   C,
 }: NotificationPanelProps) {
-  const sheetAnim = useRef(new Animated.Value(0)).current;
   const [activeFilter, setActiveFilter] = useState<'unread' | 'all'>('unread');
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<string[]>([]);
 
@@ -219,11 +219,9 @@ export function NotificationPanel({
 
   useEffect(() => {
     if (visible) {
-      sheetAnim.setValue(0);
-      Animated.spring(sheetAnim, { toValue: 1, useNativeDriver: true, tension: 200, friction: 18 }).start();
       if (unreadNotifications.length === 0) setActiveFilter('all');
     }
-  }, [visible, sheetAnim, unreadNotifications.length]);
+  }, [visible, unreadNotifications.length]);
 
   useEffect(() => {
     setExpandedGroupKeys((prev) => prev.filter((key) => groupedNotifications.some((group) => group.key === key)));
@@ -234,14 +232,14 @@ export function NotificationPanel({
   };
 
   return (
-    <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
-      <Pressable style={[styles.overlay, { backgroundColor: C.overlayMedium }]} onPress={onClose} />
-      <Animated.View style={[
-        styles.notifSheet,
-        { backgroundColor: C.surface, borderTopColor: C.surfaceBorder },
-        { transform: [{ translateY: sheetAnim.interpolate({ inputRange: [0, 1], outputRange: [300, 0] }) }] },
-      ]}>
-        <View style={[styles.sheetHandle, { backgroundColor: C.surfaceBorderLight }]} />
+    <GestureBottomSheet
+      visible={visible}
+      onClose={onClose}
+      maxHeight="86%"
+      showHandle
+      enablePanDownToClose
+    >
+      <View style={{ flex: 1 }}>
         <View style={styles.notifHeader}>
           <Text style={[styles.notifTitle, { color: C.textPrimary }]}>Notifications</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -334,7 +332,7 @@ export function NotificationPanel({
             windowSize={5}
           />
         )}
-      </Animated.View>
-    </Modal>
+      </View>
+    </GestureBottomSheet>
   );
 }

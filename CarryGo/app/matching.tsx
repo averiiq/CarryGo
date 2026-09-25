@@ -12,7 +12,8 @@ import { useMatchingTrips, useMatchingTripsOnRoute } from '@/hooks/useMatching';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useParcelQuery, useTripQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
-import { AppErrorBoundary, TripCard, MatchDiagnosticCard } from '@/components';
+import { AppErrorBoundary, TripCard, MatchDiagnosticCard, LottieAnimation } from '@/components';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 import { Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { sendLocalNotification } from '@/services/notifications.service';
@@ -417,7 +418,9 @@ export default function MatchingScreen() {
         {loading ? (
           <View style={styles.loadingWrap}>
             <View style={[styles.loadingCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <ActivityIndicator size="large" color={C.primary} />
+              <View style={{ width: 140, height: 140, alignItems: 'center', justifyContent: 'center' }}>
+                <LottieAnimation name="radarMatch" style={{ width: 140, height: 140 }} />
+              </View>
               <Text style={[styles.loadingText, { color: C.textSecondary }]}>Finding matches...</Text>
               <Text style={[styles.loadingSub, { color: C.textMuted }]}>
                 {isTripModeLegacy
@@ -532,10 +535,8 @@ function MatchBreakdownSheet({ visible, details, onClose, C }: {
   ];
 
   return (
-    <Modal visible={visible} transparent animationType={'slide'} onRequestClose={onClose}>
-      <Pressable style={[styles.sheetOverlay, { backgroundColor: C.overlay }]} onPress={onClose} />
-      <View style={[styles.sheetContainer, { backgroundColor: C.surface, borderTopColor: C.surfaceBorder }]}>
-        <View style={[styles.sheetHandle, { backgroundColor: C.surfaceBorderLight }]} />
+    <GestureBottomSheet visible={visible} onClose={onClose} maxHeight="80%" showHandle enablePanDownToClose>
+      <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg }}>
         <View style={styles.sheetHeader}>
           <Text style={[styles.sheetTitle, { color: C.textPrimary }]}>Why this match?</Text>
           <Pressable onPress={onClose} hitSlop={8}>
@@ -562,7 +563,7 @@ function MatchBreakdownSheet({ visible, details, onClose, C }: {
           ))}
         </View>
       </View>
-    </Modal>
+    </GestureBottomSheet>
   );
 }
 
@@ -580,12 +581,9 @@ function EmptyMatches({ icon, title, sub, cta, onCta, C }: {
 
   return (
     <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-      <Animated.View style={[
-        styles.emptyIconBox,
-        { backgroundColor: C.surfaceElevated, transform: [{ scale: bounceAnim }] },
-      ]}>
-        <MaterialIcons name={icon} size={40} color={C.textMuted} />
-      </Animated.View>
+      <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+        <LottieAnimation name="searchEmpty" style={{ width: 140, height: 110 }} />
+      </View>
       <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>{title}</Text>
       <Text style={[styles.emptySub, { color: C.textMuted }]}>{sub}</Text>
       <Pressable
