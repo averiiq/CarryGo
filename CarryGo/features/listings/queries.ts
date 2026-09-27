@@ -15,7 +15,8 @@ import {
   fetchTrips,
   updateTripStatus,
 } from '@/services/trips.service';
-import { FilterOptions, Parcel, Trip } from '@/types';
+import { fetchActivePromotionalBanners } from '@/services/promotional-banners.service';
+import { FilterOptions, Parcel, PromotionalBanner, Trip } from '@/types';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 
 const PAGE_SIZE = 20;
@@ -312,4 +313,20 @@ export function filterParcels(parcels: Parcel[], filters: FilterOptions) {
 export function flattenInfiniteData<T>(data: { pages: PaginatedResult<T>[] } | undefined): T[] {
   if (!data) return [];
   return data.pages.flatMap(page => page.items);
+}
+
+export function usePromotionalBannersQuery(enabled = true) {
+  return useQuery<PromotionalBanner[]>({
+    queryKey: queryKeys.promotionalBanners,
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await fetchActivePromotionalBanners();
+      if (error) {
+        // Return empty so carousel gracefully uses high-res bundled fallback slides
+        return [];
+      }
+      return data ?? [];
+    },
+    staleTime: 5 * 60_000, // 5 minutes cache
+  });
 }

@@ -27,6 +27,35 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const internalSecret = Deno.env.get('INTERNAL_SERVICE_KEY') || Deno.env.get('PUSH_WEBHOOK_SECRET');
+
+    const isServiceKey = Boolean(token && serviceRoleKey && token === serviceRoleKey);
+    const isSecretMatch = Boolean(internalSecret && (req.headers.get('x-service-token') === internalSecret || req.headers.get('x-webhook-secret') === internalSecret));
+
+    if (!isServiceKey && !isSecretMatch) {
+      if (!token) {
+        return new Response(JSON.stringify({ error: 'Authorization required' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const anonClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      );
+      const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const payload = await req.json();
     const record = payload.record || payload;
 

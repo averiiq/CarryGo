@@ -40,8 +40,13 @@ export const ParcelCard = React.memo(function ParcelCard({
   onTrackDelivery,
   onViewRequest,
 }: ParcelCardProps) {
-  const { C, S } = useThemeColors();
-  const cMeta = categoryConfig[parcel.category] || categoryConfig.other;
+  const { C, S, isDark } = useThemeColors();
+  const baseCMeta = categoryConfig[parcel.category] || categoryConfig.other;
+  const cMeta = {
+    ...baseCMeta,
+    bg: isDark ? baseCMeta.color + '22' : baseCMeta.bg,
+    border: isDark ? baseCMeta.color + '44' : baseCMeta.border,
+  };
   const scale = useRef(new Animated.Value(1)).current;
 
   const rawName = parcel.userName || 'User';
@@ -67,11 +72,27 @@ export const ParcelCard = React.memo(function ParcelCard({
       ? 'Open'
       : parcel.status.charAt(0).toUpperCase() + parcel.status.slice(1);
 
+  const parcelAccessibilityLabel = [
+    isOwner ? 'Your parcel' : `Parcel from ${userName}`,
+    `category ${parcel.category}`,
+    `from ${parcel.fromCity} to ${parcel.toCity}`,
+    parcel.description ? `description: ${parcel.description}` : '',
+    `${parcel.weight} kilograms`,
+    parcel.deliveryDate ? `deliver by ${formatScheduleDate(parcel.deliveryDate)}` : '',
+    `reward offer ₹${parcel.priceOffer}`,
+    `status: ${statusLabel}`,
+    existingRequest?.status ? `your offer status: ${existingRequest.status}` : '',
+  ].filter(Boolean).join(', ');
+
   return (
     <Pressable
       onPress={onPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={parcelAccessibilityLabel}
+      accessibilityHint={isOwner ? "Double tap to view and manage your parcel" : "Double tap to view details and send carry offer"}
       style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}
     >
       <Animated.View
@@ -501,9 +522,11 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     paddingHorizontal: Spacing.md + 2,
     paddingVertical: 10.5,
+    minHeight: 44,
     borderRadius: 12,
   },
   actionButtonText: {

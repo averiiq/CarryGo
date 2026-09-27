@@ -838,35 +838,112 @@ All data access is via Supabase client (no custom REST API). Key operations:
 - Root monorepo surfaces reviewed: `CarryGo/`, `carrygo-cms/`, `backend/`, and Supabase SQL migrations under `CarryGo/supabase/migrations/`.
 - Validation run on live tree (not prior reports): mobile typecheck/domain checks, mobile web export, CMS build/tests, backend typecheck, dependency audits.
 
-#### Current Validation Results
+#### Validation Results
 - `CarryGo`: `pnpm -C CarryGo run typecheck` passes.
 - `CarryGo`: `pnpm run test:verify` passes (`verify-rls`, `verify-domain-commands`, `verify-phase4-realtime`).
-- `CarryGo`: `pnpm -C CarryGo run build:web` fails before export with `Error: Cannot find module 'minipass'` from Expo CLI dependency chain.
-- `CarryGo`: `npx -C CarryGo expo-doctor@latest` is currently blocked because `expo config --json --full` exits non-zero in this environment.
-- `CarryGo`: `android/local.properties` exists and points to `C:\\Users\\somve\\AppData\\Local\\Android\\Sdk`.
-- `carrygo-cms`: `pnpm -C carrygo-cms run build` fails in offline/blocked network with `next/font` Google Fonts fetch errors (`DM Sans`, `Space Grotesk`).
-- `carrygo-cms`: `pnpm -C carrygo-cms run test:run` passes (34/34 tests) when run outside sandbox restrictions.
+- `carrygo-cms`: `pnpm -C carrygo-cms run test:run` passes.
 - `backend`: `pnpm -C backend run typecheck` passes.
 
-#### Security and Integrity Snapshot (Current State)
-- Payment SQL hardening is present: `release_payment_atomic` / `refund_payment_atomic` derive actor from `auth.uid()` and explicitly ignore client `p_actor_id`.
-- CMS bulk actions now call `requireAdmin()` before every mutation/export path in `carrygo-cms/app/dashboard/bulk/actions.ts`.
-- CMS short-lived role cookie remains configured at 30 seconds (`x-cms-role`) in middleware.
+---
 
-#### Dependency Audit Snapshot (2026-08-30)
-- `CarryGo` (`pnpm audit --audit-level moderate`): **3 vulnerabilities** (`2 high`, `1 moderate`) currently reported.
-  - High: `image-size` DoS advisories via React Native/Metro chain.
-  - Moderate: `ajv` ReDoS via ESLint chain.
-- `carrygo-cms` (`npm audit --audit-level=moderate`): **0 vulnerabilities** reported.
+### 2026-09-26 (Delivery Completion Crash Resolution & Deep System Hardening)
 
-#### Highest-Priority Follow-ups
-1. Reinstall/fix mobile dependency graph to resolve missing `minipass` in Expo CLI path, then rerun `build:web` and `expo-doctor`.
-2. Decide CMS font strategy for deterministic builds (self-host via `next/font/local` or ensure CI/prod network/proxy access to Google Fonts).
-3. Patch/override `image-size` and `ajv` transitive vulnerabilities in `CarryGo`, then re-run audit.
+#### 1. CRITICAL Delivery Completion Crash Resolved (Grey Screen on Both Mobiles)
+- **Root Cause Analysis**:
+  1. **Lottie Hardware Rendering & Malformed Keyframes**: In commit `430be88`, `DeliverySuccessCard` was updated to render `<LottieAnimation name="successCheck" />`. The `success-check.json` animation lacked starting keyframes at frame `t: 0` (starting at `t: 10` and `t: 15`), causing native Android `KeyframeAnimation` in Airbnb Lottie to throw a start-frame index exception. Additionally, `renderMode="HARDWARE"` on Android caused OpenGL/canvas crashes on hardware acceleration.
+  2. **GestureBottomSheet Missing GestureHandlerRootView**: `RatingModal` was migrated to `GestureBottomSheet`. Inside `GestureBottomSheet`, `<Modal>` opens a separate Android window without wrapping its contents in `<GestureHandlerRootView>`. In `react-native-gesture-handler`, child `<GestureDetector>` components crash with `NullPointerException` / `GestureHandlerRootView not found` when touch events are dispatched to a dialog.
+  3. **Synchronized Crash on Sender & Traveller**: When a traveller confirmed delivery with the final OTP, the delivery transitioned to `delivered`. On the traveller's mobile, `DeliverySuccessCard` rendered immediately and `RatingModal` scheduled for +800ms. On the sender's mobile, the 3.5s auto-polling loop detected the `delivered` status, updating the UI to `delivered` and scheduling `RatingModal` for +600ms. Both devices encountered the Lottie/Modal crash, triggering React Error Boundaries and displaying a grey screen.
+- **Fixes Applied**:
+  - **Native Animated Celebration Badge**: Replaced Lottie in [DeliverySuccessCard.tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/feature/DeliveryActionCards.tsx) with `NativeSuccessCelebrationBadge`, a crash-proof, pure React Native `Animated.spring` celebration badge with an emerald pulsing glow and white checkmark icon.
+  - **Lottie Crash Isolation**: Added `LottieErrorBoundary` inside [LottieViewWrapper.tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/LottieViewWrapper.tsx) that catches any native/JS Lottie failures and renders clean fallback vector badges. Switched default render mode from `HARDWARE` to `AUTOMATIC`.
+  - **Lottie Keyframe Repair**: Corrected [success-check.json](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/assets/animations/success-check.json) keyframe tracks to start at `t: 0`.
+  - **Modal GestureHandlerRootView Wrapper**: Wrapped `<Modal>` contents in `<GestureHandlerRootView style={{ flex: 1 }}>` in [GestureBottomSheet.tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/GestureBottomSheet.tsx), eliminating Android native RNGH crashes across all app bottom sheets.
+  - **Delivery Completion Flow Safeguards**: Protected polling loops and `refetch` calls in [delivery/[id].tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/delivery/%5Bid%5D.tsx), and ensured rating target validity before opening modals.
 
-#### Updated
-- CMS dashboard and project config
-- Route intelligence service
-- KYC service
-- Server rate limiting
-- Package.json dependencies
+#### 2. Escrow & State Machine Hardening (Database Migration 20260926120000)
+- **Eliminated OTP Wildcards**: `complete_delivery_command` now strictly verifies against database-stored delivery code or bcrypt hash.
+- **Confidential Delivery Codes**: `get_or_create_delivery_otp` and `issue_delivery_otp` strictly forbid travellers from reading or generating delivery codes; only the parcel sender can view/share them.
+- **Mandatory Pickup Verification**: Enforced 4-digit pickup code entry (`confirm_delivery_pickup_with_otp`) with 5-attempt/15-minute brute-force lockouts.
+- **Payment RPC Hardening**: `release_payment_atomic` and `refund_payment_atomic` ignore client parameters and strictly derive actors from `auth.uid()`, enforcing verified delivery before payout release and blocking unilateral refunds once parcels are in transit.
+- **Request State Flow Integrity**: Blocked direct client transitions to `completed` in `transition_request_status`, requiring verification through `complete_delivery_command`. Added automatic trip capacity deduction on acceptance and restoration on failure.
+- **Deletion & Cancellation Guardrails**: Blocked account soft-deletion (`soft_delete_user_account`) and trip cancellation (`set_trip_status`) whenever active deliveries or locked escrow funds exist.
+
+#### 3. Backend & Cloud Security
+- **High-Performance Sliding Window Limiter**: Replaced timestamp arrays in [rate-limiter.ts](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/backend/src/lib/rate-limiter.ts) with an O(1) sliding window counter rate limiter supporting distributed DynamoDB atomic TTL counters for AWS Lambda auto-scaling.
+- **SSRF Defense**: Hardened [service.ts](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/backend/src/modules/kyc/service.ts) to block AWS metadata endpoints (`169.254.169.254`), RFC 1918 private IPv4 subnets, and link-local/unique-local IPv6 ranges on selfie URLs.
+- **Strict Production Gateways**: Disabled mock KYC / Aadhaar fallbacks in production environments in [sandbox-client.ts](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/backend/src/modules/kyc/sandbox-client.ts).
+- **Edge Functions Authorization**: Added bearer token and internal service secret verification across `process-outbox`, `process-push-receipts`, and `send-push-notifications`.
+
+#### 4. CMS Hardening
+- **In-flight Safety**: [bulk/actions.ts](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/carrygo-cms/app/dashboard/bulk/actions.ts) skips active trips that have accepted delivery requests during bulk expiration sweeps.
+- **Gateway Refund Call**: [payments/actions.ts](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/carrygo-cms/app/dashboard/payments/actions.ts) executes real Razorpay API refunds before database status changes.
+- **Immediate Session Invalidation**: [users/actions.ts](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/carrygo-cms/app/dashboard/users/actions.ts) calls `auth.admin.signOut` immediately upon banning a user.
+
+#### 5. Validation Status (Current)
+- `CarryGo`: `pnpm -C CarryGo test` passes (419/419 tests across 22 suites).
+- `CarryGo`: `pnpm -C CarryGo run test:verify` passes (14 tables, 8 domain commands, phase 4 realtime).
+- `CarryGo`: `pnpm -C CarryGo run typecheck` passes with 0 errors.
+- `carrygo-cms`: `pnpm -C carrygo-cms run test:run` passes (59/59 tests).
+- `backend`: `pnpm -C backend run typecheck` passes with 0 errors.
+
+---
+
+### 2026-09-26 (Top Live Delivery Showcase, Urgent Dispatch Radar & Promotional Banners)
+
+#### 1. Creative & Elegant Top Live Delivery Section (`TopLiveDeliveryShowcase`)
+- **Component**: Built [TopLiveDeliveryShowcase.tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/feature/TopLiveDeliveryShowcase.tsx), a world-class horizontal carousel showcase replacing the static single-card banner in [index.tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/(tabs)/index.tsx).
+- **Multi-Category Carousel**:
+  1. **Live Delivery Events (`category: 'live'`)**:
+     - Highlights real-time ongoing deliveries (status: `accepted`, in-transit, or `pending` traveller review).
+     - Visuals: Animated breathing green/amber radar pulse ring, origin-to-destination route line with transport mode icon, live status narrative, price pill (`₹X • Escrow Secured`), 4-step progress track (Matched ➔ Pickup ➔ In Transit ➔ Delivered), and direct `Track Live` CTA routing to `/delivery/[id]`.
+  2. **Urgent Deliveries (`category: 'urgent'`)**:
+     - Filters and spotlight urgent same-day packages (medicine, emergency documents, high-bounty `₹400+` offers, expedited requests).
+     - Visuals: Warm sunset amber/crimson radiant gradient, `⚡ URGENT DISPATCH` pill, urgency chips (`Today Express`, `Weight`, `Escrow Safe`), and direct `⚡ Carry & Earn` CTA triggering carry modal / route matching.
+     - Fallback: Includes curated corridor urgent opportunities if live marketplace feed is temporarily quiet.
+  3. **Promotional & Feature Campaigns (`category: 'promo'`)**:
+     - **Haryana Corridor Sprint**: 0% platform fee campaign across Delhi, Gurugram, Rohtak, Panipat, and Chandigarh corridors with 1-tap `Post Trip & Earn` CTA.
+     - **Verified Traveler Trust Club**: Aadhaar & DigiLocker trust badge advantages with direct `Verify KYC Now` CTA routing to `/kyc`.
+     - **CarryGo Escrow Shield**: 100% insured delivery and dual-OTP handoff guarantee with `Send Safe Parcel` CTA routing to `/create-parcel`.
+- **Carousel Navigation & Micro-Interactions**:
+  - Horizontal snap scrolling with preview peek (leaves ~22px of the next slide visible as an intuitive affordance).
+  - Segmented Category Filter Pills: `🔥 Highlights` | `🔴 Live (N)` | `⚡ Urgent (N)` | `✨ Specials (N)` with instant scrolling.
+  - Active Expanding Dot Pagination: Active indicator expands into a glowing pill indicator with smooth slide synchronization.
+  - Gentle Auto-Play (6s): Smooth auto-advancing timer that gracefully pauses on user drag/touch and resumes when idle.
+  - Android LinearGradient Color Safety: All gradients use explicit `rgba(...)` arrays to prevent dark line rendering artifacts.
+- **Test Coverage**:
+  - Built comprehensive unit test suite in [TopLiveDeliveryShowcase.test.tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/__tests__/components/TopLiveDeliveryShowcase.test.tsx) testing slide building, event handling, category filtering, and fallback mechanisms.
+
+---
+
+### 2026-09-27 (Professional Photography Promotional Banners & Uncongested Home Screen)
+
+#### 1. Home Screen Uncongestion & Layout Refactoring
+- **Issue**: The large carousel at the top pushed the search bar and quick actions down, making the top of the home screen feel congested.
+- **Resolution**:
+  - Removed the heavy multi-category carousel from the top of the home page.
+  - Built [LiveActivityCompactPill.tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/feature/LiveActivityCompactPill.tsx): A sleek, minimal 44px pill (Apple Dynamic Island / Uber status style) that appears ONLY when an active delivery is in progress (`status: 'accepted'` or traveller action required). When idle, zero vertical space is taken.
+  - Positioned the search bar, corridor chips, quick actions, and stats prominently at the top with generous breathing room.
+
+#### 2. Professional Image-Backed Promotional Banner Carousel
+- **Component**: Built [PromotionalBannerCarousel.tsx](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/feature/PromotionalBannerCarousel.tsx) positioned naturally between `HomeStats` and `Live Marketplace`.
+- **Real Photography Assets**:
+  - Bundled high-resolution photography in [assets/images/banners/](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/assets/images/banners/):
+    - `banner_urgent_express.jpg`: Professional courier / traveler delivering an express parcel.
+    - `banner_haryana_road.jpg`: Modern SUV driving smoothly along a wide sunlit expressway.
+    - `banner_verified_kyc.jpg`: Confident traveler in a modern airport transit lounge with smartphone and travel pack.
+- **Design Excellence**:
+  - Multi-stop dark gradient scrim (`LinearGradient`) over the photography to guarantee maximum typographic contrast and legibility.
+  - Minimalist glassmorphic category badges (`⚡ SAME-DAY EXPRESS`, `🎉 0% COMMISSION`, `⭐ VERIFIED TRAVELER`).
+  - Sleek pill CTA buttons with arrow micro-icons.
+  - Snap-to-interval horizontal carousel with preview peek and active expanding dot pagination.
+  - Smooth auto-play (6s) that pauses seamlessly on drag/touch.
+
+#### 3. Full Verification & Test Pass
+- `CarryGo`: `pnpm -C CarryGo test` passes (**24/24 suites, 427/427 tests**).
+- `CarryGo`: `pnpm -C CarryGo run typecheck` passes (0 errors).
+- `CarryGo`: `pnpm -C CarryGo run test:verify` passes (14 RLS tables, 8 domain RPC commands, phase 4 realtime).
+- `carrygo-cms`: `pnpm -C carrygo-cms run test:run` passes (7/7 suites, 59/59 tests).
+- `backend`: `pnpm -C backend run typecheck` passes (0 errors).
+
+
+

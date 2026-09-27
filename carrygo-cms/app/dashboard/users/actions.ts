@@ -35,6 +35,15 @@ export async function toggleUserStatus(userId: string) {
     return { success: false, error: 'Failed to update user status' }
   }
 
+  // If user was banned, invalidate active sessions immediately
+  if (newStatus === 'banned') {
+    try {
+      await auth.supabase.auth.admin.signOut(userId)
+    } catch (e) {
+      console.warn('[toggleUserStatus] Session invalidation notice:', e)
+    }
+  }
+
   await logAdminAction(auth.supabase, auth.userId, 'toggle_user_status', {
     target_user_id: userId,
     from_status: target.status,

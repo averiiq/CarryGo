@@ -272,10 +272,17 @@ export const registerSelfie = async (
     if (
       host === 'localhost' ||
       host === '127.0.0.1' ||
+      host === '169.254.169.254' ||
+      host.startsWith('169.254.') ||
       host.startsWith('10.') ||
       host.startsWith('192.168.') ||
-      host.startsWith('172.16.') ||
-      host.endsWith('.internal')
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+      host.endsWith('.internal') ||
+      host.endsWith('.local') ||
+      host === '[::1]' ||
+      host.startsWith('[fe80:') ||
+      host.startsWith('[fc00:') ||
+      host.startsWith('[fd00:')
     ) {
       throw new Error('Selfie URL domain is not permitted.');
     }

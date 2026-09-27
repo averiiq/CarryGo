@@ -36,4 +36,5 @@ export const queryKeys = {
     all: ['user'] as const,
     profile: (userId: string) => ['user', 'profile', userId] as const,
   },
+  promotionalBanners: ['promotionalBanners'] as const,
 };

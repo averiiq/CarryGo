@@ -14,6 +14,10 @@ export interface ReserveBookingResult {
 export const reserveBooking = async (
   command: ReserveBookingCommand,
 ): Promise<ReserveBookingResult> => {
+  if (typeof command.units !== 'number' || !Number.isInteger(command.units) || command.units <= 0) {
+    throw new Error('Booking units must be a positive integer.');
+  }
+
   const bookingId = randomUUID();
   const now = new Date().toISOString();
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24;

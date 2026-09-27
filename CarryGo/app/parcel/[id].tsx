@@ -105,7 +105,7 @@ function ProposalCard({
         <View style={[styles.carrierMessageBox, { backgroundColor: C.surfaceElevated }]}>
           <Ionicons name="chatbubble-ellipses-outline" size={14} color={C.primary} />
           <Text style={[styles.carrierMessageText, { color: C.textSecondary }]}>
-            "{request.message}"
+            {`"${request.message}"`}
           </Text>
         </View>
       ) : null}

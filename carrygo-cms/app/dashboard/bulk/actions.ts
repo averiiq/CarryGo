@@ -47,11 +47,36 @@ export async function bulkCancelExpiredTrips() {
 
   const today = new Date().toISOString().split('T')[0]
 
+  // Retrieve expired active trips
+  const { data: expiredTrips, error: fetchError } = await auth.supabase
+    .from('trips')
+    .select('id')
+    .eq('status', 'active')
+    .lt('date', today)
+
+  if (fetchError) return { error: fetchError.message, count: 0 }
+  if (!expiredTrips || expiredTrips.length === 0) return { error: null, count: 0 }
+
+  const expiredIds = expiredTrips.map((t) => t.id)
+
+  // Skip trips with in-flight accepted requests
+  const { data: activeRequests } = await auth.supabase
+    .from('requests')
+    .select('trip_id')
+    .in('trip_id', expiredIds)
+    .eq('status', 'accepted')
+
+  const busyTripIds = new Set((activeRequests || []).map((r) => r.trip_id))
+  const safeToCancelIds = expiredIds.filter((id) => !busyTripIds.has(id))
+
+  if (safeToCancelIds.length === 0) {
+    return { error: null, count: 0 }
+  }
+
   const { data, error } = await auth.supabase
     .from('trips')
     .update({ status: 'cancelled' })
-    .eq('status', 'active')
-    .lt('date', today)
+    .in('id', safeToCancelIds)
     .select('id')
 
   if (error) return { error: error.message, count: 0 }
@@ -61,6 +86,7 @@ export async function bulkCancelExpiredTrips() {
   await logAdminAction(auth.supabase, auth.userId, 'bulk_cancel_expired_trips', {
     count,
     cutoff_date: today,
+    skipped_in_flight: busyTripIds.size,
   })
 
   revalidatePath('/dashboard/bulk')

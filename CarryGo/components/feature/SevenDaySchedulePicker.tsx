@@ -155,6 +155,8 @@ export function SevenDaySchedulePicker({
           <Pressable
             onPress={onClose}
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close schedule picker"
             style={({ pressed }) => [
               styles.closeCircle,
               { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
@@ -185,6 +187,9 @@ export function SevenDaySchedulePicker({
             return (
               <Pressable
                 key={day.key}
+                accessibilityRole="button"
+                accessibilityLabel={`${day.relative}, ${day.day} ${day.month}`}
+                accessibilityState={{ selected }}
                 style={({ pressed }) => [
                   styles.dayCell,
                   { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
@@ -233,6 +238,9 @@ export function SevenDaySchedulePicker({
                 return (
                   <Pressable
                     key={time}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Time ${time}`}
+                    accessibilityState={{ selected }}
                     style={({ pressed }) => [
                       styles.timeChip,
                       { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
@@ -270,6 +278,8 @@ export function SevenDaySchedulePicker({
 
         {/* Confirm Action Button */}
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={confirmLabel}
           style={({ pressed }) => [
             styles.applyBtn,
             { backgroundColor: C.primary, opacity: pressed ? 0.92 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },

@@ -127,8 +127,8 @@ export class ConcurrencyGovernor {
   }
 }
 
-// Global governor singleton
+// Global governor singleton (high-scale configuration)
 export const concurrencyGovernor = new ConcurrencyGovernor({
-  maxConcurrent: 2500,
-  maxLagMs: 85,
+  maxConcurrent: 5000,
+  maxLagMs: 120,
 });

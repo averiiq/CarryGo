@@ -1,17 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 
 export const TOP_HARYANA_CORRIDORS = [
-  { id: 'ggn-rtk', fromCity: 'Gurugram', toCity: 'Rohtak', label: 'Gurugram ↔ Rohtak' },
-  { id: 'fbd-knl', fromCity: 'Faridabad', toCity: 'Karnal', label: 'Faridabad ↔ Karnal' },
-  { id: 'pnp-amb', fromCity: 'Panipat', toCity: 'Ambala', label: 'Panipat ↔ Ambala' },
-  { id: 'hsr-snp', fromCity: 'Hisar', toCity: 'Sonipat', label: 'Hisar ↔ Sonipat' },
-  { id: 'pkl-krk', fromCity: 'Panchkula', toCity: 'Kurukshetra', label: 'Panchkula ↔ Kurukshetra' },
-  { id: 'rew-ggn', fromCity: 'Rewari', toCity: 'Gurugram', label: 'Rewari ↔ Gurugram' },
+  { id: 'del-ggn', fromCity: 'Delhi', toCity: 'Gurugram', label: 'Delhi ↔ Gurugram', distance: '32 km' },
+  { id: 'ggn-rtk', fromCity: 'Gurugram', toCity: 'Rohtak', label: 'Gurugram ↔ Rohtak', distance: '75 km' },
+  { id: 'del-chd', fromCity: 'Delhi', toCity: 'Chandigarh', label: 'Delhi ↔ Chandigarh', distance: '245 km' },
+  { id: 'del-jpr', fromCity: 'Delhi', toCity: 'Jaipur', label: 'Delhi ↔ Jaipur', distance: '270 km' },
+  { id: 'fbd-knl', fromCity: 'Faridabad', toCity: 'Karnal', label: 'Faridabad ↔ Karnal', distance: '150 km' },
+  { id: 'pnp-amb', fromCity: 'Panipat', toCity: 'Ambala', label: 'Panipat ↔ Ambala', distance: '115 km' },
+  { id: 'noi-agr', fromCity: 'Noida', toCity: 'Agra', label: 'Noida ↔ Agra', distance: '195 km' },
+  { id: 'hsr-snp', fromCity: 'Hisar', toCity: 'Sonipat', label: 'Hisar ↔ Sonipat', distance: '140 km' },
+  { id: 'rew-ggn', fromCity: 'Rewari', toCity: 'Gurugram', label: 'Rewari ↔ Gurugram', distance: '55 km' },
 ] as const;
 
 interface HaryanaCorridorChipsProps {
@@ -20,6 +23,8 @@ interface HaryanaCorridorChipsProps {
   onSelectCorridor: (fromCity: string, toCity: string) => void;
   onClear?: () => void;
   title?: string;
+  style?: StyleProp<ViewStyle>;
+  compactPadding?: boolean;
 }
 
 export const HaryanaCorridorChips = React.memo(function HaryanaCorridorChips({
@@ -28,16 +33,20 @@ export const HaryanaCorridorChips = React.memo(function HaryanaCorridorChips({
   onSelectCorridor,
   onClear,
   title,
+  style,
+  compactPadding = false,
 }: HaryanaCorridorChipsProps) {
   const { C } = useThemeColors();
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerRow}>
+    <View style={[styles.container, compactPadding && styles.containerCompact, style]}>
+      <View style={[styles.headerRow, compactPadding && styles.headerRowCompact]}>
         <View style={styles.titleRow}>
-          <MaterialIcons name="bolt" size={16} color={C.primary} />
+          <View style={[styles.boltBadge, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name="bolt" size={13} color={C.primary} />
+          </View>
           <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
-            {title || 'Popular Haryana Corridors'}
+            {title || 'Popular Corridors (1-Tap Route)'}
           </Text>
         </View>
         {onClear && (activeFromCity || activeToCity) ? (
@@ -58,12 +67,14 @@ export const HaryanaCorridorChips = React.memo(function HaryanaCorridorChips({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, compactPadding && styles.scrollContentCompact]}
       >
         {TOP_HARYANA_CORRIDORS.map((c) => {
           const isSelected =
-            activeFromCity?.toLowerCase() === c.fromCity.toLowerCase() &&
-            activeToCity?.toLowerCase() === c.toCity.toLowerCase();
+            (activeFromCity?.toLowerCase() === c.fromCity.toLowerCase() &&
+              activeToCity?.toLowerCase() === c.toCity.toLowerCase()) ||
+            (activeFromCity?.toLowerCase() === c.toCity.toLowerCase() &&
+              activeToCity?.toLowerCase() === c.fromCity.toLowerCase());
 
           return (
             <Pressable
@@ -85,24 +96,44 @@ export const HaryanaCorridorChips = React.memo(function HaryanaCorridorChips({
                 }
               }}
               accessibilityRole="button"
-              accessibilityLabel={`Filter by corridor ${c.label}`}
+              accessibilityLabel={`Select corridor ${c.label}`}
+              accessibilityState={{ selected: isSelected }}
             >
               <MaterialIcons
-                name="directions"
-                size={13}
-                color={isSelected ? C.primary : C.textSecondary}
+                name={isSelected ? 'check-circle' : 'alt-route'}
+                size={14}
+                color={isSelected ? C.primary : C.textMuted}
               />
               <Text
                 style={[
                   styles.chipText,
                   {
-                    color: isSelected ? C.primary : C.textPrimary,
+                    color: isSelected ? C.primaryDark : C.textPrimary,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.medium,
                   },
                 ]}
               >
                 {c.label}
               </Text>
+              {c.distance ? (
+                <View
+                  style={[
+                    styles.distanceTag,
+                    {
+                      backgroundColor: isSelected ? C.primary + '20' : C.surfaceElevated,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.distanceText,
+                      { color: isSelected ? C.primaryDark : C.textMuted },
+                    ]}
+                  >
+                    {c.distance}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           );
         })}
@@ -113,8 +144,10 @@ export const HaryanaCorridorChips = React.memo(function HaryanaCorridorChips({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
+    marginVertical: Spacing.xs,
+  },
+  containerCompact: {
+    marginHorizontal: -Spacing.md,
   },
   headerRow: {
     flexDirection: 'row',
@@ -123,10 +156,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     marginBottom: 8,
   },
+  headerRowCompact: {
+    paddingHorizontal: Spacing.md,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+  },
+  boltBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: FontSize.xs + 1,
@@ -141,16 +184,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     gap: 8,
   },
+  scrollContentCompact: {
+    paddingHorizontal: Spacing.md,
+  },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
+    paddingLeft: 10,
+    paddingRight: 8,
     paddingVertical: 7,
     borderRadius: BorderRadius.full,
-    borderWidth: 1,
+    borderWidth: 1.2,
+    minHeight: 36,
   },
   chipText: {
     fontSize: FontSize.xs,
+  },
+  distanceTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  distanceText: {
+    fontSize: 10,
+    fontWeight: FontWeight.semibold,
   },
 });

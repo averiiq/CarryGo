@@ -1,78 +1,7 @@
 // CarryGo design tokens for a trust-first, calm logistics UI
 
-export type ThemeColors = Omit<typeof DarkColors, 'statusBarStyle'> & {
-  statusBarStyle: 'light' | 'dark';
-};
-
-// Dark palette (modern dark slate/zinc with crisp contrast)
-export const DarkColors = {
-  background: '#090D16',
-  surface: '#111827',
-  surfaceElevated: '#1F2937',
-  surfaceHigh: '#374151',
-  surfaceBorder: '#1F2937',
-  surfaceBorderLight: '#2D3748',
-
-  card: '#111827',
-  cardSubtle: '#1F2937',
-  cardBorder: '#1F2937',
-
-  primary: '#10B981',
-  primaryDark: '#059669',
-  primaryLight: '#34D399',
-  primarySubtle: 'rgba(16, 185, 129, 0.14)',
-  primaryBorder: 'rgba(16, 185, 129, 0.30)',
-  primaryGlow: 'rgba(16, 185, 129, 0.32)',
-
-  accent: '#10B981',
-  accentSubtle: 'rgba(16, 185, 129, 0.12)',
-
-  textPrimary: '#F8FAFC',
-  textSecondary: '#CBD5E1',
-  textMuted: '#94A3B8',
-  textInverse: '#090D16',
-
-  success: '#10B981',
-  successSubtle: 'rgba(16, 185, 129, 0.14)',
-  successBorder: 'rgba(16, 185, 129, 0.30)',
-
-  error: '#FB7185',
-  errorSubtle: 'rgba(251, 113, 133, 0.16)',
-  errorBorder: 'rgba(251, 113, 133, 0.32)',
-
-  warning: '#FBBF24',
-  warningSubtle: 'rgba(251, 191, 36, 0.16)',
-  warningBorder: 'rgba(251, 191, 36, 0.32)',
-
-  info: '#38BDF8',
-  infoSubtle: 'rgba(56, 189, 248, 0.16)',
-  infoBorder: 'rgba(56, 189, 248, 0.32)',
-
-  badgeBg: '#1F2937',
-  badgeBorder: '#374151',
-
-  locked: '#94A3B8',
-  lockedSubtle: 'rgba(148, 163, 184, 0.16)',
-  released: '#10B981',
-  releasedSubtle: 'rgba(16, 185, 129, 0.14)',
-
-  pending: '#FBBF24',
-  accepted: '#10B981',
-  rejected: '#FB7185',
-  inTransit: '#38BDF8',
-  delivered: '#10B981',
-
-  overlay: 'rgba(3, 7, 18, 0.72)',
-  overlayLight: 'rgba(3, 7, 18, 0.30)',
-  overlayMedium: 'rgba(3, 7, 18, 0.52)',
-
-  tabBarBg: '#0B0F19',
-  inputBg: '#1A2332',
-  statusBarStyle: 'light' as const,
-};
-
 // Light palette (pure, calm, signature CarryGo emerald green)
-export const LightColors: ThemeColors = {
+export const LightColors = {
   background: '#F8FAFC',
   surface: '#FFFFFF',
   surfaceElevated: '#F1F5F9',
@@ -98,6 +27,7 @@ export const LightColors: ThemeColors = {
   textSecondary: '#475569',
   textMuted: '#64748B',
   textInverse: '#FFFFFF',
+  textWhite: '#FFFFFF',
 
   success: '#059669',
   successSubtle: '#ECFDF5',
@@ -138,7 +68,10 @@ export const LightColors: ThemeColors = {
   statusBarStyle: 'dark' as const,
 };
 
-// Backward-compatible default export
+export type ThemeColors = typeof LightColors;
+
+// Backward-compatible aliases
+export const DarkColors = LightColors;
 export const Colors = LightColors;
 
 export const Spacing = {

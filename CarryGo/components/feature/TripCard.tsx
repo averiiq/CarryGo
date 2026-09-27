@@ -39,13 +39,18 @@ export const TripCard = React.memo(function TripCard({
   onTrackDelivery,
   onViewRequest,
 }: TripCardProps) {
-  const { C, S } = useThemeColors();
+  const { C, S, isDark } = useThemeColors();
   const scale = useRef(new Animated.Value(1)).current;
 
   if (!trip) return null;
 
   const vehicleTypeKey = (trip.vehicleType || 'car').toLowerCase();
-  const vMeta = vehicleConfig[vehicleTypeKey] || vehicleConfig.car;
+  const baseVMeta = vehicleConfig[vehicleTypeKey] || vehicleConfig.car;
+  const vMeta = {
+    ...baseVMeta,
+    bg: isDark ? baseVMeta.color + '22' : baseVMeta.bg,
+    border: isDark ? baseVMeta.color + '44' : baseVMeta.border,
+  };
   const vehicleLabel = (trip.vehicleType || 'CAR').toUpperCase();
 
   const rawName = trip.userName || 'User';
@@ -60,6 +65,18 @@ export const TripCard = React.memo(function TripCard({
   const availableCapacity = typeof trip.availableCapacity === 'number' ? trip.availableCapacity : 0;
   const pricePerKg = typeof trip.pricePerKg === 'number' ? trip.pricePerKg : 0;
 
+  const tripAccessibilityLabel = [
+    isOwner ? 'Your trip' : `Trip by ${userName}`,
+    hasRating ? `rated ${userRating.toFixed(1)} stars` : '',
+    `from ${fromCity} to ${toCity}`,
+    trip.date ? `on ${trip.date}` : '',
+    trip.time ? `at ${trip.time}` : '',
+    `${availableCapacity} kilograms available capacity`,
+    `price ₹${pricePerKg} per kilogram`,
+    `traveling by ${vehicleLabel.toLowerCase()}`,
+    existingRequest?.status ? `request status: ${existingRequest.status}` : '',
+  ].filter(Boolean).join(', ');
+
   const onPressIn = () =>
     Animated.spring(scale, { toValue: 0.985, useNativeDriver: true, ...Motion.springFast }).start();
   const onPressOut = () =>
@@ -70,6 +87,10 @@ export const TripCard = React.memo(function TripCard({
       onPress={onPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={tripAccessibilityLabel}
+      accessibilityHint={isOwner ? "Double tap to view and manage your trip" : "Double tap to view trip details and send request"}
       style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}
     >
       <Animated.View
@@ -495,9 +516,11 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     paddingHorizontal: Spacing.md + 2,
     paddingVertical: 10.5,
+    minHeight: 44,
     borderRadius: 12,
   },
   actionButtonText: {

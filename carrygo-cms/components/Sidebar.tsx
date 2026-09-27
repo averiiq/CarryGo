@@ -17,6 +17,7 @@ import {
   ScrollText,
   Layers,
   Bell,
+  Sparkles,
 } from 'lucide-react'
 
 export const NAV_ITEMS = [
@@ -31,6 +32,7 @@ export const NAV_ITEMS = [
   { label: 'Support', href: '/dashboard/support', icon: HeadphonesIcon },
   { label: 'Bulk Ops', href: '/dashboard/bulk', icon: Layers },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+  { label: 'Banners', href: '/dashboard/banners', icon: Sparkles },
   { label: 'Audit Log', href: '/dashboard/audit', icon: ScrollText },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]

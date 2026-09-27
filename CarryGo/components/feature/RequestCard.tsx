@@ -117,6 +117,18 @@ export const RequestCard = React.memo(function RequestCard({
     month: 'short',
   });
 
+  const requestAccessibilityLabel = [
+    isIncoming ? `Incoming request from ${personName}` : `Delivery request to ${personName}`,
+    `role: ${roleLabel}`,
+    `route from ${pickup} to ${drop}`,
+    request.parcelCategory ? `category: ${request.parcelCategory}` : '',
+    request.parcelWeight ? `weight: ${request.parcelWeight} kilograms` : '',
+    `amount: ₹${request.price}`,
+    `status: ${sc.label}`,
+    request.message ? `note: ${request.message}` : '',
+    formattedDate ? `created ${formattedDate}` : '',
+  ].filter(Boolean).join(', ');
+
   return (
     <View style={{ position: 'relative' }}>
       {/* Swipe background hints */}
@@ -138,6 +150,9 @@ export const RequestCard = React.memo(function RequestCard({
       ) : null}
 
       <Animated.View
+        accessible={true}
+        accessibilityRole="summary"
+        accessibilityLabel={requestAccessibilityLabel}
         style={[
           styles.card,
           S.card,
@@ -230,8 +245,13 @@ export const RequestCard = React.memo(function RequestCard({
               <Text style={[styles.escrowChipText, { color: C.primary }]}>Escrow Protected</Text>
             </View>
 
-            <View style={[styles.statusChip, { backgroundColor: sc.bg, borderColor: sc.border }]}>
-              <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
+            <View
+              style={[styles.statusChip, { backgroundColor: sc.bg, borderColor: sc.border }]}
+              accessible={true}
+              accessibilityRole="text"
+              accessibilityLabel={`Status: ${sc.label}`}
+            >
+              <Ionicons name={sc.icon} size={11} color={sc.color} style={{ marginRight: 3 }} />
               <Text style={[styles.statusChipText, { color: sc.color }]}>{sc.label}</Text>
             </View>
           </View>
@@ -258,7 +278,7 @@ export const RequestCard = React.memo(function RequestCard({
                   <MaterialIcons name="verified" size={13} color={C.info} />
                 </View>
                 <Text style={[styles.userSubText, { color: C.textMuted }]}>
-                  4.8 ★ · {roleLabel}
+                  Verified {roleLabel}
                 </Text>
               </View>
             </View>
@@ -274,7 +294,10 @@ export const RequestCard = React.memo(function RequestCard({
                 ]}
                 onPress={() => { Haptic.tap(); onChat?.(); }}
                 hitSlop={TouchTarget.smallHitSlop}
-                accessibilityLabel="Chat"
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`Chat with ${personName}`}
+                accessibilityHint="Double tap to open chat with this user"
               >
                 <Ionicons name="chatbubble-outline" size={17} color={C.textSecondary} />
               </Pressable>
@@ -293,7 +316,10 @@ export const RequestCard = React.memo(function RequestCard({
                       onReject?.();
                     }}
                     hitSlop={TouchTarget.smallHitSlop}
+                    accessible={true}
+                    accessibilityRole="button"
                     accessibilityLabel="Decline Request"
+                    accessibilityHint="Double tap to decline this request"
                   >
                     <Ionicons name="close" size={15} color={C.error} />
                     <Text style={[styles.declineActionText, { color: C.error }]}>Decline</Text>
@@ -310,7 +336,10 @@ export const RequestCard = React.memo(function RequestCard({
                       onAccept?.();
                     }}
                     hitSlop={TouchTarget.smallHitSlop}
+                    accessible={true}
+                    accessibilityRole="button"
                     accessibilityLabel="Accept Request"
+                    accessibilityHint="Double tap to accept this request"
                   >
                     <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                     <Text style={styles.primaryActionText}>Accept</Text>
@@ -327,6 +356,10 @@ export const RequestCard = React.memo(function RequestCard({
                   ]}
                   onPress={() => { Haptic.tap(); onCancel?.(); }}
                   hitSlop={TouchTarget.smallHitSlop}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel Request"
+                  accessibilityHint="Double tap to cancel your pending request"
                 >
                   <Text style={[styles.cancelPillText, { color: C.error }]}>Cancel</Text>
                 </Pressable>
@@ -343,6 +376,10 @@ export const RequestCard = React.memo(function RequestCard({
                       ]}
                       onPress={() => { Haptic.tap(); onPayment?.(); }}
                       hitSlop={TouchTarget.smallHitSlop}
+                      accessible={true}
+                      accessibilityRole="button"
+                      accessibilityLabel="Pay for delivery"
+                      accessibilityHint="Double tap to open payment for this request"
                     >
                       <Text style={[styles.payPillText, { color: C.warning }]}>Pay</Text>
                     </Pressable>
@@ -356,6 +393,10 @@ export const RequestCard = React.memo(function RequestCard({
                     ]}
                     onPress={() => { Haptic.tap(); onDelivery?.(); }}
                     hitSlop={TouchTarget.smallHitSlop}
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel={isIncoming ? "Process Delivery" : "Track Parcel"}
+                    accessibilityHint={isIncoming ? "Double tap to manage delivery verification" : "Double tap to track parcel progress"}
                   >
                     <MaterialIcons name={isIncoming ? "fact-check" : "radar"} size={15} color="#FFFFFF" />
                     <Text style={styles.primaryActionText}>
@@ -375,6 +416,10 @@ export const RequestCard = React.memo(function RequestCard({
                     ]}
                     onPress={() => { Haptic.tap(); onPayment?.(); }}
                     hitSlop={TouchTarget.smallHitSlop}
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel="Receipt"
+                    accessibilityHint="Double tap to view payment receipt"
                   >
                     <Text style={[styles.receiptPillText, { color: C.primary }]}>Receipt</Text>
                   </Pressable>
@@ -387,6 +432,10 @@ export const RequestCard = React.memo(function RequestCard({
                     ]}
                     onPress={() => { Haptic.tap(); onDelivery?.(); }}
                     hitSlop={TouchTarget.smallHitSlop}
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel="Review"
+                    accessibilityHint="Double tap to leave a review for this delivery"
                   >
                     <MaterialIcons name="grade" size={15} color="#FFFFFF" />
                     <Text style={styles.primaryActionText}>Review</Text>
@@ -746,8 +795,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   squareActionBtn: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -762,9 +811,10 @@ const styles = StyleSheet.create({
   declineActionPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     paddingHorizontal: 12,
-    height: 40,
+    height: 42,
     borderRadius: 12,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
@@ -778,9 +828,10 @@ const styles = StyleSheet.create({
   primaryActionPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     paddingHorizontal: 13,
-    height: 40,
+    height: 42,
     borderRadius: 12,
     backgroundColor: '#059669',
   },
@@ -791,7 +842,7 @@ const styles = StyleSheet.create({
   },
   cancelPill: {
     paddingHorizontal: 12,
-    height: 40,
+    height: 42,
     borderRadius: 12,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
@@ -806,7 +857,7 @@ const styles = StyleSheet.create({
   },
   payPill: {
     paddingHorizontal: 13,
-    height: 40,
+    height: 42,
     borderRadius: 12,
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
@@ -821,7 +872,7 @@ const styles = StyleSheet.create({
   },
   receiptPill: {
     paddingHorizontal: 12,
-    height: 40,
+    height: 42,
     borderRadius: 12,
     backgroundColor: '#ECFDF5',
     borderWidth: 1,

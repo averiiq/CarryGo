@@ -362,3 +362,25 @@ export interface SupportTicket {
   createdAt: string;
   updatedAt: string;
 }
+
+export type PromotionalBannerType = 'urgent' | 'corridor' | 'kyc' | 'announcement' | 'discount';
+export type PromotionalBannerAction = 'create_parcel' | 'create_trip' | 'open_kyc' | 'matching' | 'link' | 'none';
+
+export interface PromotionalBanner {
+  id: string;
+  type: PromotionalBannerType;
+  badge_text: string;
+  badge_color: string;
+  title: string;
+  subtitle: string;
+  cta_text: string;
+  cta_action: PromotionalBannerAction;
+  deep_link?: string | null;
+  image_url?: string | null;
+  display_order: number;
+  is_active: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

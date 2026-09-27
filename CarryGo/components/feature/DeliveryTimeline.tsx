@@ -22,7 +22,7 @@ export const STEPS: {
 }[] = [
   {
     key: 'awaiting_pickup',
-    label: 'Pickup Pending',
+    label: 'Pickup',
     sub: 'Traveller collects parcel from sender',
     detail: 'Verify 4-digit Pickup OTP before handing over package to traveller.',
     icon: 'clock',
@@ -201,7 +201,7 @@ export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
                     },
                   ]}
                 >
-                  {s.label.split(' ')[0]}
+                  {s.label}
                 </Text>
               </Pressable>
 
@@ -337,7 +337,9 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   nodeLabel: {
-    fontSize: 11,
+    fontSize: 10,
+    textAlign: 'center',
+    maxWidth: 68,
   },
   detailBox: {
     flexDirection: 'row',

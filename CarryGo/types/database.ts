@@ -39,6 +39,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      promotional_banners: {
+        Row: {
+          id: string
+          type: string
+          badge_text: string
+          badge_color: string
+          title: string
+          subtitle: string
+          cta_text: string
+          cta_action: string
+          deep_link: string | null
+          image_url: string | null
+          display_order: number
+          is_active: boolean
+          starts_at: string | null
+          ends_at: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          type?: string
+          badge_text: string
+          badge_color?: string
+          title: string
+          subtitle: string
+          cta_text?: string
+          cta_action?: string
+          deep_link?: string | null
+          image_url?: string | null
+          display_order?: number
+          is_active?: boolean
+          starts_at?: string | null
+          ends_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          type?: string
+          badge_text?: string
+          badge_color?: string
+          title?: string
+          subtitle?: string
+          cta_text?: string
+          cta_action?: string
+          deep_link?: string | null
+          image_url?: string | null
+          display_order?: number
+          is_active?: boolean
+          starts_at?: string | null
+          ends_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       api_rate_limits: {
         Row: {
           action: string

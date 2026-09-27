@@ -11,7 +11,7 @@ import {
   Keyboard,
   KeyboardEvent,
 } from 'react-native';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -228,49 +228,54 @@ export function GestureBottomSheet({
       onRequestClose={() => animateClose()}
       statusBarTranslucent
     >
-      <View style={styles.modalRoot}>
-        {/* Animated Dimming Backdrop */}
-        <Animated.View style={[styles.backdrop, backdropAnimatedStyle]}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={dismissOnBackdropPress ? () => animateClose() : undefined}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss bottom sheet"
-          />
-        </Animated.View>
-
-        {/* Gesture & Keyboard Driven Bottom Sheet */}
-        <GestureDetector gesture={sheetGesture}>
-          <Animated.View
-            style={[
-              styles.sheetCard,
-              {
-                backgroundColor: C.surface,
-                borderColor: C.surfaceBorder,
-                paddingBottom: Math.max(insets.bottom, Spacing.sm),
-                maxHeight,
-              },
-              sheetDynamicHeightStyle,
-              containerStyle,
-              sheetAnimatedStyle,
-            ]}
-          >
-            {showHandle && (
-              <GestureDetector gesture={handleGesture}>
-                <View style={styles.handleContainer}>
-                  <View style={[styles.handleBar, { backgroundColor: C.surfaceBorderLight }]} />
-                </View>
-              </GestureDetector>
-            )}
-            {children}
+      <GestureHandlerRootView style={styles.gestureRoot}>
+        <View style={styles.modalRoot}>
+          {/* Animated Dimming Backdrop */}
+          <Animated.View style={[styles.backdrop, backdropAnimatedStyle]}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={dismissOnBackdropPress ? () => animateClose() : undefined}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss bottom sheet"
+            />
           </Animated.View>
-        </GestureDetector>
-      </View>
+
+          {/* Gesture & Keyboard Driven Bottom Sheet */}
+          <GestureDetector gesture={sheetGesture}>
+            <Animated.View
+              style={[
+                styles.sheetCard,
+                {
+                  backgroundColor: C.surface,
+                  borderColor: C.surfaceBorder,
+                  paddingBottom: Math.max(insets.bottom, Spacing.sm),
+                  maxHeight,
+                },
+                sheetDynamicHeightStyle,
+                containerStyle,
+                sheetAnimatedStyle,
+              ]}
+            >
+              {showHandle && (
+                <GestureDetector gesture={handleGesture}>
+                  <View style={styles.handleContainer}>
+                    <View style={[styles.handleBar, { backgroundColor: C.surfaceBorderLight }]} />
+                  </View>
+                </GestureDetector>
+              )}
+              {children}
+            </Animated.View>
+          </GestureDetector>
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
   modalRoot: {
     flex: 1,
     justifyContent: 'flex-end',

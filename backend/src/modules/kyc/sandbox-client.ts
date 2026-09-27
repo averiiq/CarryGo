@@ -83,6 +83,9 @@ export class SandboxClient {
     }
 
     if (!this.isConfigured() || cleanAadhaar.startsWith('0000')) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Aadhaar verification gateway is not configured or live UIDAI verification is required.');
+      }
       const mockRef = `mock_adh_${Date.now()}`;
       return {
         referenceId: mockRef,
@@ -173,6 +176,9 @@ export class SandboxClient {
     }
 
     if (!this.isConfigured() || referenceId.startsWith('mock_')) {
+      if (process.env.NODE_ENV === 'production') {
+        return { status: 'failed', error: 'Mock verification is strictly disabled in production.' };
+      }
       return {
         status: 'verified',
         data: {
@@ -293,6 +299,9 @@ export class SandboxClient {
     isMock: boolean;
   }> {
     if (!this.isConfigured()) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Aadhaar DigiLocker verification gateway is not configured on this server.');
+      }
       // Deterministic Sandbox Mock for development and testing
       const mockRef = `mock_ref_${Date.now()}`;
       return {
@@ -354,6 +363,12 @@ export class SandboxClient {
     error?: string;
   }> {
     if (!this.isConfigured() || referenceId.startsWith('mock_')) {
+      if (process.env.NODE_ENV === 'production') {
+        return {
+          status: 'failed',
+          error: 'Aadhaar DigiLocker verification gateway is not configured or mock mode is disabled in production.',
+        };
+      }
       // Return realistic verified Aadhaar mock data
       return {
         status: 'verified',
@@ -474,6 +489,12 @@ export class SandboxClient {
       : 'XXXXXXXXXX';
 
     if (!this.isConfigured() || cleanPan.startsWith('MOCK')) {
+      if (process.env.NODE_ENV === 'production') {
+        return {
+          verified: false,
+          error: 'PAN verification gateway is not configured or mock mode is disabled in production.',
+        };
+      }
       return {
         verified: true,
         data: {

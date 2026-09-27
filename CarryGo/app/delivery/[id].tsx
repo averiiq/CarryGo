@@ -261,13 +261,16 @@ function DeliveryScreenInner() {
             if (request?.senderId) queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.senderId) });
             if (request?.travellerId) queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.travellerId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
-            await requestQuery.refetch();
+            void requestQuery.refetch().catch(() => {});
 
             if (isSender && request && !hasAlreadyRated) {
               Haptic.success();
-              const target = { userId: request.travellerId, name: request.travellerName || 'Traveller' };
-              setRatingTarget(target);
-              setTimeout(() => setShowRating(true), 600);
+              const targetUserId = request.travellerId;
+              if (targetUserId) {
+                const target = { userId: targetUserId, name: request.travellerName || 'Traveller' };
+                setRatingTarget(target);
+                setTimeout(() => setShowRating(true), 600);
+              }
             }
           }
         }
@@ -436,17 +439,22 @@ function DeliveryScreenInner() {
     queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.senderId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.requests.byUser(request.travellerId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
-    await requestQuery.refetch();
+    try {
+      await requestQuery.refetch();
+    } catch {
+      // Local delivery state already updated, non-critical
+    }
     setLoading(false);
     Haptic.success();
     if (locationInterval.current) clearInterval(locationInterval.current);
     if (pollInterval.current) clearInterval(pollInterval.current);
     if (!hasAlreadyRated) {
-      const target = isTraveller
-        ? { userId: request.senderId, name: request.senderName }
-        : { userId: request.travellerId, name: request.travellerName };
-      setRatingTarget(target);
-      setTimeout(() => setShowRating(true), 800);
+      const targetUserId = isTraveller ? request.senderId : request.travellerId;
+      const targetName = isTraveller ? (request.senderName || 'Sender') : (request.travellerName || 'Traveller');
+      if (targetUserId) {
+        setRatingTarget({ userId: targetUserId, name: targetName });
+        setTimeout(() => setShowRating(true), 800);
+      }
     }
   };
 

@@ -5,6 +5,10 @@ import { Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
+import { TopLiveDeliveryShowcase } from './TopLiveDeliveryShowcase';
+
+export { TopLiveDeliveryShowcase };
+export type { TopLiveDeliveryShowcaseProps } from './TopLiveDeliveryShowcase';
 
 interface LiveActivityBannerProps {
   request: Request;

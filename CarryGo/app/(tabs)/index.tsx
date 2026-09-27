@@ -9,11 +9,12 @@ import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
 import { SendRequestModal } from '@/components/feature/SendRequestModal';
-import { LiveActivityBanner } from '@/components/feature/LiveActivityBanner';
+import { LiveActivityCompactPill } from '@/components/feature/LiveActivityCompactPill';
+import { PromotionalBannerCarousel } from '@/components/feature/PromotionalBannerCarousel';
 import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
 import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
-import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation } from '@/features/listings/queries';
+import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, usePromotionalBannersQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -39,15 +40,17 @@ function HomeHeader({
 }) {
   const { C } = useThemeColors();
   const initial = (userName || 'U').charAt(0).toUpperCase();
+  const currentHour = new Date().getHours();
+  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
     <View style={styles.headerTop}>
       <View style={styles.userProfileWrap}>
-        <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.surfaceBorder }]}>
+        <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
           <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
         </View>
         <View style={styles.greetingWrap}>
-          <Text style={[styles.greetingSub, { color: C.textMuted }]}>Welcome back,</Text>
+          <Text style={[styles.greetingSub, { color: C.textMuted }]}>{greeting},</Text>
           <Text style={[styles.greetingName, { color: C.textPrimary }]} numberOfLines={1}>
             {userName}
           </Text>
@@ -81,9 +84,11 @@ function HomeHeader({
 
 function SearchBarTrigger({
   onSearchPress,
+  onFilterPress,
   hasFilter,
 }: {
   onSearchPress: () => void;
+  onFilterPress: () => void;
   hasFilter: boolean;
 }) {
   const { C } = useThemeColors();
@@ -109,9 +114,27 @@ function SearchBarTrigger({
         <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Where are you sending to?</Text>
         <Text style={[styles.searchSubPlaceholder, { color: C.textMuted }]}>Search routes, cities or dates</Text>
       </View>
-      <View style={[styles.filterIconBadge, { backgroundColor: hasFilter ? C.primarySubtle : C.surfaceElevated }]}>
-        <MaterialIcons name="tune" size={18} color={hasFilter ? C.primary : C.textSecondary} />
-      </View>
+      <Pressable
+        onPress={(e) => {
+          e.stopPropagation();
+          Haptic.tap();
+          onFilterPress();
+        }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel="Filter listings"
+        style={({ pressed }) => [
+          styles.filterIconBadge,
+          {
+            backgroundColor: hasFilter ? C.primarySubtle : C.surfaceElevated,
+            borderColor: hasFilter ? C.primary : C.surfaceBorder,
+            borderWidth: 1,
+          },
+          pressed && { opacity: 0.8 },
+        ]}
+      >
+        <MaterialIcons name="tune" size={17} color={hasFilter ? C.primary : C.textSecondary} />
+      </Pressable>
     </Pressable>
   );
 }
@@ -451,6 +474,7 @@ export default function HomeScreen() {
   const tripsQuery = useTripsQuery(true, userCity);
   const parcelsQuery = useParcelsQuery(true, userCity);
   const requestsQuery = useRequestsQuery(user?.id);
+  const promotionalBannersQuery = usePromotionalBannersQuery();
   const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
   const createTripMutation = useCreateTripMutation();
   useListingsRealtime();
@@ -491,8 +515,25 @@ export default function HomeScreen() {
     return userRequests.find((r) => r.status === 'pending');
   }, [userRequests, user?.id]);
 
+  const liveDeliveryRequests = useMemo(() => {
+    return userRequests.filter(
+      (r) => r.status === 'accepted' || (r.status === 'pending' && r.travellerId === user?.id)
+    );
+  }, [userRequests, user?.id]);
+
   const trips = flattenInfiniteData(tripsQuery.data);
   const parcels = flattenInfiniteData(parcelsQuery.data);
+
+  const urgentParcels = useMemo(() => {
+    return parcels.filter(
+      (p) =>
+        p.status === 'open' &&
+        (p.category === 'medicine' ||
+          p.category === 'documents' ||
+          p.priceOffer >= 400 ||
+          /urgent|emergency|express|today|fast|asap/i.test(p.description || ''))
+    );
+  }, [parcels]);
 
   const filteredTrips = useMemo(() => filterTrips(trips, filters), [trips, filters]);
   const filteredParcels = useMemo(() => filterParcels(parcels, filters), [parcels, filters]);
@@ -509,7 +550,12 @@ export default function HomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([tripsQuery.refetch(), parcelsQuery.refetch(), requestsQuery.refetch()]);
+      await Promise.all([
+        tripsQuery.refetch(),
+        parcelsQuery.refetch(),
+        requestsQuery.refetch(),
+        promotionalBannersQuery.refetch(),
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -877,6 +923,10 @@ export default function HomeScreen() {
         <View style={[styles.miniTabGroup, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
           <Pressable
             onPress={() => handleSelectTab('trips')}
+            hitSlop={TouchTarget.smallHitSlop}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'trips' }}
+            accessibilityLabel="Show trips"
             style={[
               styles.miniTabBtn,
               activeTab === 'trips' && { backgroundColor: C.primary },
@@ -888,6 +938,10 @@ export default function HomeScreen() {
           </Pressable>
           <Pressable
             onPress={() => handleSelectTab('parcels')}
+            hitSlop={TouchTarget.smallHitSlop}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'parcels' }}
+            accessibilityLabel="Show parcels"
             style={[
               styles.miniTabBtn,
               activeTab === 'parcels' && { backgroundColor: C.primary },
@@ -905,7 +959,9 @@ export default function HomeScreen() {
               Haptic.tap();
               setShowFilters(true);
             }}
-            hitSlop={TouchTarget.smallHitSlop}
+            hitSlop={TouchTarget.hitSlop}
+            accessibilityRole="button"
+            accessibilityLabel="Filter listings"
             style={[styles.miniIconBtn, { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface }]}
           >
             <MaterialIcons name="tune" size={17} color={hasFilter ? C.primary : C.textPrimary} />
@@ -915,7 +971,9 @@ export default function HomeScreen() {
               Haptic.tap();
               setShowNotifications(true);
             }}
-            hitSlop={TouchTarget.smallHitSlop}
+            hitSlop={TouchTarget.hitSlop}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
             style={[styles.miniIconBtn, { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}
           >
             <MaterialIcons name="notifications-none" size={18} color={C.textPrimary} />
@@ -943,7 +1001,7 @@ export default function HomeScreen() {
             </Animated.View>
 
             {activeDeliveryRequest ? (
-              <LiveActivityBanner
+              <LiveActivityCompactPill
                 request={activeDeliveryRequest}
                 isTraveller={activeDeliveryRequest.travellerId === user?.id}
                 onTrack={handleTrackDelivery}
@@ -952,7 +1010,8 @@ export default function HomeScreen() {
             ) : null}
 
             <SearchBarTrigger
-              onSearchPress={() => setShowFilters(true)}
+              onSearchPress={() => router.push('/search')}
+              onFilterPress={() => setShowFilters(true)}
               hasFilter={hasFilter}
             />
 
@@ -971,6 +1030,18 @@ export default function HomeScreen() {
               rating={user?.rating}
               totalRatings={user?.totalRatings}
               isSmallDevice={isSmallDevice}
+            />
+
+            <PromotionalBannerCarousel
+              banners={promotionalBannersQuery.data}
+              urgentParcels={urgentParcels}
+              onCarryParcel={handleCarryParcel}
+              onPressParcel={handlePressParcel}
+              onCreateTrip={() => router.push('/create-trip')}
+              onCreateParcel={() => router.push('/create-parcel')}
+              onOpenKyc={() => router.push('/kyc')}
+              onSelectCorridor={(fromCity, toCity) => setFilters((prev) => ({ ...prev, fromCity, toCity }))}
+              onNavigateDeepLink={(url) => router.push(url as any)}
             />
 
             <View style={styles.marketplaceHead}>
@@ -1264,8 +1335,8 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   filterIconBadge: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1455,7 +1526,10 @@ const styles = StyleSheet.create({
   },
   miniTabBtn: {
     paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 4,
+    paddingVertical: 6,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: BorderRadius.full,
   },
   miniTabText: {
@@ -1468,8 +1542,8 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   miniIconBtn: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
     alignItems: 'center',

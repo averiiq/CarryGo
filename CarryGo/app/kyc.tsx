@@ -601,7 +601,7 @@ export default function KycScreen() {
           <MaterialIcons name="schedule" size={16} color={C.primary} />
           <Text style={[styles.guaranteeText, { color: C.textSecondary }]}>
             <Text style={{ fontWeight: FontWeight.bold, color: C.textPrimary }}>UIDAI Notice: </Text>
-            Your Aadhaar verification OTP is valid for <Text style={{ fontWeight: FontWeight.bold, color: C.textPrimary }}>10 minutes</Text>. If you've already received the SMS, you can enter it directly.
+            Your Aadhaar verification OTP is valid for <Text style={{ fontWeight: FontWeight.bold, color: C.textPrimary }}>10 minutes</Text>. If you have already received the SMS, you can enter it directly.
           </Text>
         </View>
 
@@ -690,7 +690,7 @@ export default function KycScreen() {
               disabled={isProcessing || isResending}
               hitSlop={10}
             >
-              <Text style={[styles.resendActionText, { color: C.primary }]}>Didn't receive code? Resend OTP</Text>
+              <Text style={[styles.resendActionText, { color: C.primary }]}>Did not receive code? Resend OTP</Text>
             </Pressable>
           )}
         </View>

@@ -6,8 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
-import { Button, Input, KeyboardAwareScrollView } from '@/components';
-import { CitySearchField } from '@/components/feature/CitySearchField';
+import { Button, Input, KeyboardAwareScrollView, InteractiveRouteCard } from '@/components';
+import { DigitalWaybillCard } from '@/components/feature/DigitalWaybillCard';
 import { WizardContainer } from '@/components/feature/WizardContainer';
 import { formatScheduleDate, SevenDaySchedulePicker, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -500,6 +500,13 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
   isDetectingCurrentLocation: boolean;
   locationHint: string | null;
 }) {
+  const TIME_PRESETS = [
+    { label: 'Morning', time: '08:00 AM' },
+    { label: 'Afternoon', time: '02:00 PM' },
+    { label: 'Evening', time: '06:00 PM' },
+    { label: 'Night', time: '09:00 PM' },
+  ];
+
   return (
     <KeyboardAwareScrollView
       style={styles.stepContent}
@@ -527,45 +534,21 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
         title="Popular Corridors (1-Tap Route)"
       />
 
-      <View style={styles.fieldGroup}>
-        <CitySearchField
-          label="From"
-          value={form.fromCity}
-          onSelect={(city) => updateField('fromCity', city)}
-          dotColor={C.success}
-          error={fieldErrors.fromCity}
-          placeholder="Origin city..."
-          onUseCurrentLocation={onUseCurrentLocation}
-          isDetectingCurrentLocation={isDetectingCurrentLocation}
-        />
-        <CitySearchField
-          label="To"
-          value={form.toCity}
-          onSelect={(city) => updateField('toCity', city)}
-          dotColor={C.error}
-          error={fieldErrors.toCity}
-          placeholder="Destination city..."
-        />
-        {locationHint ? (
-          <Text
-            style={[
-              styles.locationHint,
-              {
-                color: locationHint.startsWith('Using ')
-                  ? C.success
-                  : locationHint.startsWith('Detecting')
-                    ? C.primary
-                    : C.error,
-              },
-            ]}
-          >
-            {locationHint}
-          </Text>
-        ) : null}
-      </View>
+      {/* Modern Interactive Route Card with City Swap */}
+      <InteractiveRouteCard
+        fromCity={form.fromCity}
+        toCity={form.toCity}
+        onFromCityChange={(city) => updateField('fromCity', city)}
+        onToCityChange={(city) => updateField('toCity', city)}
+        fromError={fieldErrors.fromCity}
+        toError={fieldErrors.toCity}
+        onUseCurrentLocation={onUseCurrentLocation}
+        isDetectingCurrentLocation={isDetectingCurrentLocation}
+        locationHint={locationHint}
+      />
 
       <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>When</Text>
+        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Departure Schedule</Text>
         <Pressable
           style={({ pressed }) => [
             styles.scheduleBtn,
@@ -581,7 +564,7 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
             {form.date ? (
               <>
                 <Text style={[styles.scheduleDateText, { color: C.textPrimary }]}>{formatScheduleDate(form.date)}</Text>
-                <Text style={[styles.scheduleTimeText, { color: C.textSecondary }]}>{form.time}</Text>
+                <Text style={[styles.scheduleTimeText, { color: C.textSecondary }]}>{form.time || 'Tap to choose time'}</Text>
               </>
             ) : (
               <Text style={[styles.schedulePlaceholder, { color: fieldErrors.date ? C.error : C.textMuted }]}>
@@ -591,6 +574,32 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
           </View>
           <MaterialIcons name={form.date ? 'edit' : 'chevron-right'} size={18} color={form.date ? C.primary : C.textMuted} />
         </Pressable>
+
+        {/* Quick Time of Day Chips */}
+        <View style={styles.presetRow}>
+          {TIME_PRESETS.map((t) => {
+            const isSelected = form.time === t.time;
+            return (
+              <Pressable
+                key={t.label}
+                onPress={() => {
+                  Haptic.select();
+                  updateField('time', t.time);
+                }}
+                style={({ pressed }) => [
+                  styles.presetChip,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  isSelected && { backgroundColor: C.primarySubtle, borderColor: C.primary + '88' },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text style={[styles.presetText, { color: isSelected ? C.primary : C.textSecondary }]}>
+                  {t.label} ({t.time})
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
     </KeyboardAwareScrollView>
   );
@@ -701,67 +710,79 @@ function StepDetails({
       ) : null}
 
       <View style={styles.fieldGroup}>
-        <View style={styles.row}>
-          <Input
-            label="Capacity (kg)"
-            placeholder="e.g. 5"
-            value={form.capacity}
-            onChangeText={(v) => updateField('capacity', v)}
-            keyboardType="decimal-pad"
-            containerStyle={{ flex: 1 }}
-            error={fieldErrors.capacity}
-          />
-          <Input
-            label="Price / kg (Rs)"
-            placeholder="e.g. 80"
-            value={form.price}
-            onChangeText={(v) => updateField('price', v)}
-            keyboardType="decimal-pad"
-            containerStyle={{ flex: 1 }}
-            error={fieldErrors.price}
-          />
+        <Input
+          label="Available Space (kg)"
+          placeholder="e.g. 5"
+          value={form.capacity}
+          onChangeText={(v) => updateField('capacity', v)}
+          keyboardType="decimal-pad"
+          error={fieldErrors.capacity}
+        />
+        <View style={styles.presetSection}>
+          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Capacity:</Text>
+          <View style={styles.presetRow}>
+            {CAPACITY_PRESETS.map((value) => (
+              <Pressable
+                key={`capacity-${value}`}
+                style={({ pressed }) => [
+                  styles.presetChip,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  form.capacity === value && { backgroundColor: C.primarySubtle, borderColor: C.primary },
+                  pressed && { opacity: 0.8 },
+                ]}
+                onPress={() => { Haptic.select(); updateField('capacity', value); }}
+              >
+                <Text style={[styles.presetText, { color: form.capacity === value ? C.primary : C.textSecondary }]}>
+                  {value} kg
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
-        <View style={styles.presetRow}>
-          {CAPACITY_PRESETS.map((value) => (
-            <Pressable
-              key={`capacity-${value}`}
-              style={({ pressed }) => [
-                styles.presetChip,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                form.capacity === value && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
-                pressed && { opacity: 0.8 },
-              ]}
-              onPress={() => { Haptic.select(); updateField('capacity', value); }}
-            >
-              <Text style={[styles.presetText, { color: form.capacity === value ? C.primary : C.textSecondary }]}>
-                {value} kg
-              </Text>
-            </Pressable>
-          ))}
-          {activePricePresets.map((value) => (
-            <Pressable
-              key={`price-${value}`}
-              style={({ pressed }) => [
-                styles.presetChip,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                form.price === value && { backgroundColor: C.successSubtle, borderColor: C.success + '66' },
-                pressed && { opacity: 0.8 },
-              ]}
-              onPress={() => { Haptic.select(); updateField('price', value); }}
-            >
-              <Text style={[styles.presetText, { color: form.price === value ? C.success : C.textSecondary }]}>Rs {value}</Text>
-            </Pressable>
-          ))}
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <Input
+          label="Price / kg (₹)"
+          placeholder="e.g. 80"
+          value={form.price}
+          onChangeText={(v) => updateField('price', v)}
+          keyboardType="decimal-pad"
+          error={fieldErrors.price}
+        />
+        <View style={styles.presetSection}>
+          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Fare:</Text>
+          <View style={styles.presetRow}>
+            {activePricePresets.map((value) => (
+              <Pressable
+                key={`price-${value}`}
+                style={({ pressed }) => [
+                  styles.presetChip,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  form.price === value && { backgroundColor: C.successSubtle, borderColor: C.success },
+                  pressed && { opacity: 0.8 },
+                ]}
+                onPress={() => { Haptic.select(); updateField('price', value); }}
+              >
+                <Text style={[styles.presetText, { color: form.price === value ? C.success : C.textSecondary }]}>₹{value}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
+      </View>
         {form.capacity && form.price && Number(form.capacity) > 0 && Number(form.price) > 0 ? (
-          <View style={[styles.earningHint, { backgroundColor: C.successSubtle }]}>
-            <MaterialIcons name="trending-up" size={16} color={C.success} />
-            <Text style={[styles.earningText, { color: C.success }]}>
-              Max earning: Rs {(Number(form.capacity) * Number(form.price)).toFixed(0)}
-            </Text>
+          <View style={[styles.earningHint, { backgroundColor: C.successSubtle, borderColor: C.success + '40', borderWidth: 1 }]}>
+            <MaterialIcons name="trending-up" size={18} color={C.success} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.earningText, { color: C.textPrimary }]}>
+                Potential Earnings: <Text style={{ color: C.success, fontWeight: FontWeight.bold }}>Rs {(Number(form.capacity) * Number(form.price)).toFixed(0)}</Text>
+              </Text>
+              <Text style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+                Carrying 2-3 parcels covers highway tolls & fuel!
+              </Text>
+            </View>
           </View>
         ) : null}
-      </View>
     </KeyboardAwareScrollView>
   );
 }
@@ -775,7 +796,14 @@ function StepReview({ form, C, onEdit, hasKyc }: {
   const selectedVehicle = VEHICLES.find((v) => v.type === form.vehicle);
 
   return (
-    <KeyboardAwareScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag" extraScrollHeight={130}>
+    <KeyboardAwareScrollView
+      style={styles.stepContent}
+      contentContainerStyle={styles.stepInner}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+      keyboardDismissMode="on-drag"
+      extraScrollHeight={130}
+    >
       <StepHeader
         title="Review your trip"
         subtitle="Confirm every detail before publishing your trip"
@@ -783,79 +811,20 @@ function StepReview({ form, C, onEdit, hasKyc }: {
         C={C}
       />
 
-      <View style={[styles.reviewCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <View style={styles.reviewHeader}>
-          <Text style={[styles.reviewLabel, { color: C.textMuted }]}>ROUTE & SCHEDULE</Text>
-          <Pressable onPress={() => onEdit(0)} hitSlop={8}>
-            <MaterialIcons name="edit" size={16} color={C.primary} />
-          </Pressable>
-        </View>
-        <View style={styles.reviewRow}>
-          <View style={[styles.reviewDot, { backgroundColor: C.success }]} />
-          <Text style={[styles.reviewValue, { color: C.textPrimary }]}>{form.fromCity}</Text>
-        </View>
-        <View style={styles.reviewConnector}>
-          <View style={[styles.reviewLine, { backgroundColor: C.surfaceBorderLight }]} />
-        </View>
-        <View style={styles.reviewRow}>
-          <View style={[styles.reviewDot, { backgroundColor: C.error }]} />
-          <Text style={[styles.reviewValue, { color: C.textPrimary }]}>{form.toCity}</Text>
-        </View>
-        <View style={[styles.reviewMeta, { borderTopColor: C.surfaceBorder }]}>
-          <MaterialIcons name="event" size={14} color={C.textSecondary} />
-          <Text style={[styles.reviewMetaText, { color: C.textSecondary }]}>
-            {formatScheduleDate(form.date)} • {form.time}
-          </Text>
-        </View>
-      </View>
-
-      <View style={[styles.reviewCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <View style={styles.reviewHeader}>
-          <Text style={[styles.reviewLabel, { color: C.textMuted }]}>TRIP DETAILS</Text>
-          <Pressable onPress={() => onEdit(1)} hitSlop={8}>
-            <MaterialIcons name="edit" size={16} color={C.primary} />
-          </Pressable>
-        </View>
-        <View style={styles.reviewDetailsGrid}>
-          <View style={styles.reviewDetailItem}>
-            <View style={[styles.reviewDetailIcon, { backgroundColor: selectedVehicle ? selectedVehicle.color + '20' : C.surfaceElevated }]}>
-              <MaterialIcons name={selectedVehicle?.icon || 'directions-car'} size={20} color={selectedVehicle?.color || C.textMuted} />
-            </View>
-            <Text style={[styles.reviewDetailLabel, { color: C.textMuted }]}>Vehicle</Text>
-            <Text style={[styles.reviewDetailValue, { color: C.textPrimary }]}>{selectedVehicle?.label}</Text>
-          </View>
-          <View style={styles.reviewDetailItem}>
-            <View style={[styles.reviewDetailIcon, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="fitness-center" size={20} color={C.primary} />
-            </View>
-            <Text style={[styles.reviewDetailLabel, { color: C.textMuted }]}>Capacity</Text>
-            <Text style={[styles.reviewDetailValue, { color: C.textPrimary }]}>{form.capacity} kg</Text>
-          </View>
-          <View style={styles.reviewDetailItem}>
-            <View style={[styles.reviewDetailIcon, { backgroundColor: C.successSubtle }]}>
-              <MaterialIcons name="currency-rupee" size={20} color={C.success} />
-            </View>
-            <Text style={[styles.reviewDetailLabel, { color: C.textMuted }]}>Price</Text>
-            <Text style={[styles.reviewDetailValue, { color: C.textPrimary }]}>Rs {form.price}/kg</Text>
-          </View>
-        </View>
-      </View>
-
-      {!hasKyc ? (
-        <View style={[styles.infoBox, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-          <MaterialIcons name="security" size={16} color="#D97706" />
-          <Text style={[styles.infoText, { color: '#92400E' }]}>
-            Identity verification is mandatory before publishing trips. You will be prompted to verify via Aadhaar OTP upon tapping Post Trip.
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={[styles.infoBox, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
-        <MaterialIcons name="info-outline" size={16} color={C.primary} />
-        <Text style={[styles.infoText, { color: C.textSecondary }]}>
-          After posting, you&apos;ll immediately see open parcels on your route.
-        </Text>
-      </View>
+      <DigitalWaybillCard
+        type="trip"
+        fromCity={form.fromCity}
+        toCity={form.toCity}
+        date={form.date}
+        time={form.time}
+        categoryOrVehicle={selectedVehicle?.label || 'Car'}
+        categoryOrVehicleIcon={selectedVehicle?.icon || 'directions-car'}
+        weightOrCapacity={form.capacity}
+        priceOrOffer={form.price}
+        onEditRoute={() => onEdit(0)}
+        onEditDetails={() => onEdit(1)}
+        hasKyc={hasKyc}
+      />
     </KeyboardAwareScrollView>
   );
 }
@@ -1037,9 +1006,18 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
   },
+  presetSection: {
+    gap: Spacing.xs,
+    marginTop: 2,
+  },
+  presetSectionLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    marginLeft: 2,
+  },
   footer: {
     flexDirection: 'row', gap: Spacing.md,
-    position: 'absolute', bottom: 0, left: 0, right: 0,
+    position: 'absolute', bottom: 0, left: -Spacing.md, right: -Spacing.md,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },

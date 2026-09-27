@@ -7,8 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
-import { Button, Input, KeyboardAwareScrollView } from '@/components';
-import { CitySearchField } from '@/components/feature/CitySearchField';
+import { Button, Input, KeyboardAwareScrollView, InteractiveRouteCard } from '@/components';
+import { DigitalWaybillCard } from '@/components/feature/DigitalWaybillCard';
 import { WizardContainer } from '@/components/feature/WizardContainer';
 import { formatScheduleDate, SevenDaySchedulePicker, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
 import { ParcelImagePicker } from '@/components/feature/ParcelImagePicker';
@@ -576,42 +576,18 @@ function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurren
         title="Popular Corridors (1-Tap Route)"
       />
 
-      <View style={styles.fieldGroup}>
-        <CitySearchField
-          label="From"
-          value={form.fromCity}
-          onSelect={(city) => updateField('fromCity', city)}
-          dotColor={C.success}
-          error={fieldErrors.fromCity}
-          placeholder="Pickup city..."
-          onUseCurrentLocation={onUseCurrentLocation}
-          isDetectingCurrentLocation={isDetectingCurrentLocation}
-        />
-        <CitySearchField
-          label="To"
-          value={form.toCity}
-          onSelect={(city) => updateField('toCity', city)}
-          dotColor={C.error}
-          error={fieldErrors.toCity}
-          placeholder="Delivery city..."
-        />
-        {locationHint ? (
-          <Text
-            style={[
-              styles.locationHint,
-              {
-                color: locationHint.startsWith('Using ')
-                  ? C.success
-                  : locationHint.startsWith('Detecting')
-                    ? C.primary
-                    : C.error,
-              },
-            ]}
-          >
-            {locationHint}
-          </Text>
-        ) : null}
-      </View>
+      {/* Modern Interactive Route Card with City Swap */}
+      <InteractiveRouteCard
+        fromCity={form.fromCity}
+        toCity={form.toCity}
+        onFromCityChange={(city) => updateField('fromCity', city)}
+        onToCityChange={(city) => updateField('toCity', city)}
+        fromError={fieldErrors.fromCity}
+        toError={fieldErrors.toCity}
+        onUseCurrentLocation={onUseCurrentLocation}
+        isDetectingCurrentLocation={isDetectingCurrentLocation}
+        locationHint={locationHint}
+      />
 
       <View style={styles.fieldGroup}>
         <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Send by</Text>
@@ -774,55 +750,62 @@ function StepDetails({
       ) : null}
 
       <View style={styles.fieldGroup}>
-        <View style={styles.row}>
-          <Input
-            label="Weight (kg)"
-            placeholder="e.g. 0.5"
-            value={form.weight}
-            onChangeText={(v) => updateField('weight', v)}
-            keyboardType="decimal-pad"
-            containerStyle={{ flex: 1 }}
-            error={fieldErrors.weight}
-          />
-          <Input
-            label="Price Offer (Rs)"
-            placeholder="e.g. 150"
-            value={form.priceOffer}
-            onChangeText={(v) => updateField('priceOffer', v)}
-            keyboardType="decimal-pad"
-            containerStyle={{ flex: 1 }}
-            error={fieldErrors.priceOffer}
-          />
+        <Input
+          label="Weight (kg)"
+          placeholder="e.g. 0.5"
+          value={form.weight}
+          onChangeText={(v) => updateField('weight', v)}
+          keyboardType="decimal-pad"
+          error={fieldErrors.weight}
+        />
+        <View style={styles.presetSection}>
+          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Weight:</Text>
+          <View style={styles.presetRow}>
+            {WEIGHT_PRESETS.map((value) => (
+              <Pressable
+                key={'weight-' + value}
+                style={({ pressed }) => [
+                  styles.presetChip,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  form.weight === value && { backgroundColor: C.primarySubtle, borderColor: C.primary },
+                  pressed && { opacity: 0.8 },
+                ]}
+                onPress={() => { Haptic.select(); updateField('weight', value); }}
+              >
+                <Text style={[styles.presetText, { color: form.weight === value ? C.primary : C.textSecondary }]}>{value} kg</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
-        <View style={styles.presetRow}>
-          {WEIGHT_PRESETS.map((value) => (
-            <Pressable
-              key={'weight-' + value}
-              style={({ pressed }) => [
-                styles.presetChip,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                form.weight === value && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
-                pressed && { opacity: 0.8 },
-              ]}
-              onPress={() => { Haptic.select(); updateField('weight', value); }}
-            >
-              <Text style={[styles.presetText, { color: form.weight === value ? C.primary : C.textSecondary }]}>{value} kg</Text>
-            </Pressable>
-          ))}
-          {activeOfferPresets.map((value) => (
-            <Pressable
-              key={'offer-' + value}
-              style={({ pressed }) => [
-                styles.presetChip,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                form.priceOffer === value && { backgroundColor: C.successSubtle, borderColor: C.success + '66' },
-                pressed && { opacity: 0.8 },
-              ]}
-              onPress={() => { Haptic.select(); updateField('priceOffer', value); }}
-            >
-              <Text style={[styles.presetText, { color: form.priceOffer === value ? C.success : C.textSecondary }]}>Rs {value}</Text>
-            </Pressable>
-          ))}
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <Input
+          label="Price Offer (₹)"
+          placeholder="e.g. 150"
+          value={form.priceOffer}
+          onChangeText={(v) => updateField('priceOffer', v)}
+          keyboardType="decimal-pad"
+          error={fieldErrors.priceOffer}
+        />
+        <View style={styles.presetSection}>
+          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Offers:</Text>
+          <View style={styles.presetRow}>
+            {activeOfferPresets.map((value) => (
+              <Pressable
+                key={'offer-' + value}
+                style={({ pressed }) => [
+                  styles.presetChip,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  form.priceOffer === value && { backgroundColor: C.successSubtle, borderColor: C.success },
+                  pressed && { opacity: 0.8 },
+                ]}
+                onPress={() => { Haptic.select(); updateField('priceOffer', value); }}
+              >
+                <Text style={[styles.presetText, { color: form.priceOffer === value ? C.success : C.textSecondary }]}>₹{value}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </View>
     </KeyboardAwareScrollView>
@@ -838,7 +821,14 @@ function StepReview({ form, C, onEdit, hasKyc }: {
   const selectedCategory = CATEGORIES.find((c) => c.type === form.category);
 
   return (
-    <KeyboardAwareScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag" extraScrollHeight={130}>
+    <KeyboardAwareScrollView
+      style={styles.stepContent}
+      contentContainerStyle={styles.stepInner}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+      keyboardDismissMode="on-drag"
+      extraScrollHeight={130}
+    >
       <StepHeader
         title="Review your parcel"
         subtitle="Double-check details before publishing to travelers"
@@ -846,95 +836,21 @@ function StepReview({ form, C, onEdit, hasKyc }: {
         C={C}
       />
 
-      <View style={[styles.reviewCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <View style={styles.reviewHeader}>
-          <Text style={[styles.reviewLabel, { color: C.textMuted }]}>ROUTE & DATE</Text>
-          <Pressable onPress={() => onEdit(0)} hitSlop={8}>
-            <MaterialIcons name="edit" size={16} color={C.primary} />
-          </Pressable>
-        </View>
-        <View style={styles.reviewRow}>
-          <View style={[styles.reviewDot, { backgroundColor: C.success }]} />
-          <Text style={[styles.reviewValue, { color: C.textPrimary }]}>{form.fromCity}</Text>
-        </View>
-        <View style={styles.reviewConnector}>
-          <View style={[styles.reviewLine, { backgroundColor: C.surfaceBorderLight }]} />
-        </View>
-        <View style={styles.reviewRow}>
-          <View style={[styles.reviewDot, { backgroundColor: C.error }]} />
-          <Text style={[styles.reviewValue, { color: C.textPrimary }]}>{form.toCity}</Text>
-        </View>
-        <View style={[styles.reviewMeta, { borderTopColor: C.surfaceBorder }]}>
-          <MaterialIcons name="event-available" size={14} color={C.textSecondary} />
-          <Text style={[styles.reviewMetaText, { color: C.textSecondary }]}>
-            Send by {formatScheduleDate(form.deliveryDate)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={[styles.reviewCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <View style={styles.reviewHeader}>
-          <Text style={[styles.reviewLabel, { color: C.textMuted }]}>PARCEL INFO</Text>
-          <Pressable onPress={() => onEdit(1)} hitSlop={8}>
-            <MaterialIcons name="edit" size={16} color={C.primary} />
-          </Pressable>
-        </View>
-        {form.images.length > 0 && (
-          <View style={styles.reviewImagesRow}>
-            {form.images.map((uri, i) => (
-              <View key={i} style={[styles.reviewImageThumb, { borderColor: C.surfaceBorder }]}>
-                <Image source={{ uri }} style={styles.reviewImageImg} contentFit="cover" />
-              </View>
-            ))}
-          </View>
-        )}
-        <View style={styles.reviewDetailsGrid}>
-          <View style={styles.reviewDetailItem}>
-            <View style={[styles.reviewDetailIcon, { backgroundColor: selectedCategory ? selectedCategory.color + '20' : C.surfaceElevated }]}>
-              <MaterialIcons name={selectedCategory?.icon || 'inventory-2'} size={20} color={selectedCategory?.color || C.textMuted} />
-            </View>
-            <Text style={[styles.reviewDetailLabel, { color: C.textMuted }]}>Category</Text>
-            <Text style={[styles.reviewDetailValue, { color: C.textPrimary }]}>{selectedCategory?.label}</Text>
-          </View>
-          <View style={styles.reviewDetailItem}>
-            <View style={[styles.reviewDetailIcon, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="fitness-center" size={20} color={C.primary} />
-            </View>
-            <Text style={[styles.reviewDetailLabel, { color: C.textMuted }]}>Weight</Text>
-            <Text style={[styles.reviewDetailValue, { color: C.textPrimary }]}>{form.weight} kg</Text>
-          </View>
-          <View style={styles.reviewDetailItem}>
-            <View style={[styles.reviewDetailIcon, { backgroundColor: C.successSubtle }]}>
-              <MaterialIcons name="currency-rupee" size={20} color={C.success} />
-            </View>
-            <Text style={[styles.reviewDetailLabel, { color: C.textMuted }]}>Offer</Text>
-            <Text style={[styles.reviewDetailValue, { color: C.textPrimary }]}>Rs {form.priceOffer}</Text>
-          </View>
-        </View>
-        {form.description ? (
-          <View style={[styles.descriptionBox, { backgroundColor: C.surfaceElevated }]}>
-            <Text style={[styles.descriptionText, { color: C.textSecondary }]} numberOfLines={3}>
-              {form.description}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      {!hasKyc ? (
-        <View style={[styles.infoBox, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-          <MaterialIcons name="security" size={16} color="#D97706" />
-          <Text style={[styles.infoText, { color: '#92400E' }]}>
-            Identity verification is mandatory before listing parcels. You will be prompted to verify via Aadhaar OTP upon tapping Send Parcel.
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={[styles.infoBox, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
-        <MaterialIcons name="info-outline" size={16} color={C.primary} />
-        <Text style={[styles.infoText, { color: C.textSecondary }]}>
-          After listing, you&apos;ll see travellers on your route. Tap Send Request to book one.
-        </Text>
-      </View>
+      <DigitalWaybillCard
+        type="parcel"
+        fromCity={form.fromCity}
+        toCity={form.toCity}
+        date={form.deliveryDate}
+        categoryOrVehicle={selectedCategory?.label || 'General Parcel'}
+        categoryOrVehicleIcon={selectedCategory?.icon || 'inventory-2'}
+        weightOrCapacity={form.weight}
+        priceOrOffer={form.priceOffer}
+        images={form.images}
+        description={form.description}
+        onEditRoute={() => onEdit(0)}
+        onEditDetails={() => onEdit(1)}
+        hasKyc={hasKyc}
+      />
     </KeyboardAwareScrollView>
   );
 }
@@ -1132,9 +1048,18 @@ const styles = StyleSheet.create({
   smartPriceLoadingText: {
     fontSize: FontSize.xs,
   },
+  presetSection: {
+    gap: Spacing.xs,
+    marginTop: 2,
+  },
+  presetSectionLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    marginLeft: 2,
+  },
   footer: {
     flexDirection: 'row', gap: Spacing.md,
-    position: 'absolute', bottom: 0, left: 0, right: 0,
+    position: 'absolute', bottom: 0, left: -Spacing.md, right: -Spacing.md,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },

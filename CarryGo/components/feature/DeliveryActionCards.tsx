@@ -384,7 +384,7 @@ export function SenderLiveJourneyCard({
         </Text>
         {tripNote ? (
           <Text style={[styles.headlineNote, { color: C.textSecondary }]}>
-            "{tripNote}"
+            {`"${tripNote}"`}
           </Text>
         ) : null}
       </View>
@@ -563,6 +563,56 @@ export function SenderOtpCard({ code, onGenerate, loading, C }: SenderOtpCardPro
   );
 }
 
+// Native crash-proof animated celebration checkmark
+function NativeSuccessCelebrationBadge({ C }: { C: ThemeColors }) {
+  const scaleAnim = useRef(new Animated.Value(0.3)).current;
+  const ringAnim = useRef(new Animated.Value(0.6)).current;
+  const ringOpacity = useRef(new Animated.Value(0.9)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 140,
+        friction: 6,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(ringAnim, { toValue: 1.55, duration: 700, useNativeDriver: true }),
+          Animated.timing(ringOpacity, { toValue: 0, duration: 700, useNativeDriver: true }),
+        ]),
+      ]),
+    ]).start();
+  }, [ringAnim, ringOpacity, scaleAnim]);
+
+  return (
+    <View style={styles.celebrationWrap}>
+      <Animated.View
+        style={[
+          styles.celebrationPulseRing,
+          {
+            borderColor: C.success,
+            opacity: ringOpacity,
+            transform: [{ scale: ringAnim }],
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.celebrationCircle,
+          {
+            backgroundColor: C.success,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <Ionicons name="checkmark" size={36} color="#FFFFFF" />
+      </Animated.View>
+    </View>
+  );
+}
+
 // --- 7. SUCCESS: Delivery Completed Card ---
 type SuccessCardProps = {
   onRate: () => void;
@@ -574,12 +624,10 @@ type SuccessCardProps = {
 
 export function DeliverySuccessCard({ onRate, onViewPayment, showPayment, hasRated, C }: SuccessCardProps) {
   return (
-    <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.success + '44' }]}>
-      <LinearGradient colors={[C.success + '12', 'transparent']} style={StyleSheet.absoluteFillObject} />
+    <View style={[styles.card, { backgroundColor: C.surface, borderColor: 'rgba(5, 150, 105, 0.28)' }]}>
+      <LinearGradient colors={['rgba(5, 150, 105, 0.08)', 'rgba(5, 150, 105, 0)']} style={StyleSheet.absoluteFillObject} />
       <View style={styles.successHeader}>
-        <View style={{ width: 110, height: 110, alignItems: 'center', justifyContent: 'center' }}>
-          <LottieAnimation name="successCheck" loop={false} style={{ width: 110, height: 110 }} />
-        </View>
+        <NativeSuccessCelebrationBadge C={C} />
         <Text style={[styles.successTitle, { color: C.textPrimary }]}>Parcel Delivered!</Text>
         <Text style={[styles.successSubtitle, { color: C.textMuted }]}>
           The journey was verified and safely completed.
@@ -858,6 +906,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
     paddingVertical: Spacing.xs,
+  },
+  celebrationWrap: {
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: Spacing.xs,
+  },
+  celebrationPulseRing: {
+    position: 'absolute',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 3,
+  },
+  celebrationCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   successCircle: {
     width: 64,

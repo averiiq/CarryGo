@@ -58,7 +58,7 @@ export function RatingModal({ visible, requestId, fromUserId, toUserId, toUserNa
               </View>
               <Text style={styles.title}>Rate Your Experience</Text>
               <Text style={styles.subtitle}>How was your delivery with</Text>
-              <Text style={styles.userName}>{toUserName}</Text>
+              <Text style={styles.userName}>{toUserName || 'User'}</Text>
             </View>
 
             {/* Stars */}

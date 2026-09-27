@@ -66,6 +66,10 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs = 8000): Promise<T>
   }
 };
 
+let reqCounter = 0;
+const pidTimePrefix = `${process.pid.toString(36)}-${Date.now().toString(36)}`;
+export const fastRequestId = (): string => `${pidTimePrefix}-${(++reqCounter).toString(36)}`;
+
 export const routeRequest = async (
   event: APIGatewayProxyEventV2,
 ): Promise<JsonResponse> => {
@@ -74,11 +78,12 @@ export const routeRequest = async (
     event.requestContext?.requestId ??
     event.headers['x-request-id'] ??
     event.headers['X-Request-Id'] ??
-    randomUUID();
+    fastRequestId();
 
   const method = event.requestContext.http.method;
   const path = normalizePath(event.rawPath);
   const sourceIp = event.requestContext.http.sourceIp ?? 'unknown';
+  const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
 
   // 1. Adaptive Load Shedding (Concurrency Governor & Event Loop Protection)
   const isHealth = path.startsWith('/health');
@@ -90,21 +95,22 @@ export const routeRequest = async (
 
   try {
     // 2. Sliding window rate limit check (Defends against retry storms & flood attacks)
-    // Dedicated stricter rate limit for KYC operations to prevent credential harvesting / abuse
-    if (path.startsWith('/kyc/') && path !== '/kyc/sandbox/webhook') {
-      const kycCheck = kycRateLimiter.check(`${sourceIp}:KYC`);
-      if (!kycCheck.allowed) {
-        return rateLimited(kycCheck.retryAfterSeconds, requestId);
+    // Health and telemetry endpoints are exempted so monitoring & probes never drop
+    if (!isHealth) {
+      if (path.startsWith('/kyc/') && path !== '/kyc/sandbox/webhook') {
+        const kycCheck = await kycRateLimiter.checkAsync(`${sourceIp}:KYC`);
+        if (!kycCheck.allowed) {
+          return rateLimited(kycCheck.retryAfterSeconds, requestId);
+        }
       }
-    }
 
-    const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
-    const rateLimitKey = `${sourceIp}:${isMutation ? 'MUTATION' : 'READ'}`;
-    const limiter = isMutation ? mutationRateLimiter : globalApiRateLimiter;
-    const rateCheck = limiter.check(rateLimitKey);
+      const rateLimitKey = `${sourceIp}:${isMutation ? 'MUTATION' : 'READ'}`;
+      const limiter = isMutation ? mutationRateLimiter : globalApiRateLimiter;
+      const rateCheck = await limiter.checkAsync(rateLimitKey);
 
-    if (!rateCheck.allowed) {
-      return rateLimited(rateCheck.retryAfterSeconds, requestId);
+      if (!rateCheck.allowed) {
+        return rateLimited(rateCheck.retryAfterSeconds, requestId);
+      }
     }
 
     // 3. Enterprise Idempotency Engine for mutation deduplication

@@ -242,39 +242,43 @@ export default function MessagesScreen() {
   );
 
   const renderRightActions = useCallback(
-    (item: ConversationRowModel) => () => (
-      <View style={styles.swipeActionsContainer}>
-        {item.isCompleted ? (
-          <Pressable
-            onPress={() => handleDeleteConversation(item)}
-            style={({ pressed }) => [
-              styles.swipeDeleteBtn,
-              { backgroundColor: C.error },
-              pressed && { opacity: 0.82, transform: [{ scale: 0.96 }] },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Delete completed chat with ${item.displayName}`}
-          >
-            <MaterialIcons name="delete-outline" size={24} color="#FFFFFF" />
-            <Text style={styles.swipeDeleteText}>Delete</Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            onPress={() => handleActiveChatNotice(item)}
-            style={({ pressed }) => [
-              styles.swipeLockedBtn,
-              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.82 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Active delivery - cannot delete yet"
-          >
-            <MaterialIcons name="lock-outline" size={20} color={C.textMuted} />
-            <Text style={[styles.swipeLockedText, { color: C.textMuted }]}>In Transit</Text>
-          </Pressable>
-        )}
-      </View>
-    ),
+    (item: ConversationRowModel) => {
+      const SwipeActions = () => (
+        <View style={styles.swipeActionsContainer}>
+          {item.isCompleted ? (
+            <Pressable
+              onPress={() => handleDeleteConversation(item)}
+              style={({ pressed }) => [
+                styles.swipeDeleteBtn,
+                { backgroundColor: C.error },
+                pressed && { opacity: 0.82, transform: [{ scale: 0.96 }] },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete completed chat with ${item.displayName}`}
+            >
+              <MaterialIcons name="delete-outline" size={24} color="#FFFFFF" />
+              <Text style={styles.swipeDeleteText}>Delete</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => handleActiveChatNotice(item)}
+              style={({ pressed }) => [
+                styles.swipeLockedBtn,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                pressed && { opacity: 0.82 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Active delivery - cannot delete yet"
+            >
+              <MaterialIcons name="lock-outline" size={20} color={C.textMuted} />
+              <Text style={[styles.swipeLockedText, { color: C.textMuted }]}>In Transit</Text>
+            </Pressable>
+          )}
+        </View>
+      );
+      SwipeActions.displayName = 'SwipeActions';
+      return SwipeActions;
+    },
     [C.error, C.surfaceElevated, C.surfaceBorder, C.textMuted, handleDeleteConversation, handleActiveChatNotice]
   );
 

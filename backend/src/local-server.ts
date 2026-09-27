@@ -3,7 +3,7 @@ import cluster from 'cluster';
 import os from 'os';
 import { randomUUID } from 'crypto';
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { routeRequest } from './http/router';
+import { routeRequest, fastRequestId } from './http/router';
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
@@ -38,9 +38,10 @@ export const server = http.createServer(async (req, res) => {
       });
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
     const authHeader = headers['authorization'];
-    const userId = headers['x-user-id'] || (authHeader ? '00000000-0000-0000-0000-000000000001' : undefined);
-    const authorizer = userId
+    const userId = !isProduction ? (headers['x-user-id'] || (authHeader ? '00000000-0000-0000-0000-000000000001' : undefined)) : undefined;
+    const authorizer = userId && !isProduction
       ? {
           jwt: {
             claims: {
@@ -72,7 +73,7 @@ export const server = http.createServer(async (req, res) => {
           sourceIp,
           userAgent: headers['user-agent'] || 'autocannon',
         },
-        requestId: headers['x-request-id'] || randomUUID(),
+        requestId: headers['x-request-id'] || fastRequestId(),
         routeKey: `${req.method} ${rawPath}`,
         stage: 'local',
         time: new Date().toISOString(),
@@ -113,9 +114,16 @@ export const server = http.createServer(async (req, res) => {
   });
 });
 
-// Configure robust keep-alive & socket parameters for heavy traffic
+// Configure robust TCP socket & keep-alive parameters for extreme traffic
+server.on('connection', (socket) => {
+  socket.setNoDelay(true); // Disable Nagle's algorithm for low latency
+  socket.setKeepAlive(true, 30_000);
+});
+
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 66_000;
+server.requestTimeout = 30_000;
+(server as any).maxRequestsPerSocket = 0; // Unlimited HTTP/1.1 persistent connection reuse
 
 const gracefulShutdown = (signal: string) => {
   console.log(`\n🛑 Received ${signal}. Draining connections and shutting down gracefully...`);
@@ -143,13 +151,13 @@ process.on('unhandledRejection', (reason) => {
 });
 
 if (require.main === module || process.argv[1]?.includes('local-server')) {
-  const workersEnv = process.env.CLUSTER_WORKERS;
+  const workersEnv = process.env.CLUSTER_WORKERS || 'auto';
   const numCPUs = os.cpus().length;
 
-  if (workersEnv && cluster.isPrimary) {
+  if (cluster.isPrimary && workersEnv !== '1') {
     const workerCount =
       workersEnv === 'auto'
-        ? Math.min(numCPUs, 4)
+        ? Math.min(numCPUs, 8)
         : Math.max(1, parseInt(workersEnv, 10) || 1);
 
     console.log(`\n👑 CarryGo Primary Process [PID: ${process.pid}] starting ${workerCount} worker(s)...`);
@@ -163,7 +171,8 @@ if (require.main === module || process.argv[1]?.includes('local-server')) {
       cluster.fork();
     });
   } else {
-    server.listen(PORT, () => {
+    // Listen with 2048 socket backlog queue to eliminate dropped connections during traffic spikes
+    server.listen(PORT, '0.0.0.0', 2048, () => {
       const pidStr = cluster.isWorker ? `Worker [PID: ${process.pid}]` : `Process [PID: ${process.pid}]`;
       console.log(`\n🚀 CarryGo Backend ${pidStr} running on http://localhost:${PORT}`);
       console.log(`   Health endpoint: http://localhost:${PORT}/health`);

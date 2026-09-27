@@ -611,7 +611,7 @@ export default function ProfileSetupScreen() {
                   >
                     <MaterialIcons name="add-location-alt" size={18} color="#8B5CF6" />
                     <Text style={[styles.customCityChipText, { color: '#8B5CF6' }]}>
-                      Set city to "{trimmedSearch}"
+                      {`Set city to "${trimmedSearch}"`}
                     </Text>
                   </Pressable>
                 ) : null}

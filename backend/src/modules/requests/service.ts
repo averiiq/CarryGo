@@ -452,6 +452,7 @@ export const updateRequestStatus = async (
 
   const expressionAttributeValues: Record<string, unknown> = {
     ':status': status,
+    ':expectedStatus': current.status,
     ':updatedAt': updatedAt,
     ':gsi1pk': `REQUEST#STATUS#${status}`,
   };
@@ -460,21 +461,35 @@ export const updateRequestStatus = async (
     expressionAttributeValues[':message'] = message;
   }
 
-  await ddb.send(
-    new UpdateCommand({
-      TableName: config.coreTableName,
-      Key: {
-        pk: `REQUEST#${requestId}`,
-        sk: 'META',
-      },
-      UpdateExpression: updateExpression,
-      ExpressionAttributeNames: {
-        '#status': 'status',
-      },
-      ExpressionAttributeValues: expressionAttributeValues,
-      ConditionExpression: 'attribute_exists(pk)',
-    }),
-  );
+  try {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: config.coreTableName,
+        Key: {
+          pk: `REQUEST#${requestId}`,
+          sk: 'META',
+        },
+        UpdateExpression: updateExpression,
+        ExpressionAttributeNames: {
+          '#status': 'status',
+        },
+        ExpressionAttributeValues: expressionAttributeValues,
+        ConditionExpression: 'attribute_exists(pk) AND #status = :expectedStatus',
+      }),
+    );
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.name === 'ConditionalCheckFailedException' ||
+        err.name === 'TransactionCanceledException')
+    ) {
+      return {
+        updated: false,
+        error: 'Request status was modified concurrently. Please refresh and try again.',
+      };
+    }
+    throw err;
+  }
 
   l1Cache.invalidate(`request:${requestId}`);
   l1Cache.invalidate(`request_count:${current.status}`);

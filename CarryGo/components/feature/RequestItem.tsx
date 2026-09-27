@@ -101,7 +101,7 @@ export function RequestItem({
       {/* Message if provided */}
       {request.message ? (
         <Text style={[styles.message, { color: C.textSecondary }]} numberOfLines={2}>
-          "{request.message}"
+          {`"${request.message}"`}
         </Text>
       ) : null}
 

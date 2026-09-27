@@ -1,5 +1,8 @@
 jest.mock('react-native', () => ({
   Platform: { OS: 'ios', select: (obj: any) => obj?.ios ?? obj?.default },
+  StyleSheet: { create: (s: any) => s, flatten: (s: any) => s },
+  Dimensions: { get: () => ({ width: 390, height: 844 }) },
+  useWindowDimensions: () => ({ width: 390, height: 844, scale: 2, fontScale: 1 }),
 }));
 
 jest.mock('expo-file-system', () => ({
@@ -68,3 +71,23 @@ jest.mock('lottie-react-native', () => {
     return React.createElement(View, { ...props, ref, testID: props.testID || 'lottie-animation' });
   });
 });
+
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: 'LinearGradient',
+}));
+
+jest.mock('@expo/vector-icons', () => ({
+  MaterialIcons: 'MaterialIcons',
+  Ionicons: 'Ionicons',
+  FontAwesome: 'FontAwesome',
+}));
+
+jest.mock('expo-haptics', () => ({
+  selectionAsync: jest.fn(),
+  notificationAsync: jest.fn(),
+  impactAsync: jest.fn(),
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+}));
+
+
