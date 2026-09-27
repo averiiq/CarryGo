@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ActivityIndicator, Animated, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -9,6 +10,7 @@ import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
 import { SendRequestModal } from '@/components/feature/SendRequestModal';
+import { CitySelectModal } from '@/components/feature/CitySelectModal';
 import { LiveActivityCompactPill } from '@/components/feature/LiveActivityCompactPill';
 import { PromotionalBannerCarousel } from '@/components/feature/PromotionalBannerCarousel';
 import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
@@ -23,6 +25,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAlert } from '@/template';
 import { Haptic } from '@/services/haptics.service';
+import { detectCurrentCity } from '@/services/location.service';
 import { checkTripParcelRoute } from '@/services/route-compatibility.service';
 import { FilterOptions, Parcel, Trip, Request } from '@/types';
 
@@ -31,12 +34,16 @@ type FeedItem = { type: 'trip'; data: Trip } | { type: 'parcel'; data: Parcel };
 
 function HomeHeader({
   userName,
+  avatarUri,
   unreadCount,
   onNotifications,
+  onProfilePress,
 }: {
   userName: string;
+  avatarUri?: string;
   unreadCount: number;
   onNotifications: () => void;
+  onProfilePress?: () => void;
 }) {
   const { C } = useThemeColors();
   const initial = (userName || 'U').charAt(0).toUpperCase();
@@ -45,9 +52,13 @@ function HomeHeader({
 
   return (
     <View style={styles.headerTop}>
-      <View style={styles.userProfileWrap}>
-        <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-          <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
+      <Pressable onPress={onProfilePress} style={styles.userProfileWrap} accessibilityRole="button" accessibilityLabel="View profile">
+        <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33', overflow: 'hidden' }]}>
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={{ width: 44, height: 44, borderRadius: 22 }} contentFit="cover" />
+          ) : (
+            <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
+          )}
         </View>
         <View style={styles.greetingWrap}>
           <Text style={[styles.greetingSub, { color: C.textMuted }]}>{greeting},</Text>
@@ -55,7 +66,7 @@ function HomeHeader({
             {userName}
           </Text>
         </View>
-      </View>
+      </Pressable>
 
       <Pressable
         onPress={() => {
@@ -244,13 +255,19 @@ function HomeStats({
 function EmptyMarketplace({
   activeTab,
   hasFilter,
+  locationCity,
   onClear,
   onCreate,
+  onShowAllIndia,
+  onChangeCity,
 }: {
   activeTab: 'trips' | 'parcels';
   hasFilter: boolean;
+  locationCity?: string | null;
   onClear: () => void;
   onCreate: () => void;
+  onShowAllIndia?: () => void;
+  onChangeCity?: () => void;
 }) {
   const { C } = useThemeColors();
 
@@ -263,27 +280,90 @@ function EmptyMarketplace({
         />
       </View>
       <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-        {hasFilter ? 'No route matches found' : activeTab === 'trips' ? 'No live trips available' : 'No open parcels yet'}
+        {hasFilter
+          ? 'No route matches found'
+          : locationCity
+            ? activeTab === 'trips'
+              ? `No live trips in ${locationCity}`
+              : `No open parcels in ${locationCity}`
+            : activeTab === 'trips'
+              ? 'No live trips available'
+              : 'No open parcels yet'}
       </Text>
       <Text style={[styles.emptySub, { color: C.textMuted }]}>
         {hasFilter
           ? 'Try adjusting your destination, vehicle or date filters.'
-          : activeTab === 'trips'
-            ? 'Be the first traveler to post a route and earn on this trip.'
-            : 'Post your package request and get matched with verified travelers.'}
+          : locationCity
+            ? `No active listings found for ${locationCity} right now. You can check all India routes or change your city.`
+            : activeTab === 'trips'
+              ? 'Be the first traveler to post a route and earn on this trip.'
+              : 'Post your package request and get matched with verified travelers.'}
       </Text>
-      <Pressable
-        onPress={hasFilter ? onClear : onCreate}
-        style={({ pressed }) => [
-          styles.emptyCta,
-          { backgroundColor: C.primary },
-          pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-        ]}
-      >
-        <Text style={styles.emptyCtaText}>
-          {hasFilter ? 'Reset Filters' : activeTab === 'trips' ? 'Post a Trip' : 'Send a Parcel'}
-        </Text>
-      </Pressable>
+
+      {hasFilter ? (
+        <Pressable
+          onPress={onClear}
+          style={({ pressed }) => [
+            styles.emptyCta,
+            { backgroundColor: C.primary },
+            pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+          ]}
+        >
+          <Text style={styles.emptyCtaText}>Reset Filters</Text>
+        </Pressable>
+      ) : locationCity ? (
+        <View style={styles.emptyActionRow}>
+          {onShowAllIndia ? (
+            <Pressable
+              onPress={onShowAllIndia}
+              style={({ pressed }) => [
+                styles.emptyCta,
+                { backgroundColor: C.primary, marginTop: 0 },
+                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+              ]}
+            >
+              <Text style={styles.emptyCtaText}>View All India Routes</Text>
+            </Pressable>
+          ) : null}
+          {onChangeCity ? (
+            <Pressable
+              onPress={onChangeCity}
+              style={({ pressed }) => [
+                styles.emptyOutlineBtn,
+                { borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <Text style={[styles.emptyOutlineBtnText, { color: C.textPrimary }]}>Change City</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={onCreate}
+            style={({ pressed }) => [
+              styles.emptyOutlineBtn,
+              { borderColor: C.primary + '55', backgroundColor: C.primarySubtle },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Text style={[styles.emptyOutlineBtnText, { color: C.primaryDark }]}>
+              {activeTab === 'trips' ? 'Post Trip' : 'Send Parcel'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          onPress={onCreate}
+          style={({ pressed }) => [
+            styles.emptyCta,
+            { backgroundColor: C.primary },
+            pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+          ]}
+        >
+          <Text style={styles.emptyCtaText}>
+            {activeTab === 'trips' ? 'Post a Trip' : 'Send a Parcel'}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -470,14 +550,56 @@ export default function HomeScreen() {
     ]).start();
   }, [heroFade, heroTranslateY]);
 
-  const userCity = user?.city?.trim() || undefined;
-  const tripsQuery = useTripsQuery(true, userCity);
-  const parcelsQuery = useParcelsQuery(true, userCity);
+  const defaultCity = useMemo(() => user?.city?.trim() || 'Gurugram', [user?.city]);
+  const [locationCity, setLocationCity] = useState<string | null>(defaultCity);
+  const [hasManuallySelectedCity, setHasManuallySelectedCity] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
+  const [isDetectingCity, setIsDetectingCity] = useState(false);
+
+  useEffect(() => {
+    if (!hasManuallySelectedCity && user?.city?.trim()) {
+      setLocationCity(user.city.trim());
+    }
+  }, [user?.city, hasManuallySelectedCity]);
+
+  const handleSelectLocationCity = useCallback((cityName: string) => {
+    Haptic.select();
+    setHasManuallySelectedCity(true);
+    setLocationCity(cityName);
+    setShowCityPicker(false);
+  }, []);
+
+  const handleToggleAllIndia = useCallback(() => {
+    Haptic.select();
+    setHasManuallySelectedCity(true);
+    setLocationCity((prev) => (prev ? null : defaultCity));
+  }, [defaultCity]);
+
+  const handleDetectCurrentLocation = useCallback(async () => {
+    if (isDetectingCity) return;
+    setIsDetectingCity(true);
+    Haptic.tap();
+    const { data, error } = await detectCurrentCity();
+    setIsDetectingCity(false);
+    if (data && !error) {
+      Haptic.success();
+      setLocationCity(data);
+      setHasManuallySelectedCity(true);
+      setShowCityPicker(false);
+    } else {
+      Haptic.warning();
+      showAlert('Location Detection', error || 'Could not detect your current city. Please choose from the list.');
+    }
+  }, [isDetectingCity, showAlert]);
+
+  const effectiveCity = locationCity || undefined;
+  const tripsQuery = useTripsQuery(true, effectiveCity);
+  const parcelsQuery = useParcelsQuery(true, effectiveCity);
   const requestsQuery = useRequestsQuery(user?.id);
   const promotionalBannersQuery = usePromotionalBannersQuery();
   const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
   const createTripMutation = useCreateTripMutation();
-  useListingsRealtime();
+  useListingsRealtime(true, effectiveCity);
 
   const userRequests = requestsQuery.data || [];
 
@@ -535,8 +657,8 @@ export default function HomeScreen() {
     );
   }, [parcels]);
 
-  const filteredTrips = useMemo(() => filterTrips(trips, filters), [trips, filters]);
-  const filteredParcels = useMemo(() => filterParcels(parcels, filters), [parcels, filters]);
+  const filteredTrips = useMemo(() => filterTrips(trips, filters, effectiveCity), [trips, filters, effectiveCity]);
+  const filteredParcels = useMemo(() => filterParcels(parcels, filters, effectiveCity), [parcels, filters, effectiveCity]);
   const hasFilter = useMemo(() => Object.values(filters).some((value) => String(value).trim().length > 0), [filters]);
 
   const feedData = useMemo<FeedItem[]>(() => {
@@ -872,6 +994,17 @@ export default function HomeScreen() {
         isSubmitting={isCreatingRequest}
       />
 
+      <CitySelectModal
+        visible={showCityPicker}
+        onClose={() => setShowCityPicker(false)}
+        onSelect={handleSelectLocationCity}
+        title="Marketplace Location"
+        subtitle="Filter live trips & parcels by transit hub"
+        selectedCity={locationCity || undefined}
+        onUseCurrentLocation={handleDetectCurrentLocation}
+        isDetectingLocation={isDetectingCity}
+      />
+
       {/* Sticky Animated Glass Mini-Header */}
       <Animated.View
         pointerEvents={isScrolledDown ? 'auto' : 'none'}
@@ -995,8 +1128,10 @@ export default function HomeScreen() {
             <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
               <HomeHeader
                 userName={user?.fullName || user?.name || 'there'}
+                avatarUri={user?.avatar}
                 unreadCount={unreadCount}
                 onNotifications={() => setShowNotifications(true)}
+                onProfilePress={() => router.push('/(tabs)/profile')}
               />
             </Animated.View>
 
@@ -1044,29 +1179,98 @@ export default function HomeScreen() {
               onNavigateDeepLink={(url) => router.push(url as any)}
             />
 
-            <View style={styles.marketplaceHead}>
-              <View>
-                <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Live Marketplace</Text>
-                <Text style={[styles.sectionSub, { color: C.textMuted }]}>
-                  {userCity ? `Personalized for ${userCity} routes` : 'Direct traveler-to-sender delivery routes'}
-                </Text>
+            <View style={styles.marketplaceSection}>
+              <View style={styles.marketplaceHead}>
+                <View style={styles.marketplaceTitleWrap}>
+                  <View style={styles.liveTagRow}>
+                    <View style={[styles.livePulseDot, { backgroundColor: '#10B981' }]} />
+                    <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Live Marketplace</Text>
+                  </View>
+                  <Text style={[styles.sectionSub, { color: C.textMuted }]}>
+                    {locationCity ? `Filtered by ${locationCity} hub & corridor` : 'Showing all verified India routes'}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    Haptic.tap();
+                    setShowFilters(true);
+                  }}
+                  hitSlop={TouchTarget.smallHitSlop}
+                  accessibilityRole="button"
+                  accessibilityLabel="Filter listings"
+                  style={({ pressed }) => [
+                    styles.filterBtn,
+                    { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface },
+                    pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+                  ]}
+                >
+                  <MaterialIcons name="tune" size={18} color={hasFilter ? C.primary : C.textPrimary} />
+                  {hasFilter ? <View style={[styles.activeFilterDot, { backgroundColor: C.primary }]} /> : null}
+                </Pressable>
               </View>
-              <Pressable
-                onPress={() => {
-                  Haptic.tap();
-                  setShowFilters(true);
-                }}
-                hitSlop={TouchTarget.smallHitSlop}
-                accessibilityRole="button"
-                accessibilityLabel="Filter listings"
-                style={({ pressed }) => [
-                  styles.filterBtn,
-                  { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface },
-                  pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
-                ]}
-              >
-                <MaterialIcons name="tune" size={18} color={hasFilter ? C.primary : C.textPrimary} />
-              </Pressable>
+
+              {/* Location Badge & All India Toggle */}
+              <View style={styles.locationPillsRow}>
+                <Pressable
+                  onPress={() => {
+                    Haptic.tap();
+                    setShowCityPicker(true);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Location filter applied: ${locationCity || 'All India'}. Tap to change city.`}
+                  style={({ pressed }) => [
+                    styles.locationFilterPill,
+                    {
+                      backgroundColor: locationCity ? C.primarySubtle : C.surfaceElevated,
+                      borderColor: locationCity ? C.primary : C.surfaceBorder,
+                    },
+                    pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="location-on"
+                    size={15}
+                    color={locationCity ? C.primary : C.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.locationFilterPillText,
+                      { color: locationCity ? C.primaryDark : C.textPrimary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {locationCity ? `📍 Filtered by ${locationCity}` : '📍 All Locations'}
+                  </Text>
+                  <MaterialIcons
+                    name="expand-more"
+                    size={16}
+                    color={locationCity ? C.primary : C.textMuted}
+                  />
+                </Pressable>
+
+                <Pressable
+                  onPress={handleToggleAllIndia}
+                  accessibilityRole="button"
+                  accessibilityLabel={locationCity ? "Switch to All India routes" : `Switch back to ${defaultCity}`}
+                  style={({ pressed }) => [
+                    styles.allIndiaBtn,
+                    {
+                      backgroundColor: !locationCity ? C.primary : C.surface,
+                      borderColor: !locationCity ? C.primary : C.surfaceBorder,
+                    },
+                    pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.allIndiaBtnText,
+                      { color: !locationCity ? '#FFFFFF' : C.textSecondary },
+                    ]}
+                  >
+                    {!locationCity ? 'All India ✓' : 'All India'}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
 
             {!isOnline ? <OfflineBanner C={C} /> : null}
@@ -1152,8 +1356,11 @@ export default function HomeScreen() {
             <EmptyMarketplace
               activeTab={activeTab}
               hasFilter={hasFilter}
+              locationCity={locationCity}
               onClear={() => setFilters(DEFAULT_FILTERS)}
               onCreate={() => router.push(activeTab === 'trips' ? '/create-trip' : '/create-parcel')}
+              onShowAllIndia={() => setLocationCity(null)}
+              onChangeCity={() => setShowCityPicker(true)}
             />
           )
         }
@@ -1430,11 +1637,65 @@ const styles = StyleSheet.create({
     height: 26,
   },
 
+  marketplaceSection: {
+    gap: Spacing.xs + 2,
+    marginTop: Spacing.xs,
+  },
   marketplaceHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: Spacing.xs,
+  },
+  marketplaceTitleWrap: {
+    flex: 1,
+  },
+  liveTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  livePulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  activeFilterDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  locationPillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+    marginTop: 2,
+  },
+  locationFilterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm + 4,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    gap: 4,
+    flexShrink: 1,
+  },
+  locationFilterPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  allIndiaBtn: {
+    paddingHorizontal: Spacing.sm + 4,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  allIndiaBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
   sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   sectionSub: { fontSize: FontSize.xs, marginTop: 2 },
@@ -1631,6 +1892,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyCtaText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+
+  emptyActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  emptyOutlineBtn: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyOutlineBtnText: {
+    fontSize: FontSize.xs + 0.5,
+    fontWeight: FontWeight.semibold,
+  },
 
   stateWrap: { marginHorizontal: Spacing.md, marginTop: Spacing.md },
   footerLoader: { paddingVertical: Spacing.lg },

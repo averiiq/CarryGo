@@ -16,6 +16,7 @@ interface RequestCardProps {
   onChat?: () => void;
   onDelivery?: () => void;
   onPayment?: () => void;
+  onReview?: (req: Request) => void;
 }
 
 const STATUS_CONFIG = (C: ThemeColors): Record<string, { color: string; bg: string; border: string; label: string; icon: keyof typeof Ionicons.glyphMap }> => ({
@@ -55,6 +56,7 @@ export const RequestCard = React.memo(function RequestCard({
   onChat,
   onDelivery,
   onPayment,
+  onReview,
 }: RequestCardProps) {
   const { C, S } = useThemeColors();
   const { isSmallDevice, isTablet, swipeThreshold } = useResponsive();
@@ -427,18 +429,25 @@ export const RequestCard = React.memo(function RequestCard({
                   <Pressable
                     style={({ pressed }) => [
                       styles.primaryActionPill,
-                      { backgroundColor: C.primary },
+                      { backgroundColor: '#F59E0B' },
                       pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
                     ]}
-                    onPress={() => { Haptic.tap(); onDelivery?.(); }}
+                    onPress={() => {
+                      Haptic.tap();
+                      if (onReview) {
+                        onReview(request);
+                      } else {
+                        onDelivery?.();
+                      }
+                    }}
                     hitSlop={TouchTarget.smallHitSlop}
                     accessible={true}
                     accessibilityRole="button"
-                    accessibilityLabel="Review"
+                    accessibilityLabel="Rate and Review"
                     accessibilityHint="Double tap to leave a review for this delivery"
                   >
-                    <MaterialIcons name="grade" size={15} color="#FFFFFF" />
-                    <Text style={styles.primaryActionText}>Review</Text>
+                    <MaterialIcons name="star" size={15} color="#FFFFFF" />
+                    <Text style={styles.primaryActionText}>Rate & Review</Text>
                   </Pressable>
                 </>
               ) : null}

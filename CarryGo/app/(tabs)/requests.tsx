@@ -9,6 +9,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { AsyncStateCard, OfflineBanner, RequestCard, LottieAnimation } from '@/components';
+import { RatingModal } from '@/components/feature/RatingModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { sendLocalNotification, sendRequestNotification } from '@/services/notifications.service';
@@ -17,7 +18,7 @@ import { Haptic } from '@/services/haptics.service';
 import { EmptyRequestsSVG } from '@/components/ui/EmptyState';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
 import { flattenInfiniteData, useParcelsQuery, useParcelsByIdsQuery } from '@/features/listings/queries';
-import { useRequestsQuery, useUpdateRequestStatusMutation } from '@/features/requests/queries';
+import { useRequestsQuery, useUpdateRequestStatusMutation, useUserRatedRequestIdsQuery } from '@/features/requests/queries';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useStaggeredList } from '@/hooks/useAnimations';
@@ -46,6 +47,7 @@ const RequestListItem = React.memo(function RequestListItem({
   onChat,
   onDelivery,
   onPayment,
+  onReview,
 }: {
   item: Request;
   tab: TabType;
@@ -57,6 +59,7 @@ const RequestListItem = React.memo(function RequestListItem({
   onChat: (req: Request) => void;
   onDelivery: (req: Request) => void;
   onPayment: (req: Request) => void;
+  onReview: (req: Request) => void;
 }) {
   const handleAccept = useCallback(() => onAccept(item.id, item), [onAccept, item]);
   const handleReject = useCallback(() => onReject(item.id, item), [onReject, item]);
@@ -64,6 +67,7 @@ const RequestListItem = React.memo(function RequestListItem({
   const handleChat = useCallback(() => onChat(item), [onChat, item]);
   const handleDelivery = useCallback(() => onDelivery(item), [onDelivery, item]);
   const handlePayment = useCallback(() => onPayment(item), [onPayment, item]);
+  const handleReview = useCallback(() => onReview(item), [onReview, item]);
 
   const content = (
     <View style={isTablet ? styles.tabletContainer : undefined}>
@@ -76,6 +80,7 @@ const RequestListItem = React.memo(function RequestListItem({
         onChat={handleChat}
         onDelivery={handleDelivery}
         onPayment={handlePayment}
+        onReview={handleReview}
       />
     </View>
   );
@@ -100,6 +105,8 @@ export default function RequestsScreen() {
   const { isOnline } = useNetworkStatus();
   const { isSmallDevice, isTablet } = useResponsive();
   const requestsQuery = useRequestsQuery(user?.id);
+  const ratedRequestIdsQuery = useUserRatedRequestIdsQuery(user?.id);
+  const ratedRequestIds = useMemo(() => new Set(ratedRequestIdsQuery.data ?? []), [ratedRequestIdsQuery.data]);
   const conversationsQuery = useConversationsQuery(user?.id);
   const parcelsQuery = useParcelsQuery(Boolean(user));
   const updateRequestStatusMutation = useUpdateRequestStatusMutation(user?.id);
@@ -108,6 +115,7 @@ export default function RequestsScreen() {
   const [tab, setTab] = useState<TabType>('incoming');
   const [statusFilter, setStatusFilter] = useState<StatusFilterKey>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [ratingTarget, setRatingTarget] = useState<Request | null>(null);
 
   const slideAnim = React.useRef(new Animated.Value(0)).current;
   const pendingPulse = React.useRef(new Animated.Value(1)).current;
@@ -150,19 +158,27 @@ export default function RequestsScreen() {
     return map;
   }, [marketplaceParcels, requestedParcels]);
 
-  // Enrich requests with resolved route, category, and weight
+  // Enrich requests with resolved route, category, and weight, and filter out reviewed completed requests
   const requests = useMemo(() => {
-    return rawRequests.map(req => {
-      const p = parcelMap.get(req.parcelId);
-      return {
-        ...req,
-        fromCity: req.fromCity || p?.fromCity,
-        toCity: req.toCity || p?.toCity,
-        parcelCategory: req.parcelCategory || p?.category,
-        parcelWeight: req.parcelWeight || p?.weight,
-      };
-    });
-  }, [rawRequests, parcelMap]);
+    return rawRequests
+      .filter(req => {
+        // Complete trips and parcels are never shown after adding the review in request page
+        if (req.status === 'completed' && ratedRequestIds.has(req.id)) {
+          return false;
+        }
+        return true;
+      })
+      .map(req => {
+        const p = parcelMap.get(req.parcelId);
+        return {
+          ...req,
+          fromCity: req.fromCity || p?.fromCity,
+          toCity: req.toCity || p?.toCity,
+          parcelCategory: req.parcelCategory || p?.category,
+          parcelWeight: req.parcelWeight || p?.weight,
+        };
+      });
+  }, [rawRequests, ratedRequestIds, parcelMap]);
 
   const incoming = requests.filter(r => isRequestIncoming(r, user?.id));
   const outgoing = requests.filter(r => isRequestOutgoing(r, user?.id));
@@ -221,6 +237,7 @@ export default function RequestsScreen() {
     try {
       await Promise.all([
         requestsRefetchRef.current(),
+        ratedRequestIdsQuery.refetch(),
         conversationsRefetchRef.current(),
         parcelsRefetchRef.current(),
         requestedParcelIds.length > 0 ? requestedParcelsRefetchRef.current() : Promise.resolve(),
@@ -228,7 +245,7 @@ export default function RequestsScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [requestedParcelIds.length, user]);
+  }, [ratedRequestIdsQuery, requestedParcelIds.length, user]);
 
   const handleAccept = (requestId: string, req: Request) => {
     const isIncoming = isRequestIncoming(req, user?.id);
@@ -367,6 +384,11 @@ export default function RequestsScreen() {
     router.push({ pathname: '/payment/[id]', params: { id: req.id } });
   }, [router]);
 
+  const handleReview = useCallback((req: Request) => {
+    Haptic.confirm();
+    setRatingTarget(req);
+  }, []);
+
   const renderRequestItem = useCallback(({ item, index }: { item: Request; index: number }) => (
     <RequestListItem
       item={item}
@@ -379,8 +401,9 @@ export default function RequestsScreen() {
       onChat={handleChat}
       onDelivery={handleDelivery}
       onPayment={handlePayment}
+      onReview={handleReview}
     />
-  ), [tab, isTablet, cardAnims, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment]);
+  ), [tab, isTablet, cardAnims, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
 
   const renderItemSeparator = useCallback(() => <View style={{ height: Spacing.md }} />, []);
 
@@ -617,6 +640,21 @@ export default function RequestsScreen() {
           }
         />
       </Animated.View>
+
+      {ratingTarget && user ? (
+        <RatingModal
+          visible={Boolean(ratingTarget)}
+          requestId={ratingTarget.id}
+          fromUserId={user.id}
+          toUserId={ratingTarget.senderId === user.id ? ratingTarget.travellerId : ratingTarget.senderId}
+          toUserName={ratingTarget.senderId === user.id ? ratingTarget.travellerName : ratingTarget.senderName}
+          onDone={() => {
+            setRatingTarget(null);
+            void ratedRequestIdsQuery.refetch();
+            void requestsQuery.refetch();
+          }}
+        />
+      ) : null}
     </View>
   );
 }

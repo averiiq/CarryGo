@@ -1,61 +1,39 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, ActivityIndicator,
-  ScrollView, Animated, Switch, RefreshControl,
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  Animated,
+  Switch,
+  RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { getSupabaseClient, useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { AppErrorBoundary } from '@/components';
 import {
-  fetchSubscriptions, createSubscription, deleteSubscription, toggleSubscription,
+  fetchSubscriptions,
+  createSubscription,
+  deleteSubscription,
+  toggleSubscription,
 } from '@/services/subscriptions.service';
 import { fetchTrips } from '@/services/trips.service';
 import { fetchParcels } from '@/services/parcels.service';
 import { RouteSubscription, Trip, Parcel } from '@/types';
-import { INDIAN_CITIES } from '@/constants/indian-cities';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { Haptic } from '@/services/haptics.service';
 import { sendLocalNotification } from '@/services/notifications.service';
+import { CitySelectModal } from '@/components/feature/CitySelectModal';
 
-const CITIES = INDIAN_CITIES.map(c => c.name);
-
-// ── City Picker ──────────────────────────────────────────────────────────────
-function CityPicker({
-  label, selected, onSelect, excluded, C,
-}: { label: string; selected: string; onSelect: (c: string) => void; excluded: string; C: ThemeColors }) {
-  return (
-    <View style={styles.pickerSection}>
-      <Text style={[styles.pickerLabel, { color: C.textMuted }]}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.cityRow}>
-          {CITIES.filter(c => c !== excluded).map(city => (
-            <Pressable
-              key={city}
-              style={[
-                styles.cityChip,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                selected === city && { backgroundColor: C.primaryDark, borderColor: C.primaryDark },
-              ]}
-              onPress={() => { Haptic.select(); onSelect(city); }}
-            >
-              <Text style={[styles.cityChipText, { color: selected === city ? C.textInverse : C.textSecondary }]}>
-                {city}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-// ── Match Alert ──────────────────────────────────────────────────────────────
+// ── Match Alert Data ─────────────────────────────────────────────────────────
 interface MatchResult {
   subId: string;
   route: string;
@@ -64,9 +42,23 @@ interface MatchResult {
   newCount: number;
 }
 
+const POPULAR_CORRIDORS = [
+  { from: 'Delhi', to: 'Gurugram' },
+  { from: 'Chandigarh', to: 'Delhi' },
+  { from: 'Hisar', to: 'Delhi' },
+  { from: 'Rohtak', to: 'Delhi' },
+  { from: 'Faridabad', to: 'Gurugram' },
+];
+
 // ── Subscription Card ────────────────────────────────────────────────────────
 function SubCard({
-  item, onToggle, onDelete, onView, matchData, C,
+  item,
+  onToggle,
+  onDelete,
+  onView,
+  matchData,
+  C,
+  S,
 }: {
   item: RouteSubscription;
   onToggle: () => void;
@@ -74,132 +66,166 @@ function SubCard({
   onView: () => void;
   matchData?: MatchResult;
   C: ThemeColors;
+  S: ReturnType<typeof useThemeColors>['S'];
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const tripCount = matchData?.trips.length || 0;
+  const parcelCount = matchData?.parcels.length || 0;
+  const hasMatches = (tripCount + parcelCount) > 0;
+  const totalMatches = tripCount + parcelCount;
 
-  const onPressIn = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, tension: 300 }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 300 }).start();
-
-  const hasMatches = matchData && (matchData.trips.length + matchData.parcels.length) > 0;
-  const totalMatches = hasMatches ? matchData!.trips.length + matchData!.parcels.length : 0;
+  const formattedDate = new Date(item.createdAt).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 
   return (
-    <Animated.View style={[
-      styles.subCard,
-      { backgroundColor: C.surface, borderColor: item.active ? C.primary + '44' : C.surfaceBorder },
-      { transform: [{ scale }] },
-    ]}>
-      {item.active ? (
-        <LinearGradient
-          colors={[C.primary + '08', 'transparent']}
-          style={StyleSheet.absoluteFillObject}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        />
-      ) : null}
+    <View
+      style={[
+        styles.subCard,
+        { backgroundColor: C.surface, borderColor: item.active ? C.primary + '55' : C.surfaceBorder },
+        S.card,
+      ]}
+    >
+        {item.active && (
+          <LinearGradient
+            colors={[C.primarySubtle, 'transparent']}
+            style={StyleSheet.absoluteFillObject}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        )}
 
-      {/* Left accent */}
-      <View style={[styles.subAccent, { backgroundColor: item.active ? C.primary : C.surfaceBorderLight }]} />
+        {/* Accent Bar */}
+        <View style={[styles.subAccent, { backgroundColor: item.active ? C.primary : C.surfaceBorder }]} />
 
-      <Pressable
-        style={styles.subInner}
-        onPress={() => { Haptic.tap(); onView(); }}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-      >
-        {/* Route header */}
-        <View style={styles.subRouteRow}>
-          <View style={[styles.subIconBox, { backgroundColor: item.active ? C.primary + '18' : C.surfaceElevated }]}>
-            <MaterialIcons
-              name="notifications-active"
-              size={18}
-              color={item.active ? C.primary : C.textMuted}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.routePills}>
+        <View style={styles.subInner}>
+          {/* Top Row: Route & Toggle */}
+          <View style={styles.subHeaderRow}>
+            <View style={styles.routePillsRow}>
               <View style={[styles.routePill, { backgroundColor: C.successSubtle }]}>
                 <View style={[styles.routeDot, { backgroundColor: C.success }]} />
                 <Text style={[styles.routePillText, { color: C.success }]}>{item.fromCity}</Text>
               </View>
-              <MaterialIcons name="arrow-forward" size={12} color={C.textMuted} />
+
+              <Feather name="arrow-right" size={14} color={C.textMuted} />
+
               <View style={[styles.routePill, { backgroundColor: C.errorSubtle }]}>
                 <View style={[styles.routeDot, { backgroundColor: C.error }]} />
                 <Text style={[styles.routePillText, { color: C.error }]}>{item.toCity}</Text>
               </View>
             </View>
-            <Text style={[styles.subSince, { color: C.textMuted }]}>
-              Since {new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+
+            <Switch
+              value={item.active}
+              onValueChange={() => {
+                Haptic.select();
+                onToggle();
+              }}
+              trackColor={{ false: C.surfaceBorder, true: C.primary + '88' }}
+              thumbColor={item.active ? C.primary : C.surfaceBorderLight}
+            />
+          </View>
+
+          {/* Subtitle / Creation time */}
+          <View style={styles.metaRow}>
+            <Feather name="radio" size={11} color={item.active ? C.primary : C.textMuted} />
+            <Text style={[styles.subDate, { color: C.textMuted }]}>
+              {item.active ? 'Radar active' : 'Alert paused'} · Added {formattedDate}
             </Text>
           </View>
-          {/* Toggle */}
-          <Switch
-            value={item.active}
-            onValueChange={() => { Haptic.select(); onToggle(); }}
-            trackColor={{ false: C.surfaceBorderLight, true: C.primary + '88' }}
-            thumbColor={item.active ? C.primary : C.surfaceBorder}
-            ios_backgroundColor={C.surfaceBorderLight}
-          />
-        </View>
 
-        {/* Match stats */}
-        {hasMatches ? (
-          <View style={[styles.matchBar, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-            <MaterialIcons name="local-fire-department" size={13} color={C.primary} />
-            <Text style={[styles.matchBarText, { color: C.primary }]}>
-              {matchData!.trips.length} trip{matchData!.trips.length !== 1 ? 's' : ''} · {matchData!.parcels.length} parcel{matchData!.parcels.length !== 1 ? 's' : ''} available now
-            </Text>
-            <View style={[styles.matchBadge, { backgroundColor: C.primary }]}>
-              <Text style={styles.matchBadgeText}>{totalMatches}</Text>
-            </View>
-          </View>
-        ) : item.active ? (
-          <View style={[styles.matchBar, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="search" size={13} color={C.textMuted} />
-            <Text style={[styles.matchBarText, { color: C.textMuted }]}>No listings on this route right now</Text>
-          </View>
-        ) : (
-          <View style={[styles.matchBar, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="notifications-off" size={13} color={C.textMuted} />
-            <Text style={[styles.matchBarText, { color: C.textMuted }]}>Alerts paused</Text>
-          </View>
-        )}
-
-        {/* Actions */}
-        <View style={styles.subActions}>
-          {hasMatches ? (
+          {/* Live Matches Status Banner */}
+          {hasMatches && item.active ? (
             <Pressable
               style={({ pressed }) => [
-                styles.viewMatchesBtn,
-                { backgroundColor: C.primaryDark, opacity: pressed ? 0.85 : 1 },
+                styles.matchBanner,
+                { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' },
+                pressed && { opacity: 0.85 },
               ]}
-              onPress={() => { Haptic.confirm(); onView(); }}
+              onPress={() => {
+                Haptic.tap();
+                onView();
+              }}
             >
-              <MaterialIcons name="open-in-new" size={13} color={C.textInverse} />
-              <Text style={styles.viewMatchesBtnText}>View Matches</Text>
+              <View style={[styles.flameIconWrap, { backgroundColor: C.primaryDark }]}>
+                <MaterialIcons name="local-fire-department" size={13} color="#fff" />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.matchBannerTitle, { color: C.primary }]}>
+                  {totalMatches} Active Match{totalMatches > 1 ? 'es' : ''} Right Now
+                </Text>
+                <Text style={[styles.matchBannerSub, { color: C.textSecondary }]}>
+                  {tripCount} trip{tripCount !== 1 ? 's' : ''} · {parcelCount} parcel{parcelCount !== 1 ? 's' : ''}
+                </Text>
+              </View>
+
+              <View style={styles.viewLink}>
+                <Text style={[styles.viewLinkText, { color: C.primary }]}>View</Text>
+                <Feather name="chevron-right" size={13} color={C.primary} />
+              </View>
             </Pressable>
-          ) : null}
-          <Pressable
-            style={({ pressed }) => [
-              styles.deleteBtn,
-              { backgroundColor: C.errorSubtle, borderColor: C.error + '44', opacity: pressed ? 0.75 : 1 },
-            ]}
-            onPress={() => { Haptic.warning(); onDelete(); }}
-          >
-            <MaterialIcons name="delete-outline" size={14} color={C.error} />
-          </Pressable>
+          ) : item.active ? (
+            <View style={[styles.noMatchBanner, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <Feather name="eye" size={12} color={C.textMuted} />
+              <Text style={[styles.noMatchText, { color: C.textMuted }]}>
+                Monitoring 24/7. Instant notification on new listings.
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.noMatchBanner, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <Feather name="pause" size={12} color={C.textMuted} />
+              <Text style={[styles.noMatchText, { color: C.textMuted }]}>
+                Alert paused. Toggle switch to resume live tracking.
+              </Text>
+            </View>
+          )}
+
+          {/* Bottom Card Actions */}
+          <View style={[styles.cardFooter, { borderTopColor: C.surfaceBorder }]}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.browseBtn,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                pressed && { backgroundColor: C.primarySubtle },
+              ]}
+              onPress={() => {
+                Haptic.tap();
+                onView();
+              }}
+            >
+              <Feather name="search" size={12} color={C.textPrimary} />
+              <Text style={[styles.browseBtnText, { color: C.textPrimary }]}>Search Route</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.deleteBtn,
+                { backgroundColor: C.errorSubtle, borderColor: C.error + '33' },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => {
+                Haptic.warning();
+                onDelete();
+              }}
+            >
+              <Feather name="trash-2" size={13} color={C.error} />
+              <Text style={[styles.deleteBtnText, { color: C.error }]}>Delete</Text>
+            </Pressable>
+          </View>
         </View>
-      </Pressable>
-    </Animated.View>
+      </View>
   );
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Main Route Alerts Screen ─────────────────────────────────────────────────
 export default function SubscriptionsScreen() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { C } = useThemeColors();
+  const { C, S } = useThemeColors();
 
   const [subs, setSubs] = useState<RouteSubscription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -207,6 +233,7 @@ export default function SubscriptionsScreen() {
   const [showAdd, setShowAdd] = useState(false);
   const [fromCity, setFromCity] = useState('');
   const [toCity, setToCity] = useState('');
+  const [cityPickerTarget, setCityPickerTarget] = useState<'from' | 'to' | null>(null);
   const [saving, setSaving] = useState(false);
   const [matchData, setMatchData] = useState<Record<string, MatchResult>>({});
   const prevMatchCounts = useRef<Record<string, number>>({});
@@ -231,34 +258,35 @@ export default function SubscriptionsScreen() {
     if (activeSubs.length === 0) return;
 
     const results: Record<string, MatchResult> = {};
-    await Promise.all(activeSubs.map(async sub => {
-      const [tripsRes, parcelsRes] = await Promise.all([
-        fetchTrips({ fromCity: sub.fromCity, toCity: sub.toCity }),
-        fetchParcels({ fromCity: sub.fromCity, toCity: sub.toCity }),
-      ]);
-      const trips = (tripsRes.data || []).filter((t: Trip) => t.status === 'active' && t.userId !== userId);
-      const parcels = (parcelsRes.data || []).filter((p: Parcel) => p.status === 'open' && p.userId !== userId);
-      const totalCount = trips.length + parcels.length;
-      const prevCount = prevMatchCounts.current[sub.id] ?? -1;
+    await Promise.all(
+      activeSubs.map(async sub => {
+        const [tripsRes, parcelsRes] = await Promise.all([
+          fetchTrips({ fromCity: sub.fromCity, toCity: sub.toCity }),
+          fetchParcels({ fromCity: sub.fromCity, toCity: sub.toCity }),
+        ]);
+        const trips = (tripsRes.data || []).filter((t: Trip) => t.status === 'active' && t.userId !== userId);
+        const parcels = (parcelsRes.data || []).filter((p: Parcel) => p.status === 'open' && p.userId !== userId);
+        const totalCount = trips.length + parcels.length;
+        const prevCount = prevMatchCounts.current[sub.id] ?? -1;
 
-      // Alert if new matches appeared
-      if (prevCount >= 0 && totalCount > prevCount) {
-        const newCount = totalCount - prevCount;
-        await sendLocalNotification(
-          `New match on ${sub.fromCity} → ${sub.toCity}`,
-          `${newCount} new listing${newCount > 1 ? 's' : ''} available on your subscribed route!`
-        );
-      }
-      prevMatchCounts.current[sub.id] = totalCount;
+        if (prevCount >= 0 && totalCount > prevCount) {
+          const newCount = totalCount - prevCount;
+          await sendLocalNotification(
+            `New match on ${sub.fromCity} → ${sub.toCity}`,
+            `${newCount} new listing${newCount > 1 ? 's' : ''} available on your subscribed route!`
+          );
+        }
+        prevMatchCounts.current[sub.id] = totalCount;
 
-      results[sub.id] = {
-        subId: sub.id,
-        route: `${sub.fromCity} → ${sub.toCity}`,
-        trips,
-        parcels,
-        newCount: 0,
-      };
-    }));
+        results[sub.id] = {
+          subId: sub.id,
+          route: `${sub.fromCity} → ${sub.toCity}`,
+          trips,
+          parcels,
+          newCount: 0,
+        };
+      })
+    );
     setMatchData(results);
   }, [subs, userId]);
 
@@ -314,13 +342,20 @@ export default function SubscriptionsScreen() {
     Haptic.tap();
   };
 
+  const handleSwapCities = () => {
+    Haptic.select();
+    const temp = fromCity;
+    setFromCity(toCity);
+    setToCity(temp);
+  };
+
   const handleAdd = async () => {
     if (!fromCity || !toCity) {
-      showAlert('Select Route', 'Please select both origin and destination cities.');
+      showAlert('Select Route', 'Please choose both origin and destination cities.');
       return;
     }
-    if (fromCity === toCity) {
-      showAlert('Invalid Route', 'Origin and destination must be different.');
+    if (fromCity.toLowerCase() === toCity.toLowerCase()) {
+      showAlert('Invalid Route', 'Origin and destination must be different cities.');
       return;
     }
     setSaving(true);
@@ -329,55 +364,74 @@ export default function SubscriptionsScreen() {
       setSubs(prev => [data, ...prev.filter(s => s.id !== data.id)]);
       toggleAddForm();
       Haptic.success();
-      showAlert('Alert Created!', `You'll be notified when trips or parcels appear on ${fromCity} → ${toCity}.`);
+      showAlert('Route Alert Activated!', `We will notify you immediately when new trips or parcels match ${fromCity} → ${toCity}.`);
     }
     setSaving(false);
   };
 
-  const handleDelete = (sub: RouteSubscription) => {
-    showAlert(`Remove Alert?`, `Stop receiving alerts for ${sub.fromCity} → ${sub.toCity}?`, [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Remove', style: 'destructive', onPress: async () => {
-          await deleteSubscription(sub.id, user?.id || '');
-          setSubs(prev => prev.filter(s => s.id !== sub.id));
-          Haptic.success();
+  const handleDelete = useCallback((sub: RouteSubscription) => {
+    showAlert(
+      `Delete Route Alert?`,
+      `Stop receiving notifications for ${sub.fromCity} → ${sub.toCity}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteSubscription(sub.id, user?.id || '');
+            setSubs(prev => prev.filter(s => s.id !== sub.id));
+            Haptic.success();
+          },
         },
-      },
-    ]);
-  };
+      ]
+    );
+  }, [showAlert, user?.id]);
 
-  const handleToggle = async (sub: RouteSubscription) => {
+  const handleToggle = useCallback(async (sub: RouteSubscription) => {
     await toggleSubscription(sub.id, !sub.active, user?.id || '');
     setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, active: !s.active } : s));
-    Haptic.select();
-  };
+  }, [user?.id]);
 
-  const handleView = (sub: RouteSubscription) => {
-    // Navigate to matching screen in browse mode
-    router.push({ pathname: '/matching', params: { mode: 'browse_trips', fromCity: sub.fromCity, toCity: sub.toCity } });
-  };
+  const handleView = useCallback((sub: RouteSubscription) => {
+    router.push({
+      pathname: '/matching',
+      params: { mode: 'browse_trips', fromCity: sub.fromCity, toCity: sub.toCity },
+    });
+  }, [router]);
 
-  const renderSubItem = useCallback(({ item }: { item: RouteSubscription }) => (
-    <View style={{ marginBottom: Spacing.sm }}>
-      <SubCard
-        item={item}
-        onToggle={() => handleToggle(item)}
-        onDelete={() => handleDelete(item)}
-        onView={() => handleView(item)}
-        matchData={matchData[item.id]}
-        C={C}
-      />
-    </View>
-  ), [handleToggle, handleDelete, handleView, matchData, C]);
+  const renderSubItem = useCallback(
+    ({ item }: { item: RouteSubscription }) => (
+      <View style={{ marginBottom: Spacing.sm }}>
+        <SubCard
+          item={item}
+          onToggle={() => handleToggle(item)}
+          onDelete={() => handleDelete(item)}
+          onView={() => handleView(item)}
+          matchData={matchData[item.id]}
+          C={C}
+          S={S}
+        />
+      </View>
+    ),
+    [handleToggle, handleDelete, handleView, matchData, C, S]
+  );
 
   const activeSubs = subs.filter(s => s.active).length;
-  const totalMatches = Object.values(matchData).reduce((s, m) => s + m.trips.length + m.parcels.length, 0);
+  const totalMatches = Object.values(matchData).reduce(
+    (s, m) => s + m.trips.length + m.parcels.length,
+    0
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      {/* ── Header ─────────────────────────────────────── */}
-      <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
+      {/* ── Top Header ─────────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + 8, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder },
+        ]}
+      >
         <LinearGradient
           colors={[C.primarySubtle, 'transparent']}
           style={StyleSheet.absoluteFillObject}
@@ -385,17 +439,22 @@ export default function SubscriptionsScreen() {
         <View style={styles.headerRow}>
           <Pressable
             style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]}
-            onPress={() => { Haptic.tap(); router.back(); }}
+            onPress={() => {
+              Haptic.tap();
+              router.back();
+            }}
             hitSlop={8}
           >
-            <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+            <Feather name="arrow-left" size={20} color={C.textPrimary} />
           </Pressable>
+
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Route Alerts</Text>
             <Text style={[styles.headerSub, { color: C.textMuted }]}>
-              {activeSubs} active · {totalMatches} listings available
+              {activeSubs} active corridors · {totalMatches} live listings
             </Text>
           </View>
+
           <Pressable
             style={[
               styles.addButton,
@@ -403,19 +462,25 @@ export default function SubscriptionsScreen() {
             ]}
             onPress={toggleAddForm}
           >
-            <MaterialIcons name={showAdd ? 'close' : 'add'} size={20} color={C.textInverse} />
+            <Feather name={showAdd ? 'x' : 'plus'} size={20} color="#fff" />
           </Pressable>
         </View>
 
-        {/* Stats bar */}
+        {/* Corridor Metric Bar */}
         <View style={styles.statsBar}>
           {[
-            { label: 'Subscriptions', value: String(subs.length), icon: 'notifications' as const, color: C.primary },
-            { label: 'Active', value: String(activeSubs), icon: 'notifications-active' as const, color: C.success },
-            { label: 'Live matches', value: String(totalMatches), icon: 'local-fire-department' as const, color: C.warning },
+            { label: 'Subscribed', value: String(subs.length), icon: 'bell' as const, color: C.primary },
+            { label: 'Radar Active', value: String(activeSubs), icon: 'activity' as const, color: C.success },
+            { label: 'Live Matches', value: String(totalMatches), icon: 'zap' as const, color: C.warning },
           ].map((s, i) => (
-            <View key={i} style={[styles.statChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-              <MaterialIcons name={s.icon} size={13} color={s.color} />
+            <View
+              key={i}
+              style={[
+                styles.statChip,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              ]}
+            >
+              <Feather name={s.icon} size={12} color={s.color} />
               <Text style={[styles.statChipVal, { color: s.color }]}>{s.value}</Text>
               <Text style={[styles.statChipLabel, { color: C.textMuted }]}>{s.label}</Text>
             </View>
@@ -423,53 +488,157 @@ export default function SubscriptionsScreen() {
         </View>
       </View>
 
-      {/* ── Add Form ───────────────────────────────────── */}
+      {/* ── Add Route Alert Form ───────────────────────────────────── */}
       {showAdd ? (
-        <Animated.View style={[
-          styles.addCard,
-          { backgroundColor: C.surface, borderColor: C.primary + '44' },
-          { transform: [{ translateY: addPanY }], opacity: addOpacity },
-        ]}>
+        <Animated.View
+          style={[
+            styles.addCard,
+            { backgroundColor: C.surface, borderColor: C.primary + '55' },
+            S.card,
+            { transform: [{ translateY: addPanY }], opacity: addOpacity },
+          ]}
+        >
           <LinearGradient
             colors={[C.primarySubtle, 'transparent']}
             style={StyleSheet.absoluteFillObject}
           />
+
           <View style={styles.addCardHeader}>
-            <View style={[styles.addCardIcon, { backgroundColor: C.primarySubtle }]}>
-              <Ionicons name="notifications" size={18} color={C.primary} />
+            <View style={[styles.addCardIcon, { backgroundColor: C.primaryDark }]}>
+              <Feather name="bell" size={16} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.addCardTitle, { color: C.textPrimary }]}>New Route Alert</Text>
+              <Text style={[styles.addCardTitle, { color: C.textPrimary }]}>Create Route Alert</Text>
               <Text style={[styles.addCardSub, { color: C.textMuted }]}>
-                Notified whenever a trip or parcel appears
+                Get instantly notified when trips or parcels match
               </Text>
             </View>
-            {fromCity && toCity ? (
-              <View style={[styles.routePreview, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
-                <Text style={[styles.routePreviewText, { color: C.primary }]}>{fromCity} → {toCity}</Text>
-              </View>
-            ) : null}
           </View>
 
-          <CityPicker label="FROM CITY" selected={fromCity} onSelect={setFromCity} excluded={toCity} C={C} />
-          <CityPicker label="TO CITY" selected={toCity} onSelect={setToCity} excluded={fromCity} C={C} />
+          {/* City Pickers with Quick Swap */}
+          <View style={styles.inputContainer}>
+            <Pressable
+              style={[
+                styles.citySelector,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              ]}
+              onPress={() => {
+                Haptic.tap();
+                setCityPickerTarget('from');
+              }}
+            >
+              <View style={[styles.cityDot, { backgroundColor: C.success }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.citySelectorLabel, { color: C.textMuted }]}>FROM CITY</Text>
+                <Text
+                  style={[
+                    styles.citySelectorValue,
+                    { color: fromCity ? C.textPrimary : C.textMuted },
+                  ]}
+                >
+                  {fromCity || 'Select Origin City'}
+                </Text>
+              </View>
+              <Feather name="chevron-down" size={16} color={C.textMuted} />
+            </Pressable>
 
+            {/* Quick Swap Icon Button */}
+            <Pressable
+              style={[
+                styles.swapButton,
+                { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              ]}
+              onPress={handleSwapCities}
+            >
+              <Feather name="repeat" size={14} color={C.primary} />
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.citySelector,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              ]}
+              onPress={() => {
+                Haptic.tap();
+                setCityPickerTarget('to');
+              }}
+            >
+              <View style={[styles.cityDot, { backgroundColor: C.error }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.citySelectorLabel, { color: C.textMuted }]}>TO CITY</Text>
+                <Text
+                  style={[
+                    styles.citySelectorValue,
+                    { color: toCity ? C.textPrimary : C.textMuted },
+                  ]}
+                >
+                  {toCity || 'Select Destination City'}
+                </Text>
+              </View>
+              <Feather name="chevron-down" size={16} color={C.textMuted} />
+            </Pressable>
+          </View>
+
+          {/* Popular Corridors Quick Chips */}
+          <View style={styles.popularSection}>
+            <Text style={[styles.popularLabel, { color: C.textMuted }]}>POPULAR CORRIDORS</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {POPULAR_CORRIDORS.map((c, i) => (
+                <Pressable
+                  key={i}
+                  style={[
+                    styles.corridorChip,
+                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                    fromCity === c.from && toCity === c.to && {
+                      backgroundColor: C.primaryDark,
+                      borderColor: C.primaryDark,
+                    },
+                  ]}
+                  onPress={() => {
+                    Haptic.select();
+                    setFromCity(c.from);
+                    setToCity(c.to);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.corridorChipText,
+                      { color: fromCity === c.from && toCity === c.to ? '#fff' : C.textSecondary },
+                    ]}
+                  >
+                    {c.from} → {c.to}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Activate Button */}
           <Pressable
             style={({ pressed }) => [
-              styles.saveBtn,
+              styles.activateBtn,
               { backgroundColor: fromCity && toCity ? C.primaryDark : C.surfaceElevated },
-              pressed && { opacity: 0.85 },
+              pressed && { opacity: 0.88 },
             ]}
             onPress={handleAdd}
             disabled={saving || !fromCity || !toCity}
           >
             {saving ? (
-              <ActivityIndicator color={C.textInverse} size="small" />
+              <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Ionicons name="notifications" size={16} color={fromCity && toCity ? C.textInverse : C.textMuted} />
-                <Text style={[styles.saveBtnText, { color: fromCity && toCity ? C.textInverse : C.textMuted }]}>
-                  Subscribe to Route
+                <Feather
+                  name="bell"
+                  size={16}
+                  color={fromCity && toCity ? '#fff' : C.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.activateBtnText,
+                    { color: fromCity && toCity ? '#fff' : C.textMuted },
+                  ]}
+                >
+                  Activate Route Alert
                 </Text>
               </>
             )}
@@ -477,11 +646,11 @@ export default function SubscriptionsScreen() {
         </Animated.View>
       ) : null}
 
-      {/* ── List ───────────────────────────────────────── */}
+      {/* ── Subscriptions FlashList ────────────────────────────────── */}
       {loading ? (
         <View style={styles.loadingState}>
           <ActivityIndicator color={C.primary} size="large" />
-          <Text style={[styles.loadingText, { color: C.textMuted }]}>Loading subscriptions...</Text>
+          <Text style={[styles.loadingText, { color: C.textMuted }]}>Loading route alerts...</Text>
         </View>
       ) : (
         <AppErrorBoundary>
@@ -489,7 +658,7 @@ export default function SubscriptionsScreen() {
             data={subs}
             keyExtractor={s => s.id}
             renderItem={renderSubItem}
-            estimatedItemSize={120}
+            estimatedItemSize={140}
             contentContainerStyle={styles.list as any}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -499,35 +668,63 @@ export default function SubscriptionsScreen() {
                 tintColor={C.primary}
               />
             }
-            ListHeaderComponent={subs.length > 0 ? (
-              <View style={[styles.pollBanner, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-                <View style={[styles.pollDot, { backgroundColor: C.success }]} />
-                <Text style={[styles.pollBannerText, { color: C.primary }]}>
-                  Live route updates enabled · Pull to refresh
-                </Text>
-              </View>
-            ) : null}
-            ListEmptyComponent={() => (
-              <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-                <View style={[styles.emptyIconBox, { backgroundColor: C.primarySubtle }]}>
-                  <MaterialIcons name="notifications-off" size={40} color={C.primary} />
+            ListHeaderComponent={
+              subs.length > 0 ? (
+                <View
+                  style={[
+                    styles.pollBanner,
+                    { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' },
+                  ]}
+                >
+                  <View style={[styles.pollDot, { backgroundColor: C.success }]} />
+                  <Text style={[styles.pollBannerText, { color: C.primary }]}>
+                    Active corridors receive real-time push alerts as soon as packages or trips are posted.
+                  </Text>
                 </View>
-                <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No route alerts</Text>
+              ) : null
+            }
+            ListEmptyComponent={() => (
+              <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+                <View style={[styles.emptyIconBox, { backgroundColor: C.primarySubtle }]}>
+                  <Feather name="bell-off" size={36} color={C.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Route Alerts Active</Text>
                 <Text style={[styles.emptySub, { color: C.textMuted }]}>
-                  Subscribe to routes you care about and get instantly notified when trips or parcels appear.
+                  Set up route alerts for your frequent travel corridors to get notified whenever senders post matching deliveries.
                 </Text>
                 <Pressable
-                  style={({ pressed }) => [styles.emptyCta, { backgroundColor: C.primaryDark, opacity: pressed ? 0.85 : 1 }]}
+                  style={({ pressed }) => [
+                    styles.emptyCta,
+                    { backgroundColor: C.primaryDark, opacity: pressed ? 0.88 : 1 },
+                  ]}
                   onPress={toggleAddForm}
                 >
-                  <MaterialIcons name="add" size={16} color={C.textInverse} />
-                  <Text style={styles.emptyCtaText}>Add First Alert</Text>
+                  <Feather name="plus" size={16} color="#fff" />
+                  <Text style={styles.emptyCtaText}>Create Your First Route Alert</Text>
                 </Pressable>
               </View>
             )}
           />
         </AppErrorBoundary>
       )}
+
+      {/* ── City Select Modal ─────────────────────────────────────── */}
+      <CitySelectModal
+        visible={cityPickerTarget !== null}
+        title={cityPickerTarget === 'from' ? 'Select Origin City' : 'Select Destination City'}
+        subtitle="Search Indian cities or choose popular corridors"
+        selectedCity={cityPickerTarget === 'from' ? fromCity : toCity}
+        dotColor={cityPickerTarget === 'from' ? C.success : C.error}
+        onClose={() => setCityPickerTarget(null)}
+        onSelect={(city) => {
+          if (cityPickerTarget === 'from') {
+            setFromCity(city);
+          } else {
+            setToCity(city);
+          }
+          setCityPickerTarget(null);
+        }}
+      />
     </View>
   );
 }
@@ -545,20 +742,26 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   backBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
+  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   headerSub: { fontSize: FontSize.xs, marginTop: 2 },
   addButton: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 
-  statsBar: { flexDirection: 'row', gap: Spacing.sm },
+  statsBar: { flexDirection: 'row', gap: Spacing.xs },
   statChip: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: Spacing.sm, paddingVertical: 8,
-    borderRadius: BorderRadius.md, borderWidth: 1, justifyContent: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.xs + 2,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    justifyContent: 'center',
   },
-  statChipVal: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  statChipVal: { fontSize: FontSize.xs + 1, fontWeight: FontWeight.bold },
   statChipLabel: { fontSize: 9, fontWeight: FontWeight.medium },
 
-  // Add form
+  // Add Card
   addCard: {
     margin: Spacing.md,
     borderRadius: BorderRadius.xl,
@@ -567,103 +770,199 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     overflow: 'hidden',
   },
-  addCardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  addCardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  addCardTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  addCardSub: { fontSize: FontSize.xs, marginTop: 2 },
-  routePreview: {
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: BorderRadius.full, borderWidth: 1, flexShrink: 0,
-  },
-  routePreviewText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  addCardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  addCardIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  addCardTitle: { fontSize: FontSize.sm + 1, fontWeight: FontWeight.bold },
+  addCardSub: { fontSize: FontSize.xs, marginTop: 1 },
 
-  pickerSection: { gap: Spacing.sm },
-  pickerLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, letterSpacing: 0.6 },
-  cityRow: { flexDirection: 'row', gap: Spacing.sm },
-  cityChip: {
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: BorderRadius.full, borderWidth: 1,
+  inputContainer: { gap: Spacing.xs, position: 'relative' },
+  citySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
   },
-  cityChipText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-
-  saveBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: BorderRadius.md, paddingVertical: Spacing.md,
-  },
-  saveBtnText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-
-  // Poll banner
-  pollBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderRadius: BorderRadius.md, borderWidth: 1,
-    paddingHorizontal: Spacing.md, paddingVertical: 8,
-    marginBottom: Spacing.sm,
-  },
-  pollDot: { width: 7, height: 7, borderRadius: 4 },
-  pollBannerText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-
-  // Sub card
-  subCard: {
-    borderRadius: BorderRadius.xl, borderWidth: 1,
-    overflow: 'hidden', flexDirection: 'row',
-  },
-  subAccent: { width: 4 },
-  subInner: { flex: 1, padding: Spacing.md, gap: Spacing.sm },
-  subRouteRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  subIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  routePills: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  routePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.full,
-  },
-  routeDot: { width: 5, height: 5, borderRadius: 3 },
-  routePillText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  subSince: { fontSize: 10, marginTop: 3 },
-
-  matchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: Spacing.sm + 4, paddingVertical: 8,
-    borderRadius: BorderRadius.md, borderWidth: 1,
-  },
-  matchBarText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  matchBadge: {
-    width: 20, height: 20, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  matchBadgeText: { fontSize: 10, color: '#fff', fontWeight: FontWeight.bold },
-
-  subActions: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
-  viewMatchesBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-    paddingVertical: Spacing.sm + 2, borderRadius: BorderRadius.md,
-  },
-  viewMatchesBtnText: { fontSize: FontSize.xs, color: '#fff', fontWeight: FontWeight.bold },
-  deleteBtn: {
-    width: 38, height: 38, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
+  citySelectorLabel: { fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5 },
+  citySelectorValue: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, marginTop: 2 },
+  cityDot: { width: 8, height: 8, borderRadius: 4 },
+  swapButton: {
+    position: 'absolute',
+    right: Spacing.md,
+    top: '50%',
+    marginTop: -16,
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
   },
 
+  popularSection: { gap: Spacing.xs },
+  popularLabel: { fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5 },
+  corridorChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  corridorChipText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
+
+  activateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md - 2,
+  },
+  activateBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+
+  // Poll Banner
+  pollBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    marginBottom: Spacing.sm,
+  },
+  pollDot: { width: 6, height: 6, borderRadius: 3 },
+  pollBannerText: { flex: 1, fontSize: 10, fontWeight: FontWeight.medium, lineHeight: 14 },
+
+  // Sub Card
+  subCard: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  subAccent: { width: 4 },
+  subInner: { flex: 1, padding: Spacing.md, gap: Spacing.sm },
+  subHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  routePillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  routePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  routeDot: { width: 6, height: 6, borderRadius: 3 },
+  routePillText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  subDate: { fontSize: 10 },
+
+  matchBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  flameIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchBannerTitle: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  matchBannerSub: { fontSize: 10, marginTop: 1 },
+  viewLink: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  viewLinkText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+
+  noMatchBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  noMatchText: { fontSize: 10 },
+
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    paddingTop: Spacing.xs + 2,
+    marginTop: 2,
+  },
+  browseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  browseBtnText: { fontSize: 10, fontWeight: FontWeight.bold },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  deleteBtnText: { fontSize: 10, fontWeight: FontWeight.bold },
+
   // Loading
-  loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  loadingState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
   loadingText: { fontSize: FontSize.sm },
 
-  // List
   list: { padding: Spacing.md },
 
   // Empty
   emptyWrap: {
-    borderRadius: BorderRadius.xl, borderWidth: 1,
-    paddingVertical: 48, paddingHorizontal: Spacing.xl,
-    alignItems: 'center', gap: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    paddingVertical: 40,
+    paddingHorizontal: Spacing.xl,
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
   },
-  emptyIconBox: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold },
-  emptySub: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20, maxWidth: 270 },
+  emptyIconBox: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
+  emptySub: { fontSize: FontSize.xs, textAlign: 'center', lineHeight: 18, maxWidth: 280 },
   emptyCta: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 4,
-    borderRadius: BorderRadius.full, marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.full,
+    marginTop: 4,
   },
-  emptyCtaText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: '#fff' },
+  emptyCtaText: { fontSize: FontSize.xs + 1, fontWeight: FontWeight.bold, color: '#fff' },
 });

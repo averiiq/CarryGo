@@ -10,11 +10,10 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAlert } from '@/template';
 import { AsyncStateCard, OfflineBanner } from '@/components';
 import {
-  flattenInfiniteData,
-  useParcelsQuery,
-  useTripsQuery,
   useUpdateParcelStatusMutation,
   useUpdateTripStatusMutation,
+  useUserParcelsQuery,
+  useUserTripsQuery,
 } from '@/features/listings/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
@@ -82,8 +81,8 @@ export default function MyActivityScreen() {
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
   const { isOnline } = useNetworkStatus();
-  const tripsQuery = useTripsQuery(Boolean(user));
-  const parcelsQuery = useParcelsQuery(Boolean(user));
+  const userTripsQuery = useUserTripsQuery(user?.id);
+  const userParcelsQuery = useUserParcelsQuery(user?.id);
   const requestsQuery = useRequestsQuery(user?.id);
   const updateTripStatusMutation = useUpdateTripStatusMutation(user?.id);
   const updateParcelStatusMutation = useUpdateParcelStatusMutation(user?.id);
@@ -91,19 +90,17 @@ export default function MyActivityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const tabAnim = useRef(new Animated.Value(0)).current;
 
-  const trips = user ? flattenInfiniteData(tripsQuery.data) : [];
-  const parcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
+  const myTrips = user ? (userTripsQuery.data ?? []) : [];
+  const myParcels = user ? (userParcelsQuery.data ?? []) : [];
   const requests = user ? requestsQuery.data ?? [] : [];
-  const myTrips = trips.filter(t => t.userId === user?.id);
-  const myParcels = parcels.filter(p => p.userId === user?.id);
   const myRequests = requests.filter(r => r.senderId === user?.id || r.travellerId === user?.id);
-  const isInitialLoading = tripsQuery.isLoading || parcelsQuery.isLoading || requestsQuery.isLoading;
-  const activityError = tripsQuery.error || parcelsQuery.error || requestsQuery.error;
+  const isInitialLoading = userTripsQuery.isLoading || userParcelsQuery.isLoading || requestsQuery.isLoading;
+  const activityError = userTripsQuery.error || userParcelsQuery.error || requestsQuery.error;
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([tripsQuery.refetch(), parcelsQuery.refetch(), requestsQuery.refetch()]);
+      await Promise.all([userTripsQuery.refetch(), userParcelsQuery.refetch(), requestsQuery.refetch()]);
     } finally { setRefreshing(false); }
   };
 
@@ -260,7 +257,7 @@ export default function MyActivityScreen() {
           onDeleteTrip={handleDeleteTrip}
           onRepostTrip={handleRepostTrip}
           onEmptyCta={() => router.push('/create-trip')}
-          refreshing={refreshing || tripsQuery.isRefetching || requestsQuery.isRefetching}
+          refreshing={refreshing || userTripsQuery.isRefetching || requestsQuery.isRefetching}
           onRefresh={handleRefresh}
           listHeader={listHeader}
           C={C}
@@ -273,7 +270,7 @@ export default function MyActivityScreen() {
           onDeleteParcel={handleDeleteParcel}
           onRepostParcel={handleRepostParcel}
           onEmptyCta={() => router.push('/create-parcel')}
-          refreshing={refreshing || parcelsQuery.isRefetching || requestsQuery.isRefetching}
+          refreshing={refreshing || userParcelsQuery.isRefetching || requestsQuery.isRefetching}
           onRefresh={handleRefresh}
           listHeader={listHeader}
           C={C}

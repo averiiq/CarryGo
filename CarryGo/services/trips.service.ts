@@ -175,3 +175,16 @@ export async function updateTripStatus(tripId: string, status: Trip['status'], u
   if (error) return { error: error.message };
   return { error: null };
 }
+
+export async function fetchUserTrips(userId: string): Promise<{ data: Trip[] | null; error: string | null }> {
+  if (!userId) return { data: [], error: null };
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('trips')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) return { data: null, error: error.message };
+  return { data: (data || []).map(mapRow), error: null };
+}
+

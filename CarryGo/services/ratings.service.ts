@@ -111,3 +111,14 @@ export async function hasRated(fromUserId: string, requestId: string): Promise<b
   const { data } = await sb.from('ratings').select('id').eq('from_user_id', fromUserId).eq('request_id', requestId).single();
   return !!data;
 }
+
+export async function fetchUserRatedRequestIds(fromUserId: string): Promise<string[]> {
+  if (!fromUserId) return [];
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('ratings')
+    .select('request_id')
+    .eq('from_user_id', fromUserId);
+  if (error || !data) return [];
+  return data.map((r: any) => r.request_id).filter(Boolean);
+}

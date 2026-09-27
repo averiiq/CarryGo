@@ -64,6 +64,49 @@ export async function verifyRazorpayPayment(params: {
   return { data, error: null };
 }
 
+export async function fetchPaymentById(paymentId: string) {
+  if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('payments')
+    .select('*')
+    .eq('id', paymentId)
+    .maybeSingle();
+
+  if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: null };
+
+  return { data: mapRow(data), error: null };
+}
+
+export async function fetchPaymentByRequestOrId(identifier: string) {
+  if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
+  const sb = getSupabaseClient();
+  
+  let { data, error } = await sb
+    .from('payments')
+    .select('*')
+    .eq('request_id', identifier)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) {
+    const res = await sb
+      .from('payments')
+      .select('*')
+      .eq('id', identifier)
+      .maybeSingle();
+    data = res.data;
+    error = res.error;
+  }
+
+  if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: null };
+
+  return { data: mapRow(data), error: null };
+}
+
 export async function fetchPaymentByRequest(requestId: string) {
   if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
   const sb = getSupabaseClient();

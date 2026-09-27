@@ -43,6 +43,7 @@ export interface Trip {
   id: string;
   userId: string;
   userName: string;
+  userAvatar?: string;
   userRating: number;
   fromCity: string;
   toCity: string;
@@ -61,6 +62,7 @@ export interface Parcel {
   id: string;
   userId: string;
   userName: string;
+  userAvatar?: string;
   fromCity: string;
   toCity: string;
   category: ParcelCategory;
@@ -82,8 +84,10 @@ export interface Request {
   tripId: string;
   senderId: string;
   senderName: string;
+  senderAvatar?: string;
   travellerId: string;
   travellerName: string;
+  travellerAvatar?: string;
   status: RequestStatus;
   price: number;
   message?: string;

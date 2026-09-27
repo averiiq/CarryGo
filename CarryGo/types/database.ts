@@ -1230,6 +1230,7 @@ export type Database = {
           verified: boolean
           is_deleted?: boolean
           deleted_at?: string | null
+          avatar_url?: string | null
         }
         Insert: {
           city?: string | null
@@ -1258,6 +1259,7 @@ export type Database = {
           verified?: boolean
           is_deleted?: boolean
           deleted_at?: string | null
+          avatar_url?: string | null
         }
         Update: {
           city?: string | null
@@ -1286,6 +1288,7 @@ export type Database = {
           verified?: boolean
           is_deleted?: boolean
           deleted_at?: string | null
+          avatar_url?: string | null
         }
         Relationships: []
       }

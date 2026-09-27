@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
@@ -342,13 +343,23 @@ export default function ProfileScreen() {
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 />
-                <View style={[styles.avatarInner, { backgroundColor: C.surface }]}>
+                <Pressable
+                  onPress={() => {
+                    Haptic.tap();
+                    router.push('/edit-profile');
+                  }}
+                  style={[styles.avatarInner, { backgroundColor: C.surface }]}
+                >
                   <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
-                    <Text style={[styles.avatarText, { color: C.primary }]}>
-                      {displayName.charAt(0).toUpperCase()}
-                    </Text>
+                    {user.avatar ? (
+                      <Image source={{ uri: user.avatar }} style={styles.avatarImage} contentFit="cover" />
+                    ) : (
+                      <Text style={[styles.avatarText, { color: C.primary }]}>
+                        {displayName.charAt(0).toUpperCase()}
+                      </Text>
+                    )}
                   </View>
-                </View>
+                </Pressable>
                 {isKycApproved ? (
                   <View style={[styles.verifiedBadge, { backgroundColor: C.primary, borderColor: C.surface }]}>
                     <MaterialIcons name="check" size={10} color="#fff" />
@@ -773,6 +784,12 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
   avatarText: {
     fontSize: 22,

@@ -8,6 +8,11 @@ export const queryKeys = {
       filters ? ['listings', 'parcels', filters] as const : ['listings', 'parcels'] as const,
     parcel: (parcelId: string) => ['listings', 'parcel', parcelId] as const,
     parcelsByIds: (parcelIds: string[]) => ['listings', 'parcels-by-ids', ...parcelIds] as const,
+    userTrips: (userId: string) => ['listings', 'userTrips', userId] as const,
+    userParcels: (userId: string) => ['listings', 'userParcels', userId] as const,
+  },
+  ratings: {
+    ratedRequestIds: (userId: string) => ['ratings', 'ratedRequestIds', userId] as const,
   },
   requests: {
     all: ['requests'] as const,

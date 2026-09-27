@@ -1,4 +1,4 @@
-import { submitRating, hasRated } from '@/services/ratings.service';
+import { submitRating, hasRated, fetchUserRatedRequestIds } from '@/services/ratings.service';
 import { getSupabaseClient } from '@/template';
 
 jest.mock('@/template', () => ({
@@ -155,6 +155,41 @@ describe('Ratings Service', () => {
 
       const result = await hasRated('user-1', 'req-1');
       expect(result).toBe(false);
+    });
+  });
+
+  describe('fetchUserRatedRequestIds', () => {
+    it('returns array of rated request IDs for a user', async () => {
+      const mockEq = jest.fn().mockResolvedValueOnce({
+        data: [{ request_id: 'req-101' }, { request_id: 'req-102' }],
+        error: null,
+      });
+      const mockSelect = jest.fn().mockReturnValue({ eq: mockEq });
+      mockFrom.mockReturnValue({ select: mockSelect });
+
+      const result = await fetchUserRatedRequestIds('user-1');
+      expect(result).toEqual(['req-101', 'req-102']);
+      expect(mockFrom).toHaveBeenCalledWith('ratings');
+      expect(mockSelect).toHaveBeenCalledWith('request_id');
+      expect(mockEq).toHaveBeenCalledWith('from_user_id', 'user-1');
+    });
+
+    it('returns empty array when user has no ratings or error occurs', async () => {
+      const mockEq = jest.fn().mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Database error' },
+      });
+      const mockSelect = jest.fn().mockReturnValue({ eq: mockEq });
+      mockFrom.mockReturnValue({ select: mockSelect });
+
+      const result = await fetchUserRatedRequestIds('user-1');
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array if userId is empty', async () => {
+      const result = await fetchUserRatedRequestIds('');
+      expect(result).toEqual([]);
+      expect(mockFrom).not.toHaveBeenCalled();
     });
   });
 });

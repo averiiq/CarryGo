@@ -5,7 +5,7 @@ import { recreateUserAccount } from '@/services/account.service';
 import { checkUserPanStatus } from '@/services/kyc.service';
 
 const PROFILE_SELECT =
-  'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, city, profile_completed_at, is_deleted, deleted_at';
+  'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, city, profile_completed_at, is_deleted, deleted_at, avatar_url';
 
 const LEGACY_PROFILE_SELECT =
   'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status';
@@ -19,6 +19,7 @@ interface ProfileRow {
   username?: string | null;
   full_name?: string | null;
   phone?: string | null;
+  avatar_url?: string | null;
   rating?: number | string | null;
   total_ratings?: number | null;
   total_deliveries?: number | null;
@@ -48,6 +49,7 @@ function mapProfileRow(data: ProfileRow): User {
     email: data.email || '',
     phone: data.phone || undefined,
     username: data.username || undefined,
+    avatar: data.avatar_url || undefined,
     rating: (data.total_ratings && data.total_ratings > 0) ? (parseFloat(String(data.rating ?? '0')) || 0) : 0,
     totalRatings: data.total_ratings || 0,
     totalDeliveries: data.total_deliveries || 0,
@@ -246,6 +248,7 @@ export async function updateProfile(
     push_token: string;
     role: UserRole;
     profile_completed_at: string;
+    avatar_url: string;
   }>,
   currentUserId: string
 ) {
@@ -255,6 +258,27 @@ export async function updateProfile(
   const sb = getSupabaseClient();
   const { error } = await sb.from('user_profiles').update(updates).eq('id', userId);
   return { error: error?.message || null };
+}
+
+export async function uploadAndSaveAvatar(
+  userId: string,
+  imageUri: string
+): Promise<{ avatarUrl: string | null; error: string | null }> {
+  try {
+    const { uploadAvatar } = await import('@/services/storage.service');
+    const uploadRes = await uploadAvatar(imageUri, userId);
+    const avatarUrl = uploadRes.data?.cdnUrl || imageUri;
+
+    const { error } = await updateProfile(userId, { avatar_url: avatarUrl }, userId);
+    if (error) return { avatarUrl: null, error };
+    return { avatarUrl, error: null };
+  } catch (err: any) {
+    // Graceful fallback to imageUri in local or offline scenarios
+    const fallbackUrl = imageUri;
+    const { error } = await updateProfile(userId, { avatar_url: fallbackUrl }, userId);
+    if (error) return { avatarUrl: null, error: err?.message || error };
+    return { avatarUrl: fallbackUrl, error: null };
+  }
 }
 
 export async function submitKyc(

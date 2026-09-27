@@ -9,6 +9,7 @@ import {
   fetchRequestsByTripId,
   updateRequestStatus,
 } from '@/services/requests.service';
+import { fetchUserRatedRequestIds } from '@/services/ratings.service';
 import { Request } from '@/types';
 
 function serviceError(message: string | null | undefined, fallback: string) {
@@ -155,6 +156,18 @@ export function useUpdateRequestStatusMutation(userId?: string) {
         queryClient.invalidateQueries({ queryKey: queryKeys.requests.byParcel(updated.parcelId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcel(updated.parcelId) });
       }
+    },
+  });
+}
+
+export function useUserRatedRequestIdsQuery(userId?: string) {
+  return useQuery<string[]>({
+    queryKey: queryKeys.ratings.ratedRequestIds(userId ?? 'anonymous'),
+    enabled: Boolean(userId),
+    staleTime: 30_000,
+    queryFn: async () => {
+      if (!userId) return [];
+      return fetchUserRatedRequestIds(userId);
     },
   });
 }

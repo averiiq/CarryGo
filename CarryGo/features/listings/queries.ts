@@ -7,12 +7,14 @@ import {
   fetchParcelById,
   fetchParcels,
   fetchParcelsByIds,
+  fetchUserParcels,
   updateParcelStatus,
 } from '@/services/parcels.service';
 import {
   createTrip,
   fetchTripById,
   fetchTrips,
+  fetchUserTrips,
   updateTripStatus,
 } from '@/services/trips.service';
 import { fetchActivePromotionalBanners } from '@/services/promotional-banners.service';
@@ -86,6 +88,20 @@ export function useTripQuery(tripId?: string) {
   });
 }
 
+export function useUserTripsQuery(userId?: string, enabled = true) {
+  return useQuery<Trip[]>({
+    queryKey: queryKeys.listings.userTrips(userId ?? 'missing'),
+    enabled: Boolean(userId) && enabled,
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await fetchUserTrips(userId);
+      if (error) throw serviceError(error, 'Failed to load user trips');
+      return data ?? [];
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function useParcelsInfiniteQuery(filters?: { fromCity?: string; toCity?: string }, enabled = true) {
   return useInfiniteQuery<PaginatedResult<Parcel>>({
     queryKey: queryKeys.listings.parcels(filters),
@@ -141,6 +157,20 @@ export function useParcelQuery(parcelId?: string) {
   });
 }
 
+export function useUserParcelsQuery(userId?: string, enabled = true) {
+  return useQuery<Parcel[]>({
+    queryKey: queryKeys.listings.userParcels(userId ?? 'missing'),
+    enabled: Boolean(userId) && enabled,
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await fetchUserParcels(userId);
+      if (error) throw serviceError(error, 'Failed to load user parcels');
+      return data ?? [];
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function useParcelsByIdsQuery(parcelIds: string[]) {
   const stableIds = [...parcelIds].sort();
 
@@ -171,6 +201,9 @@ export function useCreateTripMutation() {
         queryClient.setQueryData(queryKeys.listings.trip(newTrip.id), newTrip);
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
+      if (newTrip?.userId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.listings.userTrips(newTrip.userId) });
+      }
     },
   });
 }
@@ -190,6 +223,9 @@ export function useUpdateTripStatusMutation(userId?: string) {
         current ? { ...current, status: updated.status } : current
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.listings.userTrips(userId) });
+      }
     },
   });
 }
@@ -211,6 +247,9 @@ export function useCreateParcelMutation() {
         queryClient.setQueryData(queryKeys.listings.parcel(newParcel.id), newParcel);
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
+      if (newParcel?.userId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.listings.userParcels(newParcel.userId) });
+      }
     },
   });
 }
@@ -230,6 +269,9 @@ export function useUpdateParcelStatusMutation(userId?: string) {
         current ? { ...current, status: updated.status } : current
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.listings.userParcels(userId) });
+      }
     },
   });
 }
@@ -291,10 +333,23 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
   }, [enabled, queryClient, cityFilter]);
 }
 
-export function filterTrips(trips: Trip[], filters: FilterOptions) {
+export function filterTrips(trips: Trip[], filters: FilterOptions, userCity?: string) {
   return trips.filter(trip => {
+    // 1. NEVER show non-active (completed, cancelled) trips in live marketplace
+    if (trip.status !== 'active') return false;
+
+    // 2. Specific search filter matches
     if (filters.fromCity && !trip.fromCity.toLowerCase().includes(filters.fromCity.toLowerCase())) return false;
     if (filters.toCity && !trip.toCity.toLowerCase().includes(filters.toCity.toLowerCase())) return false;
+
+    // 3. Location filter applied to live marketplace when no specific corridor search is active
+    if (userCity && !filters.fromCity && !filters.toCity) {
+      const city = userCity.toLowerCase().trim();
+      const originMatch = trip.fromCity.toLowerCase().includes(city);
+      const destMatch = trip.toCity.toLowerCase().includes(city);
+      if (!originMatch && !destMatch) return false;
+    }
+
     if (filters.vehicleType && trip.vehicleType !== filters.vehicleType) return false;
     if (filters.dateFrom && trip.date < filters.dateFrom) return false;
     if (filters.dateTo && trip.date > filters.dateTo) return false;
@@ -302,10 +357,23 @@ export function filterTrips(trips: Trip[], filters: FilterOptions) {
   });
 }
 
-export function filterParcels(parcels: Parcel[], filters: FilterOptions) {
+export function filterParcels(parcels: Parcel[], filters: FilterOptions, userCity?: string) {
   return parcels.filter(parcel => {
+    // 1. NEVER show non-open (delivered, matched, in_transit, failed) parcels in live marketplace
+    if (parcel.status !== 'open') return false;
+
+    // 2. Specific search filter matches
     if (filters.fromCity && !parcel.fromCity.toLowerCase().includes(filters.fromCity.toLowerCase())) return false;
     if (filters.toCity && !parcel.toCity.toLowerCase().includes(filters.toCity.toLowerCase())) return false;
+
+    // 3. Location filter applied to live marketplace when no specific corridor search is active
+    if (userCity && !filters.fromCity && !filters.toCity) {
+      const city = userCity.toLowerCase().trim();
+      const originMatch = parcel.fromCity.toLowerCase().includes(city);
+      const destMatch = parcel.toCity.toLowerCase().includes(city);
+      if (!originMatch && !destMatch) return false;
+    }
+
     return true;
   });
 }

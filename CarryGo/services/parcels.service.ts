@@ -208,3 +208,16 @@ export async function updateParcelStatus(parcelId: string, status: Parcel['statu
   if (error) return { error: error.message };
   return { error: null };
 }
+
+export async function fetchUserParcels(userId: string): Promise<{ data: Parcel[] | null; error: string | null }> {
+  if (!userId) return { data: [], error: null };
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('parcels')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) return { data: null, error: error.message };
+  return { data: (data || []).map(mapRow), error: null };
+}
+
