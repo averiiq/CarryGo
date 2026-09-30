@@ -100,7 +100,7 @@ export function useRazorpayCheckout({
       key: order.keyId,
       amount: order.amount,
       currency: order.currency,
-      name: 'Hizli',
+      name: 'CarryGo',
       description: 'Delivery Payment',
       order_id: order.orderId,
       prefill: {
@@ -137,7 +137,7 @@ export function useRazorpayCheckout({
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'Hizli',
+        name: 'CarryGo',
         description: 'Delivery Payment',
         order_id: order.orderId,
         prefill: {

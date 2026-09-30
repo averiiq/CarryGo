@@ -9,13 +9,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Loader2,
-  Eye,
   ArrowUp,
   ArrowDown,
-  Layers,
-  ExternalLink,
   X,
-  Image as ImageIcon,
 } from 'lucide-react'
 import {
   createPromotionalBanner,
@@ -117,9 +113,9 @@ export default function BannerManager({ initialBanners }: { initialBanners: Prom
     setSubtitle(b.subtitle)
     setBadgeText(b.badge_text)
     setBadgeColor(b.badge_color || '#F59E0B')
-    setType((b.type as any) || 'urgent')
+    setType((b.type as BannerInput['type']) || 'urgent')
     setCtaText(b.cta_text || 'Learn More')
-    setCtaAction((b.cta_action as any) || 'create_parcel')
+    setCtaAction((b.cta_action as BannerInput['cta_action']) || 'create_parcel')
 
     if (b.image_url === 'urgentExpress' || b.image_url === 'haryanaRoad' || b.image_url === 'verifiedKyc') {
       setImageUrl(b.image_url)
@@ -209,7 +205,7 @@ export default function BannerManager({ initialBanners }: { initialBanners: Prom
           return
         }
         if (res.data) {
-          setBanners((prev) => [...prev, res.data as any])
+          setBanners((prev) => [...prev, res.data as unknown as PromotionalBannerRow])
           setShowModal(false)
         }
       }
@@ -456,7 +452,7 @@ export default function BannerManager({ initialBanners }: { initialBanners: Prom
                   <label className="block text-xs font-medium text-foreground mb-1">Category Type</label>
                   <select
                     value={type}
-                    onChange={(e) => setType(e.target.value as any)}
+                    onChange={(e) => setType(e.target.value as BannerInput['type'])}
                     className="w-full px-3 py-2 rounded-xl bg-surface-elevated border border-border-subtle text-foreground text-sm focus:outline-none focus:border-primary"
                   >
                     {TYPE_OPTIONS.map((opt) => (
@@ -470,7 +466,7 @@ export default function BannerManager({ initialBanners }: { initialBanners: Prom
                   <label className="block text-xs font-medium text-foreground mb-1">CTA Action</label>
                   <select
                     value={ctaAction}
-                    onChange={(e) => setCtaAction(e.target.value as any)}
+                    onChange={(e) => setCtaAction(e.target.value as BannerInput['cta_action'])}
                     className="w-full px-3 py-2 rounded-xl bg-surface-elevated border border-border-subtle text-foreground text-sm focus:outline-none focus:border-primary"
                   >
                     {ACTION_OPTIONS.map((opt) => (

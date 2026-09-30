@@ -120,8 +120,8 @@ export default function SearchScreen() {
     }).start();
   }, [showFilters, filtersHeight]);
 
-  const trips: Trip[] = user ? flattenInfiniteData(tripsQuery.data) : [];
-  const parcels: Parcel[] = user ? flattenInfiniteData(parcelsQuery.data) : [];
+  const trips: Trip[] = useMemo(() => (user ? flattenInfiniteData(tripsQuery.data) : []), [user, tripsQuery.data]);
+  const parcels: Parcel[] = useMemo(() => (user ? flattenInfiniteData(parcelsQuery.data) : []), [user, parcelsQuery.data]);
   const userRequests = requestsQuery.data || [];
 
   const requestsByTripId = useMemo(() => {
@@ -191,7 +191,20 @@ export default function SearchScreen() {
           const ratingB = b.type === 'trip' ? b.data.userRating : 0;
           return ratingB - ratingA;
         }
-        case 'date_nearest':
+        case 'date_nearest': {
+          const getDateMs = (item: SearchItem): number => {
+            if (item.type === 'trip') {
+              const d = new Date(item.data.date).getTime();
+              return isNaN(d) ? new Date(item.data.createdAt).getTime() : d;
+            } else {
+              const d = item.data.deliveryDate ? new Date(item.data.deliveryDate).getTime() : NaN;
+              return isNaN(d) ? new Date(item.data.createdAt).getTime() : d;
+            }
+          };
+          const timeA = getDateMs(a);
+          const timeB = getDateMs(b);
+          return timeA - timeB;
+        }
         default:
           return new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime();
       }

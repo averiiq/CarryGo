@@ -8,17 +8,9 @@ import {
   UserCheck,
   Star,
   ShieldCheck,
-  ShieldAlert,
-  Phone,
-  Mail,
-  User,
-  Package,
-  Route,
   Loader2,
   ExternalLink,
-  ChevronRight,
   Eye,
-  CheckCircle2,
   AlertCircle,
 } from 'lucide-react'
 import SlideOver from '@/components/SlideOver'

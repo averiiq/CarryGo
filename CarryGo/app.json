@@ -2,7 +2,7 @@
   "expo": {
     "name": "CarryGo",
     "slug": "carrygo",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "carrygo",
@@ -35,7 +35,7 @@
     },
     "android": {
       "package": "in.averiq.carrygo",
-      "versionCode": 12,
+      "versionCode": 13,
       "softwareKeyboardLayoutMode": "resize",
       "allowBackup": false,
       "blockedPermissions": [
@@ -95,6 +95,14 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "CarryGo uses your location to detect your city and match nearby trips and parcels."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/adaptive-icon.png",
+          "color": "#15803d",
+          "defaultChannel": "default"
         }
       ]
     ],

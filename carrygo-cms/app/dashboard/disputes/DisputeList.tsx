@@ -3,23 +3,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
-  User,
-  Package,
-  Calendar,
-  IndianRupee,
-  MessageSquare,
-  Route,
-  ShieldAlert,
   CheckCircle2,
   AlertTriangle,
-  Lock,
   MessagesSquare,
   Search,
   ExternalLink,
   ChevronDown,
   ChevronUp,
   FileText,
-  Clock,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Dispute } from './page'

@@ -92,7 +92,7 @@ export function OtpHandshakeModal({
       const targetId = deliveryId || requestId
 
       // Execute canonical domain command: complete_delivery_command
-      const { data, error: rpcError } = await supabase.rpc('complete_delivery_command', {
+      const { error: rpcError } = await supabase.rpc('complete_delivery_command', {
         p_delivery_id: targetId,
         p_otp: cleanOtp,
       })

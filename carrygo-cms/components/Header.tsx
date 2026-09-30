@@ -19,6 +19,8 @@ const routeTitles: Record<string, string> = {
   '/dashboard/disputes': 'Disputes',
   '/dashboard/support': 'Support',
   '/dashboard/bulk': 'Bulk Operations',
+  '/dashboard/notifications': 'System Notifications',
+  '/dashboard/banners': 'Promotional Banners',
   '/dashboard/audit': 'Audit Log',
   '/dashboard/settings': 'Settings',
 }

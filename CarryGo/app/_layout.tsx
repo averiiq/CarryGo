@@ -18,6 +18,7 @@ import { LightColors, BorderRadius, FontSize, FontWeight, Spacing } from '@/cons
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { UpdateBanner } from '@/components/feature/UpdateBanner';
+import { useNotifications } from '@/hooks/useNotifications';
 
 initMonitoring();
 setupGlobalErrorHandlers();
@@ -85,6 +86,7 @@ function AppShell() {
 
   return (
     <View style={{ flex: 1 }}>
+      <NotificationRootListener />
       <UpdateBanner />
       {!isOnline ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 12, backgroundColor: C.background }}>
@@ -94,6 +96,11 @@ function AppShell() {
       <AppStack />
     </View>
   );
+}
+
+function NotificationRootListener() {
+  useNotifications();
+  return null;
 }
 
 function AppStack() {

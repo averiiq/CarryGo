@@ -66,7 +66,10 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
         {/* Credentials Form */}
         <form
           action={login}
-          onSubmit={() => setLoading(true)}
+          onSubmit={() => {
+            setErrorMsg('')
+            setLoading(true)
+          }}
           className="space-y-4"
         >
           <input type="hidden" name="next" value={nextPath} />

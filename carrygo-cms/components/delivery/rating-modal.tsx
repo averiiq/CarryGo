@@ -37,7 +37,7 @@ export function RatingModal({
 
     try {
       const supabase = createClient()
-      const { data, error: rpcErr } = await supabase.rpc('submit_rating_command', {
+      const { error: rpcErr } = await supabase.rpc('submit_rating_command', {
         p_request_id: requestId,
         p_to_user_id: toUserId,
         p_rating: rating,

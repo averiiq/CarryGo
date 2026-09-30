@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { motion } from 'framer-motion'
-import { MapPin, Navigation, Clock, ShieldCheck, Zap } from 'lucide-react'
+import { MapPin, Navigation, Clock } from 'lucide-react'
 
 interface RouteCorridorIllustrationProps {
   fromCity?: string
@@ -19,8 +19,6 @@ export function RouteCorridorIllustration({
   distance = '112 km',
   className = '',
 }: RouteCorridorIllustrationProps) {
-  const [activeSpeed, setActiveSpeed] = useState<'normal' | 'express'>('normal')
-
   return (
     <div
       className={`relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-surface via-surface-elevated/60 to-surface p-5 sm:p-6 shadow-bento ${className}`}
@@ -91,7 +89,7 @@ export function RouteCorridorIllustration({
               cy: [110, 52, 45, 52, 110],
             }}
             transition={{
-              duration: activeSpeed === 'express' ? 2 : 4,
+              duration: 3.5,
               repeat: Infinity,
               ease: 'easeInOut',
             }}

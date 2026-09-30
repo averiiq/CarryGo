@@ -36,7 +36,19 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
     console.error('Failed to load support tickets:', error)
   }
 
-  const mappedTickets = (ticketsData as any[])?.map((ticket) => {
+  interface TicketRow {
+    id: string
+    user_id: string
+    assigned_to?: string | null
+    subject: string
+    description: string
+    status: string
+    created_at: string
+    user_profiles?: { full_name?: string | null; email?: string | null; phone?: string | null } | { full_name?: string | null; email?: string | null; phone?: string | null }[]
+    assignee?: { full_name?: string | null; email?: string | null } | { full_name?: string | null; email?: string | null }[]
+  }
+
+  const mappedTickets = (ticketsData as unknown as TicketRow[])?.map((ticket) => {
     const profile = Array.isArray(ticket.user_profiles)
       ? ticket.user_profiles[0]
       : ticket.user_profiles

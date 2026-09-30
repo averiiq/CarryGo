@@ -941,7 +941,7 @@ function DeliveryScreenInner() {
           <View style={styles.supportFooter}>
             <Feather name="lock" size={12} color={C.textMuted} />
             <Text style={[styles.supportFooterText, { color: C.textMuted }]}>
-              Hizli 2-Factor OTP verification guarantees safe handoff and payout release.
+              CarryGo 2-Factor OTP verification guarantees safe handoff and payout release.
             </Text>
           </View>
         </Animated.ScrollView>

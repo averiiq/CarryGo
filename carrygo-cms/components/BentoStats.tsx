@@ -1,11 +1,11 @@
 'use client'
 
 import AnalyticsCard from './AnalyticsCard'
-import { Users, Navigation, Package, FileCheck, AlertTriangle } from 'lucide-react'
+import { Users, Navigation, Package, FileCheck, AlertTriangle, CreditCard, Sparkles, HeadphonesIcon } from 'lucide-react'
 
 type Trend = 'up' | 'down' | 'neutral'
 
-type IconName = 'Users' | 'Navigation' | 'Package' | 'FileCheck' | 'AlertTriangle'
+type IconName = 'Users' | 'Navigation' | 'Package' | 'FileCheck' | 'AlertTriangle' | 'CreditCard' | 'Sparkles' | 'HeadphonesIcon'
 
 const iconMap: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Users,
@@ -13,6 +13,9 @@ const iconMap: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Package,
   FileCheck,
   AlertTriangle,
+  CreditCard,
+  Sparkles,
+  HeadphonesIcon,
 }
 
 interface StatItem {

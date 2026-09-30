@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, SendHorizonal, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
@@ -39,59 +39,72 @@ export function ChatThread({ conversationId }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const loadThread = useCallback(async () => {
-    try {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  useEffect(() => {
+    let active = true
 
-      if (!user) {
-        setError('Please sign in to access this conversation.')
-        setIsLoading(false)
-        return
+    async function fetchThread() {
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!active) return
+
+        if (!user) {
+          setError('Please sign in to access this conversation.')
+          setIsLoading(false)
+          return
+        }
+
+        setCurrentUserId(user.id)
+        setCurrentUserName((user.user_metadata?.full_name as string) || user.email?.split('@')[0] || 'User')
+
+        const [conversationRes, messagesRes] = await Promise.all([
+          supabase
+            .from('conversations')
+            .select('id, route, parcel_description, participant_ids')
+            .eq('id', conversationId)
+            .maybeSingle(),
+          supabase
+            .from('messages')
+            .select('id, sender_id, sender_name, text, created_at')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true }),
+        ])
+
+        if (!active) return
+
+        if (conversationRes.error) {
+          setError(conversationRes.error.message)
+          setIsLoading(false)
+          return
+        }
+        if (messagesRes.error) {
+          setError(messagesRes.error.message)
+          setIsLoading(false)
+          return
+        }
+
+        setConversation(conversationRes.data as Conversation)
+        setMessages((messagesRes.data ?? []) as Message[])
+        setError(null)
+      } catch (err) {
+        if (!active) return
+        setError(err instanceof Error ? err.message : 'Unable to load chat')
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
       }
+    }
 
-      setCurrentUserId(user.id)
-      setCurrentUserName((user.user_metadata?.full_name as string) || user.email?.split('@')[0] || 'User')
+    void fetchThread()
 
-      const [conversationRes, messagesRes] = await Promise.all([
-        supabase
-          .from('conversations')
-          .select('id, route, parcel_description, participant_ids')
-          .eq('id', conversationId)
-          .maybeSingle(),
-        supabase
-          .from('messages')
-          .select('id, sender_id, sender_name, text, created_at')
-          .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: true }),
-      ])
-
-      if (conversationRes.error) {
-        setError(conversationRes.error.message)
-        setIsLoading(false)
-        return
-      }
-      if (messagesRes.error) {
-        setError(messagesRes.error.message)
-        setIsLoading(false)
-        return
-      }
-
-      setConversation(conversationRes.data as Conversation)
-      setMessages((messagesRes.data ?? []) as Message[])
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load chat')
-    } finally {
-      setIsLoading(false)
+    return () => {
+      active = false
     }
   }, [conversationId])
-
-  useEffect(() => {
-    void loadThread()
-  }, [loadThread])
 
   useEffect(() => {
     scrollToBottom()
@@ -137,7 +150,7 @@ export function ChatThread({ conversationId }: Props) {
       const supabase = createClient()
 
       // Try RPC first if available, or direct insert
-      const { data, error: rpcError } = await supabase.rpc('send_chat_message_command', {
+      const { error: rpcError } = await supabase.rpc('send_chat_message_command', {
         p_conversation_id: conversationId,
         p_text: text,
       })

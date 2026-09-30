@@ -2,6 +2,7 @@ import { getSupabaseClient } from '@/template';
 import { Trip } from '@/types';
 import type { Database } from '@/types/database';
 import { sanitizeLikeInput } from '@/lib/sanitize';
+import { validateUUID } from '@/lib/validation';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { isAwsBackendEnabled } from '@/lib/backend/provider';
 import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
@@ -93,6 +94,11 @@ export async function fetchTrips(filters?: {
 }
 
 export async function fetchTripById(tripId: string) {
+  const idValidation = validateUUID(tripId);
+  if (!idValidation.valid) {
+    return { data: null, error: idValidation.error || 'Invalid trip ID' };
+  }
+
   if (isAwsBackendEnabled()) {
     try {
       const response = await awsApiRequest<{ data: Trip }>(`/trips/${tripId}`);

@@ -102,7 +102,6 @@ export default function CreateParcelScreen() {
   const [showKyc, setShowKyc] = useState(false);
   const isKycApproved = Boolean(
     user?.kycStatus === 'approved' ||
-    user?.kycStatus === 'submitted' ||
     user?.verified ||
     user?.isAadhaarVerified
   );

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useId } from 'react'
 import { MapPin, Check, ChevronDown } from 'lucide-react'
-import { searchCities, findCity, type IndianCity } from '@/lib/indian-cities'
+import { searchCities, type IndianCity } from '@/lib/indian-cities'
 
 interface CityAutocompleteProps {
   id?: string
@@ -32,15 +32,17 @@ export function CityAutocomplete({
   const generatedId = useId()
   const inputId = id || generatedId
   const [query, setQuery] = useState(value)
+  const [prevValue, setPrevValue] = useState(value)
   const [isOpen, setIsOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Sync external value changes
-  useEffect(() => {
+  // Adjust state during render when prop changes
+  if (value !== prevValue) {
+    setPrevValue(value)
     setQuery(value)
-  }, [value])
+  }
 
   const suggestions = searchCities(query, 6)
 

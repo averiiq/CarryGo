@@ -276,6 +276,8 @@ export function useUpdateParcelStatusMutation(userId?: string) {
   });
 }
 
+let listingsChannelInstance = 0;
+
 export function useListingsRealtime(enabled = true, cityFilter?: string) {
   const queryClient = useQueryClient();
 
@@ -284,6 +286,7 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
 
     let mounted = true;
     const sb = getSupabaseClient();
+    const instance = ++listingsChannelInstance;
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -298,37 +301,49 @@ export function useListingsRealtime(enabled = true, cityFilter?: string) {
     };
 
     const suffix = cityFilter || 'all';
-    // Single combined channel for both tables — reduces Supabase channel overhead
-    let combinedChannel = sb.channel(`listings-combined:${suffix}`);
+    let combinedChannel: ReturnType<typeof sb.channel> | null = null;
 
-    if (cityFilter) {
-      const fromFilter = `from_city=eq.${cityFilter}`;
-      const toFilter = `to_city=eq.${cityFilter}`;
-      combinedChannel = combinedChannel
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: fromFilter }, invalidateAll)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: fromFilter }, invalidateAll)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: fromFilter }, invalidateAll)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: toFilter }, invalidateAll)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: fromFilter }, invalidateAll)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: toFilter }, invalidateAll);
-    } else {
-      combinedChannel = combinedChannel
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips' }, invalidateAll)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips' }, invalidateAll)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels' }, invalidateAll)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels' }, invalidateAll);
-    }
+    try {
+      // Single combined channel for both tables with unique instance ID
+      combinedChannel = sb.channel(`listings-combined:${suffix}:${instance}_${Date.now()}`);
 
-    combinedChannel.subscribe(() => {
-      if (!mounted) void sb.removeChannel(combinedChannel);
-    });
+      if (cityFilter) {
+        const fromFilter = `from_city=eq.${cityFilter}`;
+        const toFilter = `to_city=eq.${cityFilter}`;
+        combinedChannel = combinedChannel
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: fromFilter }, invalidateAll)
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: fromFilter }, invalidateAll)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips', filter: toFilter }, invalidateAll)
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: fromFilter }, invalidateAll)
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels', filter: toFilter }, invalidateAll)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: fromFilter }, invalidateAll)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels', filter: toFilter }, invalidateAll);
+      } else {
+        combinedChannel = combinedChannel
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips' }, invalidateAll)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips' }, invalidateAll)
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parcels' }, invalidateAll)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'parcels' }, invalidateAll);
+      }
+
+      combinedChannel.subscribe((status) => {
+        if (!mounted && combinedChannel) {
+          try {
+            void sb.removeChannel(combinedChannel);
+          } catch {}
+        }
+      });
+    } catch {}
 
     return () => {
       mounted = false;
       if (debounceTimer) clearTimeout(debounceTimer);
-      void sb.removeChannel(combinedChannel);
+      if (combinedChannel) {
+        try {
+          void sb.removeChannel(combinedChannel);
+        } catch {}
+      }
     };
   }, [enabled, queryClient, cityFilter]);
 }

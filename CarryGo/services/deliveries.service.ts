@@ -34,20 +34,19 @@ function mapRow(row: ExtendedDeliveryRow): Delivery {
 }
 
 /**
- * Generate a consistent deterministic numeric code from a seed string.
- * Used as a fallback when database writes or RPCs are unavailable, ensuring
- * both sender and traveller arrive at the exact same OTP.
+ * Generate a random numeric code.
+ */
+export function generateRandomOtp(length: number = 4): string {
+  const min = Math.pow(10, length - 1);
+  const max = Math.pow(10, length);
+  return String(Math.floor(min + Math.random() * (max - min)));
+}
+
+/**
+ * @deprecated Kept for backwards compatibility only.
  */
 export function generateDeterministicOtp(seed: string, length: number = 4): string {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
-    hash |= 0;
-  }
-  const max = Math.pow(10, length);
-  const min = Math.pow(10, length - 1);
-  const code = Math.abs(hash) % (max - min) + min;
-  return String(code);
+  return generateRandomOtp(length);
 }
 
 export async function createDelivery(requestId: string) {
@@ -118,7 +117,6 @@ export async function fetchOrCreateDelivery(
     pickupConfirmed: false,
     deliveryConfirmed: false,
     status: 'awaiting_pickup',
-    pickupOtp: generateDeterministicOtp(requestId, 4),
     createdAt: new Date().toISOString(),
   };
 
@@ -168,10 +166,8 @@ export async function getOrIssuePickupOtp(
     // continue to table fallback
   }
 
-  // 3. Fallback: generate code (random if user clicked refresh, or deterministic)
-  const generatedCode = forceFresh
-    ? String(Math.floor(1000 + Math.random() * 9000))
-    : generateDeterministicOtp(deliveryOrRequestId, 4);
+  // 3. Fallback: generate a fresh random 4-digit code and save to deliveries table
+  const generatedCode = String(Math.floor(1000 + Math.random() * 9000));
 
   // Attempt to save to deliveries table
   try {
@@ -289,7 +285,7 @@ export async function confirmPickupWithOtp(
   }
 
   if (!expectedCode) {
-    expectedCode = generateDeterministicOtp(deliveryOrRequestId, 4);
+    return { data: null, error: 'Pickup verification code is not ready yet. Please ask the sender to view the code.' };
   }
 
   if (cleanOtp !== expectedCode) {
@@ -555,7 +551,28 @@ export async function issueDeliveryOtp(deliveryId: string): Promise<{ data: stri
     console.warn('issue_delivery_otp exception:', err);
   }
 
-  // Fallback 6-digit delivery OTP (deterministic)
-  const code = generateDeterministicOtp(deliveryId + '_delivery', 6);
-  return { data: code, error: null };
+  // Check if deliveries table already has a delivery_otp recorded
+  try {
+    const { data: existing } = await (sb.from('deliveries') as any)
+      .select('delivery_otp')
+      .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`)
+      .maybeSingle();
+    if (existing?.delivery_otp) {
+      return { data: String(existing.delivery_otp), error: null };
+    }
+  } catch {}
+
+  // Generate cryptographically random 6-digit delivery OTP and save to database
+  const randomCode = String(Math.floor(100000 + Math.random() * 900000));
+  try {
+    const { error: updateErr } = await (sb.from('deliveries') as any)
+      .update({ delivery_otp: randomCode })
+      .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`);
+    if (updateErr) {
+      return { data: null, error: 'Unable to issue delivery OTP. Please check your connection.' };
+    }
+    return { data: randomCode, error: null };
+  } catch (saveErr: any) {
+    return { data: null, error: saveErr?.message || 'Unable to issue delivery OTP' };
+  }
 }

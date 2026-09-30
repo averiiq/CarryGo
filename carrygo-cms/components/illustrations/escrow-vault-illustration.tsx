@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
-import { KeyRound, Lock, CheckCircle2, Shield, ArrowRight, Wallet } from 'lucide-react'
+import { KeyRound, Lock, CheckCircle2, Shield, Wallet } from 'lucide-react'
 
 export function EscrowVaultIllustration({ className = '' }: { className?: string }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(2)

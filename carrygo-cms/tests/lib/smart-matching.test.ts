@@ -7,7 +7,6 @@ import {
   mapDbTripToDomain,
   mapDbParcelToDomain,
   routeCompatibility,
-  dateAlignment,
   capacityFit,
   priceCompatibility,
   Trip,

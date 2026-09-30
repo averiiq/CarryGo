@@ -9,14 +9,14 @@ import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, Parce
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
-import { SendRequestModal } from '@/components/feature/SendRequestModal';
+import { SendRequestModal, QuickCreateParcelParams } from '@/components/feature/SendRequestModal';
 import { CitySelectModal } from '@/components/feature/CitySelectModal';
 import { LiveActivityCompactPill } from '@/components/feature/LiveActivityCompactPill';
 import { PromotionalBannerCarousel } from '@/components/feature/PromotionalBannerCarousel';
 import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
 import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
-import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, usePromotionalBannersQuery } from '@/features/listings/queries';
+import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, useCreateParcelMutation, usePromotionalBannersQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -599,6 +599,7 @@ export default function HomeScreen() {
   const promotionalBannersQuery = usePromotionalBannersQuery();
   const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
   const createTripMutation = useCreateTripMutation();
+  const createParcelMutation = useCreateParcelMutation();
   useListingsRealtime(true, effectiveCity);
 
   const userRequests = requestsQuery.data || [];
@@ -643,8 +644,8 @@ export default function HomeScreen() {
     );
   }, [userRequests, user?.id]);
 
-  const trips = flattenInfiniteData(tripsQuery.data);
-  const parcels = flattenInfiniteData(parcelsQuery.data);
+  const trips = useMemo(() => flattenInfiniteData(tripsQuery.data), [tripsQuery.data]);
+  const parcels = useMemo(() => flattenInfiniteData(parcelsQuery.data), [parcelsQuery.data]);
 
   const urgentParcels = useMemo(() => {
     return parcels.filter(
@@ -902,6 +903,65 @@ export default function HomeScreen() {
     });
   }, [router]);
 
+  const handleQuickCreateAndRequest = useCallback(async (
+    quickParams: QuickCreateParcelParams,
+    targetTrip: Trip,
+    calculatedPrice: number
+  ) => {
+    if (!user) {
+      Haptic.warning();
+      showAlert('Sign In Required', 'Please sign in to send delivery requests.');
+      return;
+    }
+
+    try {
+      // 1. Post parcel for the exact trip route automatically
+      const newParcel = await createParcelMutation.mutateAsync({
+        userId: user.id,
+        userName: user.fullName || user.name || 'Sender',
+        fromCity: targetTrip.fromCity,
+        toCity: targetTrip.toCity,
+        category: quickParams.category,
+        weight: quickParams.weight,
+        description: quickParams.description,
+        priceOffer: calculatedPrice,
+        status: 'open',
+      });
+
+      // 2. Immediately dispatch delivery request to the traveller
+      const result = await createRequestAsync({
+        parcelId: newParcel.id,
+        tripId: targetTrip.id,
+        senderId: user.id,
+        senderName: user.fullName || user.name || 'Sender',
+        travellerId: targetTrip.userId,
+        travellerName: targetTrip.userName,
+        status: 'pending',
+        price: calculatedPrice,
+        message: `Hi ${targetTrip.userName}! Could you please carry my ${newParcel.category} package (${newParcel.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity} on ${targetTrip.date}?`,
+      });
+
+      if (result) {
+        setRequestTripTarget(null);
+        Haptic.success();
+        showAlert(
+          'Request Sent! 🎉',
+          `Your delivery request was sent to ${targetTrip.userName} for ₹${calculatedPrice}! You can track it in Requests.`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await Promise.all([requestsQuery.refetch(), parcelsQuery.refetch(), tripsQuery.refetch()]);
+      } else {
+        showAlert('Error', 'Could not send delivery request. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Failed to create parcel and send request.');
+    }
+  }, [createParcelMutation, createRequestAsync, parcelsQuery, requestsQuery, router, showAlert, tripsQuery, user]);
+
   const handleTrackDelivery = useCallback((requestId: string) => {
     Haptic.tap();
     router.push({ pathname: '/delivery/[id]', params: { id: requestId } });
@@ -991,7 +1051,8 @@ export default function HomeScreen() {
         userParcels={parcels.filter(p => p.userId === user?.id)}
         onConfirmRequest={handleConfirmTripRequest}
         onCreateParcel={handleCreateParcelForTrip}
-        isSubmitting={isCreatingRequest}
+        onQuickCreateAndRequest={handleQuickCreateAndRequest}
+        isSubmitting={isCreatingRequest || createParcelMutation.isPending}
       />
 
       <CitySelectModal

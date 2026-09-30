@@ -64,7 +64,7 @@ export async function updatePromotionalBanner(id: string, input: Partial<BannerI
 
   const { supabase } = auth
 
-  const updates: Record<string, any> = {
+  const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   }
 

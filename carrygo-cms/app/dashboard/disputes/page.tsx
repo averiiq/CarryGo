@@ -1,6 +1,6 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
-import { AlertTriangle, Clock, CheckCircle2, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, Clock, CheckCircle2 } from 'lucide-react'
 import DisputeList from './DisputeList'
 import { isAwsCmsBackendEnabled } from '@/utils/backend/provider'
 import { awsCmsRequest } from '@/utils/aws/api'

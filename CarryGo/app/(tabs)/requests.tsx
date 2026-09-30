@@ -15,7 +15,6 @@ import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/cons
 import { sendLocalNotification, sendRequestNotification } from '@/services/notifications.service';
 import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
-import { EmptyRequestsSVG } from '@/components/ui/EmptyState';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
 import { flattenInfiniteData, useParcelsQuery, useParcelsByIdsQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useUpdateRequestStatusMutation, useUserRatedRequestIdsQuery } from '@/features/requests/queries';
@@ -28,6 +27,7 @@ import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.servic
 
 type TabType = 'incoming' | 'outgoing';
 type StatusFilterKey = 'all' | 'pending' | 'accepted' | 'completed';
+type RoleFilterKey = 'all' | 'sender' | 'traveller';
 
 const STATUS_TABS: { key: StatusFilterKey; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
   { key: 'all', label: 'All', icon: 'apps' },
@@ -36,10 +36,17 @@ const STATUS_TABS: { key: StatusFilterKey; label: string; icon: keyof typeof Mat
   { key: 'completed', label: 'Done', icon: 'task-alt' },
 ];
 
+const ROLE_TABS: { key: RoleFilterKey; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
+  { key: 'all', label: 'All Roles', icon: 'swap-horiz' },
+  { key: 'sender', label: 'My Parcels', icon: 'inventory-2' },
+  { key: 'traveller', label: 'My Trips', icon: 'directions-car' },
+];
+
 const RequestListItem = React.memo(function RequestListItem({
   item,
   tab,
   isTablet,
+  currentUserId,
   anim,
   onAccept,
   onReject,
@@ -52,6 +59,7 @@ const RequestListItem = React.memo(function RequestListItem({
   item: Request;
   tab: TabType;
   isTablet: boolean;
+  currentUserId?: string;
   anim?: { opacity: Animated.Value; translateY: Animated.Value };
   onAccept: (id: string, req: Request) => void;
   onReject: (id: string, req: Request) => void;
@@ -74,6 +82,7 @@ const RequestListItem = React.memo(function RequestListItem({
       <RequestCard
         request={item}
         type={tab}
+        currentUserId={currentUserId}
         onAccept={handleAccept}
         onReject={handleReject}
         onCancel={handleCancel}
@@ -113,14 +122,13 @@ export default function RequestsScreen() {
   const createConversationMutation = useCreateConversationMutation(user?.id);
 
   const [tab, setTab] = useState<TabType>('incoming');
+  const [roleFilter, setRoleFilter] = useState<RoleFilterKey>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilterKey>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<Request | null>(null);
 
   const slideAnim = React.useRef(new Animated.Value(0)).current;
   const pendingPulse = React.useRef(new Animated.Value(1)).current;
-  const headerEntrance = useFadeIn(0, 420);
-  const controlsEntrance = useFadeIn(120, 420);
 
   const requestsRefetchRef = React.useRef(requestsQuery.refetch);
   requestsRefetchRef.current = requestsQuery.refetch;
@@ -162,7 +170,6 @@ export default function RequestsScreen() {
   const requests = useMemo(() => {
     return rawRequests
       .filter(req => {
-        // Complete trips and parcels are never shown after adding the review in request page
         if (req.status === 'completed' && ratedRequestIds.has(req.id)) {
           return false;
         }
@@ -185,14 +192,31 @@ export default function RequestsScreen() {
   const base = tab === 'incoming' ? incoming : outgoing;
   const pendingCount = incoming.filter(r => r.status === 'pending').length;
 
-  const statusCounts = useMemo(() => ({
-    all: base.length,
-    pending: base.filter(r => r.status === 'pending').length,
-    accepted: base.filter(r => r.status === 'accepted').length,
-    completed: base.filter(r => r.status === 'completed').length,
-  }), [base]);
+  // Role filtering within current tab
+  const roleFiltered = useMemo(() => {
+    if (roleFilter === 'sender') return base.filter(r => r.senderId === user?.id);
+    if (roleFilter === 'traveller') return base.filter(r => r.travellerId === user?.id);
+    return base;
+  }, [base, roleFilter, user?.id]);
 
-  const displayed = statusFilter === 'all' ? base : base.filter(r => r.status === statusFilter);
+  const roleCounts = useMemo(() => ({
+    all: base.length,
+    sender: base.filter(r => r.senderId === user?.id).length,
+    traveller: base.filter(r => r.travellerId === user?.id).length,
+  }), [base, user?.id]);
+
+  const statusCounts = useMemo(() => ({
+    all: roleFiltered.length,
+    pending: roleFiltered.filter(r => r.status === 'pending').length,
+    accepted: roleFiltered.filter(r => r.status === 'accepted').length,
+    completed: roleFiltered.filter(r => r.status === 'completed').length,
+  }), [roleFiltered]);
+
+  const displayed = useMemo(() => {
+    if (statusFilter === 'all') return roleFiltered;
+    return roleFiltered.filter(r => r.status === statusFilter);
+  }, [roleFiltered, statusFilter]);
+
   const cardAnims = useStaggeredList(Math.max(displayed.length, 14), 70);
 
   const switchTab = (nextTab: TabType) => {
@@ -214,6 +238,7 @@ export default function RequestsScreen() {
     ]).start();
     setTab(nextTab);
     setStatusFilter('all');
+    setRoleFilter('all');
   };
 
   useEffect(() => {
@@ -258,30 +283,37 @@ export default function RequestsScreen() {
     const otherUserName = req.senderId === user.id ? req.travellerName : req.senderName;
     const otherUserId = req.senderId === user.id ? req.travellerId : req.senderId;
     const isOffer = req.createdBy ? req.createdBy !== req.senderId : false;
+    const isSender = user.id === req.senderId;
+
+    const promptTitle = isOffer ? 'Accept Carry Offer?' : 'Accept Delivery Request?';
     const promptText = isOffer
-      ? `Accept carrier offer for ₹${req.price} from ${otherUserName}?`
-      : `Accept delivery for ₹${req.price} from ${otherUserName}?`;
+      ? `Accept ${otherUserName}'s offer to carry your parcel for ₹${req.price}?`
+      : `Accept request from ${otherUserName} to deliver for ₹${req.price}?`;
 
     Haptic.warning();
-    showAlert('Accept Request?', promptText, [
+    showAlert(promptTitle, promptText, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Accept', onPress: async () => {
           if (!user) return;
           try {
             await updateRequestStatusMutation.mutateAsync({ requestId, status: 'accepted' });
+            let convId: string | null = null;
             try {
               const parcel = parcelMap.get(req.parcelId);
               const route = parcel ? `${parcel.fromCity} to ${parcel.toCity}` : `${req.fromCity || 'Pickup'} to ${req.toCity || 'Drop'}`;
               const existing = conversations.find(c => c.requestId === requestId);
               if (!existing) {
-                await createConversationMutation.mutateAsync({
+                const newConv = await createConversationMutation.mutateAsync({
                   requestId,
                   participantIds: [user.id, otherUserId],
                   participantNames: { [user.id]: user.name || 'You', [otherUserId]: otherUserName },
                   parcelDescription: parcel?.description || 'Parcel delivery',
                   route,
                 });
+                convId = newConv?.id || null;
+              } else {
+                convId = existing.id;
               }
               await createDelivery(requestId);
               await sendRequestNotification('received', otherUserName, req.price);
@@ -291,7 +323,36 @@ export default function RequestsScreen() {
             }
             await requestsQuery.refetch();
             Haptic.success();
-            showAlert('Accepted!', 'A chat has opened to coordinate pickup.');
+
+            if (isSender) {
+              showAlert(
+                'Offer Accepted! 💳',
+                `You matched with ${otherUserName}. Deposit ₹${req.price} in secure escrow to unlock your handover OTP.`,
+                [
+                  { text: 'Later', style: 'cancel' },
+                  {
+                    text: 'Pay Escrow Now',
+                    onPress: () => router.push({ pathname: '/payment/[id]', params: { id: requestId } }),
+                  },
+                ]
+              );
+            } else {
+              showAlert(
+                'Request Accepted! 📦',
+                `Delivery matched with ${otherUserName}. Open chat to coordinate pickup point and time.`,
+                [
+                  { text: 'Done', style: 'cancel' },
+                  {
+                    text: 'Open Chat',
+                    onPress: () => {
+                      if (convId) {
+                        router.push(`/chat/${encodeURIComponent(String(convId))}` as never);
+                      }
+                    },
+                  },
+                ]
+              );
+            }
           } catch (error) {
             Haptic.error();
             showAlert(
@@ -346,7 +407,7 @@ export default function RequestsScreen() {
     }
 
     Haptic.warning();
-    showAlert('Cancel Request?', 'Cancel this request?', [
+    showAlert('Cancel Request?', 'Cancel this request? No fees will be charged.', [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Cancel Request', style: 'destructive', onPress: async () => {
@@ -394,6 +455,7 @@ export default function RequestsScreen() {
       item={item}
       tab={tab}
       isTablet={isTablet}
+      currentUserId={user?.id}
       anim={cardAnims[index]}
       onAccept={handleAccept}
       onReject={handleReject}
@@ -403,11 +465,9 @@ export default function RequestsScreen() {
       onPayment={handlePayment}
       onReview={handleReview}
     />
-  ), [tab, isTablet, cardAnims, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
+  ), [tab, isTablet, user?.id, cardAnims, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
 
   const renderItemSeparator = useCallback(() => <View style={{ height: Spacing.md }} />, []);
-
-  const tabLabel = tab === 'incoming' ? 'Requests to carry parcels' : 'Requests you have sent';
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -416,8 +476,8 @@ export default function RequestsScreen() {
           <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Requests</Text>
           <Text style={[styles.pageSubtitle, { color: C.textMuted }]}>
             {pendingCount > 0
-              ? `${pendingCount} pending handover decision${pendingCount > 1 ? 's' : ''}`
-              : 'Manage delivery matches and handoffs'}
+              ? `${pendingCount} request${pendingCount > 1 ? 's' : ''} awaiting your action`
+              : 'Track and manage your community deliveries'}
           </Text>
         </View>
 
@@ -455,7 +515,7 @@ export default function RequestsScreen() {
         </View>
       ) : null}
 
-      {/* Segmented Mode Switcher: Incoming vs Outgoing */}
+      {/* Segmented Mode Switcher: Received vs Sent */}
       <View style={[styles.segmentedWrap, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
         {(['incoming', 'outgoing'] as const).map((t) => {
           const active = tab === t;
@@ -472,7 +532,7 @@ export default function RequestsScreen() {
               onPress={() => switchTab(t)}
             >
               <MaterialIcons
-                name={t === 'incoming' ? 'call-received' : 'call-made'}
+                name={t === 'incoming' ? 'move-to-inbox' : 'outbox'}
                 size={16}
                 color={active ? '#FFFFFF' : C.textSecondary}
               />
@@ -485,7 +545,7 @@ export default function RequestsScreen() {
                 {t === 'incoming' ? 'Received' : 'Sent'} ({count})
               </Text>
               {t === 'incoming' && pendingCount > 0 ? (
-                <View style={[styles.tabBadge, { backgroundColor: active ? '#FFFFFF' : C.error }]}>
+                <View style={[styles.tabBadge, { backgroundColor: active ? '#FFFFFF' : C.warning }]}>
                   <Text style={[styles.tabBadgeText, { color: active ? C.primary : '#FFFFFF' }]}>{pendingCount}</Text>
                 </View>
               ) : null}
@@ -494,51 +554,94 @@ export default function RequestsScreen() {
         })}
       </View>
 
-      {/* Status Filter Row */}
+      {/* Filter Row: Role selector + Status filters */}
       {base.length > 0 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.statusFilterScroll, isTablet && styles.tabletContainer]}
-          contentContainerStyle={styles.statusFilterRow}
-        >
-          {STATUS_TABS.map((st) => {
-            const count = statusCounts[st.key];
-            const active = statusFilter === st.key;
-            return (
-              <Pressable
-                key={st.key}
-                style={[
-                  styles.statusChip,
-                  {
-                    backgroundColor: active ? C.primarySubtle : C.surface,
-                    borderColor: active ? C.primary : C.surfaceBorder,
-                  },
-                  count === 0 && st.key !== 'all' && { opacity: 0.45 },
-                ]}
-                hitSlop={TouchTarget.smallHitSlop}
-                onPress={() => {
-                  Haptic.select();
-                  setStatusFilter(st.key);
-                }}
-                disabled={count === 0 && st.key !== 'all'}
-              >
-                <MaterialIcons name={st.icon} size={14} color={active ? C.primary : C.textSecondary} />
-                <Text
+        <View style={[styles.filtersContainer, isTablet && styles.tabletContainer]}>
+          {/* Role selector pills (All / My Parcels / My Trips) */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+            style={{ marginBottom: 6 }}
+          >
+            {ROLE_TABS.map((rt) => {
+              const active = roleFilter === rt.key;
+              const count = roleCounts[rt.key];
+              return (
+                <Pressable
+                  key={rt.key}
                   style={[
-                    styles.statusChipText,
-                    { color: active ? C.primary : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium },
+                    styles.roleChip,
+                    {
+                      backgroundColor: active ? C.primary : C.surface,
+                      borderColor: active ? C.primary : C.surfaceBorder,
+                    },
                   ]}
+                  hitSlop={TouchTarget.smallHitSlop}
+                  onPress={() => {
+                    Haptic.select();
+                    setRoleFilter(rt.key);
+                    setStatusFilter('all');
+                  }}
                 >
-                  {st.label}
-                </Text>
-                <View style={[styles.statusChipBadge, { backgroundColor: active ? C.primary : C.surfaceBorder }]}>
-                  <Text style={[styles.statusChipCount, { color: '#fff' }]}>{count}</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                  <MaterialIcons name={rt.icon} size={13} color={active ? '#FFFFFF' : C.textSecondary} />
+                  <Text
+                    style={[
+                      styles.roleChipText,
+                      { color: active ? '#FFFFFF' : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium },
+                    ]}
+                  >
+                    {rt.label} ({count})
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {/* Status filter chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+          >
+            {STATUS_TABS.map((st) => {
+              const count = statusCounts[st.key];
+              const active = statusFilter === st.key;
+              return (
+                <Pressable
+                  key={st.key}
+                  style={[
+                    styles.statusChip,
+                    {
+                      backgroundColor: active ? C.primarySubtle : C.surface,
+                      borderColor: active ? C.primary : C.surfaceBorder,
+                    },
+                    count === 0 && st.key !== 'all' && { opacity: 0.45 },
+                  ]}
+                  hitSlop={TouchTarget.smallHitSlop}
+                  onPress={() => {
+                    Haptic.select();
+                    setStatusFilter(st.key);
+                  }}
+                  disabled={count === 0 && st.key !== 'all'}
+                >
+                  <MaterialIcons name={st.icon} size={13} color={active ? C.primary : C.textSecondary} />
+                  <Text
+                    style={[
+                      styles.statusChipText,
+                      { color: active ? C.primary : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium },
+                    ]}
+                  >
+                    {st.label}
+                  </Text>
+                  <View style={[styles.statusChipBadge, { backgroundColor: active ? C.primary : C.surfaceBorder }]}>
+                    <Text style={[styles.statusChipCount, { color: '#fff' }]}>{count}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       ) : null}
 
       <Animated.View style={[{ flex: 1 }, { transform: [{ translateX: slideAnim }] }]}>
@@ -546,7 +649,7 @@ export default function RequestsScreen() {
           data={requestsQuery.error || requestsQuery.isLoading ? [] : displayed}
           keyExtractor={(item) => item.id}
           renderItem={renderRequestItem}
-          estimatedItemSize={220}
+          estimatedItemSize={260}
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={renderItemSeparator}
@@ -582,39 +685,66 @@ export default function RequestsScreen() {
               </View>
             ) : (
               <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
-                <View style={{ width: 150, height: 115, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+                <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
                   <LottieAnimation
                     name={tab === 'incoming' ? 'deliveryCar' : 'packageBox'}
-                    style={{ width: 150, height: 115 }}
+                    style={{ width: 140, height: 110 }}
                   />
                 </View>
 
-                <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>
-                  {statusFilter !== 'all' ? `No ${statusFilter} requests` : `No ${tab} requests yet`}
+                <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
+                  {statusFilter !== 'all'
+                    ? `No ${statusFilter} requests`
+                    : roleFilter !== 'all'
+                      ? `No ${roleFilter === 'sender' ? 'parcel' : 'trip'} requests found`
+                      : tab === 'incoming'
+                        ? 'No received requests yet'
+                        : 'No sent requests yet'}
                 </Text>
 
                 <Text style={[styles.emptySubtext, { color: C.textMuted }]}> 
-                  {statusFilter !== 'all'
-                    ? 'Try another filter or clear this one to explore more requests.'
+                  {statusFilter !== 'all' || roleFilter !== 'all'
+                    ? 'Try clearing active filters to see all requests in this view.'
                     : tab === 'incoming'
-                      ? 'Post a trip and receive delivery requests from senders on your route.'
-                      : 'Send a parcel request and match with trusted travellers quickly.'}
+                      ? 'When travelers offer to carry your parcels or senders request your trips, they appear here.'
+                      : 'Browse verified trips to send your parcel, or view parcels to carry along your journey.'}
                 </Text>
 
-                {statusFilter === 'all' ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.emptyCTA,
-                      { backgroundColor: C.primaryDark, opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-                    ]}
-                    onPress={() => {
-                      Haptic.tap();
-                      router.push(tab === 'incoming' ? '/create-trip' : '/create-parcel');
-                    }}
-                  >
-                    <MaterialIcons name={tab === 'incoming' ? 'drive-eta' : 'inventory-2'} size={16} color="#fff" />
-                    <Text style={styles.emptyCTAText}>{tab === 'incoming' ? 'Post a Trip' : 'Send a Parcel'}</Text>
-                  </Pressable>
+                {statusFilter === 'all' && roleFilter === 'all' ? (
+                  <View style={styles.emptyActionRow}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.emptyCTA,
+                        { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+                      ]}
+                      onPress={() => {
+                        Haptic.tap();
+                        router.push(tab === 'incoming' ? '/create-trip' : '/create-parcel');
+                      }}
+                    >
+                      <MaterialIcons name={tab === 'incoming' ? 'drive-eta' : 'inventory-2'} size={15} color="#fff" />
+                      <Text style={styles.emptyCTAText}>{tab === 'incoming' ? 'Post a Trip' : 'Send a Parcel'}</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.emptySecondaryCTA,
+                        {
+                          backgroundColor: C.surfaceElevated,
+                          borderColor: C.surfaceBorder,
+                          opacity: pressed ? 0.86 : 1,
+                          transform: [{ scale: pressed ? 0.97 : 1 }],
+                        },
+                      ]}
+                      onPress={() => {
+                        Haptic.tap();
+                        router.push('/(tabs)');
+                      }}
+                    >
+                      <MaterialIcons name="explore" size={15} color={C.textPrimary} />
+                      <Text style={[styles.emptySecondaryText, { color: C.textPrimary }]}>Explore Marketplace</Text>
+                    </Pressable>
+                  </View>
                 ) : (
                   <Pressable
                     style={({ pressed }) => [
@@ -629,10 +759,11 @@ export default function RequestsScreen() {
                     onPress={() => {
                       Haptic.tap();
                       setStatusFilter('all');
+                      setRoleFilter('all');
                     }}
                   >
                     <MaterialIcons name="filter-alt-off" size={15} color={C.textSecondary} />
-                    <Text style={[styles.emptySecondaryText, { color: C.textSecondary }]}>Clear filter</Text>
+                    <Text style={[styles.emptySecondaryText, { color: C.textSecondary }]}>Clear all filters</Text>
                   </Pressable>
                 )}
               </View>
@@ -709,17 +840,12 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   refreshBtn: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
 
   networkState: {
@@ -742,7 +868,7 @@ const styles = StyleSheet.create({
   },
   segmentTab: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 42,
     borderRadius: BorderRadius.md - 2,
     flexDirection: 'row',
     alignItems: 'center',
@@ -767,47 +893,56 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
 
-  statusFilterScroll: {
-    flexGrow: 0,
-    marginVertical: Spacing.xs + 2,
+  filtersContainer: {
+    marginVertical: 4,
   },
-  statusFilterRow: {
+  filterChipRow: {
     flexDirection: 'row',
-    gap: Spacing.xs + 2,
+    gap: 6,
     paddingRight: Spacing.sm,
+  },
+  roleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 32,
+    gap: 5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  roleChipText: {
+    fontSize: 11,
+    letterSpacing: -0.1,
   },
   statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 40,
-    gap: 6,
+    minHeight: 32,
+    gap: 5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    paddingVertical: 6,
-    paddingLeft: 10,
-    paddingRight: 6,
+    paddingLeft: 9,
+    paddingRight: 5,
+    paddingVertical: 4,
   },
   statusChipText: {
-    fontSize: FontSize.xs,
+    fontSize: 11,
     letterSpacing: -0.1,
   },
   statusChipBadge: {
-    minWidth: 20,
+    minWidth: 18,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 0.5,
   },
   statusChipCount: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: FontWeight.bold,
   },
 
-  list: {
-    flex: 1,
-  },
-  listContent: {},
   feedbackWrap: {
     marginTop: 2,
   },
@@ -816,53 +951,52 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
-    paddingVertical: Spacing.xxl,
+    paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  emptyVisual: {
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
   emptyTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.semibold,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
     marginTop: Spacing.xs,
   },
   emptySubtext: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs + 0.5,
     textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 286,
+    lineHeight: 19,
+    maxWidth: 300,
+  },
+  emptyActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: Spacing.sm,
   },
   emptyCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm + 4,
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
     borderRadius: BorderRadius.full,
-    marginTop: Spacing.sm,
   },
   emptyCTAText: {
     color: '#fff',
-    fontWeight: FontWeight.semibold,
-    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    fontSize: 12,
   },
   emptySecondaryCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: 5,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.smd,
+    paddingVertical: 9,
     borderRadius: BorderRadius.full,
-    marginTop: Spacing.sm,
   },
   emptySecondaryText: {
-    fontSize: FontSize.sm,
+    fontSize: 12,
     fontWeight: FontWeight.semibold,
   },
 });

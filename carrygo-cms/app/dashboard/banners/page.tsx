@@ -1,6 +1,6 @@
 import { requireAdmin } from '@/utils/admin-guard'
 import { redirect } from 'next/navigation'
-import { Sparkles, Eye, CheckCircle2, Flame, Layers } from 'lucide-react'
+import { CheckCircle2, Flame, Layers } from 'lucide-react'
 import BannerManager, { type PromotionalBannerRow } from './BannerManager'
 
 export default async function BannersPage() {
@@ -15,20 +15,20 @@ export default async function BannersPage() {
     .order('display_order', { ascending: true })
     .order('created_at', { ascending: false })
 
-  const banners: PromotionalBannerRow[] = (rows ?? []).map((r: any) => ({
-    id: r.id,
-    type: r.type || 'urgent',
-    badge_text: r.badge_text || '',
-    badge_color: r.badge_color || '#F59E0B',
-    title: r.title || '',
-    subtitle: r.subtitle || '',
-    cta_text: r.cta_text || 'Learn More',
-    cta_action: r.cta_action || 'create_parcel',
-    deep_link: r.deep_link || null,
-    image_url: r.image_url || null,
+  const banners: PromotionalBannerRow[] = (rows ?? []).map((r: Record<string, unknown>) => ({
+    id: String(r.id),
+    type: String(r.type || 'urgent'),
+    badge_text: String(r.badge_text || ''),
+    badge_color: String(r.badge_color || '#F59E0B'),
+    title: String(r.title || ''),
+    subtitle: String(r.subtitle || ''),
+    cta_text: String(r.cta_text || 'Learn More'),
+    cta_action: String(r.cta_action || 'create_parcel'),
+    deep_link: (r.deep_link as string) || null,
+    image_url: (r.image_url as string) || null,
     display_order: Number(r.display_order ?? 0),
     is_active: Boolean(r.is_active),
-    created_at: r.created_at,
+    created_at: String(r.created_at || ''),
   }))
 
   const totalCount = banners.length

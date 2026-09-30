@@ -88,7 +88,10 @@ serve(async (req) => {
 
     const activeDevices = (devices || []).filter(device =>
       typeof device.expo_push_token === 'string'
-      && device.expo_push_token.startsWith('ExponentPushToken')
+      && (
+        device.expo_push_token.startsWith('ExponentPushToken[')
+        || device.expo_push_token.startsWith('ExpoPushToken[')
+      )
     );
 
     if (activeDevices.length === 0) {

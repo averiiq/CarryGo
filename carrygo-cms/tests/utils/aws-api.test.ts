@@ -1,5 +1,5 @@
-﻿import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AwsCmsApiError, awsCmsRequest } from '@/utils/aws/api'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { awsCmsRequest } from '@/utils/aws/api'
 
 describe('awsCmsRequest auth behavior', () => {
   afterEach(() => {

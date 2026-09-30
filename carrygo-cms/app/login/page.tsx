@@ -5,7 +5,6 @@ import {
   Lock,
   Radio,
   ShieldCheck,
-  Sparkles,
   Terminal,
 } from 'lucide-react'
 import type { Metadata } from 'next'

@@ -44,8 +44,42 @@ export async function fetchCityMarketplaceTrips(
     });
 
     if (error) {
-      console.warn('fetch_city_marketplace_trips RPC error:', error.message);
-      return { data: null, total: 0, error: error.message };
+      console.warn('fetch_city_marketplace_trips RPC error, falling back to direct table query:', error.message);
+      let fallbackQuery = sb
+        .from('trips')
+        .select('*', { count: 'exact' })
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (userCity?.trim()) {
+        const { sanitizeLikeInput } = require('@/lib/sanitize');
+        const city = sanitizeLikeInput(userCity.trim());
+        fallbackQuery = fallbackQuery.or(`from_city.ilike.%${city}%,to_city.ilike.%${city}%`);
+      }
+
+      const fallbackRes = await fallbackQuery;
+      if (fallbackRes.error) {
+        return { data: null, total: 0, error: fallbackRes.error.message };
+      }
+
+      const fallbackTrips: Trip[] = (fallbackRes.data || []).map((row: any) => ({
+        id: row.id,
+        userId: row.user_id,
+        userName: row.user_name,
+        userRating: parseFloat(String(row.user_rating || 4.5)),
+        fromCity: row.from_city,
+        toCity: row.to_city,
+        date: row.date,
+        time: row.time,
+        vehicleType: row.vehicle_type,
+        availableCapacity: parseFloat(String(row.available_capacity)),
+        pricePerKg: parseFloat(String(row.price_per_kg)),
+        status: row.status,
+        createdAt: row.created_at,
+      }));
+
+      return { data: fallbackTrips, total: fallbackRes.count ?? fallbackTrips.length, error: null };
     }
 
     const items = data || [];
@@ -93,8 +127,42 @@ export async function fetchCityMarketplaceParcels(
     });
 
     if (error) {
-      console.warn('fetch_city_marketplace_parcels RPC error:', error.message);
-      return { data: null, total: 0, error: error.message };
+      console.warn('fetch_city_marketplace_parcels RPC error, falling back to direct table query:', error.message);
+      let fallbackQuery = sb
+        .from('parcels')
+        .select('*', { count: 'exact' })
+        .eq('status', 'open')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (userCity?.trim()) {
+        const { sanitizeLikeInput } = require('@/lib/sanitize');
+        const city = sanitizeLikeInput(userCity.trim());
+        fallbackQuery = fallbackQuery.or(`from_city.ilike.%${city}%,to_city.ilike.%${city}%`);
+      }
+
+      const fallbackRes = await fallbackQuery;
+      if (fallbackRes.error) {
+        return { data: null, total: 0, error: fallbackRes.error.message };
+      }
+
+      const fallbackParcels: Parcel[] = (fallbackRes.data || []).map((row: any) => ({
+        id: row.id,
+        userId: row.user_id,
+        userName: row.user_name,
+        fromCity: row.from_city,
+        toCity: row.to_city,
+        category: row.category,
+        description: row.description,
+        weight: parseFloat(String(row.weight)),
+        priceOffer: parseFloat(String(row.price_offer)),
+        imageUrl: row.image_url,
+        status: row.status,
+        deliveryDate: row.delivery_date,
+        createdAt: row.created_at,
+      }));
+
+      return { data: fallbackParcels, total: fallbackRes.count ?? fallbackParcels.length, error: null };
     }
 
     const items = data || [];

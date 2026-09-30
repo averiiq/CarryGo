@@ -602,7 +602,7 @@ export function diagnoseParcelTripMatching(
   }
 }
 
-export function mapDbTripToDomain(row: Record<string, any>): Trip {
+export function mapDbTripToDomain(row: Record<string, unknown>): Trip {
   return {
     id: String(row.id || ''),
     userId: String(row.user_id || row.userId || ''),
@@ -610,29 +610,29 @@ export function mapDbTripToDomain(row: Record<string, any>): Trip {
     toCity: String(row.to_city || row.toCity || ''),
     date: String(row.date || ''),
     time: row.time ? String(row.time) : undefined,
-    vehicleType: row.vehicle_type || row.vehicleType || 'car',
+    vehicleType: (row.vehicle_type as Trip['vehicleType']) || (row.vehicleType as Trip['vehicleType']) || 'car',
     totalCapacity: Number(row.total_capacity ?? row.totalCapacity ?? row.capacity ?? 10),
     availableCapacity: Number(row.available_capacity ?? row.availableCapacity ?? 10),
     pricePerKg: Number(row.price_per_kg ?? row.pricePerKg ?? 50),
-    status: row.status || 'active',
+    status: (row.status as Trip['status']) || 'active',
     userRating: Number(row.user_rating ?? row.userRating ?? 4.8),
-    notes: row.notes || undefined,
+    notes: (row.notes as string) || undefined,
   }
 }
 
-export function mapDbParcelToDomain(row: Record<string, any>): Parcel {
+export function mapDbParcelToDomain(row: Record<string, unknown>): Parcel {
   return {
     id: String(row.id || ''),
     userId: String(row.user_id || row.userId || ''),
     fromCity: String(row.from_city || row.fromCity || ''),
     toCity: String(row.to_city || row.toCity || ''),
-    weight: Number(row.weight || 1),
-    category: row.category || undefined,
-    description: row.description || undefined,
+    weight: Number(row.weight ?? 1),
+    category: (row.category as string) || undefined,
+    description: (row.description as string) || undefined,
     priceOffer: Number(row.price_offer ?? row.priceOffer ?? row.price ?? 200),
-    deliveryDate: row.delivery_date || row.deliveryDate || undefined,
-    status: row.status || 'open',
+    deliveryDate: (row.delivery_date as string) || (row.deliveryDate as string) || undefined,
+    status: (row.status as Parcel['status']) || 'open',
     createdAt: String(row.created_at || row.createdAt || new Date().toISOString()),
-    imageUrl: row.image_url || row.imageUrl || undefined,
+    imageUrl: (row.image_url as string) || (row.imageUrl as string) || undefined,
   }
 }

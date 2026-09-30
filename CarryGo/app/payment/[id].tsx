@@ -32,6 +32,8 @@ function formatAmount(value?: number | null) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+let paymentChannelInstance = 0;
+
 export default function PaymentScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -66,23 +68,38 @@ export default function PaymentScreen() {
     void loadPayment();
 
     const sb = getSupabaseClient();
-    const channel = sb
-      .channel(`payment:${id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'payments' },
-        (payload) => {
-          const row = payload.new as any;
-          if (row && (row.request_id === id || row.id === id)) {
-            void loadPayment();
+    const instance = ++paymentChannelInstance;
+    let channel: ReturnType<typeof sb.channel> | null = null;
+
+    try {
+      channel = sb
+        .channel(`payment:${id}:${instance}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'payments' },
+          (payload) => {
+            const row = payload.new as any;
+            if (row && (row.request_id === id || row.id === id)) {
+              if (isMounted) void loadPayment();
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status) => {
+          if (!isMounted && channel) {
+            try {
+              void sb.removeChannel(channel);
+            } catch {}
+          }
+        });
+    } catch {}
 
     return () => {
       isMounted = false;
-      void sb.removeChannel(channel);
+      if (channel) {
+        try {
+          void sb.removeChannel(channel);
+        } catch {}
+      }
     };
   }, [id]);
 

@@ -60,7 +60,7 @@
         "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "gac8q8it",
         "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "carrygo_uploads",
         "EXPO_PUBLIC_APP_MODE": "production",
-        "EXPO_PUBLIC_ENABLE_REVIEWER_LOGIN": "true",
+        "EXPO_PUBLIC_ENABLE_REVIEWER_LOGIN": "false",
         "EXPO_PUBLIC_ENABLE_KYC_PROVIDER": "true",
         "EXPO_PUBLIC_ENABLE_PAYMENTS": "true",
         "EXPO_PUBLIC_ENABLE_SECURE_DELIVERY": "true",

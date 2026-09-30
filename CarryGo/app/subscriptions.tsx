@@ -50,6 +50,8 @@ const POPULAR_CORRIDORS = [
   { from: 'Faridabad', to: 'Gurugram' },
 ];
 
+let subChannelInstance = 0;
+
 // ── Subscription Card ────────────────────────────────────────────────────────
 function SubCard({
   item,
@@ -292,26 +294,54 @@ export default function SubscriptionsScreen() {
 
   useEffect(() => {
     if (!userId || subs.length === 0) return;
+    let mounted = true;
     void refreshMatches();
 
     const sb = getSupabaseClient();
-    const tripsChannel = sb
-      .channel(`route-sub-trips:${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => {
-        void refreshMatches();
-      })
-      .subscribe();
+    const instance = ++subChannelInstance;
+    let tripsChannel: ReturnType<typeof sb.channel> | null = null;
+    let parcelsChannel: ReturnType<typeof sb.channel> | null = null;
 
-    const parcelsChannel = sb
-      .channel(`route-sub-parcels:${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'parcels' }, () => {
-        void refreshMatches();
-      })
-      .subscribe();
+    try {
+      tripsChannel = sb
+        .channel(`route-sub-trips:${userId}:${instance}_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => {
+          if (mounted) void refreshMatches();
+        })
+        .subscribe((status) => {
+          if (!mounted && tripsChannel) {
+            try {
+              void sb.removeChannel(tripsChannel);
+            } catch {}
+          }
+        });
+
+      parcelsChannel = sb
+        .channel(`route-sub-parcels:${userId}:${instance}_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'parcels' }, () => {
+          if (mounted) void refreshMatches();
+        })
+        .subscribe((status) => {
+          if (!mounted && parcelsChannel) {
+            try {
+              void sb.removeChannel(parcelsChannel);
+            } catch {}
+          }
+        });
+    } catch {}
 
     return () => {
-      void sb.removeChannel(tripsChannel);
-      void sb.removeChannel(parcelsChannel);
+      mounted = false;
+      if (tripsChannel) {
+        try {
+          void sb.removeChannel(tripsChannel);
+        } catch {}
+      }
+      if (parcelsChannel) {
+        try {
+          void sb.removeChannel(parcelsChannel);
+        } catch {}
+      }
     };
   }, [refreshMatches, subs.length, userId]);
 

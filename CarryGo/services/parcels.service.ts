@@ -2,6 +2,7 @@ import { getSupabaseClient } from '@/template';
 import { Parcel } from '@/types';
 import type { Database } from '@/types/database';
 import { sanitizeLikeInput } from '@/lib/sanitize';
+import { validateUUID } from '@/lib/validation';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { isAwsBackendEnabled } from '@/lib/backend/provider';
 import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
@@ -104,6 +105,11 @@ export async function fetchParcels(filters?: {
 }
 
 export async function fetchParcelById(parcelId: string) {
+  const idValidation = validateUUID(parcelId);
+  if (!idValidation.valid) {
+    return { data: null, error: idValidation.error || 'Invalid parcel ID' };
+  }
+
   if (isAwsBackendEnabled()) {
     try {
       const response = await awsApiRequest<{ data: Parcel }>(`/parcels/${parcelId}`);
@@ -122,10 +128,12 @@ export async function fetchParcelById(parcelId: string) {
 
 export async function fetchParcelsByIds(parcelIds: string[]) {
   if (parcelIds.length === 0) return { data: [], error: null };
+  const validIds = parcelIds.filter(id => validateUUID(id).valid);
+  if (validIds.length === 0) return { data: [], error: null };
 
   if (isAwsBackendEnabled()) {
     try {
-      const results = await Promise.all(parcelIds.map((parcelId) => awsApiRequest<{ data: Parcel }>(`/parcels/${parcelId}`)));
+      const results = await Promise.all(validIds.map((parcelId) => awsApiRequest<{ data: Parcel }>(`/parcels/${parcelId}`)));
       return { data: results.map((entry) => entry.data), error: null };
     } catch (error) {
       const message = error instanceof AwsApiError ? error.message : 'Failed to fetch parcel list';
@@ -134,7 +142,7 @@ export async function fetchParcelsByIds(parcelIds: string[]) {
   }
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('parcels').select('*').in('id', parcelIds);
+  const { data, error } = await sb.from('parcels').select('*').in('id', validIds);
   if (error) return { data: null, error: error.message };
   return { data: (data || []).map(mapRow), error: null };
 }

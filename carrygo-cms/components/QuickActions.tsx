@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { FileCheck, AlertTriangle, Users, Package, ArrowRight } from 'lucide-react'
+import { FileCheck, AlertTriangle, Users, Package, ArrowRight, CreditCard, HeadphonesIcon, Sparkles } from 'lucide-react'
 
 interface QuickAction {
   label: string
@@ -22,6 +22,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   AlertTriangle,
   Users,
   Package,
+  CreditCard,
+  HeadphonesIcon,
+  Sparkles,
 }
 
 export default function QuickActions({ actions }: QuickActionsProps) {

@@ -40,6 +40,9 @@ function normalizeNotificationPayload(data: NotificationPayload): { type: string
   };
 }
 
+let globalLastHandledResponseId: string | null = null;
+let realtimeChannelInstance = 0;
+
 export function useNotifications() {
   const { user } = useAuth();
   const router = useRouter();
@@ -123,39 +126,61 @@ export function useNotifications() {
   useEffect(() => {
     if (!user) return;
 
+    let channelMounted = true;
     const sb = getSupabaseClient();
-    const realtimeChannel = sb
-      .channel(`notifications:${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
-          if (payload.eventType === 'INSERT' && payload.new) {
-            const newNotif = payload.new as {
-              title?: string;
-              body?: string;
-              type?: string;
-              related_id?: string;
-            };
-            if (newNotif.title && newNotif.body) {
-              void Notifications.scheduleNotificationAsync({
-                content: {
-                  title: newNotif.title,
-                  body: newNotif.body,
-                  sound: true,
-                  data: {
-                    type: newNotif.type,
-                    relatedId: newNotif.related_id,
+    const instance = ++realtimeChannelInstance;
+    let realtimeChannel: ReturnType<typeof sb.channel> | null = null;
+
+    try {
+      realtimeChannel = sb
+        .channel(`notifications:${user.id}:${instance}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+            if (payload.eventType === 'INSERT' && payload.new) {
+              const newNotif = payload.new as {
+                title?: string;
+                body?: string;
+                type?: string;
+                related_id?: string;
+              };
+              if (newNotif.title && newNotif.body) {
+                const targetChannelId = newNotif.type === 'message'
+                  ? 'messages'
+                  : newNotif.type === 'payment'
+                    ? 'payments'
+                    : (newNotif.type === 'request' || newNotif.type === 'delivery' || newNotif.type === 'delivery_otp')
+                      ? 'deliveries'
+                      : 'default';
+
+                void Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: newNotif.title,
+                    body: newNotif.body,
+                    sound: true,
+                    data: {
+                      type: newNotif.type,
+                      relatedId: newNotif.related_id,
+                    },
                   },
-                },
-                trigger: null,
-              }).catch(() => {});
+                  trigger: { channelId: targetChannelId },
+                }).catch(() => {});
+              }
             }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status) => {
+          if (!channelMounted && realtimeChannel) {
+            try {
+              void sb.removeChannel(realtimeChannel);
+            } catch {}
+          }
+        });
+    } catch (err) {
+      captureException(err, { context: 'useNotifications.realtimeSubscribe' });
+    }
 
     notifListenerRef.current = Notifications.addNotificationReceivedListener(() => {
       void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
@@ -163,17 +188,18 @@ export function useNotifications() {
 
     responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
       const responseId = response.notification.request.identifier;
-      if (lastHandledResponseRef.current === responseId) return;
+      if (lastHandledResponseRef.current === responseId || globalLastHandledResponseId === responseId) return;
       lastHandledResponseRef.current = responseId;
+      globalLastHandledResponseId = responseId;
       handleNotificationRoute(response.notification.request.content.data as Record<string, unknown>);
     });
 
-    let channelMounted = true;
     void Notifications.getLastNotificationResponseAsync().then(response => {
       if (!channelMounted || !response) return;
       const responseId = response.notification.request.identifier;
-      if (lastHandledResponseRef.current === responseId) return;
+      if (lastHandledResponseRef.current === responseId || globalLastHandledResponseId === responseId) return;
       lastHandledResponseRef.current = responseId;
+      globalLastHandledResponseId = responseId;
       handleNotificationRoute(response.notification.request.content.data as Record<string, unknown>);
     });
 
@@ -188,7 +214,13 @@ export function useNotifications() {
       appStateSubscription.remove();
       notifListenerRef.current?.remove();
       responseListenerRef.current?.remove();
-      void sb.removeChannel(realtimeChannel);
+      if (realtimeChannel) {
+        try {
+          void sb.removeChannel(realtimeChannel);
+        } catch {
+          // safe cleanup
+        }
+      }
     };
   }, [handleNotificationRoute, queryClient, user]);
 

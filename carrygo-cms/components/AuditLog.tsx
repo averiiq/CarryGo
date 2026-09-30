@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Shield, Eye, Edit3, Trash2, UserPlus, Lock, Download, Filter } from 'lucide-react'
+import { Shield, Eye, Edit3, Trash2, UserPlus, Lock, Download, Filter, Search } from 'lucide-react'
 
 type AuditAction = 'view' | 'create' | 'update' | 'delete' | 'login' | 'export' | 'approve' | 'reject'
 
@@ -37,13 +37,57 @@ const actionFilters: AuditAction[] = ['view', 'create', 'update', 'delete', 'log
 export default function AuditLog({ entries }: AuditLogProps) {
   const [filter, setFilter] = useState<AuditAction | 'all'>('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [search, setSearch] = useState('')
 
-  const filtered = filter === 'all' ? entries : entries.filter(e => e.action === filter)
+  const filtered = entries.filter((e) => {
+    if (filter !== 'all' && e.action !== filter) return false
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      return (
+        e.admin.toLowerCase().includes(q) ||
+        e.resource.toLowerCase().includes(q) ||
+        (e.resourceId && e.resourceId.toLowerCase().includes(q)) ||
+        e.detail.toLowerCase().includes(q) ||
+        e.timestamp.toLowerCase().includes(q)
+      )
+    }
+    return true
+  })
+
+  const exportAuditLog = () => {
+    const escapeCell = (value: unknown) => {
+      let text = String(value ?? '')
+      if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`
+      return `"${text.replace(/"/g, '""')}"`
+    }
+    const rows = [
+      ['ID', 'Admin / Actor', 'Action', 'Resource', 'Resource ID', 'Detail', 'Timestamp', 'IP'],
+      ...filtered.map((e) => [
+        e.id,
+        e.admin,
+        e.action,
+        e.resource,
+        e.resourceId || '',
+        e.detail,
+        e.timestamp,
+        e.ip || '',
+      ]),
+    ]
+    const blob = new Blob([rows.map((r) => r.map(escapeCell).join(',')).join('\n')], {
+      type: 'text/csv;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -60,7 +104,27 @@ export default function AuditLog({ entries }: AuditLogProps) {
             </span>
           )}
         </div>
-        <span className="text-xs text-muted-foreground">{filtered.length} entries</span>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-60">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search audit trail..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-surface text-xs text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={exportAuditLog}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-muted hover:text-foreground shrink-0 transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>

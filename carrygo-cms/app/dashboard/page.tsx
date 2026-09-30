@@ -6,8 +6,15 @@ import ActivityFeed from '@/components/ActivityFeed'
 import SystemHealth from '@/components/SystemHealth'
 import QuickActions from '@/components/QuickActions'
 import DeliveryFunnel from '@/components/DeliveryFunnel'
+import UrgentAttentionBanner from '@/components/UrgentAttentionBanner'
 import { isAwsCmsBackendEnabled } from '@/utils/backend/provider'
 import { awsCmsRequest } from '@/utils/aws/api'
+
+function getStaleEscrowThreshold(): string {
+  const d = new Date()
+  d.setHours(d.getHours() - 48)
+  return d.toISOString()
+}
 
 export default async function DashboardOverview() {
   const auth = await requireAdmin()
@@ -22,9 +29,22 @@ export default async function DashboardOverview() {
   let pendingKyc = 0
   let openDisputes = 0
 
-  const [usersCountResult, kycCountResult] = await Promise.all([
+  const fortyEightHoursAgo = getStaleEscrowThreshold()
+
+  const [
+    usersCountResult,
+    kycCountResult,
+    staleEscrowsResult,
+    activeBannersResult,
+    openTicketsResult,
+    paymentTotalsResult,
+  ] = await Promise.all([
     supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
     supabase.from('kyc_sessions').select('*', { count: 'exact', head: true }).eq('status', 'submitted'),
+    supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'locked').lte('locked_at', fortyEightHoursAgo),
+    supabase.from('promotional_banners').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+    supabase.rpc('cms_payment_totals', { p_actor_id: auth.userId }),
   ])
 
   if (usersCountResult.error || kycCountResult.error) {
@@ -33,6 +53,11 @@ export default async function DashboardOverview() {
 
   totalUsers = usersCountResult.count ?? 0
   pendingKyc = kycCountResult.count ?? 0
+  const staleEscrows = staleEscrowsResult.count ?? 0
+  const activeBanners = activeBannersResult.count ?? 0
+  const openTickets = openTicketsResult.count ?? 0
+  const totalsSummary = (paymentTotalsResult?.data?.[0] ?? {}) as { released?: number; locked?: number; refunded?: number }
+  const totalLockedEscrow = Number(totalsSummary.locked ?? 0)
 
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
@@ -159,18 +184,18 @@ export default async function DashboardOverview() {
       sparkline: chartData.map(d => d.parcels),
     },
     {
+      title: 'Escrow Protected',
+      value: `₹${totalLockedEscrow.toLocaleString('en-IN')}`,
+      iconName: 'CreditCard' as const,
+      color: 'text-emerald-500',
+      bgColor: 'bg-emerald-500/10',
+    },
+    {
       title: 'KYC Queue',
       value: pendingKyc || 0,
       iconName: 'FileCheck' as const,
       color: 'text-accent',
       bgColor: 'bg-accent-subtle',
-    },
-    {
-      title: 'Open Disputes',
-      value: openDisputes || 0,
-      iconName: 'AlertTriangle' as const,
-      color: 'text-danger',
-      bgColor: 'bg-danger-subtle',
     },
   ]
 
@@ -207,6 +232,14 @@ export default async function DashboardOverview() {
   ]
 
   const quickActions = [
+    ...(staleEscrows && staleEscrows > 0 ? [{
+      label: 'Arbitrate Stale Escrow',
+      description: `${staleEscrows} payments locked >48 hours`,
+      href: '/dashboard/payments',
+      iconName: 'CreditCard',
+      count: staleEscrows,
+      urgency: 'high' as const,
+    }] : []),
     ...(pendingKyc && pendingKyc > 0 ? [{
       label: 'Review KYC Submissions',
       description: `${pendingKyc} documents awaiting verification`,
@@ -223,6 +256,22 @@ export default async function DashboardOverview() {
       count: openDisputes,
       urgency: 'high' as const,
     }] : []),
+    ...(openTickets && openTickets > 0 ? [{
+      label: 'Support Tickets',
+      description: `${openTickets} open customer tickets`,
+      href: '/dashboard/support',
+      iconName: 'HeadphonesIcon',
+      count: openTickets,
+      urgency: 'medium' as const,
+    }] : []),
+    {
+      label: 'Promotional Banners',
+      description: `${activeBanners} live campaigns running on app`,
+      href: '/dashboard/banners',
+      iconName: 'Sparkles',
+      count: activeBanners,
+      urgency: 'low' as const,
+    },
     {
       label: 'User Management',
       description: 'Review recent signups and flagged accounts',
@@ -260,6 +309,15 @@ export default async function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      <UrgentAttentionBanner
+        pendingKyc={pendingKyc}
+        staleEscrows={staleEscrows}
+        openDisputes={openDisputes}
+        openTickets={openTickets}
+        activeBanners={activeBanners}
+        totalLockedEscrow={totalLockedEscrow}
+      />
+
       <BentoStats stats={stats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

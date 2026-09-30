@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   Layers,
   Search,
+  Bell,
+  Sparkles,
   CreditCard,
   ScrollText,
 } from 'lucide-react'
@@ -22,16 +24,24 @@ import {
 const commands = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard, section: 'Pages' },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, section: 'Pages' },
-  { name: 'Trips', href: '/dashboard/trips', icon: Navigation, section: 'Pages' },
-  { name: 'Parcels', href: '/dashboard/parcels', icon: Package, section: 'Pages' },
-  { name: 'Payments', href: '/dashboard/payments', icon: CreditCard, section: 'Pages' },
+  { name: 'Trips & Travelers', href: '/dashboard/trips', icon: Navigation, section: 'Pages' },
+  { name: 'Parcels & Shipments', href: '/dashboard/parcels', icon: Package, section: 'Pages' },
+  { name: 'Payments & Escrow', href: '/dashboard/payments', icon: CreditCard, section: 'Pages' },
   { name: 'KYC Verification', href: '/dashboard/kyc', icon: FileCheck, section: 'Pages' },
-  { name: 'Users', href: '/dashboard/users', icon: Users, section: 'Pages' },
-  { name: 'Disputes', href: '/dashboard/disputes', icon: AlertTriangle, section: 'Pages' },
-  { name: 'Support', href: '/dashboard/support', icon: LifeBuoy, section: 'Pages' },
+  { name: 'Users & Accounts', href: '/dashboard/users', icon: Users, section: 'Pages' },
+  { name: 'Disputes Resolution', href: '/dashboard/disputes', icon: AlertTriangle, section: 'Pages' },
+  { name: 'Support Tickets', href: '/dashboard/support', icon: LifeBuoy, section: 'Pages' },
+  { name: 'Promotional Banners', href: '/dashboard/banners', icon: Sparkles, section: 'Pages' },
+  { name: 'System Notifications', href: '/dashboard/notifications', icon: Bell, section: 'Pages' },
   { name: 'Bulk Operations', href: '/dashboard/bulk', icon: Layers, section: 'Pages' },
-  { name: 'Audit Log', href: '/dashboard/audit', icon: ScrollText, section: 'Pages' },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings, section: 'Pages' },
+  { name: 'Audit Log & Trail', href: '/dashboard/audit', icon: ScrollText, section: 'Pages' },
+  { name: 'System Settings', href: '/dashboard/settings', icon: Settings, section: 'Pages' },
+  // Quick Actions
+  { name: 'Review Pending KYC Submissions', href: '/dashboard/kyc?status=submitted', icon: FileCheck, section: 'Quick Actions' },
+  { name: 'Inspect Stale Escrow Balances', href: '/dashboard/payments', icon: CreditCard, section: 'Quick Actions' },
+  { name: 'Manage Promotional Banners', href: '/dashboard/banners', icon: Sparkles, section: 'Quick Actions' },
+  { name: 'Resolve Open Delivery Disputes', href: '/dashboard/disputes', icon: AlertTriangle, section: 'Quick Actions' },
+  { name: 'Broadcast System Notification', href: '/dashboard/notifications', icon: Bell, section: 'Quick Actions' },
 ]
 
 interface CommandPaletteProps {
