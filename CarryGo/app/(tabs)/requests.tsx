@@ -27,19 +27,12 @@ import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.servic
 
 type TabType = 'incoming' | 'outgoing';
 type StatusFilterKey = 'all' | 'pending' | 'accepted' | 'completed';
-type RoleFilterKey = 'all' | 'sender' | 'traveller';
 
 const STATUS_TABS: { key: StatusFilterKey; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
   { key: 'all', label: 'All', icon: 'apps' },
   { key: 'pending', label: 'Pending', icon: 'hourglass-empty' },
   { key: 'accepted', label: 'Active', icon: 'local-shipping' },
   { key: 'completed', label: 'Done', icon: 'task-alt' },
-];
-
-const ROLE_TABS: { key: RoleFilterKey; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
-  { key: 'all', label: 'All Roles', icon: 'swap-horiz' },
-  { key: 'sender', label: 'My Parcels', icon: 'inventory-2' },
-  { key: 'traveller', label: 'My Trips', icon: 'directions-car' },
 ];
 
 const RequestListItem = React.memo(function RequestListItem({
@@ -122,7 +115,6 @@ export default function RequestsScreen() {
   const createConversationMutation = useCreateConversationMutation(user?.id);
 
   const [tab, setTab] = useState<TabType>('incoming');
-  const [roleFilter, setRoleFilter] = useState<RoleFilterKey>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilterKey>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<Request | null>(null);
@@ -192,30 +184,17 @@ export default function RequestsScreen() {
   const base = tab === 'incoming' ? incoming : outgoing;
   const pendingCount = incoming.filter(r => r.status === 'pending').length;
 
-  // Role filtering within current tab
-  const roleFiltered = useMemo(() => {
-    if (roleFilter === 'sender') return base.filter(r => r.senderId === user?.id);
-    if (roleFilter === 'traveller') return base.filter(r => r.travellerId === user?.id);
-    return base;
-  }, [base, roleFilter, user?.id]);
-
-  const roleCounts = useMemo(() => ({
-    all: base.length,
-    sender: base.filter(r => r.senderId === user?.id).length,
-    traveller: base.filter(r => r.travellerId === user?.id).length,
-  }), [base, user?.id]);
-
   const statusCounts = useMemo(() => ({
-    all: roleFiltered.length,
-    pending: roleFiltered.filter(r => r.status === 'pending').length,
-    accepted: roleFiltered.filter(r => r.status === 'accepted').length,
-    completed: roleFiltered.filter(r => r.status === 'completed').length,
-  }), [roleFiltered]);
+    all: base.length,
+    pending: base.filter(r => r.status === 'pending').length,
+    accepted: base.filter(r => r.status === 'accepted').length,
+    completed: base.filter(r => r.status === 'completed').length,
+  }), [base]);
 
   const displayed = useMemo(() => {
-    if (statusFilter === 'all') return roleFiltered;
-    return roleFiltered.filter(r => r.status === statusFilter);
-  }, [roleFiltered, statusFilter]);
+    if (statusFilter === 'all') return base;
+    return base.filter(r => r.status === statusFilter);
+  }, [base, statusFilter]);
 
   const cardAnims = useStaggeredList(Math.max(displayed.length, 14), 70);
 
@@ -238,7 +217,6 @@ export default function RequestsScreen() {
     ]).start();
     setTab(nextTab);
     setStatusFilter('all');
-    setRoleFilter('all');
   };
 
   useEffect(() => {
@@ -554,51 +532,18 @@ export default function RequestsScreen() {
         })}
       </View>
 
-      {/* Filter Row: Role selector + Status filters */}
+      {/* Clear contextual description of active tab */}
+      <View style={[styles.tabDescriptionWrap, isTablet && styles.tabletContainer]}>
+        <Text style={[styles.tabDescriptionText, { color: C.textMuted }]}>
+          {tab === 'incoming'
+            ? 'Offers and delivery requests sent to you by other members'
+            : 'Delivery requests and carry offers you sent to others'}
+        </Text>
+      </View>
+
+      {/* Single Clean Status Filter Bar */}
       {base.length > 0 ? (
         <View style={[styles.filtersContainer, isTablet && styles.tabletContainer]}>
-          {/* Role selector pills (All / My Parcels / My Trips) */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterChipRow}
-            style={{ marginBottom: 6 }}
-          >
-            {ROLE_TABS.map((rt) => {
-              const active = roleFilter === rt.key;
-              const count = roleCounts[rt.key];
-              return (
-                <Pressable
-                  key={rt.key}
-                  style={[
-                    styles.roleChip,
-                    {
-                      backgroundColor: active ? C.primary : C.surface,
-                      borderColor: active ? C.primary : C.surfaceBorder,
-                    },
-                  ]}
-                  hitSlop={TouchTarget.smallHitSlop}
-                  onPress={() => {
-                    Haptic.select();
-                    setRoleFilter(rt.key);
-                    setStatusFilter('all');
-                  }}
-                >
-                  <MaterialIcons name={rt.icon} size={13} color={active ? '#FFFFFF' : C.textSecondary} />
-                  <Text
-                    style={[
-                      styles.roleChipText,
-                      { color: active ? '#FFFFFF' : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium },
-                    ]}
-                  >
-                    {rt.label} ({count})
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          {/* Status filter chips */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -635,7 +580,7 @@ export default function RequestsScreen() {
                     {st.label}
                   </Text>
                   <View style={[styles.statusChipBadge, { backgroundColor: active ? C.primary : C.surfaceBorder }]}>
-                    <Text style={[styles.statusChipCount, { color: '#fff' }]}>{count}</Text>
+                    <Text style={[styles.statusChipCount, { color: active ? '#fff' : C.textSecondary }]}>{count}</Text>
                   </View>
                 </Pressable>
               );
@@ -695,22 +640,20 @@ export default function RequestsScreen() {
                 <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
                   {statusFilter !== 'all'
                     ? `No ${statusFilter} requests`
-                    : roleFilter !== 'all'
-                      ? `No ${roleFilter === 'sender' ? 'parcel' : 'trip'} requests found`
-                      : tab === 'incoming'
-                        ? 'No received requests yet'
-                        : 'No sent requests yet'}
+                    : tab === 'incoming'
+                      ? 'No received requests yet'
+                      : 'No sent requests yet'}
                 </Text>
 
                 <Text style={[styles.emptySubtext, { color: C.textMuted }]}> 
-                  {statusFilter !== 'all' || roleFilter !== 'all'
-                    ? 'Try clearing active filters to see all requests in this view.'
+                  {statusFilter !== 'all'
+                    ? 'Try switching status filter to "All" to view all requests.'
                     : tab === 'incoming'
                       ? 'When travelers offer to carry your parcels or senders request your trips, they appear here.'
                       : 'Browse verified trips to send your parcel, or view parcels to carry along your journey.'}
                 </Text>
 
-                {statusFilter === 'all' && roleFilter === 'all' ? (
+                {statusFilter === 'all' ? (
                   <View style={styles.emptyActionRow}>
                     <Pressable
                       style={({ pressed }) => [
@@ -759,11 +702,10 @@ export default function RequestsScreen() {
                     onPress={() => {
                       Haptic.tap();
                       setStatusFilter('all');
-                      setRoleFilter('all');
                     }}
                   >
                     <MaterialIcons name="filter-alt-off" size={15} color={C.textSecondary} />
-                    <Text style={[styles.emptySecondaryText, { color: C.textSecondary }]}>Clear all filters</Text>
+                    <Text style={[styles.emptySecondaryText, { color: C.textSecondary }]}>Show all requests</Text>
                   </Pressable>
                 )}
               </View>
@@ -891,6 +833,14 @@ const styles = StyleSheet.create({
   tabBadgeText: {
     fontSize: 10,
     fontWeight: FontWeight.bold,
+  },
+  tabDescriptionWrap: {
+    paddingHorizontal: Spacing.xs,
+    paddingBottom: Spacing.xs,
+  },
+  tabDescriptionText: {
+    fontSize: 11.5,
+    lineHeight: 16,
   },
 
   filtersContainer: {
