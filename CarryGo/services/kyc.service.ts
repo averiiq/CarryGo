@@ -102,13 +102,12 @@ function mapSession(row: KycSessionRow, documents: KycDocument[]): KycSession {
 // NEW SANDBOX AADHAAR / DIGILOCKER VERIFICATION FLOW
 // ---------------------------------------------------------------------------
 
-const DEFAULT_SANDBOX_API_KEY = 'key_live_416614ac6953471ebf15142f75db722e';
-const DEFAULT_SANDBOX_API_SECRET = 'secret_live_fac826b1d2c74cd0b021ec72e84c04ad';
 const DEFAULT_SANDBOX_BASE_URL = 'https://api.sandbox.co.in';
 
 function getSandboxConfig() {
-  const apiKey = process.env.EXPO_PUBLIC_SANDBOX_API_KEY || DEFAULT_SANDBOX_API_KEY;
-  const apiSecret = process.env.EXPO_PUBLIC_SANDBOX_API_SECRET || DEFAULT_SANDBOX_API_SECRET;
+  const isTest = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined';
+  const apiKey = process.env.EXPO_PUBLIC_SANDBOX_API_KEY || (isTest ? 'test_sandbox_api_key' : '');
+  const apiSecret = process.env.EXPO_PUBLIC_SANDBOX_API_SECRET || (isTest ? 'test_sandbox_api_secret' : '');
   const baseUrl = (process.env.EXPO_PUBLIC_SANDBOX_BASE_URL || DEFAULT_SANDBOX_BASE_URL).replace(/\/+$/, '');
   return { apiKey, apiSecret, baseUrl };
 }

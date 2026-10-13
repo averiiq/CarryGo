@@ -57,8 +57,12 @@ async function main() {
   await runCommand('k6', ['run', 'k6-gateway-test.js']);
 
   // Test 4: Grafana k6 Supabase Cloud Database Load Test
-  console.log('\n[Stage 4/4] Running Grafana k6 Supabase Production Cloud DB Test...');
+  console.log('\n[Stage 4/5] Running Grafana k6 Supabase Production Cloud DB Test...');
   await runCommand('k6', ['run', 'k6-supabase-test.js']);
+
+  // Test 5: Enterprise Scalability & Two-Tier Cache Suite
+  console.log('\n[Stage 5/5] Running Enterprise Scalability & Cache Suite...');
+  await runCommand('node', ['enterprise-scalability-suite.mjs']);
 
   console.log('\n===============================================================');
   console.log('🎉 All Production Backend Benchmarks Completed Successfully!');

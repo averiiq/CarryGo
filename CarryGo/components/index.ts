@@ -40,3 +40,6 @@ export { LiveActivityCompactPill } from './feature/LiveActivityCompactPill';
 export { PromotionalBannerCarousel } from './feature/PromotionalBannerCarousel';
 export { CitySelectModal } from './feature/CitySelectModal';
 export { InteractiveRouteCard } from './feature/InteractiveRouteCard';
+export { LiveMarketplaceHeader, type MarketplaceSortOption } from './feature/LiveMarketplaceHeader';
+export { RequestSuccessModal } from './feature/RequestSuccessModal';
+export { RequestDetailModal } from './feature/RequestDetailModal';

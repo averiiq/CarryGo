@@ -9,8 +9,10 @@ export interface SavedRoute {
   useCount: number;
 }
 
-const STORAGE_KEY = '@hizli:saved_routes';
-const RECENT_KEY = '@hizli:recent_routes';
+const STORAGE_KEY = '@carrygo:saved_routes';
+const RECENT_KEY = '@carrygo:recent_routes';
+const LEGACY_STORAGE_KEY = '@hizli:saved_routes';
+const LEGACY_RECENT_KEY = '@hizli:recent_routes';
 const MAX_SAVED = 20;
 const MAX_RECENT = 5;
 
@@ -25,10 +27,16 @@ export function useSavedRoutes() {
 
   const loadRoutes = async () => {
     setIsLoading(true);
-    const [savedJson, recentJson] = await Promise.all([
+    let [savedJson, recentJson] = await Promise.all([
       AsyncStorage.getItem(STORAGE_KEY),
       AsyncStorage.getItem(RECENT_KEY),
     ]);
+    if (!savedJson) {
+      savedJson = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+    }
+    if (!recentJson) {
+      recentJson = await AsyncStorage.getItem(LEGACY_RECENT_KEY);
+    }
     if (savedJson) setSavedRoutes(JSON.parse(savedJson));
     if (recentJson) setRecentRoutes(JSON.parse(recentJson));
     setIsLoading(false);

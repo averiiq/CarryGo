@@ -15,6 +15,7 @@ export const config = {
   notificationsTopicArn: process.env.NOTIFICATIONS_TOPIC_ARN,
   eventBusName: process.env.EVENT_BUS_NAME,
   sandboxWebhookSecret: process.env.SANDBOX_WEBHOOK_SECRET,
+  redisUrl: process.env.REDIS_URL,
 };
 
 

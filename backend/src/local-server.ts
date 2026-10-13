@@ -4,6 +4,7 @@ import os from 'os';
 import { randomUUID } from 'crypto';
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { routeRequest, fastRequestId } from './http/router';
+import { redisService } from './lib/redis';
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
@@ -127,7 +128,10 @@ server.requestTimeout = 30_000;
 
 const gracefulShutdown = (signal: string) => {
   console.log(`\n🛑 Received ${signal}. Draining connections and shutting down gracefully...`);
-  server.close(() => {
+  server.close(async () => {
+    try {
+      await redisService.close();
+    } catch {}
     console.log('✅ Server closed cleanly.');
     process.exit(0);
   });

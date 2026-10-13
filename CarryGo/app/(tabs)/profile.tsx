@@ -620,6 +620,22 @@ export default function ProfileScreen() {
                 subtitle="Data protection and identity encryption"
                 onPress={() => router.push('/legal/privacy')}
               />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="replay" size={18} color={C.warning} />}
+                label="Refund & Cancellation"
+                subtitle="Escrow refunds, cancellation rules & disputes"
+                onPress={() => router.push('/legal/refund-policy' as any)}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="local-shipping" size={18} color={C.primary} />}
+                label="Shipping & Delivery"
+                subtitle="Peer carriage scope, timelines & handovers"
+                onPress={() => router.push('/legal/shipping-policy' as any)}
+              />
             </View>
           </View>
 

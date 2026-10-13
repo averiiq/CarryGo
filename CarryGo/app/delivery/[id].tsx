@@ -722,9 +722,12 @@ function DeliveryScreenInner() {
                   </Text>
                 </View>
                 <View style={styles.heroUserInfo}>
-                  <Text style={[styles.heroUserName, { color: C.textPrimary }]} numberOfLines={1}>
-                    {counterpartyName}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={[styles.heroUserName, { color: C.textPrimary }]} numberOfLines={1}>
+                      {counterpartyName}
+                    </Text>
+                    <Ionicons name="checkmark-circle" size={13} color={C.primary} />
+                  </View>
                   <Text style={[styles.heroUserRole, { color: C.textMuted }]}>
                     Assigned {counterpartyRole}
                   </Text>
@@ -741,7 +744,7 @@ function DeliveryScreenInner() {
                   pressed && { opacity: 0.8 },
                 ]}
               >
-                <Ionicons name="chatbubble-outline" size={14} color={C.primary} />
+                <Ionicons name="chatbubble-outline" size={13} color={C.primary} />
                 <Text style={[styles.heroChatBtnText, { color: C.textPrimary }]}>Chat</Text>
               </Pressable>
             </View>
@@ -1053,12 +1056,12 @@ const styles = StyleSheet.create({
   heroCityLabel: {
     fontSize: FontSize.xs - 2,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   heroCityName: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   heroRouteArrowBox: {
     flexDirection: 'row',
@@ -1066,7 +1069,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.sm,
     position: 'relative',
-    width: 70,
+    width: 64,
   },
   heroRouteLine: {
     position: 'absolute',
@@ -1075,9 +1078,9 @@ const styles = StyleSheet.create({
     height: 1,
   },
   heroRouteArrowCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,

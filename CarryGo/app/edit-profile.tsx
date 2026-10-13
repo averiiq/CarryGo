@@ -60,7 +60,6 @@ export default function EditProfileScreen() {
   const [phone, setPhone] = useState<string>(user?.phone || '');
   const [city, setCity] = useState<string>(user?.city || '');
   const [role, setRole] = useState<UserRole>(user?.role || 'both');
-  const [bio, setBio] = useState<string>(user?.verifiedAddress || '');
 
   // UI state
   const [showCityModal, setShowCityModal] = useState(false);

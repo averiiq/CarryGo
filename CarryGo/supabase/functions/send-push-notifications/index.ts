@@ -86,13 +86,14 @@ serve(async (req) => {
       });
     }
 
-    const activeDevices = (devices || []).filter(device =>
-      typeof device.expo_push_token === 'string'
-      && (
-        device.expo_push_token.startsWith('ExponentPushToken[')
-        || device.expo_push_token.startsWith('ExpoPushToken[')
-      )
-    );
+    const activeDevices = (devices || []).filter(device => {
+      const token = typeof device.expo_push_token === 'string' ? device.expo_push_token.trim() : '';
+      return (
+        token.startsWith('ExponentPushToken[')
+        || token.startsWith('ExpoPushToken[')
+        || /^[a-zA-Z0-9_-]{22,64}$/.test(token)
+      );
+    });
 
     if (activeDevices.length === 0) {
       return new Response(JSON.stringify({ message: 'No Expo push devices for user' }), {

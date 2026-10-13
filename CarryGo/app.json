@@ -104,7 +104,8 @@
           "color": "#15803d",
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "updates": {
       "url": "https://u.expo.dev/85ee60ab-6a6a-4f2e-9688-9fbd4dabca3b",

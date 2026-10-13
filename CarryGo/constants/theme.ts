@@ -1,6 +1,6 @@
 // CarryGo design tokens for a trust-first, calm logistics UI
 
-// Light palette (pure, calm, signature CarryGo emerald green)
+// Light palette (Signature CarryGo Emerald Green brand palette)
 export const LightColors = {
   background: '#F8FAFC',
   surface: '#FFFFFF',
@@ -13,6 +13,7 @@ export const LightColors = {
   cardSubtle: '#F8FAFC',
   cardBorder: '#E2E8F0',
 
+  // Signature Emerald Green Primary Brand Palette
   primary: '#059669',
   primaryDark: '#047857',
   primaryLight: '#10B981',
@@ -20,8 +21,27 @@ export const LightColors = {
   primaryBorder: '#A7F3D0',
   primaryGlow: 'rgba(5, 150, 105, 0.16)',
 
+  // Clean Emerald Accent Palette
   accent: '#059669',
+  accentDark: '#047857',
+  accentLight: '#34D399',
   accentSubtle: '#ECFDF5',
+  accentBorder: '#A7F3D0',
+  accentText: '#FFFFFF',
+
+  // Named helpers for backwards compatibility
+  cobalt: '#059669',
+  cobaltDark: '#047857',
+  cobaltLight: '#10B981',
+  cobaltSubtle: '#ECFDF5',
+  cobaltBorder: '#A7F3D0',
+
+  lime: '#10B981',
+  limeDark: '#059669',
+  limeLight: '#34D399',
+  limeSubtle: '#ECFDF5',
+  limeBorder: '#A7F3D0',
+  limeText: '#FFFFFF',
 
   textPrimary: '#0F172A',
   textSecondary: '#475569',
@@ -29,7 +49,7 @@ export const LightColors = {
   textInverse: '#FFFFFF',
   textWhite: '#FFFFFF',
 
-  success: '#059669',
+  success: '#10B981',
   successSubtle: '#ECFDF5',
   successBorder: '#A7F3D0',
 
@@ -146,7 +166,14 @@ export const Shadow = {
   glow: {
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.16,
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  limeGlow: {
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
     shadowRadius: 16,
     elevation: 3,
   },
@@ -180,6 +207,7 @@ export const Shadow = {
 export const BoxShadow = {
   card: '0px 4px 14px rgba(15, 23, 42, 0.04)',
   glow: '0px 6px 16px rgba(5, 150, 105, 0.16)',
+  limeGlow: '0px 6px 16px rgba(16, 185, 129, 0.24)',
   sm: '0px 2px 6px rgba(15, 23, 42, 0.03)',
   md: '0px 6px 16px rgba(15, 23, 42, 0.06)',
   float: '0px 10px 24px rgba(15, 23, 42, 0.08)',
@@ -193,9 +221,12 @@ export const Gradients = {
   primary: ['#059669', '#047857'] as [string, string],
   primaryVibrant: ['#10B981', '#059669'] as [string, string],
   accent: ['#10B981', '#059669'] as [string, string],
+  lime: ['#10B981', '#059669'] as [string, string],
+  cobalt: ['#059669', '#047857'] as [string, string],
   hero: ['#FFFFFF', '#F0FDF4', '#F8FAFC'] as [string, string, string],
   card: ['rgba(5, 150, 105, 0.05)', 'rgba(5, 150, 105, 0.0)'] as [string, string],
-  emeraldSoft: ['#ECFDF5', '#D1FAE5'] as [string, string],
+  cobaltSoft: ['#ECFDF5', '#D1FAE5'] as [string, string],
+  limeSoft: ['#ECFDF5', '#D1FAE5'] as [string, string],
   success: ['#10B981', '#059669'] as [string, string],
   warm: ['#F59E0B', '#D97706'] as [string, string],
   sky: ['#0EA5E9', '#0284C7'] as [string, string],

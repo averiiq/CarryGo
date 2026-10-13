@@ -58,7 +58,11 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Too many payment attempts. Please wait.' }, 429);
     }
 
-    const { requestId } = await req.json();
+    const reqBody = await req.json();
+    const requestId = reqBody.requestId;
+    const generateLink = Boolean(reqBody.generateLink);
+    const customer = reqBody.customer;
+
     if (!requestId) {
       return jsonResponse({ error: 'Missing requestId' }, 400);
     }
@@ -109,6 +113,61 @@ Deno.serve(async (req) => {
     const amountInPaise = Math.round(Number(request.price) * 100);
     if (amountInPaise <= 0 || amountInPaise > 99999999999) {
       return jsonResponse({ error: 'Invalid amount' }, 400);
+    }
+
+    if (generateLink) {
+      const linkPayload = {
+        amount: amountInPaise,
+        currency: 'INR',
+        description: `CarryGo Delivery Escrow for Request #${requestId.slice(0, 8)}`,
+        customer: {
+          name: customer?.name || user.email || 'CarryGo Customer',
+          email: customer?.email || user.email || 'customer@carrygo.com',
+          contact: customer?.phone || '+919876543210',
+        },
+        notify: { sms: false, email: false },
+        callback_url: 'https://carrygo.averiq.in/payment/success',
+        callback_method: 'get',
+        notes: {
+          request_id: requestId,
+          sender_id: user.id,
+          traveller_id: request.traveller_id,
+        },
+      };
+
+      const linkResponse = await fetch('https://api.razorpay.com/v1/payment_links', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`)}`,
+        },
+        body: JSON.stringify(linkPayload),
+      });
+
+      if (!linkResponse.ok) {
+        const errBody = await linkResponse.text();
+        console.error('[create-razorpay-order] Payment link error:', errBody);
+        return jsonResponse({ error: 'Failed to create payment checkout link' }, 502);
+      }
+
+      const linkData = await linkResponse.json();
+
+      await supabase.from('razorpay_orders').insert({
+        order_id: linkData.id,
+        request_id: request.id,
+        sender_id: user.id,
+        amount_paise: amountInPaise,
+        currency: 'INR',
+      });
+
+      return jsonResponse({
+        orderId: linkData.id,
+        amount: amountInPaise,
+        currency: 'INR',
+        keyId: RAZORPAY_KEY_ID,
+        paymentLinkId: linkData.id,
+        shortUrl: linkData.short_url,
+      });
     }
 
     const { data: pendingOrder, error: pendingOrderError } = await supabase

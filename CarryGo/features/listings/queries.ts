@@ -20,6 +20,7 @@ import {
 import { fetchActivePromotionalBanners } from '@/services/promotional-banners.service';
 import { FilterOptions, Parcel, PromotionalBanner, Trip } from '@/types';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
+import { MarketplaceRelevanceService } from '@/services/marketplace-relevance.service';
 
 const PAGE_SIZE = 20;
 
@@ -353,16 +354,20 @@ export function filterTrips(trips: Trip[], filters: FilterOptions, userCity?: st
     // 1. NEVER show non-active (completed, cancelled) trips in live marketplace
     if (trip.status !== 'active') return false;
 
-    // 2. Specific search filter matches
+    // 2. Capacity must be > 0 (completed / fully booked trips NEVER show)
+    if (Number(trip.availableCapacity || 0) <= 0) return false;
+
+    // 3. Date must not be in past (expired / departed trips NEVER show)
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (trip.date && trip.date < todayStr) return false;
+
+    // 4. Specific search filter matches
     if (filters.fromCity && !trip.fromCity.toLowerCase().includes(filters.fromCity.toLowerCase())) return false;
     if (filters.toCity && !trip.toCity.toLowerCase().includes(filters.toCity.toLowerCase())) return false;
 
-    // 3. Location filter applied to live marketplace when no specific corridor search is active
-    if (userCity && !filters.fromCity && !filters.toCity) {
-      const city = userCity.toLowerCase().trim();
-      const originMatch = trip.fromCity.toLowerCase().includes(city);
-      const destMatch = trip.toCity.toLowerCase().includes(city);
-      if (!originMatch && !destMatch) return false;
+    // 5. Strict location filter applied to live marketplace when no specific corridor search is active
+    if (!filters.fromCity && !filters.toCity && userCity) {
+      if (!MarketplaceRelevanceService.isRelevantToCity(trip, userCity)) return false;
     }
 
     if (filters.vehicleType && trip.vehicleType !== filters.vehicleType) return false;
@@ -377,16 +382,17 @@ export function filterParcels(parcels: Parcel[], filters: FilterOptions, userCit
     // 1. NEVER show non-open (delivered, matched, in_transit, failed) parcels in live marketplace
     if (parcel.status !== 'open') return false;
 
-    // 2. Specific search filter matches
+    // 2. Delivery date must not be in the past
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (parcel.deliveryDate && parcel.deliveryDate < todayStr) return false;
+
+    // 3. Specific search filter matches
     if (filters.fromCity && !parcel.fromCity.toLowerCase().includes(filters.fromCity.toLowerCase())) return false;
     if (filters.toCity && !parcel.toCity.toLowerCase().includes(filters.toCity.toLowerCase())) return false;
 
-    // 3. Location filter applied to live marketplace when no specific corridor search is active
-    if (userCity && !filters.fromCity && !filters.toCity) {
-      const city = userCity.toLowerCase().trim();
-      const originMatch = parcel.fromCity.toLowerCase().includes(city);
-      const destMatch = parcel.toCity.toLowerCase().includes(city);
-      if (!originMatch && !destMatch) return false;
+    // 4. Strict location filter applied to live marketplace when no specific corridor search is active
+    if (!filters.fromCity && !filters.toCity && userCity) {
+      if (!MarketplaceRelevanceService.isRelevantToCity(parcel, userCity)) return false;
     }
 
     return true;

@@ -14,7 +14,7 @@ function createMockTrip(overrides: Partial<Trip> = {}): Trip {
     userRating: 4.8,
     fromCity: 'Hisar',
     toCity: 'Bhiwani',
-    date: '2026-09-25',
+    date: '2026-12-25',
     time: '10:00',
     vehicleType: 'car',
     availableCapacity: 15,
@@ -37,7 +37,7 @@ function createMockParcel(overrides: Partial<Parcel> = {}): Parcel {
     weight: 2,
     priceOffer: 300,
     status: 'open',
-    deliveryDate: '2026-09-25',
+    deliveryDate: '2026-12-25',
     createdAt: new Date().toISOString(),
     ...overrides,
   };
@@ -184,5 +184,47 @@ describe('MarketplaceRelevanceService (City-Personalized Home Feed)', () => {
     expect(MarketplaceRelevanceService.isRelevantToCity({ fromCity: 'Jaipur', toCity: 'Kota' }, userCity)).toBe(false);
     expect(MarketplaceRelevanceService.isRelevantToCity({ fromCity: 'Mumbai', toCity: 'Pune' }, userCity)).toBe(false);
     expect(MarketplaceRelevanceService.isRelevantToCity({ fromCity: 'Bengaluru', toCity: 'Mysuru' }, userCity)).toBe(false);
+  });
+
+  it('rejects listings when userCity is missing to prevent non-location listing dump', () => {
+    expect(MarketplaceRelevanceService.isRelevantToCity({ fromCity: 'Delhi', toCity: 'Mumbai' }, null)).toBe(false);
+    expect(MarketplaceRelevanceService.isRelevantToCity({ fromCity: 'Delhi', toCity: 'Mumbai' }, '')).toBe(false);
+  });
+
+  describe('Live Marketplace Item Eligibility (Complete / Expired Exclusions)', () => {
+    it('rejects completed, cancelled, or inactive trips from live marketplace', () => {
+      const activeTrip = createMockTrip({ status: 'active', availableCapacity: 10 });
+      const completedTrip = createMockTrip({ status: 'completed', availableCapacity: 10 });
+      const cancelledTrip = createMockTrip({ status: 'cancelled', availableCapacity: 10 });
+
+      expect(MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(activeTrip, 'Hisar')).toBe(true);
+      expect(MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(completedTrip, 'Hisar')).toBe(false);
+      expect(MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(cancelledTrip, 'Hisar')).toBe(false);
+    });
+
+    it('rejects trips with zero or negative available capacity (fully booked)', () => {
+      const fullTrip = createMockTrip({ status: 'active', availableCapacity: 0 });
+      expect(MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(fullTrip, 'Hisar')).toBe(false);
+    });
+
+    it('rejects expired departure trips', () => {
+      const expiredTrip = createMockTrip({ status: 'active', availableCapacity: 10, date: '2020-01-01' });
+      expect(MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(expiredTrip, 'Hisar')).toBe(false);
+    });
+
+    it('rejects delivered, completed, or matched parcels from live marketplace', () => {
+      const openParcel = createMockParcel({ status: 'open' });
+      const deliveredParcel = createMockParcel({ status: 'delivered' as any });
+      const completedParcel = createMockParcel({ status: 'completed' as any });
+
+      expect(MarketplaceRelevanceService.isParcelEligibleForLiveMarketplace(openParcel, 'Hisar')).toBe(true);
+      expect(MarketplaceRelevanceService.isParcelEligibleForLiveMarketplace(deliveredParcel, 'Hisar')).toBe(false);
+      expect(MarketplaceRelevanceService.isParcelEligibleForLiveMarketplace(completedParcel, 'Hisar')).toBe(false);
+    });
+
+    it('rejects expired delivery date parcels', () => {
+      const expiredParcel = createMockParcel({ status: 'open', deliveryDate: '2020-01-01' });
+      expect(MarketplaceRelevanceService.isParcelEligibleForLiveMarketplace(expiredParcel, 'Hisar')).toBe(false);
+    });
   });
 });

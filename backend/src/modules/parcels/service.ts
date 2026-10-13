@@ -125,14 +125,20 @@ export const listParcels = async (
     cacheKey,
     async () => {
       const maxRead = Math.min(filters.limit + filters.offset + 50, 500);
-      const [openItems, matchedItems] = await Promise.all([
-        queryByStatus('open', maxRead),
-        queryByStatus('matched', maxRead),
-      ]);
+      const openItems = await queryByStatus('open', maxRead);
+      const todayStr = new Date().toISOString().slice(0, 10);
 
-      const filtered = [...openItems, ...matchedItems]
+      const filtered = openItems
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .filter((parcel) => {
+          if (parcel.status !== 'open') {
+            return false;
+          }
+
+          if (parcel.deliveryDate && parcel.deliveryDate < todayStr) {
+            return false;
+          }
+
           if (fromCity && !includesText(parcel.fromCity, fromCity)) {
             return false;
           }

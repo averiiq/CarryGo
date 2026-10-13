@@ -1,7 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://nuxvuejtnobljutznlss.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51eHZ1ZWp0bm9ibGp1dHpubHNzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDgzMTAxNywiZXhwIjoyMDk2NDA3MDE3fQ.wnP5_yMGKl8ozWG_IgLk2PQ1IseAd4Cs50RTkHDH1Kw';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nuxvuejtnobljutznlss.supabase.co';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SERVICE_ROLE_KEY) {
+  console.error('Error: SUPABASE_SERVICE_ROLE_KEY environment variable is required to run this maintenance script.');
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },

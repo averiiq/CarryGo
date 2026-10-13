@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,9 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Parcel, Trip } from '@/types';
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
@@ -18,13 +18,13 @@ function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
 }
 
-const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-  bike: 'two-wheeler',
-  car: 'directions-car',
-  bus: 'directions-bus',
-  train: 'train',
-  flight: 'flight',
-};
+const VEHICLE_OPTIONS: { id: Trip['vehicleType']; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
+  { id: 'car', label: 'Car', icon: 'directions-car' },
+  { id: 'train', label: 'Train', icon: 'train' },
+  { id: 'flight', label: 'Flight', icon: 'flight' },
+  { id: 'bike', label: 'Bike', icon: 'two-wheeler' },
+  { id: 'bus', label: 'Bus', icon: 'directions-bus' },
+];
 
 export interface QuickCarryTripParams {
   vehicleType: Trip['vehicleType'];
@@ -39,8 +39,8 @@ interface CarryParcelModalProps {
   parcel: Parcel | null;
   userTrips: Trip[];
   onConfirmCarry: (tripId: string, parcel: Parcel) => Promise<void>;
-  onPostTrip: (fromCity: string, toCity: string, minCapacity: number) => void;
-  onQuickCreateAndCarry?: (quickParams: QuickCarryTripParams, parcel: Parcel) => Promise<void>;
+  onPostTrip: (fromCity: string, toCity: string, weightNeeded: number) => void;
+  onQuickCreateAndCarry?: (params: QuickCarryTripParams, parcel: Parcel) => Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -58,18 +58,10 @@ export function CarryParcelModal({
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [carryMode, setCarryMode] = useState<'existing' | 'quick'>('quick');
 
-  // Quick trip creation state when no existing trip matches
   const [quickVehicle, setQuickVehicle] = useState<Trip['vehicleType']>('car');
   const [quickDateOption, setQuickDateOption] = useState<'today' | 'tomorrow' | 'day_after'>('today');
-  const [quickCapacity, setQuickCapacity] = useState<number>(() => Math.max(10, Math.ceil((parcel?.weight || 2) + 3)));
 
-  useEffect(() => {
-    if (parcel) {
-      setQuickCapacity(Math.max(10, Math.ceil(parcel.weight + 3)));
-    }
-  }, [parcel]);
-
-  const matchingTrips = React.useMemo(() => {
+  const matchingTrips = useMemo(() => {
     if (!parcel) return [];
     return userTrips.filter((trip) => {
       const active = trip.status === 'active';
@@ -107,30 +99,28 @@ export function CarryParcelModal({
   };
 
   const handleConfirm = async () => {
-    if (!selectedTripId || isSubmitting) return;
-    Haptic.confirm();
-    await onConfirmCarry(selectedTripId, parcel);
-  };
-
-  const handleQuickCreate = async () => {
-    if (isSubmitting) return;
-    if (onQuickCreateAndCarry) {
+    if (carryMode === 'existing') {
+      if (!selectedTripId || isSubmitting) return;
       Haptic.confirm();
-      await onQuickCreateAndCarry({
-        vehicleType: quickVehicle,
-        date: getSelectedDateIso(),
-        time: '10:00 AM',
-        capacity: quickCapacity,
-      }, parcel);
+      await onConfirmCarry(selectedTripId, parcel);
     } else {
-      handlePostTrip();
+      if (isSubmitting) return;
+      Haptic.confirm();
+      if (onQuickCreateAndCarry) {
+        await onQuickCreateAndCarry(
+          {
+            vehicleType: quickVehicle,
+            date: getSelectedDateIso(),
+            time: '10:00 AM',
+            capacity: Math.max(10, Math.ceil(parcel.weight + 4)),
+          },
+          parcel
+        );
+      } else {
+        onClose();
+        onPostTrip(parcel.fromCity, parcel.toCity, parcel.weight);
+      }
     }
-  };
-
-  const handlePostTrip = () => {
-    Haptic.tap();
-    onClose();
-    onPostTrip(parcel.fromCity, parcel.toCity, parcel.weight);
   };
 
   return (
@@ -139,109 +129,95 @@ export function CarryParcelModal({
       onClose={onClose}
       maxHeight="90%"
     >
-      <View style={{ paddingBottom: Spacing.md }}>
+      <View style={styles.sheetContainer}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <View style={[styles.headerIconCircle, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="local-shipping" size={20} color={C.primary} />
+            <View style={[styles.avatarWrap, { backgroundColor: C.primarySubtle }]}>
+              <Text style={[styles.avatarText, { color: C.primary }]}>
+                {parcel.userName ? parcel.userName.charAt(0).toUpperCase() : 'S'}
+              </Text>
             </View>
-            <View>
-              <Text style={[styles.title, { color: C.textPrimary }]}>Carry This Parcel</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.title, { color: C.textPrimary }]} numberOfLines={1}>
+                Deliver for {parcel.userName}
+              </Text>
               <Text style={[styles.subtitle, { color: C.textMuted }]}>
-                Earn ₹{parcel.priceOffer} carrying for {parcel.userName}
+                {parcel.category.toUpperCase()} • {parcel.weight} kg
               </Text>
             </View>
           </View>
-          <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8}>
+          <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
             <MaterialIcons name="close" size={20} color={C.textMuted} />
           </Pressable>
         </View>
 
         <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Parcel Summary Card */}
-          <View style={[styles.summaryCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <View style={styles.routeRow}>
-              <View style={styles.cityCol}>
-                <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
-                <Text style={[styles.cityName, { color: C.textPrimary }]}>{parcel.fromCity}</Text>
-              </View>
-              <View style={[styles.arrowCircle, { backgroundColor: C.primarySubtle }]}>
-                <MaterialIcons name="arrow-forward" size={14} color={C.primary} />
-              </View>
-              <View style={[styles.cityCol, { alignItems: 'flex-end' }]}>
-                <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
-                <Text style={[styles.cityName, { color: C.textPrimary }]}>{parcel.toCity}</Text>
-              </View>
+          {/* Route Capsule */}
+          <View style={[styles.routeCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+            <View style={styles.routeCityCol}>
+              <Text style={[styles.routeCityLabel, { color: C.textMuted }]}>PICKUP</Text>
+              <Text style={[styles.routeCityName, { color: C.textPrimary }]}>{parcel.fromCity}</Text>
             </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.summaryMetaRow}>
-              <View style={styles.metaPill}>
-                <MaterialIcons name="scale" size={13} color={C.textSecondary} />
-                <Text style={[styles.metaText, { color: C.textSecondary }]}>{parcel.weight} kg</Text>
-              </View>
-              <View style={styles.metaPill}>
-                <MaterialIcons name="inventory-2" size={13} color={C.textSecondary} />
-                <Text style={[styles.metaText, { color: C.textSecondary }]}>{parcel.category}</Text>
-              </View>
-              <View style={styles.rewardContainer}>
-                <Text style={[styles.rewardLabel, { color: C.textMuted }]}>REWARD</Text>
-                <Text style={[styles.rewardValue, { color: C.primary }]}>₹{parcel.priceOffer}</Text>
-              </View>
+            <View style={[styles.routeArrowCircle, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name="arrow-forward" size={14} color={C.primary} />
+            </View>
+            <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
+              <Text style={[styles.routeCityLabel, { color: C.textMuted }]}>DROP-OFF</Text>
+              <Text style={[styles.routeCityName, { color: C.textPrimary }]}>{parcel.toCity}</Text>
             </View>
           </View>
 
-          {/* Guaranteed Earnings Banner */}
-          <View style={[styles.earningsBanner, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-            <MaterialIcons name="security" size={16} color="#059669" />
+          {/* Earnings Spotlight Card */}
+          <View style={[styles.payoutCard, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+            <View style={styles.payoutIconCircle}>
+              <MaterialIcons name="account-balance-wallet" size={20} color="#059669" />
+            </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.earningsTitle, { color: '#065F46' }]}>Guaranteed Payout • ₹{parcel.priceOffer}</Text>
-              <Text style={[styles.earningsSub, { color: '#047857' }]}>
-                Sender deposits full amount in escrow before pickup. Released directly to your wallet upon destination OTP confirmation.
+              <Text style={styles.payoutLabel}>YOU WILL EARN</Text>
+              <Text style={styles.payoutAmount}>₹{parcel.priceOffer}</Text>
+              <Text style={styles.payoutSub}>
+                Guaranteed payout released to your wallet upon delivery OTP verification.
               </Text>
             </View>
           </View>
 
-          {/* Mode Switcher (if user has active matching trips) */}
+          {/* Mode Switcher if user already has matching trips */}
           {matchingTrips.length > 0 ? (
-            <View style={[styles.modeSwitcher, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+            <View style={[styles.modeToggleWrap, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
               <Pressable
-                style={[
-                  styles.modeTab,
-                  carryMode === 'existing' && { backgroundColor: C.primary },
-                ]}
                 onPress={() => {
                   Haptic.select();
                   setCarryMode('existing');
                 }}
+                style={[
+                  styles.modeToggleTab,
+                  carryMode === 'existing' && { backgroundColor: C.primary },
+                ]}
               >
                 <MaterialIcons
-                  name="directions-car"
+                  name="flight-takeoff"
                   size={14}
                   color={carryMode === 'existing' ? '#FFFFFF' : C.textSecondary}
                 />
                 <Text
                   style={[
-                    styles.modeTabText,
+                    styles.modeToggleText,
                     { color: carryMode === 'existing' ? '#FFFFFF' : C.textSecondary },
-                    carryMode === 'existing' && { fontWeight: FontWeight.bold },
                   ]}
                 >
-                  My Trips ({matchingTrips.length})
+                  My Routes ({matchingTrips.length})
                 </Text>
               </Pressable>
-
               <Pressable
-                style={[
-                  styles.modeTab,
-                  carryMode === 'quick' && { backgroundColor: C.primary },
-                ]}
                 onPress={() => {
                   Haptic.select();
                   setCarryMode('quick');
                 }}
+                style={[
+                  styles.modeToggleTab,
+                  carryMode === 'quick' && { backgroundColor: C.primary },
+                ]}
               >
                 <MaterialIcons
                   name="bolt"
@@ -250,124 +226,96 @@ export function CarryParcelModal({
                 />
                 <Text
                   style={[
-                    styles.modeTabText,
+                    styles.modeToggleText,
                     { color: carryMode === 'quick' ? '#FFFFFF' : C.textSecondary },
-                    carryMode === 'quick' && { fontWeight: FontWeight.bold },
                   ]}
                 >
-                  Quick Route & Carry
+                  New Route Offer
                 </Text>
               </Pressable>
             </View>
           ) : null}
 
-          {/* Matching Trips vs Quick Route */}
+          {/* Existing Trip Selection */}
           {carryMode === 'existing' && matchingTrips.length > 0 ? (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
-                Select active trip to attach this parcel:
-              </Text>
+            <View style={styles.sectionWrap}>
+              <Text style={[styles.sectionHeading, { color: C.textPrimary }]}>Choose Your Trip</Text>
               <View style={styles.tripList}>
                 {matchingTrips.map((trip) => {
-                  const selected = selectedTripId === trip.id;
-                  const vIcon = vehicleIcons[trip.vehicleType] || 'directions-car';
-
+                  const isSel = selectedTripId === trip.id;
                   return (
                     <Pressable
                       key={trip.id}
-                      style={[
-                        styles.tripOption,
-                        {
-                          backgroundColor: selected ? C.primarySubtle : C.surface,
-                          borderColor: selected ? C.primary : C.surfaceBorder,
-                        },
-                      ]}
                       onPress={() => {
                         Haptic.tap();
                         setSelectedTripId(trip.id);
                       }}
+                      style={[
+                        styles.tripItemCard,
+                        {
+                          backgroundColor: isSel ? C.primarySubtle : C.surface,
+                          borderColor: isSel ? C.primary : C.surfaceBorder,
+                        },
+                      ]}
                     >
-                      <View style={styles.tripLeft}>
-                        <View
-                          style={[
-                            styles.radioCircle,
-                            {
-                              borderColor: selected ? C.primary : C.textMuted,
-                              backgroundColor: selected ? C.primary : 'transparent',
-                            },
-                          ]}
-                        >
-                          {selected ? <View style={styles.radioDot} /> : null}
+                      <View style={styles.tripItemLeft}>
+                        <View style={[styles.radioDotCircle, { borderColor: isSel ? C.primary : C.textMuted }]}>
+                          {isSel ? <View style={[styles.radioDotInner, { backgroundColor: C.primary }]} /> : null}
                         </View>
-                        <View style={styles.tripInfo}>
-                          <View style={styles.tripTitleRow}>
-                            <MaterialIcons name={vIcon} size={15} color={C.primary} />
-                            <Text style={[styles.tripDate, { color: C.textPrimary }]}>
-                              {trip.date} at {trip.time}
-                            </Text>
-                          </View>
-                          <Text style={[styles.tripCapacity, { color: C.textMuted }]}>
-                            Capacity: {trip.availableCapacity} kg available
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.tripItemTitle, { color: C.textPrimary }]}>
+                            {trip.date} • {trip.vehicleType.toUpperCase()}
+                          </Text>
+                          <Text style={[styles.tripItemDesc, { color: C.textMuted }]}>
+                            {trip.availableCapacity} kg capacity available
                           </Text>
                         </View>
                       </View>
-                      <Text style={[styles.tripVehicleBadge, { color: C.primary }]}>
-                        {trip.vehicleType.toUpperCase()}
-                      </Text>
                     </Pressable>
                   );
                 })}
               </View>
             </View>
           ) : (
-            <View style={[styles.quickTripBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-              <View style={styles.quickHeaderRow}>
-                <View style={[styles.quickIconCircle, { backgroundColor: C.primarySubtle }]}>
-                  <MaterialIcons name="bolt" size={20} color={C.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.quickHeading, { color: C.textPrimary }]}>
-                    Instant Route & Carry Offer
-                  </Text>
-                  <Text style={[styles.quickSub, { color: C.textMuted }]}>
-                    Auto-publish this route and send offer to {parcel.userName} in 1 tap.
-                  </Text>
-                </View>
-              </View>
-
-              {/* Vehicle Selection */}
-              <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Your Travel Vehicle</Text>
-              <View style={styles.vehiclePillRow}>
-                {(['car', 'bike', 'train', 'bus', 'flight'] as const).map((v) => {
-                  const isSel = quickVehicle === v;
-                  const icon = vehicleIcons[v] || 'directions-car';
+            /* Quick Trip Creation Form */
+            <View style={styles.sectionWrap}>
+              <Text style={[styles.sectionHeading, { color: C.textPrimary }]}>How are you traveling?</Text>
+              <View style={styles.vehicleRow}>
+                {VEHICLE_OPTIONS.map((v) => {
+                  const isSel = quickVehicle === v.id;
                   return (
                     <Pressable
-                      key={v}
+                      key={v.id}
                       onPress={() => {
                         Haptic.select();
-                        setQuickVehicle(v);
+                        setQuickVehicle(v.id);
                       }}
                       style={[
-                        styles.vehiclePill,
+                        styles.vehicleCard,
                         {
-                          backgroundColor: isSel ? C.primary : C.surface,
+                          backgroundColor: isSel ? C.primarySubtle : C.surface,
                           borderColor: isSel ? C.primary : C.surfaceBorder,
                         },
                       ]}
                     >
-                      <MaterialIcons name={icon} size={15} color={isSel ? '#FFFFFF' : C.textSecondary} />
-                      <Text style={[styles.vehiclePillText, { color: isSel ? '#FFFFFF' : C.textSecondary }]}>
-                        {v.charAt(0).toUpperCase() + v.slice(1)}
+                      <MaterialIcons name={v.icon} size={18} color={isSel ? C.primary : C.textSecondary} />
+                      <Text
+                        style={[
+                          styles.vehicleLabel,
+                          { color: isSel ? C.primaryDark : C.textSecondary, fontWeight: isSel ? '700' : '500' },
+                        ]}
+                      >
+                        {v.label}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
 
-              {/* Travel Day */}
-              <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Departure Date</Text>
-              <View style={styles.datePillRow}>
+              <Text style={[styles.sectionHeading, { color: C.textPrimary, marginTop: Spacing.sm }]}>
+                Departure Schedule
+              </Text>
+              <View style={styles.dateOptionRow}>
                 {[
                   { key: 'today', label: 'Today' },
                   { key: 'tomorrow', label: 'Tomorrow' },
@@ -382,20 +330,17 @@ export function CarryParcelModal({
                         setQuickDateOption(d.key as any);
                       }}
                       style={[
-                        styles.datePill,
+                        styles.dateOptionPill,
                         {
-                          backgroundColor: isSel ? C.primarySubtle : C.surface,
+                          backgroundColor: isSel ? C.primary : C.surfaceElevated,
                           borderColor: isSel ? C.primary : C.surfaceBorder,
                         },
                       ]}
                     >
                       <Text
                         style={[
-                          styles.datePillText,
-                          {
-                            color: isSel ? C.primary : C.textSecondary,
-                            fontWeight: isSel ? '700' : '500',
-                          },
+                          styles.dateOptionText,
+                          { color: isSel ? '#FFFFFF' : C.textSecondary, fontWeight: isSel ? '700' : '500' },
                         ]}
                       >
                         {d.label}
@@ -404,118 +349,93 @@ export function CarryParcelModal({
                   );
                 })}
               </View>
-
-              {/* One-tap CTA */}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.quickSubmitBtn,
-                  { backgroundColor: C.primary },
-                  isSubmitting && { opacity: 0.6 },
-                  pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-                ]}
-                disabled={isSubmitting}
-                onPress={handleQuickCreate}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <>
-                    <MaterialIcons name="local-shipping" size={18} color="#FFFFFF" />
-                    <Text style={styles.quickSubmitBtnText}>
-                      Send Carry Offer (Earn ₹{parcel.priceOffer})
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-
-              {/* Secondary link to wizard */}
-              <Pressable onPress={handlePostTrip} style={styles.fullCustomLink} hitSlop={8}>
-                <Text style={[styles.fullCustomLinkText, { color: C.textMuted }]}>
-                  Need custom route waypoints? Open Full Wizard
-                </Text>
-                <MaterialIcons name="chevron-right" size={16} color={C.textMuted} />
-              </Pressable>
             </View>
           )}
 
-          {/* 3-Step Carrier Flow Preview */}
-          <View style={[styles.flowPreviewCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <Text style={[styles.flowPreviewTitle, { color: C.textSecondary }]}>HOW CARRYING WORKS</Text>
-            <View style={styles.flowStepsRow}>
-              <View style={styles.flowStepCol}>
-                <View style={[styles.flowStepNum, { backgroundColor: C.primary }]}>
-                  <Text style={styles.flowStepNumText}>1</Text>
+          {/* Workflow Steps Preview */}
+          <View style={[styles.flowCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <Text style={[styles.flowTitle, { color: C.textMuted }]}>HOW CARRYING WORKS</Text>
+            <View style={styles.flowSteps}>
+              <View style={styles.flowStepItem}>
+                <View style={[styles.flowNum, { backgroundColor: C.primary }]}>
+                  <Text style={styles.flowNumText}>1</Text>
                 </View>
-                <Text style={[styles.flowStepText, { color: C.textPrimary }]}>Send Carry Offer</Text>
+                <Text style={[styles.flowText, { color: C.textSecondary }]}>Send Offer</Text>
               </View>
               <MaterialIcons name="chevron-right" size={14} color={C.textMuted} />
-              <View style={styles.flowStepCol}>
-                <View style={[styles.flowStepNum, { backgroundColor: C.surfaceBorder }]}>
-                  <Text style={[styles.flowStepNumText, { color: C.textSecondary }]}>2</Text>
+              <View style={styles.flowStepItem}>
+                <View style={[styles.flowNum, { backgroundColor: C.surfaceElevated }]}>
+                  <Text style={[styles.flowNumText, { color: C.textSecondary }]}>2</Text>
                 </View>
-                <Text style={[styles.flowStepText, { color: C.textSecondary }]}>Sender Accepts & Funds Escrow</Text>
+                <Text style={[styles.flowText, { color: C.textSecondary }]}>Sender Accepts</Text>
               </View>
               <MaterialIcons name="chevron-right" size={14} color={C.textMuted} />
-              <View style={styles.flowStepCol}>
-                <View style={[styles.flowStepNum, { backgroundColor: C.surfaceBorder }]}>
-                  <Text style={[styles.flowStepNumText, { color: C.textSecondary }]}>3</Text>
+              <View style={styles.flowStepItem}>
+                <View style={[styles.flowNum, { backgroundColor: C.surfaceElevated }]}>
+                  <Text style={[styles.flowNumText, { color: C.textSecondary }]}>3</Text>
                 </View>
-                <Text style={[styles.flowStepText, { color: C.textSecondary }]}>Handover OTP & Deliver</Text>
+                <Text style={[styles.flowText, { color: C.textSecondary }]}>Deliver & Earn</Text>
               </View>
             </View>
           </View>
         </ScrollView>
 
-        {/* Existing Trip Confirm Footer */}
-        {carryMode === 'existing' && matchingTrips.length > 0 ? (
-          <View style={[styles.footer, { borderTopColor: C.surfaceBorder }]}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.confirmBtn,
-                { backgroundColor: C.primary },
-                (!selectedTripId || isSubmitting) && { opacity: 0.5 },
-                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-              ]}
-              disabled={!selectedTripId || isSubmitting}
-              onPress={handleConfirm}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <MaterialIcons name="send" size={16} color="#FFFFFF" />
-                  <Text style={styles.confirmBtnText}>
-                    Send Carry Offer (₹{parcel.priceOffer})
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-        ) : null}
+        {/* Bottom CTA */}
+        <View style={[styles.footer, { borderTopColor: C.surfaceBorder }]}>
+          <Pressable
+            onPress={handleConfirm}
+            disabled={isSubmitting || (carryMode === 'existing' && !selectedTripId)}
+            style={({ pressed }) => [
+              styles.submitBtn,
+              { backgroundColor: C.primary },
+              isSubmitting && { opacity: 0.6 },
+              pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+            ]}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <>
+                <MaterialIcons name="local-shipping" size={18} color="#FFFFFF" />
+                <Text style={styles.submitBtnText}>
+                  Send Carry Offer • Earn ₹{parcel.priceOffer}
+                </Text>
+              </>
+            )}
+          </Pressable>
+        </View>
       </View>
     </GestureBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
+  sheetContainer: {
+    paddingBottom: Spacing.sm,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
-  headerIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  avatarWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
   },
   title: {
     fontSize: FontSize.md,
@@ -523,334 +443,232 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: 2,
   },
   closeBtn: {
-    padding: 4,
+    padding: 6,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    maxHeight: 520,
   },
-  summaryCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: 8,
-  },
-  routeRow: {
+  routeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    padding: Spacing.sm + 4,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
   },
-  cityCol: {
+  routeCityCol: {
     flex: 1,
-    gap: 2,
   },
-  cityLabel: {
-    fontSize: 10,
+  routeCityLabel: {
+    fontSize: 9,
     fontWeight: FontWeight.bold,
     letterSpacing: 0.5,
   },
-  cityName: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.extrabold,
+  routeCityName: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    marginTop: 2,
   },
-  arrowCircle: {
+  routeArrowCircle: {
     width: 28,
     height: 28,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: Spacing.sm,
+    marginHorizontal: 8,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E2E8F0',
-    marginVertical: Spacing.sm,
-  },
-  summaryMetaRow: {
+  payoutCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+    gap: 12,
   },
-  metaPill: {
-    flexDirection: 'row',
+  payoutIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#D1FAE5',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
   },
-  metaText: {
-    fontSize: 12,
-    fontWeight: FontWeight.medium,
-  },
-  rewardContainer: {
-    alignItems: 'flex-end',
-  },
-  rewardLabel: {
+  payoutLabel: {
     fontSize: 9,
     fontWeight: FontWeight.bold,
+    color: '#065F46',
+    letterSpacing: 0.5,
   },
-  rewardValue: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
+  payoutAmount: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.extrabold,
+    color: '#047857',
+    marginVertical: 1,
   },
-
-  // Earnings Banner
-  earningsBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 10,
-    marginBottom: 10,
-  },
-  earningsTitle: {
-    fontSize: 11.5,
-    fontWeight: FontWeight.bold,
-  },
-  earningsSub: {
-    fontSize: 10.5,
+  payoutSub: {
+    fontSize: 10,
+    color: '#065F46',
     lineHeight: 14,
-    marginTop: 2,
   },
-
-  // Mode Switcher
-  modeSwitcher: {
+  modeToggleWrap: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
     padding: 3,
-    gap: 4,
-    marginBottom: 10,
+    marginBottom: Spacing.md,
   },
-  modeTab: {
+  modeToggleTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 8,
-    borderRadius: 9,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    gap: 6,
   },
-  modeTabText: {
-    fontSize: 11.5,
+  modeToggleText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
-
-  // Section
-  section: {
-    marginBottom: 10,
+  sectionWrap: {
+    marginBottom: Spacing.md,
   },
-  sectionTitle: {
-    fontSize: 12,
+  sectionHeading: {
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
-    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.xs + 2,
   },
   tripList: {
     gap: 8,
   },
-  tripOption: {
+  tripItemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 12,
+    padding: Spacing.sm + 2,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
   },
-  tripLeft: {
+  tripItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     flex: 1,
   },
-  radioCircle: {
+  radioDotCircle: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    borderWidth: 1.5,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+  radioDotInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  tripInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  tripTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  tripDate: {
-    fontSize: 12,
+  tripItemTitle: {
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
   },
-  tripCapacity: {
-    fontSize: 11,
-  },
-  tripVehicleBadge: {
-    fontSize: 10,
-    fontWeight: FontWeight.bold,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#F1F5F9',
-  },
-
-  // Quick Trip Box
-  quickTripBox: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    gap: 10,
-    marginBottom: 10,
-  },
-  quickHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  quickIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickHeading: {
-    fontSize: 12.5,
-    fontWeight: FontWeight.bold,
-  },
-  quickSub: {
-    fontSize: 10.5,
+  tripItemDesc: {
+    fontSize: FontSize.xs - 1,
     marginTop: 1,
   },
-  fieldLabel: {
-    fontSize: 10.5,
-    fontWeight: FontWeight.bold,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  vehiclePillRow: {
+  vehicleRow: {
     flexDirection: 'row',
-    gap: 6,
-  },
-  vehiclePill: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  vehiclePillText: {
-    fontSize: 10.5,
-  },
-  datePillRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  datePill: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  datePillText: {
-    fontSize: 11.5,
-  },
-  quickSubmitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 11,
-  },
-  quickSubmitBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: FontWeight.bold,
-  },
-  fullCustomLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-    paddingVertical: 2,
-  },
-  fullCustomLinkText: {
-    fontSize: 10.5,
-  },
-
-  // Flow Preview
-  flowPreviewCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 10,
     gap: 8,
-    marginBottom: 6,
+    marginBottom: Spacing.sm,
   },
-  flowPreviewTitle: {
-    fontSize: 9.5,
+  vehicleCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    gap: 4,
+  },
+  vehicleLabel: {
+    fontSize: 10,
+  },
+  dateOptionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: Spacing.sm,
+  },
+  dateOptionPill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  dateOptionText: {
+    fontSize: FontSize.xs,
+  },
+  flowCard: {
+    padding: Spacing.sm + 4,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+  },
+  flowTitle: {
+    fontSize: 10,
     fontWeight: FontWeight.bold,
     letterSpacing: 0.5,
+    marginBottom: 8,
   },
-  flowStepsRow: {
+  flowSteps: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  flowStepCol: {
-    flex: 1,
+  flowStepItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  flowStepNum: {
+  flowNum: {
     width: 18,
     height: 18,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  flowStepNumText: {
-    fontSize: 9.5,
+  flowNumText: {
+    fontSize: 10,
     fontWeight: FontWeight.bold,
     color: '#FFFFFF',
   },
-  flowStepText: {
-    fontSize: 9.5,
-    textAlign: 'center',
-    lineHeight: 12,
+  flowText: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
   },
-
-  // Footer
   footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 8,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
     borderTopWidth: 1,
   },
-  confirmBtn: {
+  submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 11,
+    height: 48,
+    borderRadius: BorderRadius.lg,
+    gap: 8,
   },
-  confirmBtnText: {
+  submitBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: FontSize.sm + 1,
     fontWeight: FontWeight.bold,
   },
 });

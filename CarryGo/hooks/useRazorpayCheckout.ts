@@ -1,7 +1,13 @@
-import { useState, useCallback } from 'react';
-import { Platform } from 'react-native';
+import { useState, useCallback, useRef } from 'react';
+import { Platform, NativeModules, Linking } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { RazorpayOrder, RazorpayPaymentResult } from '@/types';
-import { createRazorpayOrder, verifyRazorpayPayment } from '@/services/payments.service';
+import {
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  createRazorpayPaymentLink,
+  checkRazorpayPaymentLinkStatus,
+} from '@/services/payments.service';
 import { useAlert } from '@/template';
 
 interface CheckoutState {
@@ -57,6 +63,7 @@ export function useRazorpayCheckout({
   onFailure,
 }: UseRazorpayCheckoutOptions) {
   const { showAlert } = useAlert();
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [state, setState] = useState<CheckoutState>({
     isCreatingOrder: false,
     isProcessing: false,
@@ -64,7 +71,15 @@ export function useRazorpayCheckout({
     error: null,
   });
 
+  const clearPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
   const handlePaymentSuccess = useCallback(async (result: RazorpayPaymentResult) => {
+    clearPolling();
     setState(s => ({ ...s, isProcessing: false, isVerifying: true }));
 
     const { data, error } = await verifyRazorpayPayment({
@@ -84,7 +99,7 @@ export function useRazorpayCheckout({
 
     setState({ isCreatingOrder: false, isProcessing: false, isVerifying: false, error: null });
     onSuccess(data.paymentId);
-  }, [requestId, onSuccess, onFailure]);
+  }, [requestId, onSuccess, onFailure, clearPolling, showAlert]);
 
   const openRazorpayWeb = useCallback(async (order: RazorpayOrder) => {
     try {
@@ -131,35 +146,138 @@ export function useRazorpayCheckout({
   }, [senderName, senderEmail, senderPhone, onFailure, handlePaymentSuccess]);
 
   const openRazorpayNative = useCallback(async (order: RazorpayOrder) => {
-    try {
-      const RazorpayCheckout = (await import('react-native-razorpay')).default;
-      const options = {
-        key: order.keyId,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'CarryGo',
-        description: 'Delivery Payment',
-        order_id: order.orderId,
-        prefill: {
-          name: senderName ?? '',
-          email: senderEmail ?? '',
-          contact: senderPhone ?? '',
-        },
-        theme: { color: '#6366f1' },
-      };
+    // 1. If running in a standalone binary with native RNRazorpayCheckout module:
+    const hasNativeOpener = Boolean(
+      NativeModules?.RNRazorpayCheckout &&
+      typeof NativeModules.RNRazorpayCheckout?.open === 'function'
+    );
 
-      const result = await RazorpayCheckout.open(options);
-      await handlePaymentSuccess({
-        razorpay_order_id: result.razorpay_order_id,
-        razorpay_payment_id: result.razorpay_payment_id,
-        razorpay_signature: result.razorpay_signature,
+    if (hasNativeOpener) {
+      try {
+        const RazorpayCheckout = (await import('react-native-razorpay')).default;
+        const options = {
+          key: order.keyId,
+          amount: order.amount,
+          currency: order.currency,
+          name: 'CarryGo',
+          description: 'Delivery Payment',
+          order_id: order.orderId,
+          prefill: {
+            name: senderName ?? '',
+            email: senderEmail ?? '',
+            contact: senderPhone ?? '',
+          },
+          theme: { color: '#059669' },
+        };
+
+        const result = await RazorpayCheckout.open(options);
+        await handlePaymentSuccess({
+          razorpay_order_id: result.razorpay_order_id,
+          razorpay_payment_id: result.razorpay_payment_id,
+          razorpay_signature: result.razorpay_signature,
+        });
+        return;
+      } catch (nativeErr: unknown) {
+        console.warn('[RazorpayCheckout] Native SDK error, falling back to in-app payment link:', nativeErr);
+      }
+    }
+
+    // 2. In Expo Go or development environments:
+    // Generate an official Razorpay Payment Link and launch the REAL Razorpay gateway via in-app browser
+    try {
+      const amountInRupees = Math.round(order.amount / 100);
+      const linkRes = await createRazorpayPaymentLink({
+        requestId,
+        amount: amountInRupees,
+        description: `CarryGo Delivery Escrow - ₹${amountInRupees}`,
+        customerName: senderName,
+        customerEmail: senderEmail,
+        customerPhone: senderPhone,
       });
+
+      if (linkRes.error || !linkRes.data?.shortUrl) {
+        throw new Error(linkRes.error || 'Failed to generate Razorpay gateway checkout link');
+      }
+
+      const { paymentLinkId, shortUrl } = linkRes.data;
+      let isVerified = false;
+
+      clearPolling();
+
+      // Poll Razorpay API for live payment capture while user pays on Razorpay
+      pollTimerRef.current = setInterval(async () => {
+        if (isVerified) {
+          clearPolling();
+          return;
+        }
+
+        const pollResult = await checkRazorpayPaymentLinkStatus(paymentLinkId);
+        if (pollResult.paid) {
+          isVerified = true;
+          clearPolling();
+          try {
+            await WebBrowser.dismissBrowser();
+          } catch {
+            // Browser might already be dismissed
+          }
+          await handlePaymentSuccess({
+            razorpay_order_id: paymentLinkId,
+            razorpay_payment_id: pollResult.paymentId || `pay_${Date.now()}`,
+            razorpay_signature: 'razorpay_verified_link',
+          });
+        }
+      }, 2500);
+
+      // Open the real Razorpay payment gateway
+      try {
+        await WebBrowser.openBrowserAsync(shortUrl, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+          toolbarColor: '#059669',
+          controlsColor: '#FFFFFF',
+          showTitle: true,
+        });
+      } catch (browserErr) {
+        console.warn('[WebBrowser] In-app browser error, opening system browser:', browserErr);
+        await Linking.openURL(shortUrl);
+      }
+
+      // Check final status when user returns or closes the browser
+      clearPolling();
+      if (!isVerified) {
+        setState(s => ({ ...s, isProcessing: false, isVerifying: true }));
+        const finalStatus = await checkRazorpayPaymentLinkStatus(paymentLinkId);
+        if (finalStatus.paid) {
+          await handlePaymentSuccess({
+            razorpay_order_id: paymentLinkId,
+            razorpay_payment_id: finalStatus.paymentId || `pay_${Date.now()}`,
+            razorpay_signature: 'razorpay_verified_link',
+          });
+        } else {
+          setState(s => ({ ...s, isProcessing: false, isVerifying: false, error: 'Payment was not completed.' }));
+          showAlert(
+            'Payment Incomplete',
+            'Payment was not completed on Razorpay. Tap "Confirm & Lock in Escrow" anytime to retry.'
+          );
+          onFailure?.('Payment not completed');
+        }
+      }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Payment failed';
+      clearPolling();
+      const message = err instanceof Error ? err.message : 'Failed to launch Razorpay gateway';
       setState(s => ({ ...s, isProcessing: false, error: message }));
+      showAlert('Payment Failed', message);
       onFailure?.(message);
     }
-  }, [senderName, senderEmail, senderPhone, handlePaymentSuccess, onFailure]);
+  }, [
+    senderName,
+    senderEmail,
+    senderPhone,
+    requestId,
+    handlePaymentSuccess,
+    onFailure,
+    showAlert,
+    clearPolling,
+  ]);
 
   const startCheckout = useCallback(async () => {
     setState({ isCreatingOrder: true, isProcessing: false, isVerifying: false, error: null });
@@ -168,6 +286,7 @@ export function useRazorpayCheckout({
     if (orderError || !order) {
       const msg = orderError ?? 'Failed to create order';
       setState(s => ({ ...s, isCreatingOrder: false, error: msg }));
+      showAlert('Order Creation Failed', msg);
       onFailure?.(msg);
       return;
     }
@@ -179,7 +298,7 @@ export function useRazorpayCheckout({
     } else {
       await openRazorpayNative(order);
     }
-  }, [requestId, onFailure, openRazorpayWeb, openRazorpayNative]);
+  }, [requestId, onFailure, openRazorpayWeb, openRazorpayNative, showAlert]);
 
   const isLoading = state.isCreatingOrder || state.isProcessing || state.isVerifying;
 
@@ -189,3 +308,4 @@ export function useRazorpayCheckout({
     startCheckout,
   };
 }
+

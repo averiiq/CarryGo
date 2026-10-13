@@ -1,4 +1,4 @@
-// Haryana Cities Coordinate Database (Hizli / CarryGo Haryana Launch)
+// Haryana Cities Coordinate Database (CarryGo Haryana Launch)
 
 export type PopulationTier = 'metro' | 'tier1' | 'tier2' | 'tier3';
 

@@ -5,7 +5,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, ParcelCard, SwipeableCard, TripCard } from '@/components';
+import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, ParcelCard, SwipeableCard, TripCard, LiveMarketplaceHeader, MarketplaceSortOption, RequestSuccessModal } from '@/components';
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
@@ -13,7 +13,6 @@ import { SendRequestModal, QuickCreateParcelParams } from '@/components/feature/
 import { CitySelectModal } from '@/components/feature/CitySelectModal';
 import { LiveActivityCompactPill } from '@/components/feature/LiveActivityCompactPill';
 import { PromotionalBannerCarousel } from '@/components/feature/PromotionalBannerCarousel';
-import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
 import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, useCreateParcelMutation, usePromotionalBannersQuery } from '@/features/listings/queries';
@@ -162,7 +161,7 @@ function QuickActions() {
           router.push('/create-parcel');
         }}
         accessibilityRole="button"
-        accessibilityLabel="Send Parcel, match with travelers"
+        accessibilityLabel="Send Parcel"
         style={({ pressed }) => [
           styles.quickActionCard,
           styles.quickActionPrimaryCard,
@@ -170,16 +169,14 @@ function QuickActions() {
           pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
         ]}
       >
-        <View style={styles.quickActionTop}>
-          <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <MaterialIcons name="inventory-2" size={22} color="#FFFFFF" />
-          </View>
-          <MaterialIcons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
+        <View style={styles.quickActionIconWrap}>
+          <MaterialIcons name="inventory-2" size={19} color="#FFFFFF" />
         </View>
         <View style={styles.quickActionCopy}>
           <Text style={[styles.quickActionTitle, { color: '#FFFFFF' }]}>Send Parcel</Text>
-          <Text style={[styles.quickActionSub, { color: 'rgba(255,255,255,0.85)' }]}>Match with travelers</Text>
+          <Text style={[styles.quickActionSub, { color: 'rgba(255,255,255,0.85)' }]}>Get it delivered</Text>
         </View>
+        <MaterialIcons name="arrow-forward" size={15} color="rgba(255,255,255,0.8)" style={styles.quickActionArrow} />
       </Pressable>
 
       <Pressable
@@ -188,66 +185,22 @@ function QuickActions() {
           router.push('/create-trip');
         }}
         accessibilityRole="button"
-        accessibilityLabel="Post a Trip, earn from bag space"
+        accessibilityLabel="Post a Trip"
         style={({ pressed }) => [
           styles.quickActionCard,
-          { backgroundColor: C.card, borderColor: C.surfaceBorder },
+          { backgroundColor: C.surface, borderColor: C.surfaceBorder },
           pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
         ]}
       >
-        <View style={styles.quickActionTop}>
-          <View style={[styles.quickActionIcon, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons name="flight-takeoff" size={22} color={C.primary} />
-          </View>
-          <MaterialIcons name="arrow-forward" size={16} color={C.textMuted} />
+        <View style={[styles.quickActionIconWrap, { backgroundColor: C.primarySubtle }]}>
+          <MaterialIcons name="flight-takeoff" size={19} color={C.primary} />
         </View>
         <View style={styles.quickActionCopy}>
           <Text style={[styles.quickActionTitle, { color: C.textPrimary }]}>Post a Trip</Text>
-          <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Earn from bag space</Text>
+          <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Earn on your route</Text>
         </View>
+        <MaterialIcons name="arrow-forward" size={15} color={C.textMuted} style={styles.quickActionArrow} />
       </Pressable>
-    </View>
-  );
-}
-
-function HomeStats({
-  tripsCount,
-  parcelsCount,
-  rating,
-  totalRatings,
-  isSmallDevice,
-}: {
-  tripsCount: number;
-  parcelsCount: number;
-  rating?: number;
-  totalRatings?: number;
-  isSmallDevice?: boolean;
-}) {
-  const { C } = useThemeColors();
-  const userRating = totalRatings && totalRatings > 0
-    ? (rating ? rating.toFixed(1) : '5.0')
-    : 'New';
-  const responsiveStatNumberStyle = isSmallDevice ? { fontSize: FontSize.md } : undefined;
-
-  return (
-    <View style={[styles.statsContainer, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-      <View style={styles.statCol}>
-        <Text style={[styles.statNumber, responsiveStatNumberStyle, { color: C.primary }]}>{tripsCount}</Text>
-        <Text style={[styles.statLabel, { color: C.textMuted }]}>Live Trips</Text>
-      </View>
-      <View style={[styles.statDivider, { backgroundColor: C.surfaceBorder }]} />
-      <View style={styles.statCol}>
-        <Text style={[styles.statNumber, responsiveStatNumberStyle, { color: C.textPrimary }]}>{parcelsCount}</Text>
-        <Text style={[styles.statLabel, { color: C.textMuted }]}>Open Parcels</Text>
-      </View>
-      <View style={[styles.statDivider, { backgroundColor: C.surfaceBorder }]} />
-      <View style={styles.statCol}>
-        <View style={styles.ratingRow}>
-          <MaterialIcons name="star" size={16} color="#F59E0B" />
-          <Text style={[styles.statNumber, responsiveStatNumberStyle, { color: C.textPrimary }]}>{userRating}</Text>
-        </View>
-        <Text style={[styles.statLabel, { color: C.textMuted }]}>Your Rating</Text>
-      </View>
     </View>
   );
 }
@@ -294,7 +247,7 @@ function EmptyMarketplace({
         {hasFilter
           ? 'Try adjusting your destination, vehicle or date filters.'
           : locationCity
-            ? `No active listings found for ${locationCity} right now. You can check all India routes or change your city.`
+            ? `No active listings found for ${locationCity} right now. Select a neighboring city hub or be the first to create one.`
             : activeTab === 'trips'
               ? 'Be the first traveler to post a route and earn on this trip.'
               : 'Post your package request and get matched with verified travelers.'}
@@ -313,18 +266,6 @@ function EmptyMarketplace({
         </Pressable>
       ) : locationCity ? (
         <View style={styles.emptyActionRow}>
-          {onShowAllIndia ? (
-            <Pressable
-              onPress={onShowAllIndia}
-              style={({ pressed }) => [
-                styles.emptyCta,
-                { backgroundColor: C.primary, marginTop: 0 },
-                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-              ]}
-            >
-              <Text style={styles.emptyCtaText}>View All India Routes</Text>
-            </Pressable>
-          ) : null}
           {onChangeCity ? (
             <Pressable
               onPress={onChangeCity}
@@ -481,9 +422,19 @@ export default function HomeScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [activeTab, setActiveTab] = useState<'trips' | 'parcels'>('trips');
   const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
+  const [quickVehicle, setQuickVehicle] = useState<string>('');
+  const [quickCategory, setQuickCategory] = useState<string>('');
+  const [marketplaceSort, setMarketplaceSort] = useState<MarketplaceSortOption>('recent');
   const [refreshing, setRefreshing] = useState(false);
   const [carryParcelTarget, setCarryParcelTarget] = useState<Parcel | null>(null);
   const [requestTripTarget, setRequestTripTarget] = useState<Trip | null>(null);
+  const [requestSuccess, setRequestSuccess] = useState<{
+    type: 'request_sent' | 'offer_sent';
+    recipientName: string;
+    price: number;
+    fromCity: string;
+    toCity: string;
+  } | null>(null);
 
   const flashListRef = useRef<any>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -551,7 +502,7 @@ export default function HomeScreen() {
   }, [heroFade, heroTranslateY]);
 
   const defaultCity = useMemo(() => user?.city?.trim() || 'Gurugram', [user?.city]);
-  const [locationCity, setLocationCity] = useState<string | null>(defaultCity);
+  const [locationCity, setLocationCity] = useState<string>(defaultCity);
   const [hasManuallySelectedCity, setHasManuallySelectedCity] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [isDetectingCity, setIsDetectingCity] = useState(false);
@@ -571,9 +522,8 @@ export default function HomeScreen() {
 
   const handleToggleAllIndia = useCallback(() => {
     Haptic.select();
-    setHasManuallySelectedCity(true);
-    setLocationCity((prev) => (prev ? null : defaultCity));
-  }, [defaultCity]);
+    setShowCityPicker(true);
+  }, []);
 
   const handleDetectCurrentLocation = useCallback(async () => {
     if (isDetectingCity) return;
@@ -592,7 +542,7 @@ export default function HomeScreen() {
     }
   }, [isDetectingCity, showAlert]);
 
-  const effectiveCity = locationCity || undefined;
+  const effectiveCity = locationCity || defaultCity;
   const tripsQuery = useTripsQuery(true, effectiveCity);
   const parcelsQuery = useParcelsQuery(true, effectiveCity);
   const requestsQuery = useRequestsQuery(user?.id);
@@ -658,9 +608,52 @@ export default function HomeScreen() {
     );
   }, [parcels]);
 
-  const filteredTrips = useMemo(() => filterTrips(trips, filters, effectiveCity), [trips, filters, effectiveCity]);
-  const filteredParcels = useMemo(() => filterParcels(parcels, filters, effectiveCity), [parcels, filters, effectiveCity]);
-  const hasFilter = useMemo(() => Object.values(filters).some((value) => String(value).trim().length > 0), [filters]);
+  const filteredTrips = useMemo(() => {
+    let list = filterTrips(trips, filters, effectiveCity);
+    if (quickVehicle) {
+      list = list.filter((t) => t.vehicleType?.toLowerCase() === quickVehicle.toLowerCase());
+    }
+    if (marketplaceSort === 'price') {
+      list = [...list].sort((a, b) => (a.pricePerKg || 0) - (b.pricePerKg || 0));
+    } else if (marketplaceSort === 'capacity') {
+      list = [...list].sort((a, b) => (b.availableCapacity || 0) - (a.availableCapacity || 0));
+    }
+    return list;
+  }, [trips, filters, effectiveCity, quickVehicle, marketplaceSort]);
+
+  const filteredParcels = useMemo(() => {
+    let list = filterParcels(parcels, filters, effectiveCity);
+    if (quickCategory) {
+      list = list.filter((p) => p.category?.toLowerCase() === quickCategory.toLowerCase());
+    }
+    if (marketplaceSort === 'price') {
+      list = [...list].sort((a, b) => (b.priceOffer || 0) - (a.priceOffer || 0));
+    } else if (marketplaceSort === 'urgent') {
+      list = [...list].sort((a, b) => {
+        const aUrgent = a.category === 'medicine' || a.category === 'documents' || (a.priceOffer || 0) >= 400 ? 1 : 0;
+        const bUrgent = b.category === 'medicine' || b.category === 'documents' || (b.priceOffer || 0) >= 400 ? 1 : 0;
+        return bUrgent - aUrgent;
+      });
+    }
+    return list;
+  }, [parcels, filters, effectiveCity, quickCategory, marketplaceSort]);
+
+  const hasFilter = useMemo(
+    () =>
+      Object.values(filters).some((value) => String(value).trim().length > 0) ||
+      Boolean(quickVehicle) ||
+      Boolean(quickCategory) ||
+      marketplaceSort !== 'recent',
+    [filters, quickVehicle, quickCategory, marketplaceSort],
+  );
+
+  const handleClearAllFilters = useCallback(() => {
+    Haptic.confirm();
+    setFilters(DEFAULT_FILTERS);
+    setQuickVehicle('');
+    setQuickCategory('');
+    setMarketplaceSort('recent');
+  }, []);
 
   const feedData = useMemo<FeedItem[]>(() => {
     if (activeTab === 'trips') return filteredTrips.map((trip) => ({ type: 'trip', data: trip }));
@@ -758,14 +751,13 @@ export default function HomeScreen() {
       if (result) {
         setCarryParcelTarget(null);
         Haptic.success();
-        showAlert(
-          'Offer Sent! 🎉',
-          `Your offer to carry this parcel for ₹${targetParcel.priceOffer} was sent to ${targetParcel.userName}. You can track it in Requests.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
+        setRequestSuccess({
+          type: 'offer_sent',
+          recipientName: targetParcel.userName,
+          price: targetParcel.priceOffer,
+          fromCity: targetParcel.fromCity,
+          toCity: targetParcel.toCity,
+        });
         await Promise.all([requestsQuery.refetch(), parcelsQuery.refetch()]);
       } else {
         showAlert('Error', 'Could not send offer. Please try again.');
@@ -774,7 +766,7 @@ export default function HomeScreen() {
       Haptic.error();
       showAlert('Error', err?.message || 'Could not send offer. Please try again.');
     }
-  }, [createRequestAsync, parcelsQuery, requestsQuery, router, showAlert, trips, user]);
+  }, [createRequestAsync, parcelsQuery, requestsQuery, showAlert, trips, user]);
 
   const handleConfirmTripRequest = useCallback(async (parcelId: string, targetTrip: Trip, calculatedPrice: number) => {
     if (!user) return;
@@ -804,14 +796,13 @@ export default function HomeScreen() {
       if (result) {
         setRequestTripTarget(null);
         Haptic.success();
-        showAlert(
-          'Request Sent! 🎉',
-          `Your delivery request was sent to ${targetTrip.userName}. You can track it in Requests.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
+        setRequestSuccess({
+          type: 'request_sent',
+          recipientName: targetTrip.userName,
+          price: calculatedPrice,
+          fromCity: targetTrip.fromCity,
+          toCity: targetTrip.toCity,
+        });
         await Promise.all([requestsQuery.refetch(), tripsQuery.refetch()]);
       } else {
         showAlert('Error', 'Could not send request. Please try again.');
@@ -875,14 +866,13 @@ export default function HomeScreen() {
       if (result) {
         setCarryParcelTarget(null);
         Haptic.success();
-        showAlert(
-          'Trip Posted & Offer Sent! 🎉',
-          `Your trip for ${targetParcel.fromCity} ➔ ${targetParcel.toCity} was posted and your offer (₹${targetParcel.priceOffer}) was sent to ${targetParcel.userName}!`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
+        setRequestSuccess({
+          type: 'offer_sent',
+          recipientName: targetParcel.userName,
+          price: targetParcel.priceOffer,
+          fromCity: targetParcel.fromCity,
+          toCity: targetParcel.toCity,
+        });
         await Promise.all([requestsQuery.refetch(), parcelsQuery.refetch(), tripsQuery.refetch()]);
       } else {
         showAlert('Error', 'Could not send carry offer. Please try again.');
@@ -944,14 +934,13 @@ export default function HomeScreen() {
       if (result) {
         setRequestTripTarget(null);
         Haptic.success();
-        showAlert(
-          'Request Sent! 🎉',
-          `Your delivery request was sent to ${targetTrip.userName} for ₹${calculatedPrice}! You can track it in Requests.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
+        setRequestSuccess({
+          type: 'request_sent',
+          recipientName: targetTrip.userName,
+          price: calculatedPrice,
+          fromCity: targetTrip.fromCity,
+          toCity: targetTrip.toCity,
+        });
         await Promise.all([requestsQuery.refetch(), parcelsQuery.refetch(), tripsQuery.refetch()]);
       } else {
         showAlert('Error', 'Could not send delivery request. Please try again.');
@@ -1064,6 +1053,17 @@ export default function HomeScreen() {
         selectedCity={locationCity || undefined}
         onUseCurrentLocation={handleDetectCurrentLocation}
         isDetectingLocation={isDetectingCity}
+      />
+
+      <RequestSuccessModal
+        visible={Boolean(requestSuccess)}
+        onClose={() => setRequestSuccess(null)}
+        type={requestSuccess?.type || 'request_sent'}
+        recipientName={requestSuccess?.recipientName || ''}
+        price={requestSuccess?.price || 0}
+        fromCity={requestSuccess?.fromCity || ''}
+        toCity={requestSuccess?.toCity || ''}
+        onViewRequests={() => router.push('/(tabs)/requests')}
       />
 
       {/* Sticky Animated Glass Mini-Header */}
@@ -1211,22 +1211,7 @@ export default function HomeScreen() {
               hasFilter={hasFilter}
             />
 
-            <HaryanaCorridorChips
-              activeFromCity={filters.fromCity}
-              activeToCity={filters.toCity}
-              onSelectCorridor={(fromCity, toCity) => setFilters((prev) => ({ ...prev, fromCity, toCity }))}
-              onClear={() => setFilters((prev) => ({ ...prev, fromCity: '', toCity: '' }))}
-            />
-
             <QuickActions />
-
-            <HomeStats
-              tripsCount={filteredTrips.length}
-              parcelsCount={filteredParcels.length}
-              rating={user?.rating}
-              totalRatings={user?.totalRatings}
-              isSmallDevice={isSmallDevice}
-            />
 
             <PromotionalBannerCarousel
               banners={promotionalBannersQuery.data}
@@ -1240,161 +1225,29 @@ export default function HomeScreen() {
               onNavigateDeepLink={(url) => router.push(url as any)}
             />
 
-            <View style={styles.marketplaceSection}>
-              <View style={styles.marketplaceHead}>
-                <View style={styles.marketplaceTitleWrap}>
-                  <View style={styles.liveTagRow}>
-                    <View style={[styles.livePulseDot, { backgroundColor: '#10B981' }]} />
-                    <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Live Marketplace</Text>
-                  </View>
-                  <Text style={[styles.sectionSub, { color: C.textMuted }]}>
-                    {locationCity ? `Filtered by ${locationCity} hub & corridor` : 'Showing all verified India routes'}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => {
-                    Haptic.tap();
-                    setShowFilters(true);
-                  }}
-                  hitSlop={TouchTarget.smallHitSlop}
-                  accessibilityRole="button"
-                  accessibilityLabel="Filter listings"
-                  style={({ pressed }) => [
-                    styles.filterBtn,
-                    { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface },
-                    pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
-                  ]}
-                >
-                  <MaterialIcons name="tune" size={18} color={hasFilter ? C.primary : C.textPrimary} />
-                  {hasFilter ? <View style={[styles.activeFilterDot, { backgroundColor: C.primary }]} /> : null}
-                </Pressable>
-              </View>
-
-              {/* Location Badge & All India Toggle */}
-              <View style={styles.locationPillsRow}>
-                <Pressable
-                  onPress={() => {
-                    Haptic.tap();
-                    setShowCityPicker(true);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Location filter applied: ${locationCity || 'All India'}. Tap to change city.`}
-                  style={({ pressed }) => [
-                    styles.locationFilterPill,
-                    {
-                      backgroundColor: locationCity ? C.primarySubtle : C.surfaceElevated,
-                      borderColor: locationCity ? C.primary : C.surfaceBorder,
-                    },
-                    pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="location-on"
-                    size={15}
-                    color={locationCity ? C.primary : C.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.locationFilterPillText,
-                      { color: locationCity ? C.primaryDark : C.textPrimary },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {locationCity ? `📍 Filtered by ${locationCity}` : '📍 All Locations'}
-                  </Text>
-                  <MaterialIcons
-                    name="expand-more"
-                    size={16}
-                    color={locationCity ? C.primary : C.textMuted}
-                  />
-                </Pressable>
-
-                <Pressable
-                  onPress={handleToggleAllIndia}
-                  accessibilityRole="button"
-                  accessibilityLabel={locationCity ? "Switch to All India routes" : `Switch back to ${defaultCity}`}
-                  style={({ pressed }) => [
-                    styles.allIndiaBtn,
-                    {
-                      backgroundColor: !locationCity ? C.primary : C.surface,
-                      borderColor: !locationCity ? C.primary : C.surfaceBorder,
-                    },
-                    pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.allIndiaBtnText,
-                      { color: !locationCity ? '#FFFFFF' : C.textSecondary },
-                    ]}
-                  >
-                    {!locationCity ? 'All India ✓' : 'All India'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
+            <LiveMarketplaceHeader
+              activeTab={activeTab}
+              onSelectTab={handleSelectTab}
+              tripsCount={filteredTrips.length}
+              parcelsCount={filteredParcels.length}
+              locationCity={locationCity}
+              onOpenCityPicker={() => setShowCityPicker(true)}
+              onToggleAllIndia={handleToggleAllIndia}
+              hasFilter={hasFilter}
+              onOpenFilters={() => setShowFilters(true)}
+              selectedVehicle={quickVehicle}
+              onSelectVehicle={setQuickVehicle}
+              selectedCategory={quickCategory}
+              onSelectCategory={setQuickCategory}
+              sortBy={marketplaceSort}
+              onSelectSort={setMarketplaceSort}
+              activeCorridor={{ fromCity: filters.fromCity, toCity: filters.toCity }}
+              onClearCorridor={() => setFilters((prev) => ({ ...prev, fromCity: '', toCity: '' }))}
+              onClearAllFilters={handleClearAllFilters}
+              tabIndicatorAnim={tabIndicatorAnim}
+            />
 
             {!isOnline ? <OfflineBanner C={C} /> : null}
-
-            <View style={[styles.segmented, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-              {/* Smooth sliding indicator pill */}
-              <Animated.View
-                style={[
-                  styles.activeIndicatorPill,
-                  {
-                    backgroundColor: C.primary,
-                    left: tabIndicatorAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '50%'],
-                    }) as any,
-                  },
-                ]}
-              />
-              <Pressable
-                onPress={() => handleSelectTab('trips')}
-                hitSlop={TouchTarget.smallHitSlop}
-                style={styles.segment}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    {
-                      color: activeTab === 'trips' ? '#FFFFFF' : C.textSecondary,
-                      fontWeight: activeTab === 'trips' ? FontWeight.bold : FontWeight.medium,
-                    },
-                  ]}
-                >
-                  Available Trips ({filteredTrips.length})
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleSelectTab('parcels')}
-                hitSlop={TouchTarget.smallHitSlop}
-                style={styles.segment}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    {
-                      color: activeTab === 'parcels' ? '#FFFFFF' : C.textSecondary,
-                      fontWeight: activeTab === 'parcels' ? FontWeight.bold : FontWeight.medium,
-                    },
-                  ]}
-                >
-                  Parcels to Carry ({filteredParcels.length})
-                </Text>
-              </Pressable>
-            </View>
-
-            {hasFilter ? (
-              <View style={[styles.filterSummary, { backgroundColor: C.primarySubtle }]}>
-                <MaterialIcons name="filter-alt" size={14} color={C.primaryDark} />
-                <Text style={[styles.filterSummaryText, { color: C.primaryDark }]}>Active filters applied</Text>
-                <Pressable onPress={() => setFilters(DEFAULT_FILTERS)}>
-                  <Text style={[styles.clearText, { color: C.primaryDark }]}>Clear</Text>
-                </Pressable>
-              </View>
-            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -1417,10 +1270,9 @@ export default function HomeScreen() {
             <EmptyMarketplace
               activeTab={activeTab}
               hasFilter={hasFilter}
-              locationCity={locationCity}
-              onClear={() => setFilters(DEFAULT_FILTERS)}
+              locationCity={locationCity || defaultCity}
+              onClear={handleClearAllFilters}
               onCreate={() => router.push(activeTab === 'trips' ? '/create-trip' : '/create-parcel')}
-              onShowAllIndia={() => setLocationCity(null)}
               onChangeCity={() => setShowCityPicker(true)}
             />
           )
@@ -1616,86 +1468,50 @@ const styles = StyleSheet.create({
   },
   quickActionCard: {
     flex: 1,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    padding: Spacing.md,
-    justifyContent: 'space-between',
-    minHeight: 106,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  quickActionPrimaryCard: {
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-  quickActionTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  quickActionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickActionCopy: {
-    marginTop: Spacing.sm,
-  },
-  quickActionTitle: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
-  },
-  quickActionSub: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-
-  statsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    paddingVertical: Spacing.sm + 2,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: Spacing.sm,
+    minHeight: 56,
+    gap: Spacing.xs + 2,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 1,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  statCol: {
-    flex: 1,
+  quickActionPrimaryCard: {
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  quickActionIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
+  quickActionCopy: {
+    flex: 1,
   },
-  statNumber: {
-    fontSize: FontSize.lg,
+  quickActionTitle: {
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.3,
+    letterSpacing: -0.1,
   },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
-    marginTop: 2,
+  quickActionSub: {
+    fontSize: 10.5,
+    marginTop: 1,
+    lineHeight: 14,
   },
-  statDivider: {
-    width: 1,
-    height: 26,
+  quickActionArrow: {
+    marginLeft: 1,
   },
 
   marketplaceSection: {

@@ -6,8 +6,10 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SECURE_PREFIX = 'hizli_secure_';
-const STORAGE_PREFIX = 'hizli_';
+const SECURE_PREFIX = 'carrygo_secure_';
+const STORAGE_PREFIX = 'carrygo_';
+const LEGACY_SECURE_PREFIX = 'hizli_secure_';
+const LEGACY_STORAGE_PREFIX = 'hizli_';
 
 /**
  * Store a value securely using device keychain/keystore.
@@ -25,7 +27,11 @@ export async function secureSet(key: string, value: unknown): Promise<void> {
  */
 export async function secureGet<T = string>(key: string): Promise<T | null> {
   const prefixedKey = `${SECURE_PREFIX}${key}`;
-  const raw = await SecureStore.getItemAsync(prefixedKey);
+  let raw = await SecureStore.getItemAsync(prefixedKey);
+
+  if (raw === null) {
+    raw = await SecureStore.getItemAsync(`${LEGACY_SECURE_PREFIX}${key}`);
+  }
 
   if (raw === null) {
     return null;
@@ -42,8 +48,10 @@ export async function secureGet<T = string>(key: string): Promise<T | null> {
  * Delete a securely stored value.
  */
 export async function secureDelete(key: string): Promise<void> {
-  const prefixedKey = `${SECURE_PREFIX}${key}`;
-  await SecureStore.deleteItemAsync(prefixedKey);
+  await Promise.all([
+    SecureStore.deleteItemAsync(`${SECURE_PREFIX}${key}`),
+    SecureStore.deleteItemAsync(`${LEGACY_SECURE_PREFIX}${key}`),
+  ]);
 }
 
 /**
@@ -62,7 +70,11 @@ export async function storageSet(key: string, value: unknown): Promise<void> {
  */
 export async function storageGet<T = string>(key: string): Promise<T | null> {
   const prefixedKey = `${STORAGE_PREFIX}${key}`;
-  const raw = await AsyncStorage.getItem(prefixedKey);
+  let raw = await AsyncStorage.getItem(prefixedKey);
+
+  if (raw === null) {
+    raw = await AsyncStorage.getItem(`${LEGACY_STORAGE_PREFIX}${key}`);
+  }
 
   if (raw === null) {
     return null;
@@ -79,8 +91,10 @@ export async function storageGet<T = string>(key: string): Promise<T | null> {
  * Delete non-sensitive data from AsyncStorage.
  */
 export async function storageDelete(key: string): Promise<void> {
-  const prefixedKey = `${STORAGE_PREFIX}${key}`;
-  await AsyncStorage.removeItem(prefixedKey);
+  await Promise.all([
+    AsyncStorage.removeItem(`${STORAGE_PREFIX}${key}`),
+    AsyncStorage.removeItem(`${LEGACY_STORAGE_PREFIX}${key}`),
+  ]);
 }
 
 /**
@@ -89,10 +103,14 @@ export async function storageDelete(key: string): Promise<void> {
  */
 export async function secureClearAll(): Promise<void> {
   const allKeys = await AsyncStorage.getAllKeys();
-  const secureKeys = allKeys.filter((k) => k.startsWith(SECURE_PREFIX));
+  const secureKeys = allKeys.filter(
+    (k) => k.startsWith(SECURE_PREFIX) || k.startsWith(LEGACY_SECURE_PREFIX)
+  );
 
   for (const key of secureKeys) {
-    const unprefixedKey = key.replace(SECURE_PREFIX, '');
+    const unprefixedKey = key.startsWith(SECURE_PREFIX)
+      ? key.replace(SECURE_PREFIX, '')
+      : key.replace(LEGACY_SECURE_PREFIX, '');
     await secureDelete(unprefixedKey);
   }
 }
@@ -103,7 +121,9 @@ export async function secureClearAll(): Promise<void> {
 export async function storageClearAll(): Promise<void> {
   const allKeys = await AsyncStorage.getAllKeys();
   const appKeys = allKeys.filter(
-    (k) => k.startsWith(STORAGE_PREFIX) && !k.startsWith(SECURE_PREFIX)
+    (k) =>
+      (k.startsWith(STORAGE_PREFIX) && !k.startsWith(SECURE_PREFIX)) ||
+      (k.startsWith(LEGACY_STORAGE_PREFIX) && !k.startsWith(LEGACY_SECURE_PREFIX))
   );
   await AsyncStorage.multiRemove(appKeys);
 }

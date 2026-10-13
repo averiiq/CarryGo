@@ -79,16 +79,67 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Too many verification attempts. Please wait.' }, 429);
     }
 
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature, requestId } = await req.json();
+    const body = await req.json();
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature, requestId, checkOnly } = body;
+
+    if (checkOnly) {
+      if (!razorpayOrderId) {
+        return jsonResponse({ error: 'Missing razorpayOrderId' }, 400);
+      }
+      const plinkResponse = await fetch(`https://api.razorpay.com/v1/payment_links/${encodeURIComponent(razorpayOrderId)}`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`)}`,
+        },
+      });
+      if (!plinkResponse.ok) {
+        return jsonResponse({ error: 'Unable to check payment link status' }, 502);
+      }
+      const plinkData = await plinkResponse.json();
+      const isPaid = plinkData.status === 'paid' || Number(plinkData.amount_paid) >= Number(plinkData.amount);
+      let paymentId: string | undefined;
+      if (Array.isArray(plinkData.payments) && plinkData.payments.length > 0) {
+        paymentId = plinkData.payments[0].payment_id || plinkData.payments[0].id;
+      }
+      return jsonResponse({
+        paid: isPaid,
+        status: plinkData.status,
+        paymentId,
+      });
+    }
 
     if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature || !requestId) {
       return jsonResponse({ error: 'Missing required fields' }, 400);
     }
 
-    const isValid = await verifySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
-    if (!isValid) {
-      await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
-      return jsonResponse({ error: 'Invalid payment signature' }, 400);
+    const isPaymentLink = typeof razorpayOrderId === 'string' && razorpayOrderId.startsWith('plink_');
+    let effectivePaymentId = razorpayPaymentId;
+
+    if (isPaymentLink) {
+      const plinkResponse = await fetch(`https://api.razorpay.com/v1/payment_links/${encodeURIComponent(razorpayOrderId)}`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`)}`,
+        },
+      });
+
+      if (!plinkResponse.ok) {
+        return jsonResponse({ error: 'Unable to verify payment link with provider' }, 502);
+      }
+
+      const plinkData = await plinkResponse.json();
+      const isPaid = plinkData.status === 'paid' || Number(plinkData.amount_paid) >= Number(plinkData.amount);
+      if (!isPaid) {
+        return jsonResponse({ error: 'Payment link has not been completed yet' }, 400);
+      }
+
+      if (Array.isArray(plinkData.payments) && plinkData.payments.length > 0) {
+        effectivePaymentId = plinkData.payments[0].payment_id || plinkData.payments[0].id || razorpayPaymentId;
+      }
+    } else {
+      const isValid = await verifySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+      if (!isValid) {
+        await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
+        return jsonResponse({ error: 'Invalid payment signature' }, 400);
+      }
     }
 
     const { data: orderRecord, error: orderError } = await supabase
@@ -109,30 +160,32 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'This payment order is no longer valid. Please retry checkout.' }, 409);
     }
 
-    const providerResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(razorpayPaymentId)}`, {
-      headers: {
-        'Authorization': `Basic ${btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`)}`,
-      },
-    });
+    if (!isPaymentLink) {
+      const providerResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(effectivePaymentId)}`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`)}`,
+        },
+      });
 
-    if (!providerResponse.ok) {
-      return jsonResponse({ error: 'Unable to confirm payment with provider' }, 502);
-    }
+      if (!providerResponse.ok) {
+        return jsonResponse({ error: 'Unable to confirm payment with provider' }, 502);
+      }
 
-    const providerPayment = await providerResponse.json();
-    if (
-      providerPayment?.order_id !== razorpayOrderId
-      || Number(providerPayment?.amount) !== Number(orderRecord.amount_paise)
-      || providerPayment?.currency !== orderRecord.currency
-      || !['authorized', 'captured'].includes(providerPayment?.status)
-    ) {
-      await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
-      return jsonResponse({ error: 'Payment does not match the original order' }, 400);
+      const providerPayment = await providerResponse.json();
+      if (
+        providerPayment?.order_id !== razorpayOrderId
+        || Number(providerPayment?.amount) !== Number(orderRecord.amount_paise)
+        || providerPayment?.currency !== orderRecord.currency
+        || !['authorized', 'captured'].includes(providerPayment?.status)
+      ) {
+        await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
+        return jsonResponse({ error: 'Payment does not match the original order' }, 400);
+      }
     }
 
     const { data: payment, error: insertError } = await supabase.rpc('finalize_razorpay_payment', {
       p_order_id: razorpayOrderId,
-      p_payment_id: razorpayPaymentId,
+      p_payment_id: effectivePaymentId,
     });
 
     if (insertError) {

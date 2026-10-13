@@ -77,6 +77,8 @@ export async function fetchParcels(filters?: {
   const offset = filters?.offset ?? 0;
   const shouldCount = filters?.includeCount === true || (filters?.includeCount !== false && offset === 0);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+
   let query = sb
     .from('parcels')
     .select('*', shouldCount ? { count: 'exact' } : undefined)
@@ -101,7 +103,12 @@ export async function fetchParcels(filters?: {
   }
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message, total: 0 };
-  return { data: (data || []).map(mapRow), error: null, total: count ?? 0 };
+  const filtered = (data || []).map(mapRow).filter((p: Parcel) => {
+    if (p.status !== 'open') return false;
+    if (p.deliveryDate && p.deliveryDate < todayStr) return false;
+    return true;
+  });
+  return { data: filtered, error: null, total: count ?? filtered.length };
 }
 
 export async function fetchParcelById(parcelId: string) {

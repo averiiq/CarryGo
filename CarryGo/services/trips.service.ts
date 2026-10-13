@@ -66,10 +66,14 @@ export async function fetchTrips(filters?: {
   const offset = filters?.offset ?? 0;
   const shouldCount = filters?.includeCount === true || (filters?.includeCount !== false && offset === 0);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+
   let query = sb
     .from('trips')
     .select('*', shouldCount ? { count: 'exact' } : undefined)
     .eq('status', 'active')
+    .gt('available_capacity', 0)
+    .gte('date', todayStr)
     .gte('created_at', getUnmatchedListingCutoffIso())
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -90,7 +94,13 @@ export async function fetchTrips(filters?: {
   }
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message, total: 0 };
-  return { data: (data || []).map(mapRow), error: null, total: count ?? 0 };
+  const filtered = (data || []).map(mapRow).filter((t: Trip) => {
+    if (t.status !== 'active') return false;
+    if (Number(t.availableCapacity || 0) <= 0) return false;
+    if (t.date && t.date < todayStr) return false;
+    return true;
+  });
+  return { data: filtered, error: null, total: count ?? filtered.length };
 }
 
 export async function fetchTripById(tripId: string) {

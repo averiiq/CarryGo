@@ -11,6 +11,7 @@ export interface RequestCardProps {
   request: Request;
   type: 'incoming' | 'outgoing';
   currentUserId?: string;
+  onPress?: () => void;
   onAccept?: () => void;
   onReject?: () => void;
   onCancel?: () => void;
@@ -314,6 +315,7 @@ export const RequestCard = React.memo(function RequestCard({
   request,
   type,
   currentUserId,
+  onPress,
   onAccept,
   onReject,
   onCancel,
@@ -394,9 +396,9 @@ export const RequestCard = React.memo(function RequestCard({
             </View>
             <Text style={[styles.swipeBgText, { color: '#DC2626' }]}>Decline</Text>
           </Animated.View>
-          <Animated.View style={[styles.swipeBg, styles.swipeBgRight, { backgroundColor: '#DCFCE7', opacity: acceptOpacity }]}>
-            <Text style={[styles.swipeBgText, { color: '#059669' }]}>Accept</Text>
-            <View style={[styles.swipeIconCircle, { backgroundColor: '#059669' }]}>
+          <Animated.View style={[styles.swipeBg, styles.swipeBgRight, { backgroundColor: '#ECFDF5', opacity: acceptOpacity }]}>
+            <Text style={[styles.swipeBgText, { color: C.primary, fontWeight: 'bold' }]}>Accept</Text>
+            <View style={[styles.swipeIconCircle, { backgroundColor: C.primary }]}>
               <MaterialIcons name="check" size={20} color="#FFFFFF" />
             </View>
           </Animated.View>
@@ -405,7 +407,7 @@ export const RequestCard = React.memo(function RequestCard({
 
       <Animated.View
         accessible={true}
-        accessibilityRole="summary"
+        accessibilityRole="button"
         accessibilityLabel={requestAccessibilityLabel}
         style={[
           styles.card,
@@ -416,8 +418,12 @@ export const RequestCard = React.memo(function RequestCard({
         ]}
         {...(vm.showSwipeHint ? panResponder.panHandlers : {})}
       >
-        <View style={styles.inner}>
-          {/* Top Row: User Avatar, Name, Role badge & Status chip */}
+        <Pressable
+          onPress={onPress}
+          style={styles.inner}
+          android_ripple={{ color: C.primarySubtle }}
+        >
+          {/* Top Row: User Avatar, Name & Price Pill */}
           <View style={styles.topRow}>
             <View style={styles.userBlock}>
               <View style={[styles.avatar, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
@@ -433,9 +439,53 @@ export const RequestCard = React.memo(function RequestCard({
                   <MaterialIcons name="verified" size={13} color={C.primary} />
                 </View>
                 <Text style={[styles.userSubText, { color: C.textMuted }]}>
-                  {vm.isSender ? '🚗 Traveler' : '📦 Parcel Sender'} • {vm.formattedDate}
+                  {vm.roleLabel} • {vm.formattedDate}
                 </Text>
               </View>
+            </View>
+
+            {/* Price Tag Pill */}
+            <View style={[styles.priceCapsule, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <Text style={[styles.priceTag, { color: C.textPrimary }]}>₹{request.price}</Text>
+              <Text style={[styles.priceSub, { color: C.primary }]}>
+                {request.status === 'completed'
+                  ? (vm.isTraveller ? 'Earned' : 'Paid')
+                  : (vm.isTraveller ? 'You Earn' : 'Escrow')}
+              </Text>
+            </View>
+          </View>
+
+          {/* Route Section: Clean, Minimal, Non-Boxed */}
+          <View style={styles.routeRow}>
+            <View style={styles.cityCol}>
+              <View style={[styles.cityDot, { backgroundColor: C.primary }]} />
+              <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+                {vm.pickup}
+              </Text>
+            </View>
+
+            <View style={styles.routeArrowCol}>
+              <View style={[styles.routeDash, { backgroundColor: C.surfaceBorder }]} />
+              <MaterialIcons name="east" size={14} color={C.primary} />
+              <View style={[styles.routeDash, { backgroundColor: C.surfaceBorder }]} />
+            </View>
+
+            <View style={[styles.cityCol, { alignItems: 'flex-end' }]}>
+              <View style={[styles.cityDot, { backgroundColor: C.primary }]} />
+              <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+                {vm.drop}
+              </Text>
+            </View>
+          </View>
+
+          {/* Clean Specs & Status */}
+          <View style={styles.specChipsRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <MaterialIcons name="inventory-2" size={13} color={C.textMuted} />
+              <Text style={[styles.specChipText, { color: C.textSecondary }]}>
+                {request.parcelCategory || 'Parcel'}
+                {request.parcelWeight ? ` • ${request.parcelWeight} kg` : ''}
+              </Text>
             </View>
 
             <View style={[styles.statusChip, { backgroundColor: sc.bg, borderColor: sc.border }]}>
@@ -444,100 +494,85 @@ export const RequestCard = React.memo(function RequestCard({
             </View>
           </View>
 
-          {/* Middle Row: Route, Parcel Specs, and Price */}
-          <View style={[styles.routeBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <View style={styles.routeLeft}>
-              <View style={styles.routeCityRow}>
-                <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>{vm.pickup}</Text>
-                <MaterialIcons name="east" size={13} color={C.primary} style={{ marginHorizontal: 4 }} />
-                <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>{vm.drop}</Text>
-              </View>
-              <View style={styles.parcelInfoRow}>
-                <MaterialIcons name="inventory-2" size={11} color={C.textMuted} />
-                <Text style={[styles.parcelInfoText, { color: C.textSecondary }]}>
-                  {request.parcelCategory || 'Parcel'}{request.parcelWeight ? ` • ${request.parcelWeight} kg` : ''}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.routeRight}>
-              <Text style={[styles.priceTag, { color: C.primary }]}>₹{request.price}</Text>
-              <Text style={[styles.priceSub, { color: C.textMuted }]}>
-                {request.status === 'completed' ? 'Paid' : 'Escrow'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Optional Note / Message */}
+          {/* Optional Message */}
           {request.message ? (
-            <View style={[styles.messageRow, { borderLeftColor: C.primary }]}>
-              <Text style={[styles.messageText, { color: C.textSecondary }]} numberOfLines={1}>
+            <View style={styles.messageRow}>
+              <Ionicons name="chatbubble-ellipses-outline" size={12} color={C.textMuted} style={{ marginTop: 1 }} />
+              <Text style={[styles.messageText, { color: C.textMuted }]} numberOfLines={1}>
                 "{request.message}"
               </Text>
             </View>
           ) : null}
 
-          {/* Bottom Row: Clear, thumb-friendly actions */}
+          {/* Action Row */}
           <View style={styles.actionRow}>
-            {/* Direct Chat Button */}
+            {/* View Details Prompt */}
             <Pressable
-              style={({ pressed }) => [
-                styles.chatBtn,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
-              ]}
-              onPress={() => { Haptic.tap(); onChat?.(); }}
+              onPress={onPress}
               hitSlop={TouchTarget.smallHitSlop}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel={`Chat with ${vm.personName}`}
+              style={styles.detailsBtn}
             >
-              <Ionicons name="chatbubble-outline" size={15} color={C.textSecondary} />
+              <Text style={[styles.detailsBtnText, { color: C.textMuted }]}>Details</Text>
+              <Ionicons name="chevron-forward" size={12} color={C.textMuted} />
             </Pressable>
 
             {/* Contextual Action Buttons */}
-            {vm.showAcceptDecline ? (
-              <View style={styles.actionsGroup}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.declineBtn,
-                    { backgroundColor: C.errorSubtle, borderColor: C.errorBorder },
-                    pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
-                  ]}
-                  onPress={() => { Haptic.warning(); onReject?.(); }}
-                  hitSlop={TouchTarget.smallHitSlop}
-                  accessible={true}
-                  accessibilityRole="button"
-                  accessibilityLabel="Decline Request"
-                >
-                  <Ionicons name="close" size={14} color={C.error} />
-                  <Text style={[styles.declineText, { color: C.error }]}>Decline</Text>
-                </Pressable>
+            <View style={styles.actionsRightGroup}>
+              {/* Direct Chat Button */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.chatBtn,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+                ]}
+                onPress={() => { Haptic.tap(); onChat?.(); }}
+                hitSlop={TouchTarget.smallHitSlop}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`Chat with ${vm.personName}`}
+              >
+                <Ionicons name="chatbubble-outline" size={15} color={C.textSecondary} />
+              </Pressable>
 
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.acceptBtn,
-                    { backgroundColor: C.primary },
-                    pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-                  ]}
-                  onPress={() => { Haptic.success(); onAccept?.(); }}
-                  hitSlop={TouchTarget.smallHitSlop}
-                  accessible={true}
-                  accessibilityRole="button"
-                  accessibilityLabel="Accept Request"
-                >
-                  <Ionicons name="checkmark" size={15} color="#FFFFFF" />
-                  <Text style={styles.acceptText}>Accept (₹{request.price})</Text>
-                </Pressable>
-              </View>
-            ) : null}
+              {vm.showAcceptDecline ? (
+                <>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.declineBtn,
+                      { backgroundColor: C.errorSubtle, borderColor: C.errorBorder },
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+                    ]}
+                    onPress={() => { Haptic.warning(); onReject?.(); }}
+                    hitSlop={TouchTarget.smallHitSlop}
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel="Decline Request"
+                  >
+                    <Ionicons name="close" size={14} color={C.error} />
+                    <Text style={[styles.declineText, { color: C.error }]}>Decline</Text>
+                  </Pressable>
 
-            {vm.showCancel ? (
-              <View style={styles.actionsGroup}>
-                <View style={[styles.waitingPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                  <Ionicons name="time-outline" size={12} color={C.textMuted} />
-                  <Text style={[styles.waitingText, { color: C.textMuted }]}>Waiting for response</Text>
-                </View>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.acceptBtn,
+                      { backgroundColor: C.primary },
+                      pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                    ]}
+                    onPress={() => { Haptic.success(); onAccept?.(); }}
+                    hitSlop={TouchTarget.smallHitSlop}
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel="Accept Request"
+                  >
+                    <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                    <Text style={[styles.acceptText, { color: '#FFFFFF', fontWeight: '700' }]}>
+                      {vm.isTraveller ? `Accept & Earn ₹${request.price}` : `Accept (₹${request.price})`}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : null}
+
+              {vm.showCancel ? (
                 <Pressable
                   style={({ pressed }) => [
                     styles.cancelBtn,
@@ -552,95 +587,86 @@ export const RequestCard = React.memo(function RequestCard({
                 >
                   <Text style={[styles.cancelText, { color: C.error }]}>Cancel</Text>
                 </Pressable>
-              </View>
-            ) : null}
+              ) : null}
 
-            {vm.showPayButton ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.payBtn,
-                  { backgroundColor: '#F59E0B' },
-                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-                ]}
-                onPress={() => { Haptic.tap(); onPayment?.(); }}
-                hitSlop={TouchTarget.smallHitSlop}
-                accessible={true}
-                accessibilityRole="button"
-                accessibilityLabel="Pay Escrow"
-              >
-                <MaterialIcons name="lock" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
-                <Text style={styles.payBtnText}>Pay Escrow (₹{request.price})</Text>
-              </Pressable>
-            ) : null}
-
-            {!vm.showPayButton && vm.showDeliveryButton ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.trackBtn,
-                  { backgroundColor: C.primary },
-                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-                ]}
-                onPress={() => { Haptic.tap(); onDelivery?.(); }}
-                hitSlop={TouchTarget.smallHitSlop}
-                accessible={true}
-                accessibilityRole="button"
-                accessibilityLabel={vm.isTraveller ? "Process Delivery" : "Track Delivery"}
-              >
-                <MaterialIcons
-                  name={vm.isTraveller ? "fact-check" : "radar"}
-                  size={14}
-                  color="#FFFFFF"
-                  style={{ marginRight: 4 }}
-                />
-                <Text style={styles.trackBtnText}>
-                  {vm.isTraveller ? "Process Handover" : "Track Delivery"}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {vm.showReceiptReview ? (
-              <View style={styles.actionsGroup}>
+              {vm.showPayButton ? (
                 <Pressable
                   style={({ pressed }) => [
-                    styles.receiptBtn,
-                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                    pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                    styles.payBtn,
+                    { backgroundColor: '#D97706' },
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
                   ]}
                   onPress={() => { Haptic.tap(); onPayment?.(); }}
                   hitSlop={TouchTarget.smallHitSlop}
                   accessible={true}
                   accessibilityRole="button"
-                  accessibilityLabel="View Receipt"
+                  accessibilityLabel="Pay Escrow"
                 >
-                  <Text style={[styles.receiptBtnText, { color: C.textPrimary }]}>Receipt</Text>
+                  <MaterialIcons name="lock" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.payBtnText}>Pay Escrow (₹{request.price})</Text>
                 </Pressable>
+              ) : null}
 
+              {!vm.showPayButton && vm.showDeliveryButton ? (
                 <Pressable
                   style={({ pressed }) => [
-                    styles.reviewBtn,
-                    { backgroundColor: '#F59E0B' },
+                    styles.trackBtn,
+                    { backgroundColor: C.primary },
                     pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
                   ]}
-                  onPress={() => {
-                    Haptic.tap();
-                    if (onReview) {
-                      onReview(request);
-                    } else {
-                      onDelivery?.();
-                    }
-                  }}
+                  onPress={() => { Haptic.tap(); onDelivery?.(); }}
                   hitSlop={TouchTarget.smallHitSlop}
                   accessible={true}
                   accessibilityRole="button"
-                  accessibilityLabel="Rate and Review"
+                  accessibilityLabel={vm.isTraveller ? "Process Delivery" : "Track Delivery"}
                 >
-                  <MaterialIcons name="star" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.reviewBtnText}>Rate & Review</Text>
+                  <MaterialIcons
+                    name={vm.isTraveller ? "fact-check" : "radar"}
+                    size={14}
+                    color="#FFFFFF"
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={styles.trackBtnText}>
+                    {vm.isTraveller ? "Process Handover" : "Track Delivery"}
+                  </Text>
                 </Pressable>
-              </View>
-            ) : null}
+              ) : null}
+
+              {vm.showReceiptReview ? (
+                <>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.receiptBtn,
+                      { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                    ]}
+                    onPress={() => { Haptic.tap(); onPayment?.(); }}
+                    hitSlop={TouchTarget.smallHitSlop}
+                  >
+                    <Text style={[styles.receiptBtnText, { color: C.textPrimary }]}>Receipt</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.reviewBtn,
+                      { backgroundColor: '#F59E0B' },
+                      pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                    ]}
+                    onPress={() => {
+                      Haptic.tap();
+                      if (onReview) onReview(request);
+                      else onDelivery?.();
+                    }}
+                    hitSlop={TouchTarget.smallHitSlop}
+                  >
+                    <MaterialIcons name="star" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <Text style={styles.reviewBtnText}>Rate</Text>
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
           </View>
-        </View>
+        </Pressable>
       </Animated.View>
     </View>
   );
@@ -656,7 +682,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
-    borderRadius: 18,
+    borderRadius: 20,
     zIndex: 0,
   },
   swipeBgLeft: { left: 0, paddingLeft: 24, justifyContent: 'flex-start' },
@@ -677,13 +703,13 @@ const styles = StyleSheet.create({
 
   // Card Container
   card: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
     zIndex: 1,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -693,12 +719,35 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   inner: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
   },
 
-  // Top Row: User Avatar, Name, Role & Status Chip
+  // Context Banner
+  contextBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  bannerIconCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerTitle: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+    flex: 1,
+  },
+
+  // Top Row
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -707,7 +756,7 @@ const styles = StyleSheet.create({
   userBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
     flex: 1,
   },
   avatar: {
@@ -723,7 +772,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
   userMeta: {
-    gap: 2,
+    gap: 1.5,
     flex: 1,
   },
   userNameRow: {
@@ -739,144 +788,163 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: FontWeight.medium,
   },
-  statusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  statusChipText: {
-    fontSize: 10.5,
-    fontWeight: FontWeight.bold,
-  },
 
-  // Middle Row: Route, Parcel Specs, and Price
-  routeBox: {
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+  // Price Capsule
+  priceCapsule: {
+    alignItems: 'flex-end',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  routeLeft: {
-    flex: 1,
-    gap: 3,
-  },
-  routeCityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cityName: {
-    fontSize: 13.5,
+  priceTag: {
+    fontSize: 15,
     fontWeight: FontWeight.bold,
     letterSpacing: -0.2,
   },
-  parcelInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  parcelInfoText: {
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
-  },
-  routeRight: {
-    alignItems: 'flex-end',
-    marginLeft: 10,
-  },
-  priceTag: {
-    fontSize: 17,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.3,
-  },
   priceSub: {
     fontSize: 9.5,
-    fontWeight: FontWeight.medium,
+    fontWeight: FontWeight.bold,
   },
 
-  // Message Row
-  messageRow: {
-    borderLeftWidth: 2,
-    paddingLeft: 8,
-    paddingVertical: 1,
-  },
-  messageText: {
-    fontSize: 11.5,
-    fontStyle: 'italic',
-  },
-
-  // Bottom Row: Action Controls
-  actionRow: {
+  // Route Section: Non-Boxed, Airy
+  routeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-    paddingTop: 2,
   },
-  chatBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionsGroup: {
+  cityCol: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     flex: 1,
-    justifyContent: 'flex-end',
+  },
+  cityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  cityName: {
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  routeArrowCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+  },
+  routeDash: {
+    width: 14,
+    height: 1,
+  },
+
+  // Spec Micro-Chips
+  specChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  specChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  specChipText: {
+    fontSize: 10.5,
+    fontWeight: FontWeight.medium,
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  statusChipText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
+
+  // Message Row
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  messageText: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    flex: 1,
+  },
+
+  // Action Controls
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+  },
+  detailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  detailsBtnText: {
+    fontSize: 11.5,
+    fontWeight: FontWeight.semibold,
+  },
+  actionsRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  chatBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   declineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
+    gap: 3,
+    paddingHorizontal: 10,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
   },
   declineText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: FontWeight.bold,
   },
   acceptBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 4,
     paddingHorizontal: 14,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   acceptText: {
     fontSize: 12,
     fontWeight: FontWeight.bold,
     color: '#FFFFFF',
   },
-  waitingPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  waitingText: {
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
-  },
   cancelBtn: {
     height: 36,
-    paddingHorizontal: 11,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -888,28 +956,23 @@ const styles = StyleSheet.create({
   payBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
+    gap: 4,
+    paddingHorizontal: 14,
     height: 36,
-    borderRadius: 10,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 12,
   },
   payBtnText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: FontWeight.bold,
     color: '#FFFFFF',
   },
   trackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
+    gap: 4,
+    paddingHorizontal: 14,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   trackBtnText: {
     fontSize: 12,
@@ -917,9 +980,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   receiptBtn: {
-    paddingHorizontal: 12,
     height: 36,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -931,10 +994,10 @@ const styles = StyleSheet.create({
   reviewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 14,
+    gap: 3,
+    paddingHorizontal: 12,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   reviewBtnText: {
     fontSize: 12,
@@ -942,3 +1005,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+

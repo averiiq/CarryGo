@@ -100,10 +100,23 @@ export const listTrips = async (
             }),
           );
 
+          const todayStr = new Date().toISOString().slice(0, 10);
           const filtered = (Items ?? [])
             .filter((item) => item.entityType === 'trip')
             .map((item) => toTrip(item as Record<string, unknown>))
             .filter((trip) => {
+              if (trip.status !== 'active') {
+                return false;
+              }
+
+              if ((trip.availableCapacity ?? 0) <= 0) {
+                return false;
+              }
+
+              if (trip.date && trip.date < todayStr) {
+                return false;
+              }
+
               if (fromCity && !includesText(trip.fromCity, fromCity)) {
                 return false;
               }

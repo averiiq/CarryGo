@@ -2,6 +2,7 @@ import { json, JsonResponse } from '../../http/response';
 import { concurrencyGovernor } from '../../lib/governor';
 import { dynamoDbBreaker, sandboxKycBreaker, supabaseBreaker } from '../../lib/circuit-breaker';
 import { l1Cache } from '../../lib/cache';
+import { redisService } from '../../lib/redis';
 import { degradationController } from '../../lib/degradation';
 import { idempotencyEngine } from '../../lib/idempotency';
 
@@ -37,6 +38,7 @@ export const handleHealthReady = (): JsonResponse => {
         supabase: supabaseState,
       },
       cacheSize: l1Cache.size(),
+      redisConnected: redisService.isConnected(),
       timestamp: new Date().toISOString(),
     },
   );
@@ -68,6 +70,7 @@ export const handleHealthMetrics = (): JsonResponse => {
       supabase: supabaseBreaker.getState(),
     },
     cache: l1Cache.getStats(),
+    redis: redisService.getTelemetry(),
     idempotencyStoreSize: idempotencyEngine.size(),
   });
 };

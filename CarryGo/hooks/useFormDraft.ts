@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const DRAFT_PREFIX = 'HIZLI_DRAFT_';
+const DRAFT_PREFIX = 'CARRYGO_DRAFT_';
+const LEGACY_DRAFT_PREFIX = 'HIZLI_DRAFT_';
 
 type DraftOptions<T> = {
   onRestore?: (values: T) => void;
@@ -14,6 +15,7 @@ export function useFormDraft<T extends Record<string, unknown>>(
   options?: DraftOptions<T>,
 ) {
   const storageKey = `${DRAFT_PREFIX}${key}`;
+  const legacyStorageKey = `${LEGACY_DRAFT_PREFIX}${key}`;
   const hasRestoredRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
@@ -22,15 +24,20 @@ export function useFormDraft<T extends Record<string, unknown>>(
     if (hasRestoredRef.current) return;
     hasRestoredRef.current = true;
 
-    AsyncStorage.getItem(storageKey).then((raw) => {
-      if (!raw) return;
+    AsyncStorage.getItem(storageKey).then(async (raw) => {
+      let content = raw;
+      if (!content) {
+        content = await AsyncStorage.getItem(legacyStorageKey);
+      }
+      if (!content) return;
       try {
-        const parsed = JSON.parse(raw) as T;
+        const parsed = JSON.parse(content) as T;
         setValues(parsed);
         setIsDraftRestored(true);
         options?.onRestore?.(parsed);
       } catch {
         AsyncStorage.removeItem(storageKey);
+        AsyncStorage.removeItem(legacyStorageKey);
       }
     });
   }, [storageKey, setValues, options]);

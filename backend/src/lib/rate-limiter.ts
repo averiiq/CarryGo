@@ -1,5 +1,6 @@
 import { ddb } from './dynamo';
 import { UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { redisService } from './redis';
 
 interface RateLimitRecord {
   currentWindowStart: number;
@@ -18,8 +19,9 @@ export interface RateLimitResult {
  * 1. O(1) compute time per check (< 5 nanoseconds in memory).
  * 2. Zero array allocations per request (eliminates GC pauses under 100k+ RPS).
  * 3. Smooth sliding-window traffic estimation combining current & previous bucket weights.
- * 4. Bounded LRU store with automatic pruning to prevent memory exhaustion.
- * 5. Distributed atomic rate limiting across AWS Lambda containers using DynamoDB TTL windows.
+ * 4. Distributed atomic rate limiting via Redis Lua script (sub-millisecond cluster enforcement).
+ * 5. DynamoDB fallback for serverless deployments without Redis.
+ * 6. Local in-memory sliding window fallback ensures zero downtime.
  */
 export class SlidingWindowRateLimiter {
   private store = new Map<string, RateLimitRecord>();
@@ -97,12 +99,27 @@ export class SlidingWindowRateLimiter {
 
   /**
    * Distributed rate limit check:
-   * When DISTRIBUTED_RATE_LIMIT=true (or in production), uses DynamoDB atomic counters
-   * to guarantee cross-instance enforcement across auto-scaling AWS Lambda workers.
-   * Gracefully falls back to local memory if DynamoDB is unreachable.
+   * 1. Priority 1: Redis distributed atomic sliding window (< 1ms).
+   * 2. Priority 2: DynamoDB atomic counters with TTL.
+   * 3. Fallback: Ultra-fast local in-memory sliding window.
    */
   async checkAsync(key: string, customLimit?: number): Promise<RateLimitResult> {
     const limit = customLimit ?? this.maxRequests;
+    const windowSeconds = Math.max(1, Math.ceil(this.windowMs / 1000));
+
+    // 1. Check Redis distributed rate limiter
+    if (redisService.isConnected()) {
+      const redisResult = await redisService.checkRateLimit(key, limit, windowSeconds);
+      if (redisResult) {
+        return {
+          allowed: redisResult.allowed,
+          remaining: redisResult.remaining,
+          retryAfterSeconds: redisResult.retryAfterSeconds,
+        };
+      }
+    }
+
+    // 2. Check DynamoDB distributed rate limiter if enabled
     const isDistributedEnabled =
       process.env.DISTRIBUTED_RATE_LIMIT === 'true' ||
       (process.env.NODE_ENV === 'production' && process.env.RATE_LIMIT_TABLE);
@@ -119,7 +136,6 @@ export class SlidingWindowRateLimiter {
         const prevWindowStart = currentWindowStart - this.windowMs;
         const prevWindowKey = `RL#${key}#${prevWindowStart}`;
 
-        // 1. Atomic counter increment with TTL
         const updateRes = await ddb.send(
           new UpdateCommand({
             TableName: tableName,
@@ -133,7 +149,6 @@ export class SlidingWindowRateLimiter {
 
         const currentCount = (updateRes.Attributes?.currentCount as number) ?? 1;
 
-        // 2. Fetch previous bucket count for smooth sliding window estimation
         let prevCount = 0;
         try {
           const prevRes = await ddb.send(
@@ -144,7 +159,7 @@ export class SlidingWindowRateLimiter {
           );
           prevCount = (prevRes.Item?.currentCount as number) ?? 0;
         } catch {
-          // Non-critical: missing previous window is treated as 0
+          // Missing previous window treated as 0
         }
 
         const timeIntoWindow = now - currentWindowStart;
@@ -170,12 +185,11 @@ export class SlidingWindowRateLimiter {
           retryAfterSeconds: 0,
         };
       } catch (err) {
-        // Fall back gracefully to in-memory sliding window
         console.warn('[DistributedRateLimiter] DynamoDB rate limit check failed, falling back to local memory:', err);
       }
     }
 
-    // Default or fallback: in-memory fast check
+    // 3. Fallback: In-memory sliding window check
     return this.check(key, customLimit);
   }
 

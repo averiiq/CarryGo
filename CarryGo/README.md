@@ -1,6 +1,6 @@
-# Hizli
+# CarryGo
 
-Hizli is an Expo Router and React Native app for peer-to-peer parcel delivery. This repository is currently a demo-stage client with launch-containment safeguards enabled by default.
+CarryGo is an Expo Router and React Native mobile application for peer-to-peer parcel carriage and traveler route matching.
 
 ## Current Safety Posture
 
