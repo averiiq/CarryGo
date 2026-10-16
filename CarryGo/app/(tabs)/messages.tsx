@@ -15,7 +15,7 @@ import { AsyncStateCard, OfflineBanner } from '@/components';
 import { useAlert } from '@/template';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useFadeIn, useHeartbeat } from '@/hooks/useAnimations';
+import { useFadeIn } from '@/hooks/useAnimations';
 import { formatRelative } from '@/lib/dateFormat';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { Conversation } from '@/types';
@@ -98,6 +98,125 @@ function toConversationRowModel(
   };
 }
 
+const ItemSeparator = () => <View style={{ height: Spacing.sm }} />;
+
+const ConversationRowItem = React.memo(function ConversationRowItem({
+  item,
+  index,
+  isTablet,
+  C,
+  onOpen,
+  onDelete,
+  onActiveNotice,
+}: {
+  item: ConversationRowModel;
+  index: number;
+  isTablet: boolean;
+  C: any;
+  onOpen: (id: string) => void;
+  onDelete: (item: ConversationRowModel) => void;
+  onActiveNotice: (item: ConversationRowModel) => void;
+}) {
+  const topMargin = index === 0 ? Spacing.sm : 0;
+
+  const renderSwipeActions = useCallback(() => (
+    <View style={styles.swipeActionsContainer}>
+      {item.isCompleted ? (
+        <Pressable
+          onPress={() => onDelete(item)}
+          style={({ pressed }) => [
+            styles.swipeDeleteBtn,
+            { backgroundColor: C.error },
+            pressed && { opacity: 0.82, transform: [{ scale: 0.96 }] },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete completed chat with ${item.displayName}`}
+        >
+          <MaterialIcons name="delete-outline" size={24} color="#FFFFFF" />
+          <Text style={styles.swipeDeleteText}>Delete</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={() => onActiveNotice(item)}
+          style={({ pressed }) => [
+            styles.swipeLockedBtn,
+            { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.82 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Active delivery - cannot delete yet"
+        >
+          <MaterialIcons name="lock-outline" size={20} color={C.textMuted} />
+          <Text style={[styles.swipeLockedText, { color: C.textMuted }]}>In Transit</Text>
+        </Pressable>
+      )}
+    </View>
+  ), [item, C.error, C.surfaceElevated, C.surfaceBorder, C.textMuted, onDelete, onActiveNotice]);
+
+  return (
+    <View style={isTablet ? styles.tabletContainer : undefined}>
+      <Swipeable
+        rightThreshold={36}
+        renderRightActions={renderSwipeActions}
+        containerStyle={{ overflow: 'hidden', borderRadius: BorderRadius.xl }}
+      >
+        <Pressable
+          style={({ pressed }) => [
+            styles.convItem,
+            { marginTop: topMargin, backgroundColor: C.card, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
+            item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
+            pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+          ]}
+          onPress={() => onOpen(item.id)}
+        >
+          <View
+            style={[
+              styles.avatar,
+              {
+                backgroundColor: item.isUnread ? C.primarySubtle : C.surfaceElevated,
+                borderColor: item.isUnread ? C.primary + '44' : C.surfaceBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
+            {item.isUnread ? (
+              <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card }]} />
+            ) : null}
+          </View>
+
+          <View style={styles.convInfo}>
+            <View style={styles.convTop}>
+              <Text style={[styles.convName, { color: C.textPrimary }, item.isUnread && { fontWeight: FontWeight.bold }]} numberOfLines={1}>
+                {item.displayName}
+              </Text>
+              <Text style={[styles.convTime, { color: item.isUnread ? C.primary : C.textMuted }]}>{item.previewTimeLabel}</Text>
+            </View>
+
+            <View style={[styles.routePill, { backgroundColor: item.isCompleted ? C.successSubtle : C.primarySubtle }]}>
+              <MaterialIcons name={item.isCompleted ? 'verified' : 'route'} size={10} color={item.isCompleted ? C.success : C.primary} />
+              <Text style={[styles.routeText, { color: item.isCompleted ? C.success : C.primary }]} numberOfLines={1}>
+                {item.isCompleted ? `${item.routeLabel} · Completed` : item.routeLabel}
+              </Text>
+            </View>
+
+            <Text style={[styles.lastMsg, { color: item.isUnread ? C.textPrimary : C.textMuted }]} numberOfLines={1}>
+              {item.previewText}
+            </Text>
+          </View>
+
+          {item.isUnread ? (
+            <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
+              <Text style={styles.unreadText}>NEW</Text>
+            </View>
+          ) : (
+            <MaterialIcons name="chevron-right" size={17} color={C.surfaceBorderLight} />
+          )}
+        </Pressable>
+      </Swipeable>
+    </View>
+  );
+});
+
 export default function MessagesScreen() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
@@ -113,7 +232,6 @@ export default function MessagesScreen() {
   const [activeFilter, setActiveFilter] = useState<ConversationFilter>('all');
   const headerEntrance = useFadeIn(0, 420);
   const listEntrance = useFadeIn(120, 420);
-  const unreadPulse = useHeartbeat(3200, 1.14);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const completedRequestIds = useMemo(() => {
@@ -150,17 +268,12 @@ export default function MessagesScreen() {
     outputRange: [0, -12],
     extrapolate: 'clamp',
   });
-  const heroScale = scrollY.interpolate({
-    inputRange: [0, 180],
-    outputRange: [1, 0.965],
-    extrapolate: 'clamp',
-  });
 
   useEffect(() => {
-    if (activeFilter === 'unread' && unreadCount === 0) {
+    if (conversationRows.length === 0 && activeFilter !== 'all') {
       setActiveFilter('all');
     }
-  }, [activeFilter, unreadCount]);
+  }, [conversationRows.length, activeFilter]);
 
   const handleRefresh = useCallback(async () => {
     if (!user?.id) return;
@@ -241,115 +354,22 @@ export default function MessagesScreen() {
     [showAlert]
   );
 
-  const renderRightActions = useCallback(
-    (item: ConversationRowModel) => {
-      const SwipeActions = () => (
-        <View style={styles.swipeActionsContainer}>
-          {item.isCompleted ? (
-            <Pressable
-              onPress={() => handleDeleteConversation(item)}
-              style={({ pressed }) => [
-                styles.swipeDeleteBtn,
-                { backgroundColor: C.error },
-                pressed && { opacity: 0.82, transform: [{ scale: 0.96 }] },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`Delete completed chat with ${item.displayName}`}
-            >
-              <MaterialIcons name="delete-outline" size={24} color="#FFFFFF" />
-              <Text style={styles.swipeDeleteText}>Delete</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={() => handleActiveChatNotice(item)}
-              style={({ pressed }) => [
-                styles.swipeLockedBtn,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                pressed && { opacity: 0.82 },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Active delivery - cannot delete yet"
-            >
-              <MaterialIcons name="lock-outline" size={20} color={C.textMuted} />
-              <Text style={[styles.swipeLockedText, { color: C.textMuted }]}>In Transit</Text>
-            </Pressable>
-          )}
-        </View>
-      );
-      SwipeActions.displayName = 'SwipeActions';
-      return SwipeActions;
-    },
-    [C.error, C.surfaceElevated, C.surfaceBorder, C.textMuted, handleDeleteConversation, handleActiveChatNotice]
-  );
-
   const renderItem = useCallback(
-    ({ item, index }: { item: ConversationRowModel; index: number }) => {
-      const topMargin = index === 0 ? Spacing.sm : 0;
-      return (
-        <View style={isTablet ? styles.tabletContainer : undefined}>
-          <Swipeable
-            rightThreshold={36}
-            renderRightActions={renderRightActions(item)}
-            containerStyle={{ overflow: 'hidden', borderRadius: BorderRadius.xl }}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.convItem,
-                { marginTop: topMargin, backgroundColor: C.card, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
-                item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
-                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-              ]}
-              onPress={() => openConversation(item.id)}
-            >
-              <View
-                style={[
-                  styles.avatar,
-                  {
-                    backgroundColor: item.isUnread ? C.primarySubtle : C.surfaceElevated,
-                    borderColor: item.isUnread ? C.primary + '44' : C.surfaceBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
-                {item.isUnread ? (
-                  <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card }]} />
-                ) : null}
-              </View>
-
-              <View style={styles.convInfo}>
-                <View style={styles.convTop}>
-                  <Text style={[styles.convName, { color: C.textPrimary }, item.isUnread && { fontWeight: FontWeight.bold }]} numberOfLines={1}>
-                    {item.displayName}
-                  </Text>
-                  <Text style={[styles.convTime, { color: item.isUnread ? C.primary : C.textMuted }]}>{item.previewTimeLabel}</Text>
-                </View>
-
-                <View style={[styles.routePill, { backgroundColor: item.isCompleted ? C.successSubtle : C.primarySubtle }]}>
-                  <MaterialIcons name={item.isCompleted ? 'verified' : 'route'} size={10} color={item.isCompleted ? C.success : C.primary} />
-                  <Text style={[styles.routeText, { color: item.isCompleted ? C.success : C.primary }]} numberOfLines={1}>
-                    {item.isCompleted ? `${item.routeLabel} · Completed` : item.routeLabel}
-                  </Text>
-                </View>
-
-                <Text style={[styles.lastMsg, { color: item.isUnread ? C.textPrimary : C.textMuted }]} numberOfLines={1}>
-                  {item.previewText}
-                </Text>
-              </View>
-
-              {item.isUnread ? (
-                <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
-                  <Text style={styles.unreadText}>NEW</Text>
-                </View>
-              ) : (
-                <MaterialIcons name="chevron-right" size={17} color={C.surfaceBorderLight} />
-              )}
-            </Pressable>
-          </Swipeable>
-        </View>
-      );
-    },
-    [C, isTablet, openConversation, renderRightActions]
+    ({ item, index }: { item: ConversationRowModel; index: number }) => (
+      <ConversationRowItem
+        item={item}
+        index={index}
+        isTablet={isTablet}
+        C={C}
+        onOpen={openConversation}
+        onDelete={handleDeleteConversation}
+        onActiveNotice={handleActiveChatNotice}
+      />
+    ),
+    [isTablet, C, openConversation, handleDeleteConversation, handleActiveChatNotice]
   );
+
+  const keyExtractor = useCallback((item: ConversationRowModel) => item.id, []);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -553,7 +573,8 @@ export default function MessagesScreen() {
           <FlashList
             keyboardDismissMode="on-drag"
             data={visibleRows}
-            keyExtractor={item => item.id}
+            extraData={activeFilter}
+            keyExtractor={keyExtractor}
             renderItem={renderItem}
             estimatedItemSize={92}
             contentContainerStyle={{
@@ -562,7 +583,7 @@ export default function MessagesScreen() {
               paddingBottom: insets.bottom + 110,
             }}
             showsVerticalScrollIndicator={false}
-            ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+            ItemSeparatorComponent={ItemSeparator}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
               { useNativeDriver: false }

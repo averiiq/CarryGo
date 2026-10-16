@@ -710,63 +710,59 @@ function StepDetails({
 
       <View style={styles.fieldGroup}>
         <Input
-          label="Available Space (kg)"
+          label="Capacity (kg)"
           placeholder="e.g. 5"
           value={form.capacity}
           onChangeText={(v) => updateField('capacity', v)}
           keyboardType="decimal-pad"
           error={fieldErrors.capacity}
         />
-        <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Capacity:</Text>
-          <View style={styles.presetRow}>
-            {CAPACITY_PRESETS.map((value) => (
-              <Pressable
-                key={`capacity-${value}`}
-                style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.capacity === value && { backgroundColor: C.primarySubtle, borderColor: C.primary },
-                  pressed && { opacity: 0.8 },
-                ]}
-                onPress={() => { Haptic.select(); updateField('capacity', value); }}
-              >
-                <Text style={[styles.presetText, { color: form.capacity === value ? C.primary : C.textSecondary }]}>
-                  {value} kg
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+        <View style={styles.presetRow}>
+          {CAPACITY_PRESETS.map((value) => (
+            <Pressable
+              key={`capacity-${value}`}
+              style={({ pressed }) => [
+                styles.presetChip,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                form.capacity === value && { backgroundColor: C.primarySubtle, borderColor: C.primary },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => { Haptic.select(); updateField('capacity', value); }}
+            >
+              <Text style={[styles.presetText, { color: form.capacity === value ? C.primary : C.textSecondary }]}>
+                {value} kg
+              </Text>
+            </Pressable>
+          ))}
         </View>
       </View>
 
       <View style={styles.fieldGroup}>
         <Input
-          label="Price / kg (₹)"
+          label="Price / kg (Rs)"
           placeholder="e.g. 80"
           value={form.price}
           onChangeText={(v) => updateField('price', v)}
           keyboardType="decimal-pad"
           error={fieldErrors.price}
         />
-        <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Fare:</Text>
-          <View style={styles.presetRow}>
-            {activePricePresets.map((value) => (
-              <Pressable
-                key={`price-${value}`}
-                style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.price === value && { backgroundColor: C.successSubtle, borderColor: C.success },
-                  pressed && { opacity: 0.8 },
-                ]}
-                onPress={() => { Haptic.select(); updateField('price', value); }}
-              >
-                <Text style={[styles.presetText, { color: form.price === value ? C.success : C.textSecondary }]}>₹{value}</Text>
-              </Pressable>
-            ))}
-          </View>
+        <View style={styles.presetRow}>
+          {activePricePresets.map((value) => (
+            <Pressable
+              key={`price-${value}`}
+              style={({ pressed }) => [
+                styles.presetChip,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                form.price === value && { backgroundColor: C.successSubtle, borderColor: C.success },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => { Haptic.select(); updateField('price', value); }}
+            >
+              <Text style={[styles.presetText, { color: form.price === value ? C.success : C.textSecondary }]}>
+                Rs {value}
+              </Text>
+            </Pressable>
+          ))}
         </View>
       </View>
         {form.capacity && form.price && Number(form.capacity) > 0 && Number(form.price) > 0 ? (

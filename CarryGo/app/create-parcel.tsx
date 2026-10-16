@@ -261,7 +261,14 @@ export default function CreateParcelScreen() {
 
   const validateDetailsStep = (draft: ParcelDraft) => {
     const errors: Record<string, string> = {};
-    if (draft.images.length < 1) errors.images = 'Add at least 1 parcel photo';
+    if (draft.images.length < 1) {
+      errors.images = 'Add at least 1 parcel photo';
+    } else {
+      const uniqueImages = new Set(draft.images);
+      if (uniqueImages.size !== draft.images.length) {
+        errors.images = 'Duplicate images are not allowed';
+      }
+    }
     const parcelWeight = Number(draft.weight);
     const offerAmount = Number(draft.priceOffer);
     if (!draft.weight) errors.weight = 'Enter weight';
