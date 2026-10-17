@@ -7,6 +7,9 @@ import {
 import { routeRequest } from './http/router';
 import { runScheduledJobs } from './events/scheduler';
 import { processQueueMessages } from './events/worker';
+import { smsWorkerService } from './workers/sms-worker';
+import { emailWorkerService } from './workers/email-worker';
+import { pushWorkerService } from './workers/push-worker';
 
 export const handler = async (
   event: APIGatewayProxyEventV2,
@@ -27,8 +30,41 @@ export const handler = async (
   }
 };
 
+/**
+ * General Background Event Worker Handler
+ */
 export const workerHandler = async (event: SQSEvent): Promise<void> => {
   await processQueueMessages(event);
+};
+
+/**
+ * Dedicated SMS Worker Microservice Handler
+ */
+export const smsWorkerHandler = async (event: SQSEvent): Promise<void> => {
+  const result = await smsWorkerService.processQueueBatch(event);
+  if (result.failureCount > 0) {
+    console.warn(`[SMSWorker] Processed with ${result.failureCount} errors`, result.errors);
+  }
+};
+
+/**
+ * Dedicated Email Worker Microservice Handler
+ */
+export const emailWorkerHandler = async (event: SQSEvent): Promise<void> => {
+  const result = await emailWorkerService.processQueueBatch(event);
+  if (result.failureCount > 0) {
+    console.warn(`[EmailWorker] Processed with ${result.failureCount} errors`, result.errors);
+  }
+};
+
+/**
+ * Dedicated Push Notification Worker Microservice Handler
+ */
+export const pushWorkerHandler = async (event: SQSEvent): Promise<void> => {
+  const result = await pushWorkerService.processQueueBatch(event);
+  if (result.failureCount > 0) {
+    console.warn(`[PushWorker] Processed with ${result.failureCount} errors`, result.errors);
+  }
 };
 
 export const scheduledHandler = async (
@@ -36,4 +72,3 @@ export const scheduledHandler = async (
 ): Promise<void> => {
   await runScheduledJobs(event);
 };
-

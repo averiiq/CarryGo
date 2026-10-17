@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID') ?? '';
-const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET') ?? '';
+const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID') || 'rzp_test_RuhXVSCs94jL0c';
+const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET') || '0Z27VMXyp4zIfvdMthsqZw09';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -67,11 +67,30 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Missing requestId' }, 400);
     }
 
-    const { data: request, error: reqError } = await supabase
+    let targetRequestId = requestId;
+    let { data: request, error: reqError } = await supabase
       .from('requests')
       .select('id, price, sender_id, traveller_id, status')
-      .eq('id', requestId)
-      .single();
+      .eq('id', targetRequestId)
+      .maybeSingle();
+
+    if (!request) {
+      const { data: delivery } = await supabase
+        .from('deliveries')
+        .select('request_id')
+        .eq('id', requestId)
+        .maybeSingle();
+      if (delivery?.request_id) {
+        targetRequestId = delivery.request_id;
+        const res = await supabase
+          .from('requests')
+          .select('id, price, sender_id, traveller_id, status')
+          .eq('id', targetRequestId)
+          .maybeSingle();
+        request = res.data;
+        reqError = res.error;
+      }
+    }
 
     if (reqError || !request) {
       return jsonResponse({ error: 'Request not found' }, 404);
@@ -88,7 +107,7 @@ Deno.serve(async (req) => {
     const { data: existingPayment, error: paymentCheckError } = await supabase
       .from('payments')
       .select('id, status')
-      .eq('request_id', requestId)
+      .eq('request_id', request.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -119,7 +138,7 @@ Deno.serve(async (req) => {
       const linkPayload = {
         amount: amountInPaise,
         currency: 'INR',
-        description: `CarryGo Delivery Escrow for Request #${requestId.slice(0, 8)}`,
+        description: `CarryGo Delivery Escrow for Request #${request.id.slice(0, 8)}`,
         customer: {
           name: customer?.name || user.email || 'CarryGo Customer',
           email: customer?.email || user.email || 'customer@carrygo.com',
@@ -129,7 +148,7 @@ Deno.serve(async (req) => {
         callback_url: 'https://carrygo.averiq.in/payment/success',
         callback_method: 'get',
         notes: {
-          request_id: requestId,
+          request_id: request.id,
           sender_id: user.id,
           traveller_id: request.traveller_id,
         },
@@ -173,7 +192,7 @@ Deno.serve(async (req) => {
     const { data: pendingOrder, error: pendingOrderError } = await supabase
       .from('razorpay_orders')
       .select('order_id, amount_paise, currency, status, created_at')
-      .eq('request_id', requestId)
+      .eq('request_id', request.id)
       .eq('sender_id', user.id)
       .eq('status', 'created')
       .order('created_at', { ascending: false })
@@ -208,9 +227,9 @@ Deno.serve(async (req) => {
     const orderPayload = {
       amount: amountInPaise,
       currency: 'INR',
-      receipt: `req_${requestId.slice(0, 20)}`,
+      receipt: `req_${request.id.slice(0, 20)}`,
       notes: {
-        request_id: requestId,
+        request_id: request.id,
         sender_id: user.id,
         traveller_id: request.traveller_id,
       },

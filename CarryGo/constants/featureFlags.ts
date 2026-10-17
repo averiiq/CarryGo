@@ -13,7 +13,7 @@ export const FeatureFlags = {
   isDemoMode: process.env.EXPO_PUBLIC_APP_MODE !== 'production',
   reviewerLogin: enabled(process.env.EXPO_PUBLIC_ENABLE_REVIEWER_LOGIN),
   kycProvider: productionReady.kycProvider && process.env.EXPO_PUBLIC_ENABLE_KYC_PROVIDER !== 'false',
-  payments: productionReady.payments && enabled(process.env.EXPO_PUBLIC_ENABLE_PAYMENTS),
+  payments: productionReady.payments && process.env.EXPO_PUBLIC_ENABLE_PAYMENTS !== 'false',
   secureDeliveryConfirmation: true,
   preciseLocationSharing: productionReady.preciseLocationSharing && process.env.EXPO_PUBLIC_ENABLE_PRECISE_LOCATION !== 'false',
 } as const;

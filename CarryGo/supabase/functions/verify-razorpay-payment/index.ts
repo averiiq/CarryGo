@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID') ?? '';
-const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET') ?? '';
+const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID') || 'rzp_test_RuhXVSCs94jL0c';
+const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET') || '0Z27VMXyp4zIfvdMthsqZw09';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -95,15 +95,19 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Unable to check payment link status' }, 502);
       }
       const plinkData = await plinkResponse.json();
-      const isPaid = plinkData.status === 'paid' || Number(plinkData.amount_paid) >= Number(plinkData.amount);
+      const amountPaid = Number(plinkData.amount_paid || 0);
+      const amountExpected = Number(plinkData.amount || 0);
+      const hasCapturedPayment = Array.isArray(plinkData.payments) && plinkData.payments.some((p: any) => p.status === 'captured');
+      const isPaid = plinkData.status === 'paid' && amountPaid > 0 && amountExpected > 0 && amountPaid >= amountExpected && hasCapturedPayment;
       let paymentId: string | undefined;
-      if (Array.isArray(plinkData.payments) && plinkData.payments.length > 0) {
-        paymentId = plinkData.payments[0].payment_id || plinkData.payments[0].id;
+      if (isPaid && Array.isArray(plinkData.payments)) {
+        const captured = plinkData.payments.find((p: any) => p.status === 'captured');
+        paymentId = captured?.payment_id || captured?.id;
       }
       return jsonResponse({
         paid: isPaid,
         status: plinkData.status,
-        paymentId,
+        paymentId: isPaid ? paymentId : undefined,
       });
     }
 
@@ -126,14 +130,19 @@ Deno.serve(async (req) => {
       }
 
       const plinkData = await plinkResponse.json();
-      const isPaid = plinkData.status === 'paid' || Number(plinkData.amount_paid) >= Number(plinkData.amount);
+      const amountPaid = Number(plinkData.amount_paid || 0);
+      const amountExpected = Number(plinkData.amount || 0);
+      const hasCapturedPayment = Array.isArray(plinkData.payments) && plinkData.payments.some((p: any) => p.status === 'captured');
+      const isPaid = plinkData.status === 'paid' && amountPaid > 0 && amountExpected > 0 && amountPaid >= amountExpected && hasCapturedPayment;
       if (!isPaid) {
-        return jsonResponse({ error: 'Payment link has not been completed yet' }, 400);
+        return jsonResponse({ error: 'Payment has not been completed or captured on Razorpay' }, 400);
       }
 
-      if (Array.isArray(plinkData.payments) && plinkData.payments.length > 0) {
-        effectivePaymentId = plinkData.payments[0].payment_id || plinkData.payments[0].id || razorpayPaymentId;
+      const captured = plinkData.payments.find((p: any) => p.status === 'captured');
+      if (!captured || !(captured.payment_id || captured.id)) {
+        return jsonResponse({ error: 'No verified captured payment found on this payment link' }, 400);
       }
+      effectivePaymentId = captured.payment_id || captured.id;
     } else {
       const isValid = await verifySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
       if (!isValid) {
@@ -152,7 +161,19 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Payment order not found' }, 404);
     }
 
-    if (orderRecord.sender_id !== user.id || orderRecord.request_id !== requestId) {
+    let targetRequestId = requestId;
+    if (orderRecord.request_id !== targetRequestId) {
+      const { data: delivery } = await supabase
+        .from('deliveries')
+        .select('request_id')
+        .eq('id', requestId)
+        .maybeSingle();
+      if (delivery?.request_id) {
+        targetRequestId = delivery.request_id;
+      }
+    }
+
+    if (orderRecord.sender_id !== user.id || orderRecord.request_id !== targetRequestId) {
       return jsonResponse({ error: 'Only the sender can verify payment' }, 403);
     }
 
@@ -160,27 +181,25 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'This payment order is no longer valid. Please retry checkout.' }, 409);
     }
 
-    if (!isPaymentLink) {
-      const providerResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(effectivePaymentId)}`, {
-        headers: {
-          'Authorization': `Basic ${btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`)}`,
-        },
-      });
+    const providerResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(effectivePaymentId)}`, {
+      headers: {
+        'Authorization': `Basic ${btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`)}`,
+      },
+    });
 
-      if (!providerResponse.ok) {
-        return jsonResponse({ error: 'Unable to confirm payment with provider' }, 502);
-      }
+    if (!providerResponse.ok) {
+      return jsonResponse({ error: 'Unable to confirm payment status with provider' }, 502);
+    }
 
-      const providerPayment = await providerResponse.json();
-      if (
-        providerPayment?.order_id !== razorpayOrderId
-        || Number(providerPayment?.amount) !== Number(orderRecord.amount_paise)
-        || providerPayment?.currency !== orderRecord.currency
-        || !['authorized', 'captured'].includes(providerPayment?.status)
-      ) {
-        await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
-        return jsonResponse({ error: 'Payment does not match the original order' }, 400);
-      }
+    const providerPayment = await providerResponse.json();
+    if (
+      (!isPaymentLink && providerPayment?.order_id !== razorpayOrderId)
+      || Number(providerPayment?.amount) !== Number(orderRecord.amount_paise)
+      || providerPayment?.currency !== orderRecord.currency
+      || !['authorized', 'captured'].includes(providerPayment?.status)
+    ) {
+      await supabase.from('razorpay_orders').update({ status: 'failed' }).eq('order_id', razorpayOrderId).eq('status', 'created');
+      return jsonResponse({ error: 'Payment does not match the original order or was not captured' }, 400);
     }
 
     const { data: payment, error: insertError } = await supabase.rpc('finalize_razorpay_payment', {

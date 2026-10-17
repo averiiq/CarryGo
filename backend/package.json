@@ -7,6 +7,7 @@
     "dev": "node --env-file=.env dist/local-server.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --test dist/**/*.test.js",
     "benchmark": "node benchmark/run-all.mjs",
     "benchmark:flood": "node benchmark/flood-defense.mjs",
     "benchmark:load": "node benchmark/distributed-load.mjs",

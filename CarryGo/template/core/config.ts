@@ -29,8 +29,11 @@ class ConfigManager {
   }
 
   private createDefaultConfig(): AppConfig {
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseUrl =
+      process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://nuxvuejtnobljutznlss.supabase.co';
+    const supabaseAnonKey =
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51eHZ1ZWp0bm9ibGp1dHpubHNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MzEwMTcsImV4cCI6MjA5NjQwNzAxN30.S6Luoi_LU2B9IB7Q-h8wGfneVqtx42ePDGiKgumMElU';
 
     if (!supabaseUrl || !supabaseAnonKey) {
       return {

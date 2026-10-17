@@ -131,6 +131,29 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, action: 'finalized' });
     }
 
+    if (eventName === 'payment_link.paid') {
+      const plinkEntity = body.payload?.payment_link?.entity ?? {};
+      const plinkId = String(plinkEntity.id ?? orderId);
+      const paymentEntity = body.payload?.payment?.entity ?? {};
+      const plinkPaymentId = String(paymentEntity.id ?? (Array.isArray(plinkEntity.payments) && plinkEntity.payments[0]?.payment_id) ?? paymentId);
+
+      if (!plinkId || !plinkPaymentId) {
+        return jsonResponse({ ok: true, ignored: true, reason: 'Incomplete payment link payload' });
+      }
+
+      const { error } = await supabase.rpc('finalize_razorpay_payment', {
+        p_order_id: plinkId,
+        p_payment_id: plinkPaymentId,
+      });
+
+      if (error) {
+        console.error('[razorpay-webhook] finalize_razorpay_payment(payment_link.paid):', error.message);
+        return jsonResponse({ ok: false, error: 'Failed to finalize payment link' }, 500);
+      }
+
+      return jsonResponse({ ok: true, action: 'finalized_payment_link' });
+    }
+
     return jsonResponse({ ok: true, ignored: true, event: eventName });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';

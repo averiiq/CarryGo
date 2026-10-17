@@ -16,6 +16,7 @@ import {
   savePushToken,
 } from '@/services/notifications.service';
 import { useAuth } from './useAuth';
+import { useOptionalNotificationContext } from '@/contexts/NotificationContext';
 import type { Href } from 'expo-router';
 
 type NotificationPayload = Record<string, unknown> | undefined;
@@ -47,6 +48,7 @@ export function useNotifications() {
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const notifCtx = useOptionalNotificationContext();
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
   const lastHandledResponseRef = useRef<string | null>(null);
@@ -145,8 +147,18 @@ export function useNotifications() {
                 body?: string;
                 type?: string;
                 related_id?: string;
+                deep_link?: string;
               };
               if (newNotif.title && newNotif.body) {
+                // Show instant in-app banner toast
+                notifCtx?.showBanner({
+                  title: newNotif.title,
+                  body: newNotif.body,
+                  type: newNotif.type,
+                  relatedId: newNotif.related_id,
+                  deepLink: newNotif.deep_link,
+                });
+
                 const targetChannelId = newNotif.type === 'message'
                   ? 'messages'
                   : newNotif.type === 'payment'
@@ -163,6 +175,7 @@ export function useNotifications() {
                     data: {
                       type: newNotif.type,
                       relatedId: newNotif.related_id,
+                      deepLink: newNotif.deep_link,
                     },
                   },
                   trigger: { channelId: targetChannelId },
@@ -182,8 +195,18 @@ export function useNotifications() {
       captureException(err, { context: 'useNotifications.realtimeSubscribe' });
     }
 
-    notifListenerRef.current = Notifications.addNotificationReceivedListener(() => {
+    notifListenerRef.current = Notifications.addNotificationReceivedListener((notification) => {
       void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+      const content = notification.request.content;
+      if (content.title && content.body) {
+        notifCtx?.showBanner({
+          title: content.title,
+          body: content.body,
+          type: (content.data?.type as string) || 'general',
+          relatedId: (content.data?.relatedId as string) || undefined,
+          deepLink: (content.data?.deepLink as string) || undefined,
+        });
+      }
     });
 
     responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {

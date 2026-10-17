@@ -101,7 +101,8 @@ async function getSignature(bucket: StorageBucket, publicId: string): Promise<Si
     throw new Error('Authentication required for file uploads');
   }
 
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const supabaseUrl =
+    process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://nuxvuejtnobljutznlss.supabase.co';
   if (!supabaseUrl) {
     throw new Error('Supabase URL not configured');
   }

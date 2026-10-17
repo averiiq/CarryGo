@@ -28,6 +28,7 @@ import { useRequestQuery } from '@/features/requests/queries';
 import { AppErrorBoundary, AsyncStateCard } from '@/components';
 import { formatTime } from '@/lib/dateFormat';
 import { getUserErrorMessage } from '@/lib/error-handler';
+import { useOptionalNotificationContext } from '@/contexts/NotificationContext';
 
 function getDayLabel(ts: string): string {
   const d = new Date(ts);
@@ -307,8 +308,19 @@ export default function ChatScreen() {
 
   const listItems = useMemo(() => buildListItems(chatMessages), [chatMessages]);
 
+  const notifCtx = useOptionalNotificationContext();
+
   useConversationsRealtime(user?.id);
   useConversationMessagesRealtime(id, user?.id);
+
+  useEffect(() => {
+    if (id) {
+      notifCtx?.setActiveChatId(id);
+      return () => {
+        notifCtx?.setActiveChatId(null);
+      };
+    }
+  }, [id, notifCtx]);
 
   useEffect(() => {
     if (id && user?.id) {

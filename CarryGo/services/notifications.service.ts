@@ -600,6 +600,113 @@ export async function notifyDeliveryCompleted(params: {
   });
 }
 
+export async function notifyPickupOtpReady(params: {
+  senderId: string;
+  otp: string;
+  deliveryId: string;
+}) {
+  return dispatchNotification({
+    userId: params.senderId,
+    title: '🔐 Pickup Verification Code',
+    body: `Your pickup OTP is ${params.otp}. Share this with the traveller ONLY after they inspect your parcel.`,
+    type: 'delivery_otp',
+    priority: 'high',
+    relatedId: params.deliveryId,
+    deepLink: `/delivery/${params.deliveryId}`,
+    data: { otp: params.otp, action: 'PICKUP_OTP' },
+  });
+}
+
+export async function notifyDeliveryOtpReady(params: {
+  recipientId: string;
+  otp: string;
+  deliveryId: string;
+  travellerName?: string;
+}) {
+  return dispatchNotification({
+    userId: params.recipientId,
+    title: '🔐 Delivery Handover OTP',
+    body: `Your delivery confirmation OTP is ${params.otp}. Share this with ${params.travellerName || 'the traveller'} upon taking delivery.`,
+    type: 'delivery_otp',
+    priority: 'high',
+    relatedId: params.deliveryId,
+    deepLink: `/delivery/${params.deliveryId}`,
+    data: { otp: params.otp, action: 'DELIVERY_OTP' },
+  });
+}
+
+export async function notifyTripMilestone(params: {
+  senderId: string;
+  milestoneText: string;
+  deliveryId: string;
+}) {
+  return dispatchNotification({
+    userId: params.senderId,
+    title: '📍 Delivery Status Update',
+    body: params.milestoneText,
+    type: 'delivery_pickup',
+    priority: 'normal',
+    relatedId: params.deliveryId,
+    deepLink: `/delivery/${params.deliveryId}`,
+  });
+}
+
+export async function notifyPaymentEscrowLocked(params: {
+  userId: string;
+  amount: number;
+  deliveryOrRequestId: string;
+  isTraveller?: boolean;
+}) {
+  const title = params.isTraveller ? '🔒 Payment Secured in Escrow' : '🔒 Payment Reserved';
+  const body = params.isTraveller
+    ? `Sender payment of ₹${params.amount} has been secured in CarryGo Escrow. Safe to proceed with pickup!`
+    : `Your payment of ₹${params.amount} is securely held in escrow until you confirm delivery.`;
+
+  return dispatchNotification({
+    userId: params.userId,
+    title,
+    body,
+    type: 'payment_locked',
+    priority: 'high',
+    relatedId: params.deliveryOrRequestId,
+    deepLink: '/transactions',
+  });
+}
+
+export async function notifyPayoutReleased(params: {
+  travellerId: string;
+  amount: number;
+  deliveryId: string;
+}) {
+  return dispatchNotification({
+    userId: params.travellerId,
+    title: '💰 Payout Deposited!',
+    body: `₹${params.amount} has been credited to your CarryGo wallet for completing the delivery. Great work!`,
+    type: 'payment_released',
+    priority: 'high',
+    relatedId: params.deliveryId,
+    deepLink: '/transactions',
+  });
+}
+
+export async function notifyRatingReceived(params: {
+  userId: string;
+  fromName: string;
+  rating: number;
+  requestId?: string;
+}) {
+  const stars = '⭐'.repeat(Math.min(Math.max(params.rating, 1), 5));
+  return dispatchNotification({
+    userId: params.userId,
+    title: `${stars} New Rating Received!`,
+    body: `${params.fromName} rated you ${params.rating}/5 stars. Tap to see your updated profile.`,
+    type: 'rating',
+    priority: 'normal',
+    relatedId: params.requestId,
+    deepLink: '/(tabs)/profile',
+  });
+}
+
 export async function markAllNotificationsRead(userId: string) {
   const sb = getSupabaseClient();
   await sb.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);

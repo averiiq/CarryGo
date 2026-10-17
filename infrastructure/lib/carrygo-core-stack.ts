@@ -167,6 +167,60 @@ export class CarryGoCoreStack extends cdk.Stack {
       },
     });
 
+    // Dedicated SMS Microservice Queue & DLQ
+    const smsDlq = new sqs.Queue(this, 'SmsDeadLetterQueue', {
+      queueName: `${prefix}-sms-dlq`,
+      retentionPeriod: cdk.Duration.days(14),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+    });
+
+    const smsQueue = new sqs.Queue(this, 'SmsQueue', {
+      queueName: `${prefix}-sms`,
+      visibilityTimeout: cdk.Duration.seconds(45),
+      retentionPeriod: cdk.Duration.days(4),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      deadLetterQueue: {
+        maxReceiveCount: 3,
+        queue: smsDlq,
+      },
+    });
+
+    // Dedicated Email Microservice Queue & DLQ
+    const emailDlq = new sqs.Queue(this, 'EmailDeadLetterQueue', {
+      queueName: `${prefix}-email-dlq`,
+      retentionPeriod: cdk.Duration.days(14),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+    });
+
+    const emailQueue = new sqs.Queue(this, 'EmailQueue', {
+      queueName: `${prefix}-email`,
+      visibilityTimeout: cdk.Duration.seconds(60),
+      retentionPeriod: cdk.Duration.days(4),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      deadLetterQueue: {
+        maxReceiveCount: 3,
+        queue: emailDlq,
+      },
+    });
+
+    // Dedicated Push Notification Microservice Queue & DLQ
+    const pushDlq = new sqs.Queue(this, 'PushDeadLetterQueue', {
+      queueName: `${prefix}-push-dlq`,
+      retentionPeriod: cdk.Duration.days(14),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+    });
+
+    const pushQueue = new sqs.Queue(this, 'PushQueue', {
+      queueName: `${prefix}-push`,
+      visibilityTimeout: cdk.Duration.seconds(45),
+      retentionPeriod: cdk.Duration.days(4),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      deadLetterQueue: {
+        maxReceiveCount: 3,
+        queue: pushDlq,
+      },
+    });
+
     const notificationTopic = new sns.Topic(this, 'NotificationTopic', {
       topicName: `${prefix}-notifications`,
       displayName: `CarryGo ${config.stage} notifications`,
@@ -194,6 +248,9 @@ export class CarryGoCoreStack extends cdk.Stack {
         CORE_TABLE_NAME: coreTable.tableName,
         UPLOADS_BUCKET_NAME: uploadsBucket.bucketName,
         ASYNC_QUEUE_URL: asyncQueue.queueUrl,
+        SMS_QUEUE_URL: smsQueue.queueUrl,
+        EMAIL_QUEUE_URL: emailQueue.queueUrl,
+        PUSH_QUEUE_URL: pushQueue.queueUrl,
         NOTIFICATIONS_TOPIC_ARN: notificationTopic.topicArn,
         EVENT_BUS_NAME: eventBus.eventBusName,
         SANDBOX_API_KEY: process.env.SANDBOX_API_KEY ?? 'key_live_416614ac6953471ebf15142f75db722e',
@@ -251,6 +308,69 @@ export class CarryGoCoreStack extends cdk.Stack {
       },
     });
 
+    // Dedicated SMS Worker Lambda
+    const smsWorkerLambda = new lambdaNodejs.NodejsFunction(this, 'SmsWorkerLambda', {
+      functionName: `${prefix}-sms-worker`,
+      projectRoot: backendRoot,
+      depsLockFilePath: backendLock,
+      entry: path.join(backendRoot, 'src/lambda.ts'),
+      handler: 'smsWorkerHandler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      tracing: lambda.Tracing.ACTIVE,
+      environment: {
+        APP_ENV: config.stage,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: 'es2022',
+      },
+    });
+
+    // Dedicated Email Worker Lambda
+    const emailWorkerLambda = new lambdaNodejs.NodejsFunction(this, 'EmailWorkerLambda', {
+      functionName: `${prefix}-email-worker`,
+      projectRoot: backendRoot,
+      depsLockFilePath: backendLock,
+      entry: path.join(backendRoot, 'src/lambda.ts'),
+      handler: 'emailWorkerHandler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      tracing: lambda.Tracing.ACTIVE,
+      environment: {
+        APP_ENV: config.stage,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: 'es2022',
+      },
+    });
+
+    // Dedicated Push Notification Worker Lambda
+    const pushWorkerLambda = new lambdaNodejs.NodejsFunction(this, 'PushWorkerLambda', {
+      functionName: `${prefix}-push-worker`,
+      projectRoot: backendRoot,
+      depsLockFilePath: backendLock,
+      entry: path.join(backendRoot, 'src/lambda.ts'),
+      handler: 'pushWorkerHandler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      tracing: lambda.Tracing.ACTIVE,
+      environment: {
+        APP_ENV: config.stage,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: 'es2022',
+      },
+    });
+
     coreTable.grantReadWriteData(appLambda);
     coreTable.grantReadWriteData(workerLambda);
     coreTable.grantReadWriteData(scheduledJobsLambda);
@@ -260,6 +380,15 @@ export class CarryGoCoreStack extends cdk.Stack {
 
     asyncQueue.grantSendMessages(appLambda);
     asyncQueue.grantConsumeMessages(workerLambda);
+
+    smsQueue.grantSendMessages(appLambda);
+    smsQueue.grantConsumeMessages(smsWorkerLambda);
+
+    emailQueue.grantSendMessages(appLambda);
+    emailQueue.grantConsumeMessages(emailWorkerLambda);
+
+    pushQueue.grantSendMessages(appLambda);
+    pushQueue.grantConsumeMessages(pushWorkerLambda);
 
     notificationTopic.grantPublish(appLambda);
     eventBus.grantPutEventsTo(appLambda);
@@ -328,6 +457,24 @@ export class CarryGoCoreStack extends cdk.Stack {
     workerLambda.addEventSourceMapping('QueueSourceMapping', {
       eventSourceArn: asyncQueue.queueArn,
       batchSize: 10,
+      enabled: true,
+    });
+
+    smsWorkerLambda.addEventSourceMapping('SmsQueueSourceMapping', {
+      eventSourceArn: smsQueue.queueArn,
+      batchSize: 10,
+      enabled: true,
+    });
+
+    emailWorkerLambda.addEventSourceMapping('EmailQueueSourceMapping', {
+      eventSourceArn: emailQueue.queueArn,
+      batchSize: 10,
+      enabled: true,
+    });
+
+    pushWorkerLambda.addEventSourceMapping('PushQueueSourceMapping', {
+      eventSourceArn: pushQueue.queueArn,
+      batchSize: 25,
       enabled: true,
     });
 
@@ -504,6 +651,18 @@ export class CarryGoCoreStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'AsyncQueueName', {
       value: asyncQueue.queueName,
+    });
+
+    new cdk.CfnOutput(this, 'SmsQueueName', {
+      value: smsQueue.queueName,
+    });
+
+    new cdk.CfnOutput(this, 'EmailQueueName', {
+      value: emailQueue.queueName,
+    });
+
+    new cdk.CfnOutput(this, 'PushQueueName', {
+      value: pushQueue.queueName,
     });
 
     new cdk.CfnOutput(this, 'NotificationTopicArn', {

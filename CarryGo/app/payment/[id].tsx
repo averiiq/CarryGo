@@ -20,7 +20,7 @@ import {
   BorderRadius,
   TouchTarget,
 } from '@/constants/theme';
-import { fetchPaymentByRequestOrId } from '@/services/payments.service';
+import { fetchPaymentByRequestOrId, resolveRequestId } from '@/services/payments.service';
 import { Payment, PaymentStatus } from '@/types';
 import { useAlert } from '@/template';
 import { FeatureFlags, disabledFeatureMessage } from '@/constants/featureFlags';
@@ -46,6 +46,7 @@ export default function PaymentScreen() {
   const { showAlert } = useAlert();
 
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [resolvedId, setResolvedId] = useState<string>(id || '');
   const [loadingPayment, setLoadingPayment] = useState(true);
   const [copiedId, setCopiedId] = useState(false);
 
@@ -55,11 +56,19 @@ export default function PaymentScreen() {
 
     const loadPayment = async () => {
       setLoadingPayment(true);
-      const { data } = await fetchPaymentByRequestOrId(id);
+      const targetRequestId = await resolveRequestId(id);
+      if (isMounted && targetRequestId) {
+        setResolvedId(targetRequestId);
+      }
+
+      const { data } = await fetchPaymentByRequestOrId(targetRequestId || id);
       if (!isMounted) return;
 
       if (data) {
         setPayment(data);
+        if (data.requestId) {
+          setResolvedId(data.requestId);
+        }
       } else {
         setPayment(null);
       }
@@ -104,15 +113,19 @@ export default function PaymentScreen() {
     };
   }, [id]);
 
-  const effectiveRequestId = payment?.requestId || id;
+  const effectiveRequestId = payment?.requestId || resolvedId || id;
   const { data: request } = useRequestQuery(effectiveRequestId);
+
+  const isSender = user?.id && request?.senderId ? user.id === request.senderId : true;
+  const isTraveller = user?.id && request?.travellerId ? user.id === request.travellerId : false;
+  const isAccepted = request?.status === 'accepted';
 
   const paymentStatus: PaymentStatus | 'unpaid' = payment
     ? (payment.status as PaymentStatus)
     : 'unpaid';
 
   const isPaid = paymentStatus === 'locked' || paymentStatus === 'released';
-  const canPay = !isPaid;
+  const canPay = !isPaid && isSender && isAccepted;
 
   const {
     isCreatingOrder,
@@ -341,8 +354,51 @@ export default function PaymentScreen() {
           </View>
         </View>
 
-        {/* ── Primary Action: Pay Button (If Unpaid) ───────────────────── */}
-        {canPay ? (
+        {/* ── Primary Action: Pay Button / Escrow Status ────────────────── */}
+        {isPaid ? (
+          /* Locked in Escrow confirmation note */
+          <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+            <View style={styles.lockedNoteRow}>
+              <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.lockedNoteTitle, { color: C.textPrimary }]}>
+                  Payment Protected in Escrow
+                </Text>
+                <Text style={[styles.lockedNoteSub, { color: C.textMuted }]}>
+                  Funds are safely locked. The traveler will receive payout upon OTP confirmation.
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : !isAccepted ? (
+          <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+            <View style={styles.lockedNoteRow}>
+              <Feather name="clock" size={18} color={C.warning} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.lockedNoteTitle, { color: C.textPrimary }]}>
+                  Awaiting Offer Acceptance
+                </Text>
+                <Text style={[styles.lockedNoteSub, { color: C.textMuted }]}>
+                  Payment can only be deposited once this travel offer has been accepted by both parties.
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : !isSender ? (
+          <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+            <View style={styles.lockedNoteRow}>
+              <Feather name="info" size={18} color={C.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.lockedNoteTitle, { color: C.textPrimary }]}>
+                  Awaiting Sender Escrow Deposit
+                </Text>
+                <Text style={[styles.lockedNoteSub, { color: C.textMuted }]}>
+                  The sender will deposit ₹{Math.round(effectivePrice).toLocaleString('en-IN')} in escrow. You will be notified as soon as funds are secured.
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : (
           <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.primaryBorder }, S.card]}>
             <Pressable
               onPress={handleInitiatePayment}
@@ -379,21 +435,6 @@ export default function PaymentScreen() {
               <Text style={[styles.securityText, { color: C.textMuted }]}>
                 Protected by CarryGo Escrow • Funds released only after delivery verification
               </Text>
-            </View>
-          </View>
-        ) : (
-          /* Locked in Escrow confirmation note */
-          <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
-            <View style={styles.lockedNoteRow}>
-              <Ionicons name="checkmark-circle" size={18} color={C.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.lockedNoteTitle, { color: C.textPrimary }]}>
-                  Payment Protected in Escrow
-                </Text>
-                <Text style={[styles.lockedNoteSub, { color: C.textMuted }]}>
-                  Funds are safely locked. The traveler will receive payout upon OTP confirmation.
-                </Text>
-              </View>
             </View>
           </View>
         )}

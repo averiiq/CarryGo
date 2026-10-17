@@ -88,6 +88,7 @@ function DeliveryScreenInner() {
   const isParticipant = Boolean(user?.id && (isTraveller || isSender));
   const deliveryId = delivery?.id;
   const step: DeliveryStep = (delivery?.status as DeliveryStep) || 'awaiting_pickup';
+  const isInTransit = step === 'in_transit' || step === 'picked_up';
 
   // Active chat conversation for this delivery request
   const conversation = conversationsQuery.data?.find(c => c.requestId === id);
@@ -95,23 +96,25 @@ function DeliveryScreenInner() {
   const initDelivery = useCallback(async () => {
     if (!id || !request || !isParticipant) return;
     try {
-      const { data } = await fetchOrCreateDelivery(id, user?.id);
+      const { data } = await fetchOrCreateDelivery(id, user?.id, isSender);
       if (data) {
         setDelivery(data);
-        if (data.pickupOtp) {
-          setPickupOtp(data.pickupOtp);
-        } else if (isSender && ((data.status as DeliveryStep) || 'awaiting_pickup') === 'awaiting_pickup') {
-          // Auto-fetch/generate pickup code immediately for sender
-          setPickupOtpLoading(true);
-          const otpRes = await getOrIssuePickupOtp(data.id || id);
-          setPickupOtpLoading(false);
-          if (otpRes.data) setPickupOtp(otpRes.data);
-        }
-        if (data.deliveryOtp) {
-          setDeliveryOtp(data.deliveryOtp);
-        } else if (isSender && (data.status as DeliveryStep) === 'in_transit') {
-          const otpRes = await getOrIssueDeliveryOtp(data.id || id);
-          if (otpRes.data) setDeliveryOtp(otpRes.data);
+        if (isSender) {
+          if (data.pickupOtp) {
+            setPickupOtp(data.pickupOtp);
+          } else if (((data.status as DeliveryStep) || 'awaiting_pickup') === 'awaiting_pickup') {
+            // Auto-fetch/generate pickup code immediately for sender
+            setPickupOtpLoading(true);
+            const otpRes = await getOrIssuePickupOtp(data.id || id);
+            setPickupOtpLoading(false);
+            if (otpRes.data) setPickupOtp(otpRes.data);
+          }
+          if (data.deliveryOtp) {
+            setDeliveryOtp(data.deliveryOtp);
+          } else if ((data.status as DeliveryStep) === 'in_transit' || (data.status as DeliveryStep) === 'picked_up') {
+            const otpRes = await getOrIssueDeliveryOtp(data.id || id);
+            if (otpRes.data) setDeliveryOtp(otpRes.data);
+          }
         }
       }
     } catch (err) {
@@ -166,7 +169,7 @@ function DeliveryScreenInner() {
 
   // If sender and in transit, ensure 6-digit delivery OTP is ready to show
   useEffect(() => {
-    if (!isSender || step !== 'in_transit') return;
+    if (!isSender || !isInTransit) return;
     if (deliveryOtp) return;
 
     let isMounted = true;
@@ -182,7 +185,7 @@ function DeliveryScreenInner() {
     return () => {
       isMounted = false;
     };
-  }, [delivery?.id, id, isSender, step, deliveryOtp]);
+  }, [delivery?.id, id, isSender, isInTransit, deliveryOtp]);
 
   // Poll traveller location (sender side)
   useEffect(() => {
@@ -232,23 +235,26 @@ function DeliveryScreenInner() {
     if (!id || !isParticipant || step === 'delivered') return;
     const poll = async () => {
       try {
-        const { data } = await fetchDelivery(id);
+        const { data } = await fetchDelivery(id, isSender);
         if (data) {
           setDelivery(prev => {
             if (!prev) return data;
             if (
               prev.status !== data.status ||
               prev.tripStatus !== data.tripStatus ||
-              prev.deliveryOtp !== data.deliveryOtp ||
-              prev.pickupOtp !== data.pickupOtp
+              (isSender && prev.deliveryOtp !== data.deliveryOtp) ||
+              (isSender && prev.pickupOtp !== data.pickupOtp)
             ) {
               return data;
             }
             return prev;
           });
 
-          if (data.deliveryOtp && !deliveryOtp) {
+          if (isSender && data.deliveryOtp && !deliveryOtp) {
             setDeliveryOtp(data.deliveryOtp);
+          }
+          if (isSender && data.pickupOtp && !pickupOtp) {
+            setPickupOtp(data.pickupOtp);
           }
 
           // If delivery just became 'delivered', invalidate caches and offer rating
@@ -382,6 +388,7 @@ function DeliveryScreenInner() {
     }
 
     setDelivery(result.data);
+    setEnteredPickupOtp('');
     Haptic.success();
     showAlert('Pickup Confirmed!', 'The parcel has been securely handed over. You can now start transit.');
   };
@@ -414,7 +421,7 @@ function DeliveryScreenInner() {
   // Confirm Final Delivery with 6-digit OTP (Traveller)
   const handleDeliveryOTP = async () => {
     if (!request) return;
-    if (!isTraveller || step !== 'in_transit') {
+    if (!isTraveller || !isInTransit) {
       showAlert('Not Allowed', 'Only the assigned traveller can confirm delivery OTP.');
       return;
     }
@@ -431,6 +438,7 @@ function DeliveryScreenInner() {
       return;
     }
     setDelivery(result.data);
+    setEnteredDeliveryOtp('');
     queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.listings.parcels() });
     queryClient.invalidateQueries({ queryKey: queryKeys.listings.trips() });
@@ -799,7 +807,7 @@ function DeliveryScreenInner() {
               )}
 
               {/* Stage 2: In Transit -> Live Journey Status & 6-Digit Delivery Code */}
-              {step === 'in_transit' && (
+              {isInTransit && (
                 <>
                   <SenderLiveJourneyCard
                     travellerName={request.travellerName}
@@ -851,7 +859,7 @@ function DeliveryScreenInner() {
               )}
 
               {/* Stage 2: In Transit -> Status Controls & 6-Digit Delivery Verification */}
-              {step === 'in_transit' && (
+              {isInTransit && (
                 <>
                   <TravellerTripControlsCard
                     currentStatus={delivery?.tripStatus || ''}

@@ -25,6 +25,30 @@ function mapRow(row: PaymentRow): Payment {
 
 const RAZORPAY_TEST_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RuhXVSCs94jL0c';
 
+async function extractFunctionErrorMessage(error: any, fallback: string): Promise<string> {
+  if (!error) return fallback;
+  if ('context' in error && error.context) {
+    try {
+      if (typeof error.context.json === 'function') {
+        const json = await error.context.json();
+        if (json?.error) return json.error;
+        if (json?.message) return json.message;
+      }
+      if (typeof error.context.text === 'function') {
+        const text = await error.context.text();
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed?.error) return parsed.error;
+          if (parsed?.message) return parsed.message;
+        } catch {
+          if (text) return text;
+        }
+      }
+    } catch {}
+  }
+  return error.message || fallback;
+}
+
 export async function createRazorpayOrder(requestId: string): Promise<{ data: RazorpayOrder | null; error: string | null }> {
   if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
 
@@ -38,7 +62,8 @@ export async function createRazorpayOrder(requestId: string): Promise<{ data: Ra
     });
 
     if (error) {
-      return { data: null, error: error.message || 'Could not create payment order' };
+      const errorMsg = await extractFunctionErrorMessage(error, 'Could not create payment order');
+      return { data: null, error: errorMsg };
     }
 
     if (data?.orderId) {
@@ -79,7 +104,8 @@ export async function verifyRazorpayPayment(params: {
     });
 
     if (error) {
-      return { data: null, error: error.message || 'Payment verification failed' };
+      const errorMsg = await extractFunctionErrorMessage(error, 'Payment verification failed');
+      return { data: null, error: errorMsg };
     }
 
     if (data?.paymentId) {
@@ -129,10 +155,63 @@ export async function fetchPaymentByRequestOrId(identifier: string) {
     error = res.error;
   }
 
+  // If still not found, check if identifier is a delivery ID
+  if (!data) {
+    const { data: delivery } = await sb
+      .from('deliveries')
+      .select('request_id')
+      .eq('id', identifier)
+      .maybeSingle();
+    if (delivery?.request_id) {
+      const res = await sb
+        .from('payments')
+        .select('*')
+        .eq('request_id', delivery.request_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      data = res.data;
+      error = res.error;
+    }
+  }
+
   if (error) return { data: null, error: error.message };
   if (!data) return { data: null, error: null };
 
   return { data: mapRow(data), error: null };
+}
+
+export async function resolveRequestId(identifier: string): Promise<string> {
+  if (!identifier) return '';
+  const sb = getSupabaseClient();
+  try {
+    // 1. Check if identifier is already a valid request ID
+    const { data: req } = await sb
+      .from('requests')
+      .select('id')
+      .eq('id', identifier)
+      .maybeSingle();
+    if (req?.id) return req.id;
+
+    // 2. Check if identifier is a delivery ID
+    const { data: del } = await sb
+      .from('deliveries')
+      .select('request_id')
+      .eq('id', identifier)
+      .maybeSingle();
+    if (del?.request_id) return del.request_id;
+
+    // 3. Check if identifier is a payment ID
+    const { data: pay } = await sb
+      .from('payments')
+      .select('request_id')
+      .eq('id', identifier)
+      .maybeSingle();
+    if (pay?.request_id) return pay.request_id;
+  } catch (err) {
+    console.warn('[resolveRequestId] Failed to resolve identifier:', err);
+  }
+  return identifier;
 }
 
 export async function fetchPaymentByRequest(requestId: string) {
@@ -235,13 +314,15 @@ export async function createRazorpayPaymentLink(params: {
         customer: {
           name: params.customerName || 'CarryGo Customer',
           email: params.customerEmail || 'customer@carrygo.com',
+          phone: params.customerPhone || '+919876543210',
           contact: params.customerPhone || '+919876543210',
         },
       },
     });
 
     if (error) {
-      return { data: null, error: error.message || 'Could not generate payment link' };
+      const errorMsg = await extractFunctionErrorMessage(error, 'Could not generate payment link');
+      return { data: null, error: errorMsg };
     }
 
     if (data?.paymentLinkId && data?.shortUrl) {

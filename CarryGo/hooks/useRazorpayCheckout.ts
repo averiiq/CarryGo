@@ -212,7 +212,7 @@ export function useRazorpayCheckout({
         }
 
         const pollResult = await checkRazorpayPaymentLinkStatus(paymentLinkId);
-        if (pollResult.paid) {
+        if (pollResult.paid && pollResult.paymentId) {
           isVerified = true;
           clearPolling();
           try {
@@ -222,8 +222,8 @@ export function useRazorpayCheckout({
           }
           await handlePaymentSuccess({
             razorpay_order_id: paymentLinkId,
-            razorpay_payment_id: pollResult.paymentId || `pay_${Date.now()}`,
-            razorpay_signature: 'razorpay_verified_link',
+            razorpay_payment_id: pollResult.paymentId,
+            razorpay_signature: '',
           });
         }
       }, 2500);
@@ -246,17 +246,18 @@ export function useRazorpayCheckout({
       if (!isVerified) {
         setState(s => ({ ...s, isProcessing: false, isVerifying: true }));
         const finalStatus = await checkRazorpayPaymentLinkStatus(paymentLinkId);
-        if (finalStatus.paid) {
+        if (finalStatus.paid && finalStatus.paymentId) {
+          isVerified = true;
           await handlePaymentSuccess({
             razorpay_order_id: paymentLinkId,
-            razorpay_payment_id: finalStatus.paymentId || `pay_${Date.now()}`,
-            razorpay_signature: 'razorpay_verified_link',
+            razorpay_payment_id: finalStatus.paymentId,
+            razorpay_signature: '',
           });
         } else {
           setState(s => ({ ...s, isProcessing: false, isVerifying: false, error: 'Payment was not completed.' }));
           showAlert(
             'Payment Incomplete',
-            'Payment was not completed on Razorpay. Tap "Confirm & Lock in Escrow" anytime to retry.'
+            'No payment was captured by Razorpay. If you closed the browser or cancelled, tap "Pay & Lock in Escrow" anytime to retry.'
           );
           onFailure?.('Payment not completed');
         }

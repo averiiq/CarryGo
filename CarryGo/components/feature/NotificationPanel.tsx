@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Modal, FlatList, Pressable, Animated } from 'react-native';
+import { useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { ThemeColors } from '@/constants/theme';
@@ -202,6 +203,7 @@ export function NotificationPanel({
   onPressSettings,
   C,
 }: NotificationPanelProps) {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<'unread' | 'all'>('unread');
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<string[]>([]);
 
@@ -213,8 +215,19 @@ export function NotificationPanel({
   const groupedNotifications = useMemo(() => buildNotificationGroups(filteredNotifications), [filteredNotifications]);
 
   const typeIcon: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-    new_request: 'swap-horiz', request_accepted: 'check-circle', request_rejected: 'cancel',
-    delivery_otp: 'lock', rating: 'star', route_match: 'notifications-active', general: 'notifications', chat_message: 'chat',
+    new_request: 'swap-horiz',
+    request_accepted: 'check-circle',
+    request_rejected: 'cancel',
+    delivery_otp: 'lock',
+    delivery_pickup: 'local-shipping',
+    delivery_completed: 'verified',
+    payment_locked: 'account-balance-wallet',
+    payment_released: 'payments',
+    payout_ready: 'monetization-on',
+    rating: 'star',
+    route_match: 'notifications-active',
+    general: 'notifications',
+    chat_message: 'chat',
   };
 
   useEffect(() => {
@@ -243,6 +256,22 @@ export function NotificationPanel({
         <View style={styles.notifHeader}>
           <Text style={[styles.notifTitle, { color: C.textPrimary }]}>Notifications</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                onClose();
+                router.push('/notifications' as any);
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="View all notifications in full screen"
+              style={({ pressed }) => [
+                { padding: 7, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <MaterialIcons name="open-in-full" size={16} color={C.textSecondary} />
+            </Pressable>
             {onPressSettings ? (
               <Pressable
                 onPress={() => { Haptic.tap(); onPressSettings(); onClose(); }}

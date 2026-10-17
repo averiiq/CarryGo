@@ -19,6 +19,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { UpdateBanner } from '@/components/feature/UpdateBanner';
 import { useNotifications } from '@/hooks/useNotifications';
+import { NotificationProvider } from '@/contexts/NotificationContext';
+import { InAppNotificationBanner } from '@/components/ui/InAppNotificationBanner';
 
 initMonitoring();
 setupGlobalErrorHandlers();
@@ -87,6 +89,7 @@ function AppShell() {
   return (
     <View style={{ flex: 1 }}>
       <NotificationRootListener />
+      <InAppNotificationBanner />
       <UpdateBanner />
       {!isOnline ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 12, backgroundColor: C.background }}>
@@ -149,6 +152,7 @@ function AppStack() {
         <Stack.Screen name="my-activity" options={{ headerShown: false }} />
         <Stack.Screen name="kyc" options={{ headerShown: false }} />
         <Stack.Screen name="support" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="legal/terms" options={{ headerShown: false }} />
         <Stack.Screen name="legal/privacy" options={{ headerShown: false }} />
         <Stack.Screen name="legal/refund-policy" options={{ headerShown: false }} />
@@ -167,7 +171,9 @@ export default function RootLayout() {
             <AlertProvider>
               <AppQueryProvider>
                 <AuthProvider>
-                  <AppShell />
+                  <NotificationProvider>
+                    <AppShell />
+                  </NotificationProvider>
                 </AuthProvider>
               </AppQueryProvider>
             </AlertProvider>

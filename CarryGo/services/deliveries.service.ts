@@ -1,9 +1,15 @@
 import { getSupabaseClient } from '@/template';
+import type { Database } from '@/types/database';
 import { DELIVERY_OTP_LENGTH, isFixedLengthNumericCode } from '@/constants/security';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { Delivery } from '@/types';
-import type { Database } from '@/types/database';
-import { notifyPickupConfirmed, notifyDeliveryCompleted } from '@/services/notifications.service';
+import {
+  notifyPickupConfirmed,
+  notifyDeliveryCompleted,
+  notifyDeliveryOtpReady,
+  notifyTripMilestone,
+  notifyPayoutReleased,
+} from '@/services/notifications.service';
 
 type DeliveryRow = Database['public']['Tables']['deliveries']['Row'];
 
@@ -56,33 +62,32 @@ export async function createDelivery(requestId: string) {
   return { data: mapRow(data as unknown as ExtendedDeliveryRow), error: null };
 }
 
-export async function fetchDelivery(requestId: string) {
+export async function fetchDelivery(requestId: string, isSender?: boolean) {
   const sb = getSupabaseClient();
-  // Attempt with extended columns, fallback gracefully if columns not yet migrated
   let queryResult = await sb
     .from('deliveries')
     .select('id, request_id, pickup_confirmed, pickup_confirmed_at, delivery_confirmed, delivery_confirmed_at, status, pickup_otp, delivery_otp, trip_status, trip_note, eta_text, created_at')
-    .eq('request_id', requestId)
-    .single();
+    .or(`id.eq.${requestId},request_id.eq.${requestId}`)
+    .maybeSingle();
 
   if (queryResult.error && queryResult.error.message.includes('column')) {
     queryResult = await sb
       .from('deliveries')
-      .select('id, request_id, pickup_confirmed, pickup_confirmed_at, delivery_confirmed, delivery_confirmed_at, status, pickup_otp, trip_status, trip_note, eta_text, created_at')
-      .eq('request_id', requestId)
-      .single();
-  }
-
-  if (queryResult.error && queryResult.error.message.includes('column')) {
-    queryResult = await sb
-      .from('deliveries')
-      .select('id, request_id, pickup_confirmed, pickup_confirmed_at, delivery_confirmed, delivery_confirmed_at, status, created_at')
-      .eq('request_id', requestId)
-      .single();
+      .select('id, request_id, pickup_confirmed, pickup_confirmed_at, delivery_confirmed, delivery_confirmed_at, status, trip_status, trip_note, eta_text, created_at')
+      .or(`id.eq.${requestId},request_id.eq.${requestId}`)
+      .maybeSingle();
   }
 
   if (queryResult.error) return { data: null, error: queryResult.error.message };
-  return { data: mapRow(queryResult.data as unknown as ExtendedDeliveryRow), error: null };
+  if (!queryResult.data) return { data: null, error: null };
+
+  const rawData = queryResult.data as unknown as ExtendedDeliveryRow;
+  const row: ExtendedDeliveryRow = {
+    ...rawData,
+    delivery_otp: isSender === false ? null : rawData.delivery_otp,
+    pickup_otp: isSender === false ? null : rawData.pickup_otp,
+  };
+  return { data: mapRow(row), error: null };
 }
 
 /**
@@ -90,10 +95,11 @@ export async function fetchDelivery(requestId: string) {
  */
 export async function fetchOrCreateDelivery(
   requestId: string,
-  userId?: string
+  userId?: string,
+  isSender?: boolean
 ): Promise<{ data: Delivery | null; error: string | null }> {
   // 1. Check existing delivery
-  const existing = await fetchDelivery(requestId);
+  const existing = await fetchDelivery(requestId, isSender);
   if (existing.data) {
     return existing;
   }
@@ -101,11 +107,15 @@ export async function fetchOrCreateDelivery(
   // 2. Attempt creation via RPC
   const created = await createDelivery(requestId);
   if (created.data) {
+    if (isSender === false) {
+      created.data.deliveryOtp = undefined;
+      created.data.pickupOtp = undefined;
+    }
     return created;
   }
 
   // 3. Second check in case creation was concurrent
-  const retry = await fetchDelivery(requestId);
+  const retry = await fetchDelivery(requestId, isSender);
   if (retry.data) {
     return retry;
   }
@@ -123,18 +133,21 @@ export async function fetchOrCreateDelivery(
   return { data: fallbackDelivery, error: null };
 }
 
+/**
+ * @deprecated Legacy confirmation without OTP. Use confirmPickupWithOtp instead.
+ */
 export async function confirmPickup(deliveryId: string) {
-  const sb = getSupabaseClient();
-  const { data, error } = await sb.rpc('confirm_delivery_pickup', { p_delivery_id: deliveryId }).single();
-  if (error) return { data: null, error: error.message };
-  return { data: mapRow(data as unknown as ExtendedDeliveryRow), error: null };
+  return {
+    data: null,
+    error: 'Direct pickup confirmation without verification code is disabled. Use confirmPickupWithOtp.',
+  };
 }
 
 export async function getOrIssuePickupOtp(
   deliveryOrRequestId: string,
   forceFresh = false
 ): Promise<{ data: string | null; error: string | null }> {
-  if (!deliveryOrRequestId) return { data: null, error: 'Invalid ID' };
+  if (!deliveryOrRequestId) return { data: null, error: 'Invalid delivery ID' };
 
   const sb = getSupabaseClient();
 
@@ -150,11 +163,11 @@ export async function getOrIssuePickupOtp(
         return { data: String(existingRow.pickup_otp), error: null };
       }
     } catch {
-      // continue
+      // continue to RPC
     }
   }
 
-  // 2. Try RPC get_or_create_pickup_otp
+  // 2. Try RPC get_or_create_pickup_otp (enforces sender authorization and persists code)
   try {
     const { data: rpcData, error: rpcErr } = await (sb as any).rpc('get_or_create_pickup_otp', {
       p_delivery_id: deliveryOrRequestId,
@@ -162,36 +175,30 @@ export async function getOrIssuePickupOtp(
     if (!rpcErr && rpcData) {
       return { data: String(rpcData), error: null };
     }
-  } catch {
-    // continue to table fallback
+    if (rpcErr) {
+      return { data: null, error: rpcErr.message };
+    }
+  } catch (err: any) {
+    return { data: null, error: err?.message || 'Unable to retrieve pickup code.' };
   }
 
-  // 3. Fallback: generate a fresh random 4-digit code and save to deliveries table
-  const generatedCode = String(Math.floor(1000 + Math.random() * 9000));
-
-  // Attempt to save to deliveries table
-  try {
-    await (sb.from('deliveries') as any)
-      .update({ pickup_otp: generatedCode })
-      .or(`id.eq.${deliveryOrRequestId},request_id.eq.${deliveryOrRequestId}`);
-  } catch {
-    // ignore RLS errors in client fallback
-  }
-
-  return { data: generatedCode, error: null };
+  return { data: null, error: 'Unable to retrieve pickup code.' };
 }
 
 async function triggerPickupNotification(sb: any, deliveryOrRequestId: string) {
   try {
-    const { data: deliv } = await (sb.from('deliveries') as any)
+    const deliveriesTable = sb?.from?.('deliveries');
+    if (!deliveriesTable?.select) return;
+    const { data: deliv } = await deliveriesTable
       .select('id, request_id, requests(sender_id, traveller_name)')
       .or(`id.eq.${deliveryOrRequestId},request_id.eq.${deliveryOrRequestId}`)
       .maybeSingle();
     let senderId = deliv?.requests?.sender_id;
     let travellerName = deliv?.requests?.traveller_name;
     if (!senderId) {
-      const { data: req } = await sb
-        .from('requests')
+      const requestsTable = sb?.from?.('requests');
+      if (!requestsTable?.select) return;
+      const { data: req } = await requestsTable
         .select('id, sender_id, traveller_name')
         .or(`id.eq.${deliveryOrRequestId}`)
         .maybeSingle();
@@ -212,26 +219,43 @@ async function triggerPickupNotification(sb: any, deliveryOrRequestId: string) {
 
 async function triggerDeliveryCompleteNotification(sb: any, deliveryId: string, requestId?: string) {
   try {
-    const { data: deliv } = await (sb.from('deliveries') as any)
-      .select('id, request_id, requests(sender_id, traveller_name)')
+    const deliveriesTable = sb?.from?.('deliveries');
+    if (!deliveriesTable?.select) return;
+    const { data: deliv } = await deliveriesTable
+      .select('id, request_id, requests(sender_id, traveller_name, traveller_id, price)')
       .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`)
       .maybeSingle();
     let senderId = deliv?.requests?.sender_id;
     let travellerName = deliv?.requests?.traveller_name;
+    let travellerId = deliv?.requests?.traveller_id;
+    let price = deliv?.requests?.price;
+
     if (!senderId && (requestId || deliv?.request_id)) {
       const targetReqId = requestId || deliv?.request_id;
-      const { data: req } = await sb
-        .from('requests')
-        .select('id, sender_id, traveller_name')
+      const requestsTable = sb?.from?.('requests');
+      if (!requestsTable?.select) return;
+      const { data: req } = await requestsTable
+        .select('id, sender_id, traveller_name, traveller_id, price')
         .eq('id', targetReqId)
         .maybeSingle();
       senderId = req?.sender_id;
       travellerName = req?.traveller_name;
+      travellerId = req?.traveller_id;
+      price = req?.price;
     }
+
     if (senderId) {
       await notifyDeliveryCompleted({
         senderId,
         travellerName: travellerName || 'Traveller',
+        deliveryId: deliv?.id || deliveryId,
+      });
+    }
+
+    if (travellerId) {
+      await notifyPayoutReleased({
+        travellerId,
+        amount: Number(price) || 0,
         deliveryId: deliv?.id || deliveryId,
       });
     }
@@ -251,7 +275,8 @@ export async function confirmPickupWithOtp(
 
   const sb = getSupabaseClient();
 
-  // 1. Try RPC confirm_delivery_pickup_with_otp
+  // Strictly call RPC confirm_delivery_pickup_with_otp.
+  // NO fake transitions or backdoors.
   try {
     const { data: rpcData, error: rpcErr } = await (sb as any).rpc('confirm_delivery_pickup_with_otp', {
       p_delivery_id: deliveryOrRequestId,
@@ -262,86 +287,14 @@ export async function confirmPickupWithOtp(
       void triggerPickupNotification(sb, deliveryOrRequestId);
       return { data: mapRow(rpcData as unknown as ExtendedDeliveryRow), error: null };
     }
-    if (rpcErr && !rpcErr.message.includes('function') && !rpcErr.message.includes('not found') && !rpcErr.message.includes('permission')) {
+    if (rpcErr) {
       return { data: null, error: rpcErr.message };
     }
-  } catch {
-    // continue to client verification fallback
+  } catch (err: any) {
+    return { data: null, error: err?.message || 'Verification failed. Please check the code.' };
   }
 
-  // 2. Check if delivery has pickup_otp recorded or match with deterministic fallback
-  let expectedCode: string | null = null;
-  try {
-    const { data: row } = await (sb.from('deliveries') as any)
-      .select('id, request_id, pickup_otp')
-      .or(`id.eq.${deliveryOrRequestId},request_id.eq.${deliveryOrRequestId}`)
-      .maybeSingle();
-
-    if (row?.pickup_otp) {
-      expectedCode = String(row.pickup_otp);
-    }
-  } catch {
-    // continue
-  }
-
-  if (!expectedCode) {
-    return { data: null, error: 'Pickup verification code is not ready yet. Please ask the sender to view the code.' };
-  }
-
-  if (cleanOtp !== expectedCode) {
-    return { data: null, error: 'Incorrect pickup code. Please ask the sender for the 4-digit code.' };
-  }
-
-  // 3. Fallback to standard confirm_delivery_pickup RPC
-  try {
-    const { data: standardData, error: standardErr } = await sb.rpc('confirm_delivery_pickup', {
-      p_delivery_id: deliveryOrRequestId,
-    }).single();
-
-    if (!standardErr && standardData) {
-      void triggerPickupNotification(sb, deliveryOrRequestId);
-      return { data: mapRow(standardData as unknown as ExtendedDeliveryRow), error: null };
-    }
-  } catch {
-    // continue
-  }
-
-  // 4. Direct update fallback
-  try {
-    const { data: updated, error: updateErr } = await (sb.from('deliveries') as any)
-      .update({
-        pickup_confirmed: true,
-        pickup_confirmed_at: new Date().toISOString(),
-        status: 'in_transit',
-        trip_status: 'Picked up - In Transit',
-      })
-      .or(`id.eq.${deliveryOrRequestId},request_id.eq.${deliveryOrRequestId}`)
-      .select()
-      .maybeSingle();
-
-    if (!updateErr && updated) {
-      void triggerPickupNotification(sb, deliveryOrRequestId);
-      return { data: mapRow(updated as unknown as ExtendedDeliveryRow), error: null };
-    }
-  } catch {
-    // continue
-  }
-
-  // 5. Virtual transition fallback so flow never stalls
-  void triggerPickupNotification(sb, deliveryOrRequestId);
-  return {
-    data: {
-      id: deliveryOrRequestId,
-      requestId: deliveryOrRequestId,
-      pickupConfirmed: true,
-      pickupConfirmedAt: new Date().toISOString(),
-      deliveryConfirmed: false,
-      status: 'in_transit',
-      tripStatus: 'Picked up - In Transit',
-      createdAt: new Date().toISOString(),
-    },
-    error: null,
-  };
+  return { data: null, error: 'Pickup verification failed. Please try again.' };
 }
 
 export async function updateTripProgress(
@@ -352,7 +305,6 @@ export async function updateTripProgress(
 ): Promise<{ success: boolean; error: string | null }> {
   const sb = getSupabaseClient();
 
-  // 1. Try RPC
   try {
     const { error: rpcErr } = await (sb as any).rpc('update_delivery_trip_progress', {
       p_delivery_id: deliveryId,
@@ -360,43 +312,60 @@ export async function updateTripProgress(
       p_trip_note: tripNote ?? null,
       p_eta_text: etaText ?? null,
     });
-    if (!rpcErr) return { success: true, error: null };
-  } catch {
-    // fallback
-  }
-
-  // 2. Direct table update fallback
-  const payload: Record<string, string | null> = {
-    trip_status: tripStatus.trim(),
-  };
-  if (tripNote !== undefined) payload.trip_note = tripNote.trim() || null;
-  if (etaText !== undefined) payload.eta_text = etaText.trim() || null;
-
-  try {
-    const { error } = await (sb.from('deliveries') as any)
-      .update(payload)
-      .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`);
-    if (error) {
-      return { success: false, error: error.message };
+    if (!rpcErr) {
+      void (async () => {
+        try {
+          const { data: deliv } = await (sb.from('deliveries') as any)
+            .select('id, requests(sender_id)')
+            .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`)
+            .maybeSingle();
+          if (deliv?.requests?.sender_id) {
+            const milestoneText = tripNote ? `${tripStatus}: ${tripNote}` : `Status update: ${tripStatus}`;
+            await notifyTripMilestone({
+              senderId: deliv.requests.sender_id,
+              milestoneText,
+              deliveryId,
+            });
+          }
+        } catch {}
+      })();
+      return { success: true, error: null };
     }
-    return { success: true, error: null };
+    if (rpcErr) {
+      return { success: false, error: rpcErr.message };
+    }
   } catch (err: any) {
-    return { success: true, error: null };
+    return { success: false, error: err?.message || 'Failed to update progress.' };
   }
+
+  return { success: false, error: 'Failed to update progress.' };
 }
 
-export async function confirmDelivery(deliveryId: string, enteredOtp: string, userId?: string) {
+/**
+ * Confirms final delivery with the recipient's 6-digit delivery verification code.
+ * Strictly executes complete_delivery_command RPC.
+ * Disallows ANY client-side wildcard matches, test codes, or table updates.
+ */
+export async function confirmDelivery(
+  deliveryId: string,
+  enteredOtp: string,
+  userId?: string
+): Promise<{ success: boolean; data: Delivery | null; error: string | null }> {
   const cleanOtp = enteredOtp.trim();
   if (!isFixedLengthNumericCode(cleanOtp, DELIVERY_OTP_LENGTH)) {
     return {
       success: false,
+      data: null,
       error: `Enter the complete ${DELIVERY_OTP_LENGTH}-digit delivery code.`,
     };
   }
   if (userId) {
     const rateCheck = await enforceRateLimit(userId, 'confirm_delivery');
-    if (!rateCheck.allowed) return { success: false, error: rateCheck.error ?? 'Too many attempts. Please wait.' };
+    if (!rateCheck.allowed) {
+      return { success: false, data: null, error: rateCheck.error ?? 'Too many attempts. Please wait.' };
+    }
   }
+
   const sb = getSupabaseClient();
   try {
     const { data, error } = await sb.rpc('complete_delivery_command', {
@@ -408,121 +377,15 @@ export async function confirmDelivery(deliveryId: string, enteredOtp: string, us
       void triggerDeliveryCompleteNotification(sb, deliveryId);
       return { success: true, data: mapRow(data as unknown as ExtendedDeliveryRow), error: null };
     }
+
     if (error) {
-      console.warn('complete_delivery_command error, attempting fallback update:', error.message);
+      return { success: false, data: null, error: error.message };
     }
   } catch (err: any) {
-    console.warn('complete_delivery_command exception, attempting fallback update:', err);
+    return { success: false, data: null, error: err?.message || 'Verification failed. Please try again.' };
   }
 
-  // Resilient fallback: Direct table update if RPC failed (e.g. relation "public.users" does not exist)
-  try {
-    const { data: currentDelivery, error: fetchErr } = await sb
-      .from('deliveries')
-      .select('*')
-      .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`)
-      .maybeSingle();
-
-    if (fetchErr || !currentDelivery) {
-      return { success: false, data: null, error: 'Delivery record not found.' };
-    }
-
-    const delivRow = currentDelivery as any;
-    let matched = false;
-    if (delivRow.delivery_otp && cleanOtp === String(delivRow.delivery_otp).trim()) {
-      matched = true;
-    } else if (cleanOtp === '712871' || cleanOtp === '933536') {
-      matched = true;
-    } else if (cleanOtp.length === 6 && /^\d+$/.test(cleanOtp)) {
-      matched = true;
-    }
-
-    if (!matched) {
-      return { success: false, data: null, error: 'Invalid delivery code. Please check with the sender.' };
-    }
-
-    const now = new Date().toISOString();
-    const updatePayload: any = {
-      delivery_confirmed: true,
-      delivery_confirmed_at: now,
-      status: 'delivered',
-      delivery_otp: cleanOtp,
-      trip_status: 'Delivered',
-      updated_at: now,
-    };
-    const { data: updatedDelivery, error: updateDelivErr } = await sb
-      .from('deliveries')
-      .update(updatePayload)
-      .eq('id', currentDelivery.id)
-      .select('*')
-      .single();
-
-    if (updateDelivErr) {
-      console.error('Fallback delivery update error:', updateDelivErr);
-      return { success: false, data: null, error: updateDelivErr.message };
-    }
-
-    if (currentDelivery.request_id) {
-      await sb
-        .from('requests')
-        .update({ status: 'completed', updated_at: now })
-        .eq('id', currentDelivery.request_id);
-
-      try {
-        const { data: reqData } = await sb
-          .from('requests')
-          .select('parcel_id, trip_id, traveller_id')
-          .eq('id', currentDelivery.request_id)
-          .maybeSingle();
-
-        // 1. Mark parcel as delivered (removes from live marketplace)
-        if (reqData?.parcel_id) {
-          await sb
-            .from('parcels')
-            .update({ status: 'delivered', updated_at: now })
-            .eq('id', reqData.parcel_id);
-        }
-
-        // 2. Mark trip as completed (removes from live marketplace)
-        if (reqData?.trip_id) {
-          await sb
-            .from('trips')
-            .update({ status: 'completed', updated_at: now })
-            .eq('id', reqData.trip_id);
-        }
-
-        // 3. Safely update traveller profile total_deliveries
-        if (reqData?.traveller_id) {
-          const { data: prof } = await sb
-            .from('user_profiles')
-            .select('total_deliveries')
-            .eq('id', reqData.traveller_id)
-            .maybeSingle();
-          if (prof) {
-            await sb
-              .from('user_profiles')
-              .update({
-                total_deliveries: (prof.total_deliveries || 0) + 1,
-                updated_at: now,
-              })
-              .eq('id', reqData.traveller_id);
-          }
-        }
-      } catch (postDelivErr) {
-        console.warn('Post-delivery listing update warning:', postDelivErr);
-      }
-    }
-
-    void triggerDeliveryCompleteNotification(sb, deliveryId, currentDelivery.request_id);
-    return {
-      success: true,
-      data: mapRow(updatedDelivery as unknown as ExtendedDeliveryRow),
-      error: null,
-    };
-  } catch (fallbackErr: any) {
-    console.error('Fallback confirmation error:', fallbackErr);
-    return { success: false, data: null, error: fallbackErr?.message || 'Failed to complete delivery.' };
-  }
+  return { success: false, data: null, error: 'Verification failed. Please check the delivery code.' };
 }
 
 /**
@@ -533,8 +396,23 @@ export async function getOrIssueDeliveryOtp(deliveryId: string): Promise<{ data:
   try {
     const { data, error } = await (sb.rpc as any)('get_or_create_delivery_otp', { p_delivery_id: deliveryId });
     if (!error && data) return { data: String(data), error: null };
-  } catch {
-    // fallback to issue_delivery_otp
+    if (error) {
+      if (
+        error.message &&
+        (error.message.includes('Only the parcel sender') ||
+         error.message.includes('Authentication') ||
+         error.message.includes('not found') ||
+         error.message.includes('Delivery not found'))
+      ) {
+        return { data: null, error: error.message };
+      }
+      return issueDeliveryOtp(deliveryId);
+    }
+  } catch (err: any) {
+    if (err?.message && (err.message.includes('Only the parcel sender') || err.message.includes('Authentication'))) {
+      return { data: null, error: err.message };
+    }
+    return issueDeliveryOtp(deliveryId);
   }
   return issueDeliveryOtp(deliveryId);
 }
@@ -543,36 +421,33 @@ export async function issueDeliveryOtp(deliveryId: string): Promise<{ data: stri
   const sb = getSupabaseClient();
   try {
     const { data, error } = await sb.rpc('issue_delivery_otp', { p_delivery_id: deliveryId });
-    if (!error && data) return { data: String(data), error: null };
+    if (!error && data) {
+      const code = String(data);
+      // Notify sender in background
+      void (async () => {
+        try {
+          const { data: deliv } = await (sb.from('deliveries') as any)
+            .select('id, requests(sender_id, traveller_name)')
+            .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`)
+            .maybeSingle();
+          if (deliv?.requests?.sender_id) {
+            await notifyDeliveryOtpReady({
+              recipientId: deliv.requests.sender_id,
+              otp: code,
+              deliveryId,
+              travellerName: deliv.requests.traveller_name,
+            });
+          }
+        } catch {}
+      })();
+      return { data: code, error: null };
+    }
     if (error) {
-      console.warn('issue_delivery_otp error:', error.message);
+      return { data: null, error: error.message };
     }
   } catch (err: any) {
-    console.warn('issue_delivery_otp exception:', err);
+    return { data: null, error: err?.message || 'Unable to issue delivery OTP' };
   }
 
-  // Check if deliveries table already has a delivery_otp recorded
-  try {
-    const { data: existing } = await (sb.from('deliveries') as any)
-      .select('delivery_otp')
-      .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`)
-      .maybeSingle();
-    if (existing?.delivery_otp) {
-      return { data: String(existing.delivery_otp), error: null };
-    }
-  } catch {}
-
-  // Generate cryptographically random 6-digit delivery OTP and save to database
-  const randomCode = String(Math.floor(100000 + Math.random() * 900000));
-  try {
-    const { error: updateErr } = await (sb.from('deliveries') as any)
-      .update({ delivery_otp: randomCode })
-      .or(`id.eq.${deliveryId},request_id.eq.${deliveryId}`);
-    if (updateErr) {
-      return { data: null, error: 'Unable to issue delivery OTP. Please check your connection.' };
-    }
-    return { data: randomCode, error: null };
-  } catch (saveErr: any) {
-    return { data: null, error: saveErr?.message || 'Unable to issue delivery OTP' };
-  }
+  return { data: null, error: 'Unable to issue delivery OTP' };
 }

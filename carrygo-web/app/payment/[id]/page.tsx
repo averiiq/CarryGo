@@ -167,8 +167,8 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
   const gst = Math.round(platformFee * 0.18) // 18% GST on convenience fee
   const totalAmount = baseFare + platformFee + gst
 
-  // Simulate or Process Escrow Payment
-  const handlePayment = async (mode: 'razorpay' | 'simulated') => {
+  // Process Secure Escrow Payment via Razorpay
+  const handlePayment = async () => {
     setProcessing(true)
     setError(null)
     const supabase = createClient()
@@ -180,48 +180,29 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
       return
     }
 
-    if (mode === 'simulated') {
-      try {
-        const simulatedPaymentId = `pay_demo_${Date.now()}`
-        const { data: newPayment, error: payErr } = await supabase
-          .from('payments')
-          .insert({
-            request_id: requestId,
-            sender_id: user.id,
-            traveller_id: request?.traveller_id,
-            amount: totalAmount,
-            status: 'locked',
-            locked_at: new Date().toISOString(),
-            razorpay_payment_id: simulatedPaymentId,
-          })
-          .select('*')
-          .single()
-
-        if (payErr) throw payErr
-
-        setPayment(newPayment as PaymentRecord)
-        setSuccessNotice('Escrow payment verified! Funds are now securely locked until safe delivery.')
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Payment recording failed.')
-      } finally {
-        setProcessing(false)
-      }
-      return
-    }
-
-    // Razorpay standard modal checkout
     try {
       if (typeof window.Razorpay === 'undefined') {
-        throw new Error('Payment gateway SDK loading. Please try in a few moments.')
+        throw new Error('Payment gateway SDK loading. Please try again in a few moments.')
       }
 
+      // 1. Create order on backend
+      const { data: orderData, error: orderErr } = await supabase.functions.invoke('create-razorpay-order', {
+        body: { requestId },
+      })
+
+      if (orderErr || !orderData?.orderId) {
+        throw new Error(orderErr?.message || orderData?.error || 'Failed to initialize payment gateway order.')
+      }
+
+      // 2. Launch Razorpay modal with official order ID
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
-        amount: totalAmount * 100, // paise
-        currency: 'INR',
+        key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RuhXVSCs94jL0c',
+        amount: orderData.amount, // paise
+        currency: orderData.currency || 'INR',
         name: 'CarryGo Logistics',
         description: `Escrow Delivery Guarantee for Parcel #${requestId.slice(0, 8)}`,
         image: '/favicon.ico',
+        order_id: orderData.orderId,
         prefill: {
           name: user.user_metadata?.full_name || 'CarryGo Customer',
           email: user.email || 'customer@carrygo.in',
@@ -229,34 +210,55 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
         theme: {
           color: '#059669',
         },
-        handler: async (response: { razorpay_payment_id: string }) => {
-          const { data: recordedPay, error: pErr } = await supabase
-            .from('payments')
-            .insert({
-              request_id: requestId,
-              sender_id: user.id,
-              traveller_id: request?.traveller_id,
-              amount: totalAmount,
-              status: 'locked',
-              locked_at: new Date().toISOString(),
-              razorpay_payment_id: response.razorpay_payment_id,
+        modal: {
+          ondismiss: () => {
+            setProcessing(false)
+            setError('Payment cancelled. Tap Pay anytime to retry.')
+          },
+        },
+        handler: async (response: {
+          razorpay_order_id: string
+          razorpay_payment_id: string
+          razorpay_signature: string
+        }) => {
+          try {
+            setProcessing(true)
+            const { data: verifyData, error: vErr } = await supabase.functions.invoke('verify-razorpay-payment', {
+              body: {
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+                requestId,
+              },
             })
-            .select('*')
-            .single()
 
-          if (!pErr && recordedPay) {
-            setPayment(recordedPay as PaymentRecord)
+            if (vErr || !verifyData?.paymentId) {
+              throw new Error(vErr?.message || verifyData?.error || 'Payment verification failed.')
+            }
+
+            // Fetch verified payment record
+            const { data: recordedPay } = await supabase
+              .from('payments')
+              .select('*')
+              .eq('id', verifyData.paymentId)
+              .maybeSingle()
+
+            if (recordedPay) {
+              setPayment(recordedPay as PaymentRecord)
+            }
             setSuccessNotice('Payment successfully verified by gateway and locked in RBI-compliant escrow!')
+          } catch (verErr) {
+            setError(verErr instanceof Error ? verErr.message : 'Verification failed.')
+          } finally {
+            setProcessing(false)
           }
         },
       }
 
       const rzp = new window.Razorpay(options)
       rzp.open()
-    } catch {
-      // If Razorpay live credentials not configured, smoothly fallback to verified demo mode
-      await handlePayment('simulated')
-    } finally {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Payment initialization failed.')
       setProcessing(false)
     }
   }
@@ -507,7 +509,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                   <button
                     type="button"
                     disabled={processing}
-                    onClick={() => handlePayment('razorpay')}
+                    onClick={() => handlePayment()}
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-md shadow-emerald-600/25 hover:brightness-105 active:scale-98 transition disabled:opacity-50 cursor-pointer"
                   >
                     {processing ? (
