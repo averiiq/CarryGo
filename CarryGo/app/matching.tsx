@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
@@ -12,7 +13,7 @@ import { useMatchingTrips, useMatchingTripsOnRoute } from '@/hooks/useMatching';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useParcelQuery, useTripQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
-import { AppErrorBoundary, TripCard, MatchDiagnosticCard, LottieAnimation } from '@/components';
+import { AppErrorBoundary, TripCard, BlaBlaTripCard, MatchDiagnosticCard, LottieAnimation } from '@/components';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 import { Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
@@ -51,8 +52,9 @@ export default function MatchingScreen() {
   const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
 
   const { showAlert } = useAlert();
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<MatchSortOption>('match');
 
@@ -295,101 +297,95 @@ export default function MatchingScreen() {
     }
   }, [handleRepostNow, router, fromCity, toCity, currentParcel, showAlert]);
 
-  const renderTripItem = useCallback(({ item }: { item: Trip }) => (
-    <View style={{ marginBottom: Spacing.md }}>
-      <TripCard
-        trip={item}
-        existingRequest={requestsByTripId.get(item.id)}
-        matchScore={isParcelMode ? tripMatchBreakdowns.get(item.id)?.total : undefined}
-        onMatchPress={isParcelMode
-          ? () => {
-            const score = tripMatchBreakdowns.get(item.id);
-            if (!score) return;
-            setActiveMatchDetails({
-              title: `${item.fromCity} → ${item.toCity}`,
-              score,
-            });
-          }
-          : undefined}
-        showRequestButton={!sentRequests.has(item.id)}
-        onRequest={() => handleSendRequest(item)}
-        onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
-      />
-    </View>
-  ), [isParcelMode, tripMatchBreakdowns, sentRequests, handleSendRequest, router, requestsByTripId]);
+  const renderTripItem = useCallback(({ item }: { item: Trip }) => {
+    if (!isTripModeLegacy) {
+      const matchPrice = currentParcel
+        ? calculateMatchPrice(item.pricePerKg, currentParcel.weight)
+        : Math.round(item.pricePerKg * 2 || 180);
+
+      return (
+        <View style={{ marginBottom: 12 }}>
+          <BlaBlaTripCard
+            trip={item}
+            price={matchPrice}
+            onPress={() => router.push({
+              pathname: '/trip/[id]',
+              params: {
+                id: item.id,
+                parcelId: currentParcel?.id || '',
+              },
+            })}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={{ marginBottom: Spacing.md }}>
+        <TripCard
+          trip={item}
+          existingRequest={requestsByTripId.get(item.id)}
+          matchScore={isParcelMode ? tripMatchBreakdowns.get(item.id)?.total : undefined}
+          onMatchPress={isParcelMode
+            ? () => {
+              const score = tripMatchBreakdowns.get(item.id);
+              if (!score) return;
+              setActiveMatchDetails({
+                title: `${item.fromCity} → ${item.toCity}`,
+                score,
+              });
+            }
+            : undefined}
+          showRequestButton={!sentRequests.has(item.id)}
+          onRequest={() => handleSendRequest(item)}
+          onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
+        />
+      </View>
+    );
+  }, [isTripModeLegacy, currentParcel, requestsByTripId, isParcelMode, tripMatchBreakdowns, sentRequests, handleSendRequest, router]);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
-        {/* ── Source Card ── */}
-        <Animated.View style={[
-          styles.sourceCard,
-          {
-            backgroundColor: C.surface,
-            borderColor: C.surfaceBorder,
-            transform: [{ scale: headerScale }],
-          },
-        ]}>
-          <LinearGradient
-            colors={[C.primarySubtle, 'transparent']}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={[styles.sourceIconBox, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons
-              name={isParcelMode ? 'inventory-2' : isTripModeLegacy ? 'directions-car' : 'search'}
-              size={22}
-              color={C.primary}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.sourceRouteRow}>
-              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{formatMatchHeaderRoute(fromCity, toCity).from}</Text>
-              <MaterialIcons name="arrow-forward" size={14} color={C.primary} />
-              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{formatMatchHeaderRoute(fromCity, toCity).to}</Text>
-            </View>
-            {currentParcel ? (
-              <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
-                {formatMatchSummary(currentParcel.category, currentParcel.weight, currentParcel.priceOffer)}
-              </Text>
-            ) : currentTrip ? (
-              <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
-                {currentTrip.date || 'Scheduled'} · {(currentTrip.vehicleType || 'car').toUpperCase()} · {currentTrip.availableCapacity || 0}kg capacity
-              </Text>
-            ) : (
-              <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
-                Browsing available trips
-              </Text>
-            )}
-          </View>
-          {/* Results badge */}
-          <View style={[styles.resultsBadge, { backgroundColor: loading ? C.surfaceElevated : C.primary }]}>
-            {loading ? (
-              <ActivityIndicator size="small" color={C.textMuted} />
-            ) : (
-              <Text style={styles.resultsBadgeText}>{resultCount}</Text>
-            )}
-          </View>
-        </Animated.View>
+        {/* ── BlaBlaCar Top Header Pill ── */}
+        <View style={[styles.blaBlaTopBar, { paddingTop: insets.top + 6 }]}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.blaBlaBackBtn,
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.7 },
+            ]}
+            hitSlop={8}
+          >
+            <MaterialIcons name="chevron-left" size={26} color={C.textPrimary} />
+          </Pressable>
 
-        {/* ── What's being shown ── */}
-        <View style={styles.sectionHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
-              {loading
-                ? 'Searching...'
-                : isTripModeLegacy
-                  ? 'Trip is live'
-                  : `${resultCount} traveller${resultCount !== 1 ? 's' : ''} found`}
-            </Text>
-            <Text style={[styles.sectionSub, { color: C.textMuted }]}>
-              {isTripModeLegacy
-                ? 'Travellers receive sender requests on matching parcel routes'
-                : 'Tap "Send Request" to book a traveller'}
+          <View style={[styles.blaBlaHeaderPill, { backgroundColor: C.surface, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0' }]}>
+            <View style={styles.blaBlaRouteRow}>
+              <Text style={[styles.blaBlaRouteCity, { color: C.textPrimary }]} numberOfLines={1}>
+                {fromCity ? `${fromCity}, Haryana, India` : 'Haryana'}
+              </Text>
+              <MaterialIcons name="sync-alt" size={13} color={C.textMuted} style={{ marginHorizontal: 4 }} />
+              <Text style={[styles.blaBlaRouteCity, { color: C.textPrimary }]} numberOfLines={1}>
+                {toCity ? `${toCity}, Haryana, India` : 'Haryana'}
+              </Text>
+            </View>
+            <Text style={[styles.blaBlaSubtitle, { color: C.textMuted }]} numberOfLines={1}>
+              {currentParcel?.deliveryDate || 'Today'} · {currentParcel?.weight ? `${currentParcel.weight} kg parcel` : '1 package'}
             </Text>
           </View>
+        </View>
+
+        {/* ── Outbound · Today Header ── */}
+        <View style={styles.blaBlaSectionHeader}>
+          <Text style={[styles.blaBlaSectionTitle, { color: C.textPrimary }]}>
+            Outbound · {currentParcel?.deliveryDate ? currentParcel.deliveryDate : 'Today'}
+          </Text>
+
           {/* Sort controls (only for trips list) */}
           {(isParcelMode || isBrowseMode) && resultCount > 1 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 10 }}>
               <View style={styles.sortRow}>
                 {([
                   { key: 'match', label: 'Best match', icon: 'auto-awesome' },
@@ -606,6 +602,63 @@ function EmptyMatches({ icon, title, sub, cta, onCta, C }: {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  blaBlaTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  blaBlaBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  blaBlaHeaderPill: {
+    flex: 1,
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingVertical: 7,
+    paddingHorizontal: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  blaBlaRouteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  blaBlaRouteCity: {
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+    maxWidth: '44%',
+  },
+  blaBlaSubtitle: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+    marginTop: 1,
+  },
+  blaBlaSectionHeader: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  blaBlaSectionTitle: {
+    fontSize: 22,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.3,
+  },
 
   sourceCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,

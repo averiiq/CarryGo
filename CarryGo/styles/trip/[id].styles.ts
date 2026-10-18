@@ -378,4 +378,242 @@ export const styles = StyleSheet.create({
   requestsList: {
     gap: Spacing.md,
   },
+
+  // Traveler Trust Profile Card
+  travelerProfileCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  travelerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  travelerAvatarWrap: {
+    position: 'relative',
+  },
+  travelerAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  travelerAvatarPlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  travelerAvatarInitials: {
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+  },
+  travelerVerifiedBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  travelerInfoCol: {
+    flex: 1,
+  },
+  travelerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  travelerName: {
+    fontSize: 17,
+    fontWeight: FontWeight.bold,
+  },
+  kycChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  kycChipText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    color: '#2563EB',
+  },
+  travelerRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  ratingNumber: {
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+  },
+  travelerTripsCount: {
+    fontSize: 12,
+  },
+  trustPointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    paddingTop: Spacing.sm,
+  },
+  trustPointItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  trustPointText: {
+    fontSize: 12,
+    fontWeight: FontWeight.medium,
+  },
+
+  // What Traveler Allows To Carry Card
+  allowsToCarryCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  allowsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  allowsIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  allowsHeaderTitle: {
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+  },
+  allowsHeaderSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  allowsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryCheckPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  categoryCheckText: {
+    fontSize: 12,
+    fontWeight: FontWeight.semibold,
+  },
+  prohibitedBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: 4,
+  },
+  prohibitedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  prohibitedTitle: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
+  prohibitedText: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  parcelCompatibilityBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: 4,
+  },
+  parcelCompatTitle: {
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+  },
+  parcelCompatSub: {
+    fontSize: 12,
+  },
+
+  // Fixed Bottom Action Bar for Senders
+  fixedBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  bottomBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  negotiateBtn: {
+    flex: 1,
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  negotiateBtnText: {
+    fontSize: 15,
+    fontWeight: FontWeight.bold,
+  },
+  bookTripBtn: {
+    flex: 1.3,
+    height: 50,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bookTripBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: FontWeight.extrabold,
+  },
 });

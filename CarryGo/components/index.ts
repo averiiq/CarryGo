@@ -1,4 +1,6 @@
 export { TripCard } from './feature/TripCard';
+export { BlaBlaTripCard } from './feature/BlaBlaTripCard';
+export { NegotiateTripModal } from './feature/NegotiateTripModal';
 export { ParcelCard } from './feature/ParcelCard';
 export { RequestCard } from './feature/RequestCard';
 export { RatingModal } from './feature/RatingModal';
