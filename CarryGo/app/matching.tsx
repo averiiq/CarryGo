@@ -349,31 +349,32 @@ export default function MatchingScreen() {
       <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
         {/* ── BlaBlaCar Top Header Pill ── */}
         <View style={[styles.blaBlaTopBar, { paddingTop: insets.top + 6 }]}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [
-              styles.blaBlaBackBtn,
-              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.7 },
-            ]}
-            hitSlop={8}
-          >
-            <MaterialIcons name="chevron-left" size={26} color={C.textPrimary} />
-          </Pressable>
-
           <View style={[styles.blaBlaHeaderPill, { backgroundColor: C.surface, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0' }]}>
-            <View style={styles.blaBlaRouteRow}>
-              <Text style={[styles.blaBlaRouteCity, { color: C.textPrimary }]} numberOfLines={1}>
-                {fromCity ? `${fromCity}, Haryana, India` : 'Haryana'}
-              </Text>
-              <MaterialIcons name="sync-alt" size={13} color={C.textMuted} style={{ marginHorizontal: 4 }} />
-              <Text style={[styles.blaBlaRouteCity, { color: C.textPrimary }]} numberOfLines={1}>
-                {toCity ? `${toCity}, Haryana, India` : 'Haryana'}
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [
+                styles.blaBlaBackBtnInside,
+                pressed && { opacity: 0.6 },
+              ]}
+              hitSlop={10}
+            >
+              <MaterialIcons name="chevron-left" size={26} color={C.textPrimary} />
+            </Pressable>
+
+            <View style={styles.blaBlaHeaderTexts}>
+              <View style={styles.blaBlaRouteRow}>
+                <Text style={[styles.blaBlaRouteCity, { color: C.textPrimary }]} numberOfLines={1}>
+                  {fromCity ? `${fromCity}, Haryana, India` : 'Haryana, India'}
+                </Text>
+                <MaterialIcons name="swap-horiz" size={15} color={C.textMuted} style={{ marginHorizontal: 4 }} />
+                <Text style={[styles.blaBlaRouteCity, { color: C.textPrimary }]} numberOfLines={1}>
+                  {toCity ? `${toCity}, Haryana, India` : 'Haryana, India'}
+                </Text>
+              </View>
+              <Text style={[styles.blaBlaSubtitle, { color: C.textMuted }]}>
+                {currentParcel?.deliveryDate || 'Today'} · {currentParcel?.weight ? `${currentParcel.weight} kg parcel` : '1 package'}
               </Text>
             </View>
-            <Text style={[styles.blaBlaSubtitle, { color: C.textMuted }]} numberOfLines={1}>
-              {currentParcel?.deliveryDate || 'Today'} · {currentParcel?.weight ? `${currentParcel.weight} kg parcel` : '1 package'}
-            </Text>
           </View>
         </View>
 
@@ -604,36 +605,29 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   blaBlaTopBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  blaBlaBackBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingBottom: Spacing.xs,
   },
   blaBlaHeaderPill: {
-    flex: 1,
-    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
     borderWidth: 1,
-    paddingVertical: 7,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 1,
+    elevation: 2,
+  },
+  blaBlaBackBtnInside: {
+    paddingRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blaBlaHeaderTexts: {
+    flex: 1,
   },
   blaBlaRouteRow: {
     flexDirection: 'row',
@@ -641,13 +635,13 @@ const styles = StyleSheet.create({
   },
   blaBlaRouteCity: {
     fontSize: 13,
-    fontWeight: FontWeight.bold,
-    maxWidth: '44%',
+    fontWeight: FontWeight.semibold,
+    maxWidth: '45%',
   },
   blaBlaSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: FontWeight.medium,
-    marginTop: 1,
+    marginTop: 2,
   },
   blaBlaSectionHeader: {
     paddingHorizontal: Spacing.md,
