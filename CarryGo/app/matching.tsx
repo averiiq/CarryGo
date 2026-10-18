@@ -20,6 +20,14 @@ import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { scoreMatch, MatchScore, DiagnosticAction, checkTripParcelRoute } from '@/services/smart-matching.service';
+import {
+  sortMatchingTrips,
+  calculateMatchPrice,
+  formatMatchSummary,
+  buildRequestsByTripMap,
+  formatMatchHeaderRoute,
+  MatchSortOption,
+} from '@/components/feature/matching/matchingHelpers';
 
 /**
  * Matching screen supports sender-led request flow.
@@ -46,7 +54,10 @@ export default function MatchingScreen() {
   const { C } = useThemeColors();
   const router = useRouter();
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<'match' | 'price' | 'rating' | 'capacity'>('match');
+  const [sortBy, setSortBy] = useState<MatchSortOption>('match');
+
+  const userRequests = requestsQuery.data ?? [];
+  const requestsByTripId = useMemo(() => buildRequestsByTripMap(userRequests), [userRequests]);
   const [activeMatchDetails, setActiveMatchDetails] = useState<{
     title: string;
     score: MatchScore;
@@ -95,15 +106,14 @@ export default function MatchingScreen() {
   // Pre-populate sentRequests from existing requests to prevent duplicate sends
   useEffect(() => {
     const existing = new Set<string>();
-    const reqs = requestsQuery.data ?? [];
-    reqs.forEach(r => {
+    userRequests.forEach(r => {
       if (r.senderId === user?.id || r.travellerId === user?.id) {
         existing.add(r.parcelId);
         existing.add(r.tripId);
       }
     });
     setSentRequests(existing);
-  }, [requestsQuery.data, user?.id]);
+  }, [userRequests, user?.id]);
 
   // Animate in when data loads
   useEffect(() => {
@@ -116,16 +126,7 @@ export default function MatchingScreen() {
   }, [loading, fadeAnim, headerScale]);
 
   // Sort helpers
-  const sortedTrips = useMemo(() => (
-    sortBy === 'match'
-      ? [...matchingTrips]
-      : [...matchingTrips].sort((a, b) => {
-        if (sortBy === 'price') return a.pricePerKg - b.pricePerKg;
-        if (sortBy === 'rating') return b.userRating - a.userRating;
-        if (sortBy === 'capacity') return b.availableCapacity - a.availableCapacity;
-        return 0;
-      })
-  ), [matchingTrips, sortBy]);
+  const sortedTrips = useMemo(() => sortMatchingTrips(matchingTrips, sortBy), [matchingTrips, sortBy]);
 
   const tripMatchBreakdowns = useMemo(() => {
     if (!currentParcel) return new Map<string, MatchScore>();
@@ -164,13 +165,13 @@ export default function MatchingScreen() {
       showAlert('Already Sent', 'You have already sent a request to this counterparty for this parcel.');
       return;
     }
-    const price = Math.round(trip.pricePerKg * currentParcel.weight);
+    const price = calculateMatchPrice(trip.pricePerKg, currentParcel.weight);
     Haptic.warning();
     showAlert(
       isSender ? 'Send Delivery Request' : 'Offer to Carry Parcel',
       isSender
-        ? `Ask ${trip.userName} to carry your ${currentParcel.category} (${currentParcel.weight}kg) for Rs ${price}?`
-        : `Offer to carry ${currentParcel.userName}'s ${currentParcel.category} (${currentParcel.weight}kg) for Rs ${price}?`,
+        ? `Ask ${trip.userName} to carry your ${currentParcel.category} (${currentParcel.weight}kg) for ₹${price.toLocaleString('en-IN')}?`
+        : `Offer to carry ${currentParcel.userName}'s ${currentParcel.category} (${currentParcel.weight}kg) for ₹${price.toLocaleString('en-IN')}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -193,6 +194,7 @@ export default function MatchingScreen() {
               });
               if (result) {
                 setSentRequests(prev => new Set([...prev, trip.id]));
+                void requestsQuery.refetch();
                 await sendLocalNotification('Request Sent!', `Your request was sent to ${trip.userName}`);
                 Haptic.success();
                 showAlert(
@@ -297,6 +299,7 @@ export default function MatchingScreen() {
     <View style={{ marginBottom: Spacing.md }}>
       <TripCard
         trip={item}
+        existingRequest={requestsByTripId.get(item.id)}
         matchScore={isParcelMode ? tripMatchBreakdowns.get(item.id)?.total : undefined}
         onMatchPress={isParcelMode
           ? () => {
@@ -313,7 +316,7 @@ export default function MatchingScreen() {
         onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
       />
     </View>
-  ), [isParcelMode, tripMatchBreakdowns, sentRequests, handleSendRequest, router]);
+  ), [isParcelMode, tripMatchBreakdowns, sentRequests, handleSendRequest, router, requestsByTripId]);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -340,13 +343,13 @@ export default function MatchingScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.sourceRouteRow}>
-              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{fromCity || 'Route'}</Text>
+              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{formatMatchHeaderRoute(fromCity, toCity).from}</Text>
               <MaterialIcons name="arrow-forward" size={14} color={C.primary} />
-              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{toCity || 'Details'}</Text>
+              <Text style={[styles.sourceCity, { color: C.textPrimary }]}>{formatMatchHeaderRoute(fromCity, toCity).to}</Text>
             </View>
             {currentParcel ? (
               <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
-                {currentParcel.category} · {currentParcel.weight}kg · Rs {currentParcel.priceOffer} budget
+                {formatMatchSummary(currentParcel.category, currentParcel.weight, currentParcel.priceOffer)}
               </Text>
             ) : currentTrip ? (
               <Text style={[styles.sourceMeta, { color: C.textSecondary }]}>
@@ -473,7 +476,7 @@ export default function MatchingScreen() {
                   ? 'No compatible traveler is currently traveling on this route. Set a route alert to get notified the moment a traveler posts this corridor.'
                   : 'No compatible traveler is currently traveling on this route. Subscribe to get notified when someone is!'}
                 cta={isParcelMode ? 'Set Route Alert' : 'Subscribe to Route'}
-                onCta={() => router.push('/subscriptions')}
+                onCta={() => router.push({ pathname: '/subscriptions', params: { fromCity, toCity } })}
                 C={C}
               />
             )

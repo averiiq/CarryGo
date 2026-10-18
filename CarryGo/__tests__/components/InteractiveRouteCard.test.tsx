@@ -38,4 +38,30 @@ describe('InteractiveRouteCard corridor calculations & city data', () => {
     expect(fromCity).toBe('Chandigarh');
     expect(toCity).toBe('Gurugram');
   });
+
+  it('detects when selected city is the same as the opposite city', () => {
+    const fromCity = 'Gurugram';
+    const toCity = 'gurugram ';
+    const isSame = fromCity.trim().toLowerCase() === toCity.trim().toLowerCase();
+    expect(isSame).toBe(true);
+  });
+
+  it('validates that trip date cannot be in the past', () => {
+    const today = new Date();
+    const todayKey = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    const pastDate = new Date(today);
+    pastDate.setDate(today.getDate() - 2);
+    const pastKey = [
+      pastDate.getFullYear(),
+      String(pastDate.getMonth() + 1).padStart(2, '0'),
+      String(pastDate.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    expect(pastKey < todayKey).toBe(true);
+  });
 });

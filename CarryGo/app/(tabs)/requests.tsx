@@ -116,7 +116,7 @@ export default function RequestsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<Request | null>(null);
   const [detailRequest, setDetailRequest] = useState<Request | null>(null);
-
+  const [openingChatRequestId, setOpeningChatRequestId] = useState<string | null>(null);
   const slideAnim = React.useRef(new Animated.Value(0)).current;
   const pendingPulse = React.useRef(new Animated.Value(1)).current;
 
@@ -423,12 +423,72 @@ export default function RequestsScreen() {
     ]);
   };
 
-  const handleChat = useCallback((req: Request) => {
-    Haptic.tap();
-    const conv = conversations.find(c => c.requestId === req.id);
-    if (conv?.id) router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
-    else showAlert('No Chat Yet', 'Chat opens automatically once the request is accepted.');
-  }, [conversations, router, showAlert]);
+  const handleChat = useCallback(
+    async (req: Request) => {
+      if (!user) {
+        Haptic.warning();
+        showAlert('Sign In Required', 'Please sign in to view and send messages.');
+        return;
+      }
+
+      if (openingChatRequestId === req.id) return;
+
+      Haptic.tap();
+      const conv = conversations.find((c) => c.requestId === req.id);
+      if (conv?.id) {
+        router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
+        return;
+      }
+
+      try {
+        setOpeningChatRequestId(req.id);
+        const otherUserId = req.senderId === user.id ? req.travellerId : req.senderId;
+        const otherUserName = req.senderId === user.id ? req.travellerName : req.senderName;
+        const parcel = parcelMap.get(req.parcelId);
+        const route = parcel
+          ? `${parcel.fromCity} → ${parcel.toCity}`
+          : `${req.fromCity || 'Pickup'} → ${req.toCity || 'Drop'}`;
+
+        const newConv = await createConversationMutation.mutateAsync({
+          requestId: req.id,
+          participantIds: [user.id, otherUserId],
+          participantNames: {
+            [user.id]: user.fullName || user.name || 'You',
+            [otherUserId]: otherUserName || 'User',
+          },
+          parcelDescription: parcel?.description || req.parcelCategory || 'Parcel delivery',
+          route,
+        });
+
+        if (newConv?.id) {
+          router.push(`/chat/${encodeURIComponent(String(newConv.id))}` as never);
+        } else {
+          const refetched = await conversationsQuery.refetch();
+          const found = refetched.data?.find((c) => c.requestId === req.id);
+          if (found?.id) {
+            router.push(`/chat/${encodeURIComponent(String(found.id))}` as never);
+          } else {
+            showAlert('Chat Error', 'Could not open conversation. Please try again.');
+          }
+        }
+      } catch (err: any) {
+        Haptic.error();
+        showAlert('Chat Error', getUserErrorMessage(err, 'Could not open chat. Please try again.'));
+      } finally {
+        setOpeningChatRequestId(null);
+      }
+    },
+    [
+      conversations,
+      conversationsQuery,
+      createConversationMutation,
+      openingChatRequestId,
+      parcelMap,
+      router,
+      showAlert,
+      user,
+    ]
+  );
 
   const handleDelivery = useCallback((req: Request) => {
     Haptic.tap();

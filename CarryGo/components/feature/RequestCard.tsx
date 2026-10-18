@@ -62,7 +62,7 @@ export function getContextBanner(
       if (isTraveller) {
         return {
           title: 'Action Needed: Delivery Request Received',
-          message: `${otherName} wants you to carry their parcel. Review route compatibility and tap Accept to coordinate handover.`,
+          message: `${otherName} wants you to carry their parcel. Review route compatibility and tap Accept (or tap Chat to ask questions).`,
           bg: C.primarySubtle,
           border: C.primaryBorder,
           iconBg: C.primary,
@@ -74,7 +74,7 @@ export function getContextBanner(
       } else {
         return {
           title: 'Action Needed: Carry Offer Received',
-          message: `${otherName} offered to deliver your parcel for ₹${request.price}! Accept to proceed to escrow payment.`,
+          message: `${otherName} offered to deliver your parcel for ₹${request.price}! Chat to coordinate or accept to proceed to escrow.`,
           bg: '#ECFDF5',
           border: '#A7F3D0',
           iconBg: '#059669',
@@ -88,7 +88,7 @@ export function getContextBanner(
       if (isSender) {
         return {
           title: 'Waiting for Traveler Response',
-          message: `Your booking request was sent to ${otherName}. We'll notify you as soon as they accept.`,
+          message: `Your booking request was sent to ${otherName}. Chat anytime to coordinate package details before acceptance.`,
           bg: C.surfaceElevated,
           border: C.surfaceBorder,
           iconBg: C.surface,
@@ -100,7 +100,7 @@ export function getContextBanner(
       } else {
         return {
           title: 'Waiting for Sender Response',
-          message: `Your offer to carry was sent to ${otherName}. We'll notify you as soon as they accept.`,
+          message: `Your offer to carry was sent to ${otherName}. Chat anytime to coordinate package details before acceptance.`,
           bg: C.surfaceElevated,
           border: C.surfaceBorder,
           iconBg: C.surface,
@@ -522,16 +522,22 @@ export const RequestCard = React.memo(function RequestCard({
               <Pressable
                 style={({ pressed }) => [
                   styles.chatBtn,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  request.status === 'pending'
+                    ? { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }
+                    : { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                   pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
                 ]}
                 onPress={() => { Haptic.tap(); onChat?.(); }}
                 hitSlop={TouchTarget.smallHitSlop}
                 accessible={true}
                 accessibilityRole="button"
-                accessibilityLabel={`Chat with ${vm.personName}`}
+                accessibilityLabel={`Chat with ${vm.personName}${request.status === 'pending' ? ' before accepting' : ''}`}
               >
-                <Ionicons name="chatbubble-outline" size={15} color={C.textSecondary} />
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={15}
+                  color={request.status === 'pending' ? C.primary : C.textSecondary}
+                />
               </Pressable>
 
               {vm.showAcceptDecline ? (

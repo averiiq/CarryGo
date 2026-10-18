@@ -10,7 +10,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { TripCard, ParcelCard, KeyboardAwareScrollView } from '@/components';
 import { Trip, Parcel, Request } from '@/types';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
-import { Spacing } from '@/constants/theme';
+import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { createSubscription } from '@/services/subscriptions.service';
 import { useAlert } from '@/template';
@@ -23,6 +23,12 @@ import { RouteMapView } from '@/components/feature/RouteMapView';
 import { SortOption } from '@/hooks/useSmartSearch';
 import { useResponsive, TouchTarget } from '@/hooks/useResponsive';
 import { styles } from '@/styles/search.styles';
+import {
+  filterSearchResults,
+  sortSearchResults,
+  formatRouteSubscriptionMessage,
+  SearchItem,
+} from '@/components/feature/search/searchHelpers';
 
 const CITIES = INDIAN_CITIES.map(c => c.name);
 
@@ -150,77 +156,40 @@ export default function SearchScreen() {
     return map;
   }, [userRequests]);
 
-  const sourceTrips = useMemo(
-    () => trips.filter((t: Trip) => t.status === 'active' && t.userId !== user?.id),
-    [trips, user?.id]
-  );
-  const sourceParcels = useMemo(
-    () => parcels.filter((p: Parcel) => p.status === 'open' && p.userId !== user?.id),
-    [parcels, user?.id]
-  );
-  const matchedTrips = useMemo(() => sourceTrips.filter((t: Trip) => {
-    const matchFrom = !fromCity || t.fromCity.toLowerCase().includes(fromCity.toLowerCase());
-    const matchTo = !toCity || t.toCity.toLowerCase().includes(toCity.toLowerCase());
-    const matchVehicle = !vehicleType || t.vehicleType === vehicleType;
-    return matchFrom && matchTo && matchVehicle;
-  }), [sourceTrips, fromCity, toCity, vehicleType]);
-
-  const matchedParcels = useMemo(() => sourceParcels.filter((p: Parcel) => {
-    const matchFrom = !fromCity || p.fromCity.toLowerCase().includes(fromCity.toLowerCase());
-    const matchTo = !toCity || p.toCity.toLowerCase().includes(toCity.toLowerCase());
-    return matchFrom && matchTo;
-  }), [sourceParcels, fromCity, toCity]);
-
-  // Sort results
-  type SearchItem = { type: 'trip'; data: Trip } | { type: 'parcel'; data: Parcel };
-  const sortResults = useCallback((items: SearchItem[]): SearchItem[] => {
-    return [...items].sort((a, b) => {
-      switch (sortBy) {
-        case 'price_low': {
-          const priceA = a.type === 'trip' ? a.data.pricePerKg : a.data.priceOffer;
-          const priceB = b.type === 'trip' ? b.data.pricePerKg : b.data.priceOffer;
-          return priceA - priceB;
-        }
-        case 'price_high': {
-          const priceA = a.type === 'trip' ? a.data.pricePerKg : a.data.priceOffer;
-          const priceB = b.type === 'trip' ? b.data.pricePerKg : b.data.priceOffer;
-          return priceB - priceA;
-        }
-        case 'rating_best': {
-          const ratingA = a.type === 'trip' ? a.data.userRating : 0;
-          const ratingB = b.type === 'trip' ? b.data.userRating : 0;
-          return ratingB - ratingA;
-        }
-        case 'date_nearest': {
-          const getDateMs = (item: SearchItem): number => {
-            if (item.type === 'trip') {
-              const d = new Date(item.data.date).getTime();
-              return isNaN(d) ? new Date(item.data.createdAt).getTime() : d;
-            } else {
-              const d = item.data.deliveryDate ? new Date(item.data.deliveryDate).getTime() : NaN;
-              return isNaN(d) ? new Date(item.data.createdAt).getTime() : d;
-            }
-          };
-          const timeA = getDateMs(a);
-          const timeB = getDateMs(b);
-          return timeA - timeB;
-        }
-        default:
-          return new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime();
-      }
+  const { matchedTrips, matchedParcels } = useMemo(() => {
+    return filterSearchResults(trips, parcels, {
+      fromCity,
+      toCity,
+      vehicleType,
+      excludeUserId: user?.id,
     });
-  }, [sortBy]);
+  }, [trips, parcels, fromCity, toCity, vehicleType, user?.id]);
 
-  const allResults: SearchItem[] = useMemo(() => sortResults([
-    ...matchedTrips.map((t: Trip) => ({ type: 'trip' as const, data: t })),
-    ...matchedParcels.map((p: Parcel) => ({ type: 'parcel' as const, data: p })),
-  ]), [matchedTrips, matchedParcels, sortResults]);
+  const allResults: SearchItem[] = useMemo(() => {
+    return sortSearchResults(
+      [
+        ...matchedTrips.map((t: Trip) => ({ type: 'trip' as const, data: t })),
+        ...matchedParcels.map((p: Parcel) => ({ type: 'parcel' as const, data: p })),
+      ],
+      sortBy
+    );
+  }, [matchedTrips, matchedParcels, sortBy]);
 
   const displayResults: SearchItem[] = useMemo(() => {
-    if (tab === 'trips') return sortResults(matchedTrips.map((t: Trip) => ({ type: 'trip' as const, data: t })));
-    if (tab === 'parcels') return sortResults(matchedParcels.map((p: Parcel) => ({ type: 'parcel' as const, data: p })));
+    if (tab === 'trips') {
+      return sortSearchResults(
+        matchedTrips.map((t: Trip) => ({ type: 'trip' as const, data: t })),
+        sortBy
+      );
+    }
+    if (tab === 'parcels') {
+      return sortSearchResults(
+        matchedParcels.map((p: Parcel) => ({ type: 'parcel' as const, data: p })),
+        sortBy
+      );
+    }
     return allResults;
-  }, [allResults, matchedParcels, matchedTrips, sortResults, tab]);
+  }, [allResults, matchedParcels, matchedTrips, sortBy, tab]);
 
   const fromSuggestions = useMemo(() => {
     if (!fromCity || fromCity.length === 0) return [];
@@ -279,11 +248,12 @@ export default function SearchScreen() {
     setSubscribing(true);
     const { data } = await createSubscription(user.id, fromCity, toCity);
     setSubscribing(false);
+    const msgs = formatRouteSubscriptionMessage(fromCity, toCity);
     if (data) {
       Haptic.success();
-      showAlert('Route Alert Created!', `You'll be notified when trips or parcels appear on  → .`);
+      showAlert('Route Alert Created!', msgs.createdMessage);
     } else {
-      showAlert('Already Subscribed', `You already have an alert for  → .`);
+      showAlert('Already Subscribed', msgs.alreadySubscribedMessage);
     }
   };
 
@@ -333,7 +303,7 @@ export default function SearchScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Search Routes</Text>
               <Text style={[styles.headerSub, { color: C.textMuted }]}>
-                {sourceTrips.length + sourceParcels.length} listings available
+                {trips.length + parcels.length} listings available
               </Text>
             </View>
             {/* View mode toggle */}
@@ -662,16 +632,36 @@ export default function SearchScreen() {
                     No listings on this route right now.
                   </Text>
                   {fromCity && toCity ? (
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.emptySubscribeBtn,
-                        { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1 },
-                      ]}
-                      onPress={handleSubscribe}
-                    >
-                      <Ionicons name="notifications" size={15} color="#fff" />
-                      <Text style={styles.emptySubscribeBtnText}>Get Notified When Available</Text>
-                    </Pressable>
+                    <View style={localStyles.emptyActionsWrap}>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.emptySubscribeBtn,
+                          { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1 },
+                        ]}
+                        onPress={handleSubscribe}
+                      >
+                        <Ionicons name="notifications" size={15} color="#fff" />
+                        <Text style={styles.emptySubscribeBtnText}>Get Notified When Available</Text>
+                      </Pressable>
+
+                      <View style={localStyles.emptyShortcutsRow}>
+                        <Pressable
+                          style={[localStyles.shortcutBtn, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}
+                          onPress={() => router.push({ pathname: '/create-parcel', params: { fromCity, toCity } })}
+                        >
+                          <MaterialIcons name="inventory-2" size={13} color={C.primary} />
+                          <Text style={[localStyles.shortcutBtnText, { color: C.primary }]}>List Parcel</Text>
+                        </Pressable>
+
+                        <Pressable
+                          style={[localStyles.shortcutBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+                          onPress={() => router.push({ pathname: '/create-trip', params: { fromCity, toCity } })}
+                        >
+                          <MaterialIcons name="directions-car" size={13} color={C.textPrimary} />
+                          <Text style={[localStyles.shortcutBtnText, { color: C.textPrimary }]}>Offer Trip</Text>
+                        </Pressable>
+                      </View>
+                    </View>
                   ) : null}
                 </View>
               ) : null}
@@ -832,5 +822,30 @@ const localStyles = StyleSheet.create({
   refreshText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  emptyActionsWrap: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 6,
+  },
+  emptyShortcutsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  shortcutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  shortcutBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
 });

@@ -283,9 +283,11 @@ export function InteractiveRouteCard({
       {/* Errors or Location Hint */}
       {fromError ? (
         <Text style={[styles.errorText, { color: C.error }]}>{fromError}</Text>
-      ) : toError ? (
+      ) : null}
+      {toError ? (
         <Text style={[styles.errorText, { color: C.error }]}>{toError}</Text>
-      ) : locationHint ? (
+      ) : null}
+      {!fromError && !toError && locationHint ? (
         <Text
           style={[
             styles.hintText,
@@ -314,6 +316,7 @@ export function InteractiveRouteCard({
             : 'Choose where the package needs to be delivered'
         }
         selectedCity={modalField === 'from' ? fromCity : toCity}
+        oppositeCity={modalField === 'from' ? toCity : fromCity}
         dotColor={modalField === 'from' ? '#10B981' : '#EF4444'}
         onUseCurrentLocation={modalField === 'from' ? onUseCurrentLocation : undefined}
         isDetectingLocation={isDetectingCurrentLocation}

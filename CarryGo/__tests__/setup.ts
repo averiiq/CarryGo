@@ -90,4 +90,71 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
 }));
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }),
+  useSafeAreaFrame: () => ({ x: 0, y: 0, width: 390, height: 844 }),
+  SafeAreaProvider: ({ children }: any) => children,
+  SafeAreaView: ({ children }: any) => children,
+}));
 
+jest.mock('react-native-gesture-handler', () => {
+  const React = require('react');
+  const View = require('react-native').View;
+  return {
+    GestureDetector: ({ children }: any) => children,
+    Gesture: {
+      Pan: () => ({
+        onUpdate: () => ({ onEnd: () => ({}) }),
+      }),
+    },
+    GestureHandlerRootView: View,
+  };
+});
+
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MockComponent = (props: any) => React.createElement(View, props);
+  return {
+    __esModule: true,
+    default: MockComponent,
+    Svg: MockComponent,
+    Circle: MockComponent,
+    Ellipse: MockComponent,
+    G: MockComponent,
+    Text: MockComponent,
+    TSpan: MockComponent,
+    TextPath: MockComponent,
+    Path: MockComponent,
+    Polygon: MockComponent,
+    Polyline: MockComponent,
+    Line: MockComponent,
+    Rect: MockComponent,
+    Use: MockComponent,
+    Image: MockComponent,
+    Symbol: MockComponent,
+    Defs: MockComponent,
+    LinearGradient: MockComponent,
+    RadialGradient: MockComponent,
+    Stop: MockComponent,
+    ClipPath: MockComponent,
+    Pattern: MockComponent,
+    Mask: MockComponent,
+  };
+});
+
+jest.mock('react-native-reanimated', () => {
+  try {
+    return require('react-native-reanimated/mock');
+  } catch {
+    return {};
+  }
+});
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    Image: (props: any) => React.createElement(View, props),
+    default: (props: any) => React.createElement(View, props),
+  };
+});

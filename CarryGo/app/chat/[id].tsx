@@ -275,6 +275,9 @@ const ChatInputBar = React.memo(function ChatInputBar({
   );
 });
 
+import { ChatHeaderMeta, getChatHeaderMeta } from '@/components/feature/chat/chatHeaderMeta';
+export { ChatHeaderMeta, getChatHeaderMeta };
+
 export default function ChatScreen() {
   const { id: rawId, conversationId: rawConversationId } = useLocalSearchParams<{ id?: string | string[]; conversationId?: string | string[] }>();
   const resolvedId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -287,7 +290,7 @@ export default function ChatScreen() {
   const { mutateAsync: markMessagesReadAsync } = useMarkMessagesReadMutation(user?.id);
   const { mutateAsync: deleteConversationAsync } = useDeleteConversationMutation(user?.id);
   const { showAlert } = useAlert();
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const insets = useSafeAreaInsets();
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const flatListRef = useRef<FlatList<ListItem>>(null);
@@ -297,7 +300,9 @@ export default function ChatScreen() {
   const conversations = user ? conversationsQuery.data ?? [] : [];
   const conversation = conversations.find(c => c.id === id);
   const requestQuery = useRequestQuery(conversation?.requestId);
-  const isDeliveryCompleted = requestQuery.data?.status === 'completed';
+  const requestStatus = requestQuery.data?.status;
+  const isDeliveryCompleted = requestStatus === 'completed';
+  const headerMeta = getChatHeaderMeta(requestStatus, isDeliveryCompleted, conversation?.requestId, isDark);
   const chatMessages: ChatMessage[] = (messagesQuery.data?.pages ?? []).flatMap(page => page.items);
 
   const myId = user?.id || '';
@@ -552,17 +557,21 @@ export default function ChatScreen() {
           style={[
             styles.deliveryCTA,
             {
-              backgroundColor: isDeliveryCompleted ? C.successSubtle : C.surface,
-              borderColor: C.surfaceBorder,
+              backgroundColor: isDeliveryCompleted
+                ? C.successSubtle
+                : headerMeta.isPending
+                ? C.warningSubtle
+                : C.surface,
+              borderColor: headerMeta.isPending ? C.warningBorder : C.surfaceBorder,
             },
           ]}
-          onPress={() => router.push({ pathname: '/delivery/[id]', params: { id: conversation.requestId } })}
+          onPress={() => router.push(headerMeta.actionRoute as never)}
         >
-          <View style={[styles.deliveryCTAIconBox, { backgroundColor: isDeliveryCompleted ? C.success + '20' : C.primarySubtle }]}>
+          <View style={[styles.deliveryCTAIconBox, { backgroundColor: headerMeta.iconBg }]}>
             <MaterialIcons
-              name={isDeliveryCompleted ? 'verified' : 'local-shipping'}
+              name={headerMeta.icon}
               size={18}
-              color={isDeliveryCompleted ? C.success : C.primary}
+              color={headerMeta.iconColor}
             />
           </View>
           <View style={{ flex: 1 }}>
@@ -571,26 +580,63 @@ export default function ChatScreen() {
                 {conversation.route || 'Delivery Route'}
               </Text>
               {requestQuery.data?.price ? (
-                <View style={[styles.feePill, { backgroundColor: C.successSubtle }]}>
-                  <Text style={[styles.feePillText, { color: C.success }]}>₹{requestQuery.data.price}</Text>
+                <View
+                  style={[
+                    styles.feePill,
+                    { backgroundColor: headerMeta.isPending ? C.warningSubtle : C.successSubtle },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.feePillText,
+                      { color: headerMeta.isPending ? C.warning : C.success },
+                    ]}
+                  >
+                    ₹{requestQuery.data.price}
+                  </Text>
                 </View>
               ) : null}
             </View>
             <Text style={[styles.deliveryCTASub, { color: C.textMuted }]} numberOfLines={1}>
-              {isDeliveryCompleted ? 'Delivery completed & verified' : 'Tap to track live parcel progress'}
+              {headerMeta.subtitle}
             </Text>
           </View>
-          <View style={[styles.trackNavBtn, { backgroundColor: C.primarySubtle }]}>
-            <Text style={[styles.trackNavBtnText, { color: C.primary }]}>
-              {isDeliveryCompleted ? 'View' : 'Track'}
+          <View
+            style={[
+              styles.trackNavBtn,
+              { backgroundColor: headerMeta.isPending ? C.warningSubtle : C.primarySubtle },
+            ]}
+          >
+            <Text
+              style={[
+                styles.trackNavBtnText,
+                { color: headerMeta.isPending ? C.warning : C.primary },
+              ]}
+            >
+              {headerMeta.actionText}
             </Text>
             <MaterialIcons
               name="chevron-right"
               size={14}
-              color={C.primary}
+              color={headerMeta.isPending ? C.warning : C.primary}
             />
           </View>
         </Pressable>
+      ) : null}
+
+      {/* Trust & Safety Banner for Pending Requests */}
+      {headerMeta.isPending ? (
+        <View
+          style={[
+            styles.preAcceptTrustBanner,
+            { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+          ]}
+        >
+          <MaterialIcons name="shield" size={14} color={C.primary} />
+          <Text style={[styles.preAcceptTrustText, { color: C.textSecondary }]}>
+            Pre-acceptance inquiry • Coordinate details safely. Payments and handover OTP remain protected in CarryGo escrow.
+          </Text>
+        </View>
       ) : null}
 
       <AppErrorBoundary>
@@ -906,5 +952,22 @@ const styles = StyleSheet.create({
   concludedDeleteBtnText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
+  },
+  preAcceptTrustBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  preAcceptTrustText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    lineHeight: 16,
   },
 });

@@ -167,11 +167,30 @@ export function RequestDetailModal({
                 }}
                 style={[styles.counterpartChatBtn, { backgroundColor: C.primary }]}
                 hitSlop={TouchTarget.smallHitSlop}
+                accessibilityRole="button"
+                accessibilityLabel={`Chat with ${vm.personName}${request.status === 'pending' ? ' before accepting' : ''}`}
               >
                 <Ionicons name="chatbubble-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.counterpartChatText}>Chat</Text>
+                <Text style={styles.counterpartChatText}>
+                  {request.status === 'pending' ? 'Chat Directly' : 'Chat'}
+                </Text>
               </Pressable>
             </View>
+
+            {/* Pre-acceptance Guidance Banner */}
+            {request.status === 'pending' && (
+              <View
+                style={[
+                  styles.preAcceptHint,
+                  { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder },
+                ]}
+              >
+                <Ionicons name="information-circle-outline" size={15} color={C.primary} />
+                <Text style={[styles.preAcceptHintText, { color: C.textPrimary }]}>
+                  You can chat freely to coordinate route compatibility, parcel size, or pickup timing before accepting.
+                </Text>
+              </View>
+            )}
 
             {/* Fare Spotlight */}
             <View style={[styles.fareBox, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
@@ -486,6 +505,20 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: FontWeight.bold,
     color: '#FFFFFF',
+  },
+  preAcceptHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  preAcceptHintText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    lineHeight: 17,
   },
   fareBox: {
     flexDirection: 'row',

@@ -19,6 +19,37 @@ export interface RequestItemProps {
   onPayment: () => void;
 }
 
+export interface RequestItemActions {
+  canChat: boolean;
+  canAccept: boolean;
+  canReject: boolean;
+  canEscrowPayment: boolean;
+  canTrackDelivery: boolean;
+  isCompleted: boolean;
+  chatLabel: string;
+}
+
+export function getRequestItemActions(
+  status: Request['status'],
+  viewerRole: 'traveller' | 'sender' | 'observer'
+): RequestItemActions {
+  const isTraveller = viewerRole === 'traveller';
+  const isSender = viewerRole === 'sender';
+  const isPending = status === 'pending';
+  const isAccepted = status === 'accepted';
+  const isCompleted = status === 'completed';
+
+  return {
+    canChat: isPending || isAccepted,
+    canAccept: isTraveller && isPending,
+    canReject: isTraveller && isPending,
+    canEscrowPayment: isSender && isAccepted,
+    canTrackDelivery: isAccepted,
+    isCompleted,
+    chatLabel: isPending && isSender ? 'Chat with Traveler' : 'Chat',
+  };
+}
+
 export function RequestItem({
   request,
   parcel,
@@ -30,6 +61,7 @@ export function RequestItem({
   onPayment,
 }: RequestItemProps) {
   const { C } = useThemeColors();
+  const actions = getRequestItemActions(request.status, viewerRole);
   const isTraveller = viewerRole === 'traveller';
   const isSender = viewerRole === 'sender';
   const isPending = request.status === 'pending';
@@ -106,35 +138,53 @@ export function RequestItem({
       ) : null}
 
       {/* Action Buttons */}
-      {isTraveller && isPending ? (
+      {isPending ? (
         <View style={styles.actionsRow}>
           <Pressable
             style={({ pressed }) => [
-              styles.declineBtn,
-              { borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.7 }
+              styles.secondaryActionBtn,
+              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.75 }
             ]}
-            onPress={onReject}
+            onPress={onChat}
           >
-            <Text style={[styles.declineText, { color: C.textSecondary }]}>Decline</Text>
+            <Ionicons name="chatbubble-outline" size={15} color={C.textPrimary} />
+            <Text style={[styles.secondaryActionText, { color: C.textPrimary }]}>
+              {isSender ? 'Chat with Traveler' : 'Chat'}
+            </Text>
           </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.acceptBtn,
-              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
-            ]}
-            onPress={onAccept}
-          >
-            <LinearGradient
-              colors={[C.primary, C.primaryDark]}
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            />
-            <MaterialIcons name="check" size={16} color="#fff" />
-            <Text style={styles.acceptText}>Accept Delivery</Text>
-          </Pressable>
+          {isTraveller ? (
+            <>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.declineBtn,
+                  { borderColor: C.surfaceBorder },
+                  pressed && { opacity: 0.7 }
+                ]}
+                onPress={onReject}
+              >
+                <Text style={[styles.declineText, { color: C.textSecondary }]}>Decline</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.acceptBtn,
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+                ]}
+                onPress={onAccept}
+              >
+                <LinearGradient
+                  colors={[C.primary, C.primaryDark]}
+                  style={StyleSheet.absoluteFillObject}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                />
+                <MaterialIcons name="check" size={16} color="#fff" />
+                <Text style={styles.acceptText}>Accept</Text>
+              </Pressable>
+            </>
+          ) : null}
         </View>
       ) : null}
 
@@ -314,7 +364,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
   acceptBtn: {
-    flex: 2,
+    flex: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -334,7 +384,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
   },

@@ -1,19 +1,81 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Trip, Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-const vehicleConfig: Record<string, { icon: keyof typeof MaterialIcons.glyphMap; color: string; bg: string; border: string }> = {
-  bike: { icon: 'two-wheeler', color: '#D97706', bg: '#FEF3C7', border: '#FDE68A' },
-  car: { icon: 'directions-car', color: '#0284C7', bg: '#E0F2FE', border: '#BAE6FD' },
-  bus: { icon: 'directions-bus', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },
-  train: { icon: 'train', color: '#0D9488', bg: '#CCFBF1', border: '#99F6E4' },
-  flight: { icon: 'flight', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+export const VEHICLE_CONFIG: Record<
+  string,
+  {
+    icon: keyof typeof MaterialIcons.glyphMap;
+    color: string;
+    bg: string;
+    border: string;
+    label: string;
+  }
+> = {
+  bike: { icon: 'two-wheeler', color: '#D97706', bg: '#FEF3C7', border: '#FDE68A', label: 'Bike' },
+  car: { icon: 'directions-car', color: '#0284C7', bg: '#E0F2FE', border: '#BAE6FD', label: 'Car' },
+  bus: { icon: 'directions-bus', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', label: 'Bus' },
+  train: { icon: 'train', color: '#0D9488', bg: '#CCFBF1', border: '#99F6E4', label: 'Train' },
+  flight: { icon: 'flight', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', label: 'Flight' },
 };
 
-interface TripCardProps {
+export function getVehicleMeta(vehicleType?: string, isDark: boolean = false) {
+  const key = (vehicleType || 'car').toLowerCase();
+  const base = VEHICLE_CONFIG[key] || VEHICLE_CONFIG.car;
+  return {
+    ...base,
+    label: (vehicleType || 'car').toUpperCase(),
+    bg: isDark ? base.color + '22' : base.bg,
+    border: isDark ? base.color + '44' : base.border,
+  };
+}
+
+export function formatTripRating(rating?: number): {
+  hasRating: boolean;
+  formatted: string;
+  numeric: number;
+} {
+  const hasRating = typeof rating === 'number' && !isNaN(rating) && rating > 0;
+  return {
+    hasRating,
+    formatted: hasRating ? rating.toFixed(1) : 'NEW',
+    numeric: hasRating ? rating : 0,
+  };
+}
+
+export function getTripAccessibilityLabel(
+  trip: Trip,
+  options: { isOwner?: boolean; existingRequest?: Request | null } = {}
+): string {
+  const { isOwner, existingRequest } = options;
+  const userName = (trip.userName || 'User').trim();
+  const { hasRating, numeric } = formatTripRating(trip.userRating);
+  const fromCity = trip.fromCity || 'Origin';
+  const toCity = trip.toCity || 'Destination';
+  const availableCapacity = typeof trip.availableCapacity === 'number' ? trip.availableCapacity : 0;
+  const pricePerKg = typeof trip.pricePerKg === 'number' ? trip.pricePerKg : 0;
+  const vehicleLabel = (trip.vehicleType || 'car').toLowerCase();
+
+  return [
+    isOwner ? 'Your trip' : `Trip by ${userName}`,
+    hasRating ? `rated ${numeric.toFixed(1)} stars` : '',
+    `from ${fromCity} to ${toCity}`,
+    trip.date ? `on ${trip.date}` : '',
+    trip.time ? `at ${trip.time}` : '',
+    `${availableCapacity} kilograms available capacity`,
+    `price ₹${pricePerKg} per kilogram`,
+    `traveling by ${vehicleLabel}`,
+    existingRequest?.status ? `request status: ${existingRequest.status}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
+export interface TripCardProps {
   trip: Trip;
   matchScore?: number;
   onMatchPress?: () => void;
@@ -34,6 +96,7 @@ export const TripCard = React.memo(function TripCard({
   onPress,
   showRequestButton,
   onRequest,
+  compact = false,
   isOwner,
   existingRequest,
   onTrackDelivery,
@@ -44,38 +107,20 @@ export const TripCard = React.memo(function TripCard({
 
   if (!trip) return null;
 
-  const vehicleTypeKey = (trip.vehicleType || 'car').toLowerCase();
-  const baseVMeta = vehicleConfig[vehicleTypeKey] || vehicleConfig.car;
-  const vMeta = {
-    ...baseVMeta,
-    bg: isDark ? baseVMeta.color + '22' : baseVMeta.bg,
-    border: isDark ? baseVMeta.color + '44' : baseVMeta.border,
-  };
-  const vehicleLabel = (trip.vehicleType || 'CAR').toUpperCase();
-
+  const vMeta = getVehicleMeta(trip.vehicleType, isDark);
   const rawName = trip.userName || 'User';
   const userName = rawName.trim();
   const avatarLetter = (userName.charAt(0) || 'U').toUpperCase();
 
-  const hasRating = typeof trip.userRating === 'number' && !isNaN(trip.userRating) && trip.userRating > 0;
-  const userRating = hasRating ? trip.userRating : 0;
+  const { hasRating, formatted: ratingText, numeric: userRating } = formatTripRating(trip.userRating);
 
   const fromCity = trip.fromCity || 'Origin';
   const toCity = trip.toCity || 'Destination';
   const availableCapacity = typeof trip.availableCapacity === 'number' ? trip.availableCapacity : 0;
   const pricePerKg = typeof trip.pricePerKg === 'number' ? trip.pricePerKg : 0;
+  const isLowCapacity = availableCapacity <= 2 && availableCapacity > 0;
 
-  const tripAccessibilityLabel = [
-    isOwner ? 'Your trip' : `Trip by ${userName}`,
-    hasRating ? `rated ${userRating.toFixed(1)} stars` : '',
-    `from ${fromCity} to ${toCity}`,
-    trip.date ? `on ${trip.date}` : '',
-    trip.time ? `at ${trip.time}` : '',
-    `${availableCapacity} kilograms available capacity`,
-    `price ₹${pricePerKg} per kilogram`,
-    `traveling by ${vehicleLabel.toLowerCase()}`,
-    existingRequest?.status ? `request status: ${existingRequest.status}` : '',
-  ].filter(Boolean).join(', ');
+  const tripAccessibilityLabel = getTripAccessibilityLabel(trip, { isOwner, existingRequest });
 
   const onPressIn = () =>
     Animated.spring(scale, { toValue: 0.985, useNativeDriver: true, ...Motion.springFast }).start();
@@ -90,12 +135,20 @@ export const TripCard = React.memo(function TripCard({
       accessible={true}
       accessibilityRole="button"
       accessibilityLabel={tripAccessibilityLabel}
-      accessibilityHint={isOwner ? "Double tap to view and manage your trip" : "Double tap to view trip details and send request"}
-      style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}
+      accessibilityHint={
+        isOwner
+          ? 'Double tap to view and manage your trip'
+          : 'Double tap to view trip details and send request'
+      }
+      style={{
+        marginHorizontal: compact ? Spacing.xs : Spacing.md,
+        marginBottom: compact ? Spacing.sm : Spacing.md,
+      }}
     >
       <Animated.View
         style={[
           styles.card,
+          compact && styles.cardCompact,
           S.card,
           {
             backgroundColor: C.card,
@@ -104,79 +157,129 @@ export const TripCard = React.memo(function TripCard({
           },
         ]}
       >
+        {/* Top Header: Traveler Profile & Transport Pill */}
         <View style={styles.topRow}>
           <View style={styles.userSection}>
             <View
               style={[
                 styles.avatar,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 }
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 },
               ]}
             >
-              <Text style={[styles.avatarLetter, { color: C.primary }]}>
-                {avatarLetter}
-              </Text>
+              {trip.userAvatar ? (
+                <Image
+                  source={{ uri: trip.userAvatar }}
+                  style={styles.avatarImage}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <Text style={[styles.avatarLetter, { color: C.primary }]}>{avatarLetter}</Text>
+              )}
             </View>
+
             <View style={styles.userMeta}>
               <View style={styles.nameBadgeRow}>
                 <Text style={[styles.userName, { color: C.textPrimary }]} numberOfLines={1}>
                   {isOwner ? 'You' : userName}
                 </Text>
+
                 {isOwner ? (
-                  <View style={[styles.ownerBadge, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder },
+                    ]}
+                  >
                     <MaterialIcons name="person" size={10} color={C.primary} style={{ marginRight: 2 }} />
-                    <Text style={[styles.ownerBadgeText, { color: C.primary }]}>Your Trip</Text>
+                    <Text style={[styles.statusPillText, { color: C.primary }]}>Your Trip</Text>
                   </View>
                 ) : existingRequest?.status === 'accepted' ? (
-                  <View style={[styles.ownerBadge, { backgroundColor: C.successSubtle, borderColor: C.successBorder }]}>
-                    <Text style={[styles.ownerBadgeText, { color: C.success }]}>Accepted</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      { backgroundColor: C.successSubtle, borderColor: C.successBorder },
+                    ]}
+                  >
+                    <Text style={[styles.statusPillText, { color: C.success }]}>Accepted</Text>
                   </View>
                 ) : existingRequest?.status === 'pending' ? (
-                  <View style={[styles.ownerBadge, { backgroundColor: C.warningSubtle, borderColor: C.warningBorder }]}>
-                    <Text style={[styles.ownerBadgeText, { color: C.warning }]}>Requested</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      { backgroundColor: C.warningSubtle, borderColor: C.warningBorder },
+                    ]}
+                  >
+                    <Text style={[styles.statusPillText, { color: C.warning }]}>Requested</Text>
                   </View>
                 ) : null}
               </View>
+
               {hasRating ? (
                 <View style={styles.ratingBadge}>
                   <Ionicons name="star" size={11} color="#F59E0B" />
-                  <Text style={[styles.ratingText, { color: C.textSecondary }]}>
-                    {userRating.toFixed(1)}
-                  </Text>
+                  <Text style={[styles.ratingText, { color: C.textSecondary }]}>{ratingText}</Text>
                 </View>
               ) : (
-                <View style={[styles.newBadge, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <View
+                  style={[
+                    styles.newBadge,
+                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  ]}
+                >
                   <Text style={[styles.newBadgeText, { color: C.textMuted }]}>NEW</Text>
                 </View>
               )}
             </View>
           </View>
 
-          <View style={[styles.vehicleChip, { backgroundColor: vMeta.bg, borderColor: vMeta.border }]}>
+          {/* Vehicle Mode Badge */}
+          <View
+            style={[
+              styles.vehicleChip,
+              { backgroundColor: vMeta.bg, borderColor: vMeta.border },
+            ]}
+          >
             <MaterialIcons name={vMeta.icon} size={13} color={vMeta.color} />
-            <Text style={[styles.vehicleLabel, { color: vMeta.color }]}>
-              {vehicleLabel}
-            </Text>
+            <Text style={[styles.vehicleLabel, { color: vMeta.color }]}>{vMeta.label}</Text>
           </View>
         </View>
 
-        <View style={[styles.routeContainer, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+        {/* Route Corridor (BlaBlaCar-Inspired Direct Legibility) */}
+        <View
+          style={[
+            styles.routeContainer,
+            compact && styles.routeContainerCompact,
+            { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+          ]}
+        >
+          {/* Origin */}
           <View style={styles.cityBlock}>
             <View style={styles.cityIndicatorRow}>
               <View style={[styles.routeDot, { backgroundColor: C.primary }]} />
-              <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
+              <Text style={[styles.cityLabel, { color: C.textMuted }]}>
+                {trip.time ? trip.time.toUpperCase() : 'FROM'}
+              </Text>
             </View>
             <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
               {fromCity}
             </Text>
           </View>
 
+          {/* Route Arrow Line */}
           <View style={styles.arrowBlock}>
             <View style={[styles.arrowLine, { borderColor: C.surfaceBorder }]} />
-            <View style={[styles.arrowIconCircle, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <View
+              style={[
+                styles.arrowIconCircle,
+                { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              ]}
+            >
               <MaterialIcons name="east" size={13} color={C.primary} />
             </View>
           </View>
 
+          {/* Destination */}
           <View style={[styles.cityBlock, { alignItems: 'flex-end' }]}>
             <View style={[styles.cityIndicatorRow, { justifyContent: 'flex-end' }]}>
               <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
@@ -188,21 +291,49 @@ export const TripCard = React.memo(function TripCard({
           </View>
         </View>
 
+        {/* Specs Highlights: Date, Capacity, Match Score */}
         <View style={styles.specsRow}>
           <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
             <Ionicons name="calendar-outline" size={12} color={C.textSecondary} />
             <Text style={[styles.specText, { color: C.textSecondary }]}>{trip.date}</Text>
           </View>
 
-          <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
-            <Ionicons name="time-outline" size={12} color={C.textSecondary} />
-            <Text style={[styles.specText, { color: C.textSecondary }]}>{trip.time}</Text>
-          </View>
+          {Boolean(trip.time) && (
+            <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
+              <Ionicons name="time-outline" size={12} color={C.textSecondary} />
+              <Text style={[styles.specText, { color: C.textSecondary }]}>{trip.time}</Text>
+            </View>
+          )}
 
-          <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
-            <MaterialIcons name="scale" size={12} color={C.textSecondary} />
-            <Text style={[styles.specText, { color: C.textSecondary }]}>
-              {availableCapacity} kg
+          <View
+            style={[
+              styles.specItem,
+              {
+                backgroundColor: isLowCapacity
+                  ? isDark
+                    ? '#78350F33'
+                    : '#FEF3C7'
+                  : C.surfaceElevated,
+                borderColor: isLowCapacity ? '#F59E0B' : 'transparent',
+                borderWidth: isLowCapacity ? 1 : 0,
+              },
+            ]}
+          >
+            <MaterialIcons
+              name="scale"
+              size={12}
+              color={isLowCapacity ? '#D97706' : C.textSecondary}
+            />
+            <Text
+              style={[
+                styles.specText,
+                {
+                  color: isLowCapacity ? '#D97706' : C.textSecondary,
+                  fontWeight: isLowCapacity ? FontWeight.bold : FontWeight.medium,
+                },
+              ]}
+            >
+              {availableCapacity} kg left
             </Text>
           </View>
 
@@ -220,13 +351,12 @@ export const TripCard = React.memo(function TripCard({
           )}
         </View>
 
+        {/* Pricing & Contextual Action Bar */}
         <View style={[styles.footerRow, { borderTopColor: C.surfaceBorderLight }]}>
           <View style={styles.priceContainer}>
             <Text style={[styles.priceLabel, { color: C.textMuted }]}>PRICE</Text>
             <View style={styles.priceValueRow}>
-              <Text style={[styles.priceAmount, { color: C.primary }]}>
-                ₹{pricePerKg}
-              </Text>
+              <Text style={[styles.priceAmount, { color: C.primary }]}>₹{pricePerKg}</Text>
               <Text style={[styles.priceUnit, { color: C.textMuted }]}>/kg</Text>
             </View>
           </View>
@@ -280,7 +410,12 @@ export const TripCard = React.memo(function TripCard({
               <Text style={[styles.actionButtonText, { color: C.textSecondary }]}>Completed</Text>
             </Pressable>
           ) : trip.status !== 'active' ? (
-            <View style={[styles.closedChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+            <View
+              style={[
+                styles.closedChip,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              ]}
+            >
               <View style={[styles.closedDot, { backgroundColor: C.textMuted }]} />
               <Text style={[styles.closedText, { color: C.textSecondary }]}>
                 {trip.status === 'completed' ? 'Completed' : 'Cancelled'}
@@ -317,6 +452,11 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     gap: Spacing.md,
   },
+  cardCompact: {
+    borderRadius: 16,
+    padding: Spacing.sm + 2,
+    gap: Spacing.sm,
+  },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -334,14 +474,18 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
   avatarLetter: {
-    color: '#FFFFFF',
     fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
   },
@@ -355,13 +499,15 @@ const styles = StyleSheet.create({
     gap: 6,
     flexWrap: 'wrap',
   },
-  ownerBadge: {
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  ownerBadgeText: {
+  statusPillText: {
     fontSize: 10,
     fontWeight: FontWeight.bold,
     letterSpacing: LetterSpacing.wide,
@@ -381,6 +527,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   newBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
@@ -413,6 +560,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     borderRadius: 14,
     borderWidth: 1,
+  },
+  routeContainerCompact: {
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.xs + 2,
+    borderRadius: 10,
   },
   cityBlock: {
     flex: 1,

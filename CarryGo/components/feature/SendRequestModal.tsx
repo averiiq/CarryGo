@@ -15,8 +15,44 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
-function normalizeCity(val?: string) {
+export function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
+}
+
+export function calculateParcelDeliveryPrice(
+  weight: number,
+  pricePerKg?: number,
+  minFloor: number = 80
+): number {
+  const safeWeight = Math.max(0.1, weight || 0);
+  const safeRate = pricePerKg && pricePerKg > 0 ? pricePerKg : 50;
+  return Math.max(minFloor, Math.round(safeWeight * safeRate));
+}
+
+export function partitionMatchingParcels(
+  parcels: Parcel[],
+  trip: Pick<Trip, 'fromCity' | 'toCity' | 'availableCapacity'>
+): { eligible: Parcel[]; overweight: Parcel[] } {
+  const normFrom = normalizeCity(trip.fromCity);
+  const normTo = normalizeCity(trip.toCity);
+  const maxCap = trip.availableCapacity || 0;
+
+  const eligible: Parcel[] = [];
+  const overweight: Parcel[] = [];
+
+  for (const parcel of parcels) {
+    if (parcel.status !== 'open') continue;
+    if (normalizeCity(parcel.fromCity) !== normFrom || normalizeCity(parcel.toCity) !== normTo) {
+      continue;
+    }
+    if (parcel.weight <= maxCap) {
+      eligible.push(parcel);
+    } else {
+      overweight.push(parcel);
+    }
+  }
+
+  return { eligible, overweight };
 }
 
 const CATEGORY_ITEMS: { id: Parcel['category']; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
@@ -56,24 +92,18 @@ export function SendRequestModal({
   isSubmitting = false,
 }: SendRequestModalProps) {
   const { C } = useThemeColors();
+  const maxCapacity = trip?.availableCapacity || 10;
   const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
   const [bookingMode, setBookingMode] = useState<'existing' | 'quick'>('quick');
 
-  // Quick Instant Booking state
+  // Quick Instant Booking state with clamped default weight
   const [quickCategory, setQuickCategory] = useState<Parcel['category']>('documents');
-  const [quickWeight, setQuickWeight] = useState<number>(1);
+  const [quickWeight, setQuickWeight] = useState<number>(() => Math.min(1, Math.max(0.5, trip?.availableCapacity || 1)));
   const [quickDescription, setQuickDescription] = useState<string>('');
 
-  const matchingParcels = useMemo(() => {
-    if (!trip) return [];
-    return userParcels.filter((parcel) => {
-      const open = parcel.status === 'open';
-      const routeMatch =
-        normalizeCity(parcel.fromCity) === normalizeCity(trip.fromCity) &&
-        normalizeCity(parcel.toCity) === normalizeCity(trip.toCity);
-      const capacityMatch = parcel.weight <= (trip.availableCapacity || 0);
-      return open && routeMatch && capacityMatch;
-    });
+  const { eligible: matchingParcels, overweight: overweightParcels } = useMemo(() => {
+    if (!trip) return { eligible: [], overweight: [] };
+    return partitionMatchingParcels(userParcels, trip);
   }, [trip, userParcels]);
 
   useEffect(() => {
@@ -86,18 +116,24 @@ export function SendRequestModal({
     }
   }, [matchingParcels]);
 
+  const weightPresets = useMemo(() => {
+    const raw = [0.5, 1, 2, 3, 5];
+    const filtered = raw.filter((w) => w <= maxCapacity);
+    if (maxCapacity > 0.5 && !filtered.includes(maxCapacity) && maxCapacity <= 10) {
+      filtered.push(maxCapacity);
+      filtered.sort((a, b) => a - b);
+    }
+    return filtered.length > 0 ? filtered : [Math.min(0.5, maxCapacity)];
+  }, [maxCapacity]);
+
   if (!trip) return null;
 
   const selectedParcel = matchingParcels.find((p) => p.id === selectedParcelId) || matchingParcels[0];
   const calculatedCost = selectedParcel
-    ? Math.round(selectedParcel.weight * (trip.pricePerKg || 0))
+    ? calculateParcelDeliveryPrice(selectedParcel.weight, trip.pricePerKg)
     : 0;
 
-  const quickCalculatedCost = trip
-    ? Math.max(80, Math.round(quickWeight * (trip.pricePerKg || 50)))
-    : 0;
-
-  const maxCapacity = trip.availableCapacity || 10;
+  const quickCalculatedCost = calculateParcelDeliveryPrice(quickWeight, trip.pricePerKg);
 
   const handleAdjustWeight = (delta: number) => {
     Haptic.select();
@@ -248,7 +284,7 @@ export function SendRequestModal({
               <View style={styles.parcelList}>
                 {matchingParcels.map((parcel) => {
                   const isSel = selectedParcelId === parcel.id;
-                  const itemCost = Math.round(parcel.weight * (trip.pricePerKg || 0));
+                  const itemCost = calculateParcelDeliveryPrice(parcel.weight, trip.pricePerKg);
                   return (
                     <Pressable
                       key={parcel.id}
@@ -285,10 +321,28 @@ export function SendRequestModal({
                   );
                 })}
               </View>
+
+              {overweightParcels.length > 0 ? (
+                <View style={[styles.overweightNotice, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                  <MaterialIcons name="info-outline" size={14} color={C.textMuted} />
+                  <Text style={[styles.overweightNoticeText, { color: C.textMuted }]}>
+                    {overweightParcels.length} saved {overweightParcels.length === 1 ? 'parcel exceeds' : 'parcels exceed'} traveler's available capacity ({trip.availableCapacity} kg)
+                  </Text>
+                </View>
+              ) : null}
             </View>
           ) : (
             /* Quick Package Form */
             <View style={styles.sectionWrap}>
+              {overweightParcels.length > 0 ? (
+                <View style={[styles.overweightNotice, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, marginBottom: Spacing.md }]}>
+                  <MaterialIcons name="info-outline" size={14} color={C.warning} />
+                  <Text style={[styles.overweightNoticeText, { color: C.textSecondary }]}>
+                    Your saved {overweightParcels.length === 1 ? 'parcel' : 'parcels'} on this route exceed the traveler's space ({trip.availableCapacity} kg). Specify a package that fits below:
+                  </Text>
+                </View>
+              ) : null}
+
               <Text style={[styles.sectionHeading, { color: C.textPrimary }]}>Package Category</Text>
               <View style={styles.categoryGrid}>
                 {CATEGORY_ITEMS.map((cat) => {
@@ -355,9 +409,8 @@ export function SendRequestModal({
 
                 {/* Quick Weight Chips */}
                 <View style={styles.chipRow}>
-                  {[0.5, 1, 2, 3, 5].map((w) => {
+                  {weightPresets.map((w) => {
                     const isSel = quickWeight === w;
-                    if (w > maxCapacity) return null;
                     return (
                       <Pressable
                         key={w}
@@ -761,5 +814,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: FontSize.sm + 1,
     fontWeight: FontWeight.bold,
+  },
+  overweightNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  overweightNoticeText: {
+    fontSize: FontSize.xs - 1,
+    flex: 1,
   },
 });

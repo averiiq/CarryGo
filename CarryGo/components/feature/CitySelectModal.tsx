@@ -26,6 +26,7 @@ export interface CitySelectModalProps {
   subtitle?: string;
   selectedCity?: string;
   dotColor?: string;
+  oppositeCity?: string;
   onUseCurrentLocation?: () => void;
   isDetectingLocation?: boolean;
 }
@@ -52,6 +53,7 @@ export function CitySelectModal({
   subtitle,
   selectedCity,
   dotColor = '#10B981',
+  oppositeCity,
   onUseCurrentLocation,
   isDetectingLocation = false,
 }: CitySelectModalProps) {
@@ -88,11 +90,15 @@ export function CitySelectModal({
 
   const handleSelectCity = useCallback(
     (cityName: string) => {
+      if (oppositeCity && oppositeCity.trim().toLowerCase() === cityName.trim().toLowerCase()) {
+        Haptic.warning();
+        return;
+      }
       Haptic.select();
       onSelect(cityName);
       onClose();
     },
-    [onSelect, onClose]
+    [onSelect, onClose, oppositeCity]
   );
 
   const handleUseGps = useCallback(() => {
@@ -105,46 +111,56 @@ export function CitySelectModal({
   const renderCityItem = useCallback(
     ({ item }: { item: IndianCity }) => {
       const isSelected = selectedCity?.toLowerCase() === item.name.toLowerCase();
+      const isOpposite = Boolean(
+        oppositeCity && oppositeCity.trim().toLowerCase() === item.name.toLowerCase()
+      );
 
       return (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Select ${item.name}`}
+          accessibilityLabel={`Select ${item.name}${isOpposite ? ' - already chosen as opposite stop' : ''}`}
+          accessibilityState={{ disabled: isOpposite }}
+          disabled={isOpposite}
           onPress={() => handleSelectCity(item.name)}
           style={({ pressed }) => [
             styles.cityRow,
             { borderBottomColor: C.surfaceBorderLight },
             isSelected && { backgroundColor: C.primarySubtle },
-            pressed && { backgroundColor: C.surfaceElevated },
+            isOpposite && { opacity: 0.45 },
+            pressed && !isOpposite && { backgroundColor: C.surfaceElevated },
           ]}
         >
           <View style={[styles.cityIconWrap, { backgroundColor: isSelected ? C.primary : C.surfaceElevated }]}>
             <MaterialIcons
               name="location-on"
               size={18}
-              color={isSelected ? '#fff' : dotColor}
+              color={isSelected ? '#fff' : isOpposite ? C.textMuted : dotColor}
             />
           </View>
 
           <View style={styles.cityInfo}>
-            <Text style={[styles.cityName, { color: C.textPrimary }]}>
+            <Text style={[styles.cityName, { color: isOpposite ? C.textMuted : C.textPrimary }]}>
               {item.name}
             </Text>
             <Text style={[styles.cityState, { color: C.textMuted }]}>
-              {item.state || 'Haryana Corridor'}
-              {item.tier ? ` • ${item.tier.toUpperCase()}` : ''}
+              {isOpposite
+                ? 'Already chosen as other endpoint'
+                : item.state || 'Haryana Corridor'}
+              {!isOpposite && item.tier ? ` • ${item.tier.toUpperCase()}` : ''}
             </Text>
           </View>
 
           {isSelected ? (
             <MaterialIcons name="check-circle" size={20} color={C.primary} />
+          ) : isOpposite ? (
+            <MaterialIcons name="block" size={16} color={C.textMuted} />
           ) : (
             <MaterialIcons name="north-west" size={16} color={C.textMuted} style={{ opacity: 0.6 }} />
           )}
         </Pressable>
       );
     },
-    [C, dotColor, handleSelectCity, selectedCity]
+    [C, dotColor, handleSelectCity, oppositeCity, selectedCity]
   );
 
   return (

@@ -6,10 +6,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
-import { Button, Input, KeyboardAwareScrollView, InteractiveRouteCard } from '@/components';
-import { DigitalWaybillCard } from '@/components/feature/DigitalWaybillCard';
+import { Button, Input, KeyboardAwareScrollView } from '@/components';
 import { WizardContainer } from '@/components/feature/WizardContainer';
 import { formatScheduleDate, SevenDaySchedulePicker, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
+import {
+  TripRouteStep,
+  TripDetailsStep,
+  TripReviewStep,
+  VEHICLES,
+  VEHICLE_MAX_CAPACITY,
+} from '@/components/feature/trip';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFormDraft } from '@/hooks/useFormDraft';
 import { VehicleType } from '@/types';
@@ -19,44 +25,15 @@ import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
-import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
 import { findCity, getDistance } from '@/constants/indian-cities';
 import { useCreateTripMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
-import { BikeIllustration, CarIllustration, BusIllustration, TrainIllustration, FlightIllustration } from '@/components/illustrations';
 
 const STEPS = [
   { label: 'Route' },
   { label: 'Details' },
   { label: 'Review' },
 ];
-
-const VEHICLE_ILLUSTRATIONS: Record<VehicleType, React.FC<{ size?: number; color?: string; active?: boolean }>> = {
-  bike: BikeIllustration,
-  car: CarIllustration,
-  bus: BusIllustration,
-  train: TrainIllustration,
-  flight: FlightIllustration,
-};
-
-const VEHICLES: { type: VehicleType; label: string; icon: keyof typeof MaterialIcons.glyphMap; color: string }[] = [
-  { type: 'bike', label: 'Bike', icon: 'two-wheeler', color: '#16A34A' },
-  { type: 'car', label: 'Car', icon: 'directions-car', color: '#4B5563' },
-  { type: 'bus', label: 'Bus', icon: 'directions-bus', color: '#6B7280' },
-  { type: 'train', label: 'Train', icon: 'train', color: '#0F766E' },
-  { type: 'flight', label: 'Flight', icon: 'flight', color: '#15803D' },
-];
-
-const VEHICLE_QUICK_DEFAULTS: Record<VehicleType, { capacity: string; price: string }> = {
-  bike: { capacity: '3', price: '70' },
-  car: { capacity: '10', price: '120' },
-  bus: { capacity: '20', price: '80' },
-  train: { capacity: '15', price: '90' },
-  flight: { capacity: '8', price: '250' },
-};
-
-const CAPACITY_PRESETS = ['2', '5', '10', '15'];
-const PRICE_PRESETS = ['60', '100', '150', '250'];
 
 type TripDraft = {
   fromCity: string;
@@ -152,11 +129,14 @@ export default function CreateTripScreen() {
       const fromCity = typeof params.fromCity === 'string' && params.fromCity ? normalizeCity(params.fromCity) : (values.fromCity || prev.fromCity);
       const toCity = typeof params.toCity === 'string' && params.toCity ? normalizeCity(params.toCity) : (values.toCity || prev.toCity);
       const capacity = typeof params.capacity === 'string' && params.capacity ? params.capacity : (values.capacity || prev.capacity);
+      const todayKey = toLocalDateKey(new Date());
+      const date = values.date && values.date >= todayKey ? values.date : todayKey;
       return {
         ...values,
         fromCity,
         toCity,
         capacity,
+        date: values.date ? date : prev.date,
       };
     });
   }, [params.fromCity, params.toCity, params.capacity]);
@@ -207,11 +187,12 @@ export default function CreateTripScreen() {
   };
 
   const prepareDraft = () => {
+    const todayKey = toLocalDateKey(new Date());
     const prepared: TripDraft = {
       ...form,
       fromCity: normalizeCity(form.fromCity),
       toCity: normalizeCity(form.toCity),
-      date: form.date || toLocalDateKey(new Date()),
+      date: form.date && form.date >= todayKey ? form.date : todayKey,
       time: form.time || '10:00 AM',
       capacity: form.capacity.trim(),
       price: form.price.trim(),
@@ -233,10 +214,19 @@ export default function CreateTripScreen() {
 
   const validateRouteStep = (draft: TripDraft) => {
     const errors: Record<string, string> = {};
+    const todayKey = toLocalDateKey(new Date());
     if (!draft.fromCity) errors.fromCity = 'Select origin city';
     if (!draft.toCity) errors.toCity = 'Select destination city';
     if (draft.fromCity && draft.toCity && draft.fromCity.toLowerCase() === draft.toCity.toLowerCase()) {
       errors.toCity = 'Must differ from origin';
+    }
+    if (!draft.date) {
+      errors.date = 'Select travel date';
+    } else if (draft.date < todayKey) {
+      errors.date = 'Travel date cannot be in the past';
+    }
+    if (!draft.time) {
+      errors.time = 'Select departure time';
     }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -250,10 +240,22 @@ export default function CreateTripScreen() {
     const errors: Record<string, string> = {};
     const capacityKg = Number(draft.capacity);
     const pricePerKg = Number(draft.price);
-    if (!draft.capacity) errors.capacity = 'Enter capacity';
-    else if (!Number.isFinite(capacityKg) || capacityKg <= 0 || capacityKg > 500) errors.capacity = '0.1 - 500 kg';
-    if (!draft.price) errors.price = 'Enter price per kg';
-    else if (!Number.isFinite(pricePerKg) || pricePerKg < 1 || pricePerKg > 50000) errors.price = 'Rs 1 - Rs 50,000';
+    const maxCapacity = VEHICLE_MAX_CAPACITY[draft.vehicle] || 100;
+
+    if (!draft.capacity) {
+      errors.capacity = 'Enter capacity';
+    } else if (!Number.isFinite(capacityKg) || capacityKg <= 0) {
+      errors.capacity = 'Capacity must be greater than 0';
+    } else if (capacityKg > maxCapacity) {
+      errors.capacity = `Max ${maxCapacity} kg for ${draft.vehicle}`;
+    }
+
+    if (!draft.price) {
+      errors.price = 'Enter price per kg';
+    } else if (!Number.isFinite(pricePerKg) || pricePerKg < 1 || pricePerKg > 50000) {
+      errors.price = 'Rs 1 - Rs 50,000';
+    }
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       Haptic.error();
@@ -445,11 +447,10 @@ export default function CreateTripScreen() {
         ) : null}
 
         {step === 0 && (
-          <StepRoute
+          <TripRouteStep
             form={form}
             updateField={updateField}
             fieldErrors={fieldErrors}
-            C={C}
             onDatePress={() => setShowDatePicker(true)}
             onUseCurrentLocation={handleUseCurrentLocation}
             isDetectingCurrentLocation={isDetectingCurrentLocation}
@@ -457,15 +458,14 @@ export default function CreateTripScreen() {
           />
         )}
         {step === 1 && (
-          <StepDetails
+          <TripDetailsStep
             form={form}
             updateField={updateField}
             fieldErrors={fieldErrors}
-            C={C}
             recommendedPrice={recommendedPrice}
           />
         )}
-        {step === 2 && <StepReview form={form} C={C} onEdit={handleStepPress} hasKyc={isKycApproved} />}
+        {step === 2 && <TripReviewStep form={form} onEdit={handleStepPress} hasKyc={isKycApproved} />}
 
         <View style={[styles.footer, { backgroundColor: C.background, borderTopColor: C.surfaceBorder, paddingBottom: Math.max(insets.bottom, Spacing.md), bottom: footerOffset }]}>
           {step > 0 && (
@@ -489,458 +489,7 @@ export default function CreateTripScreen() {
   );
 }
 
-function StepRoute({ form, updateField, fieldErrors, C, onDatePress, onUseCurrentLocation, isDetectingCurrentLocation, locationHint }: {
-  form: TripDraft;
-  updateField: <K extends keyof TripDraft>(key: K, value: TripDraft[K]) => void;
-  fieldErrors: Record<string, string>;
-  C: any;
-  onDatePress: () => void;
-  onUseCurrentLocation: () => void;
-  isDetectingCurrentLocation: boolean;
-  locationHint: string | null;
-}) {
-  const TIME_PRESETS = [
-    { label: 'Morning', time: '08:00 AM' },
-    { label: 'Afternoon', time: '02:00 PM' },
-    { label: 'Evening', time: '06:00 PM' },
-    { label: 'Night', time: '09:00 PM' },
-  ];
-
-  return (
-    <KeyboardAwareScrollView
-      style={styles.stepContent}
-      contentContainerStyle={styles.stepInner}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      nestedScrollEnabled
-      keyboardDismissMode="on-drag"
-      extraScrollHeight={130}
-    >
-      <StepHeader
-        title="Where are you going?"
-        subtitle="Choose route, date, and departure time in one pass"
-        icon="flight-takeoff"
-        C={C}
-      />
-
-      <HaryanaCorridorChips
-        activeFromCity={form.fromCity}
-        activeToCity={form.toCity}
-        onSelectCorridor={(from, to) => {
-          updateField('fromCity', from);
-          updateField('toCity', to);
-        }}
-        title="Popular Corridors (1-Tap Route)"
-      />
-
-      {/* Modern Interactive Route Card with City Swap */}
-      <InteractiveRouteCard
-        fromCity={form.fromCity}
-        toCity={form.toCity}
-        onFromCityChange={(city) => updateField('fromCity', city)}
-        onToCityChange={(city) => updateField('toCity', city)}
-        fromError={fieldErrors.fromCity}
-        toError={fieldErrors.toCity}
-        onUseCurrentLocation={onUseCurrentLocation}
-        isDetectingCurrentLocation={isDetectingCurrentLocation}
-        locationHint={locationHint}
-      />
-
-      <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Departure Schedule</Text>
-        <Pressable
-          style={({ pressed }) => [
-            styles.scheduleBtn,
-            { backgroundColor: C.surface, borderColor: form.date ? C.primary : fieldErrors.date ? C.error : C.surfaceBorder },
-            pressed && { opacity: 0.85 },
-          ]}
-          onPress={() => { Haptic.tap(); onDatePress(); }}
-        >
-          <View style={[styles.scheduleIconBox, { backgroundColor: form.date ? C.primarySubtle : C.surfaceElevated }]}>
-            <MaterialIcons name="event" size={20} color={form.date ? C.primary : C.textMuted} />
-          </View>
-          <View style={{ flex: 1 }}>
-            {form.date ? (
-              <>
-                <Text style={[styles.scheduleDateText, { color: C.textPrimary }]}>{formatScheduleDate(form.date)}</Text>
-                <Text style={[styles.scheduleTimeText, { color: C.textSecondary }]}>{form.time || 'Tap to choose time'}</Text>
-              </>
-            ) : (
-              <Text style={[styles.schedulePlaceholder, { color: fieldErrors.date ? C.error : C.textMuted }]}>
-                {fieldErrors.date || 'Select date & time'}
-              </Text>
-            )}
-          </View>
-          <MaterialIcons name={form.date ? 'edit' : 'chevron-right'} size={18} color={form.date ? C.primary : C.textMuted} />
-        </Pressable>
-
-        {/* Quick Time of Day Chips */}
-        <View style={styles.presetRow}>
-          {TIME_PRESETS.map((t) => {
-            const isSelected = form.time === t.time;
-            return (
-              <Pressable
-                key={t.label}
-                onPress={() => {
-                  Haptic.select();
-                  updateField('time', t.time);
-                }}
-                style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  isSelected && { backgroundColor: C.primarySubtle, borderColor: C.primary + '88' },
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <Text style={[styles.presetText, { color: isSelected ? C.primary : C.textSecondary }]}>
-                  {t.label} ({t.time})
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </KeyboardAwareScrollView>
-  );
-}
-
-function StepDetails({
-  form,
-  updateField,
-  fieldErrors,
-  C,
-  recommendedPrice,
-}: {
-  form: TripDraft;
-  updateField: <K extends keyof TripDraft>(key: K, value: TripDraft[K]) => void;
-  fieldErrors: Record<string, string>;
-  C: any;
-  recommendedPrice?: { suggested: number; min: number; max: number; distanceKm: number } | null;
-}) {
-  const activePricePresets = recommendedPrice
-    ? Array.from(new Set([
-        String(recommendedPrice.min),
-        String(recommendedPrice.suggested),
-        String(recommendedPrice.max),
-      ]))
-    : PRICE_PRESETS;
-
-  return (
-    <KeyboardAwareScrollView style={styles.stepContent} contentContainerStyle={styles.stepInner} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardDismissMode="on-drag" extraScrollHeight={130}>
-      <StepHeader
-        title="Trip details"
-        subtitle="How are you travelling and how much can you carry?"
-        icon="luggage"
-        C={C}
-      />
-
-      <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Vehicle</Text>
-        <View style={styles.vehicleGrid}>
-          {VEHICLES.map((v) => {
-            const Illustration = VEHICLE_ILLUSTRATIONS[v.type];
-            const isActive = form.vehicle === v.type;
-            return (
-              <Pressable
-                key={v.type}
-                style={({ pressed }) => [
-                  styles.vehicleCard,
-                  { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-                  isActive && { backgroundColor: v.color + '14', borderColor: v.color },
-                  pressed && { transform: [{ scale: 0.96 }] },
-                ]}
-                onPress={() => {
-                  Haptic.select();
-                  updateField('vehicle', v.type);
-                  const defaults = VEHICLE_QUICK_DEFAULTS[v.type];
-                  if (!form.capacity) updateField('capacity', defaults.capacity);
-                  if (!form.price) updateField('price', defaults.price);
-                }}
-              >
-                <Illustration size={44} color={isActive ? v.color : C.textMuted} active={isActive} />
-                <Text style={[styles.vehicleLabel, { color: isActive ? v.color : C.textSecondary }]}>
-                  {v.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Smart Route Guidance Card */}
-      {recommendedPrice ? (
-        <View style={[styles.smartPriceCard, { backgroundColor: C.surface, borderColor: C.primary + '40' }]}>
-          <View style={styles.smartPriceTop}>
-            <View style={[styles.smartPriceBadge, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="auto-awesome" size={13} color={C.primary} />
-              <Text style={[styles.smartPriceBadgeText, { color: C.primary }]}>Corridor Rate Guidance</Text>
-            </View>
-            <Text style={[styles.smartPriceDemandText, { color: C.primary }]}>
-              ~{recommendedPrice.distanceKm} km route
-            </Text>
-          </View>
-
-          <View style={styles.smartPriceBody}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.smartPriceAmount, { color: C.textPrimary }]}>
-                ₹{recommendedPrice.suggested} <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.regular, color: C.textSecondary }}>/ kg</Text>
-              </Text>
-              <Text style={[styles.smartPriceRange, { color: C.textMuted }]}>
-                Typical corridor bracket: ₹{recommendedPrice.min} – ₹{recommendedPrice.max} / kg
-              </Text>
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.smartPriceApplyBtn,
-                { backgroundColor: C.primary },
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-              ]}
-              onPress={() => {
-                Haptic.success();
-                updateField('price', String(recommendedPrice.suggested));
-              }}
-            >
-              <Text style={styles.smartPriceApplyText}>Apply ₹{recommendedPrice.suggested}/kg</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.fieldGroup}>
-        <Input
-          label="Available Space (kg)"
-          placeholder="e.g. 5"
-          value={form.capacity}
-          onChangeText={(v) => updateField('capacity', v)}
-          keyboardType="decimal-pad"
-          error={fieldErrors.capacity}
-        />
-        <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Capacity:</Text>
-          <View style={styles.presetRow}>
-            {CAPACITY_PRESETS.map((value) => (
-              <Pressable
-                key={`capacity-${value}`}
-                style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.capacity === value && { backgroundColor: C.primarySubtle, borderColor: C.primary },
-                  pressed && { opacity: 0.8 },
-                ]}
-                onPress={() => { Haptic.select(); updateField('capacity', value); }}
-              >
-                <Text style={[styles.presetText, { color: form.capacity === value ? C.primary : C.textSecondary }]}>
-                  {value} kg
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.fieldGroup}>
-        <Input
-          label="Price / kg (₹)"
-          placeholder="e.g. 80"
-          value={form.price}
-          onChangeText={(v) => updateField('price', v)}
-          keyboardType="decimal-pad"
-          error={fieldErrors.price}
-        />
-        <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Fare:</Text>
-          <View style={styles.presetRow}>
-            {activePricePresets.map((value) => (
-              <Pressable
-                key={`price-${value}`}
-                style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.price === value && { backgroundColor: C.successSubtle, borderColor: C.success },
-                  pressed && { opacity: 0.8 },
-                ]}
-                onPress={() => { Haptic.select(); updateField('price', value); }}
-              >
-                <Text style={[styles.presetText, { color: form.price === value ? C.success : C.textSecondary }]}>₹{value}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      </View>
-        {form.capacity && form.price && Number(form.capacity) > 0 && Number(form.price) > 0 ? (
-          <View style={[styles.earningHint, { backgroundColor: C.successSubtle, borderColor: C.success + '40', borderWidth: 1 }]}>
-            <MaterialIcons name="trending-up" size={18} color={C.success} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.earningText, { color: C.textPrimary }]}>
-                Potential Earnings: <Text style={{ color: C.success, fontWeight: FontWeight.bold }}>Rs {(Number(form.capacity) * Number(form.price)).toFixed(0)}</Text>
-              </Text>
-              <Text style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
-                Carrying 2-3 parcels covers highway tolls & fuel!
-              </Text>
-            </View>
-          </View>
-        ) : null}
-    </KeyboardAwareScrollView>
-  );
-}
-
-function StepReview({ form, C, onEdit, hasKyc }: {
-  form: TripDraft;
-  C: any;
-  onEdit: (step: number) => void;
-  hasKyc?: boolean;
-}) {
-  const selectedVehicle = VEHICLES.find((v) => v.type === form.vehicle);
-
-  return (
-    <KeyboardAwareScrollView
-      style={styles.stepContent}
-      contentContainerStyle={styles.stepInner}
-      showsVerticalScrollIndicator={false}
-      nestedScrollEnabled
-      keyboardDismissMode="on-drag"
-      extraScrollHeight={130}
-    >
-      <StepHeader
-        title="Review your trip"
-        subtitle="Confirm every detail before publishing your trip"
-        icon="fact-check"
-        C={C}
-      />
-
-      <DigitalWaybillCard
-        type="trip"
-        fromCity={form.fromCity}
-        toCity={form.toCity}
-        date={form.date}
-        time={form.time}
-        categoryOrVehicle={selectedVehicle?.label || 'Car'}
-        categoryOrVehicleIcon={selectedVehicle?.icon || 'directions-car'}
-        weightOrCapacity={form.capacity}
-        priceOrOffer={form.price}
-        onEditRoute={() => onEdit(0)}
-        onEditDetails={() => onEdit(1)}
-        hasKyc={hasKyc}
-      />
-    </KeyboardAwareScrollView>
-  );
-}
-
-function StepHeader({
-  title,
-  subtitle,
-  icon,
-  C,
-}: {
-  title: string;
-  subtitle: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  C: any;
-}) {
-  return (
-    <View style={styles.stepHeaderWrap}>
-      <View style={[styles.stepHeaderIcon, { backgroundColor: C.primarySubtle, borderColor: C.primary + '25', borderWidth: 1 }]}>
-        <MaterialIcons name={icon} size={22} color={C.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.stepTitle, { color: C.textPrimary }]}>{title}</Text>
-        <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>{subtitle}</Text>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  stepContent: { flex: 1 },
-  stepInner: { gap: Spacing.lg, paddingBottom: 132 },
-  stepHeaderWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  stepHeaderIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
-  stepSubtitle: { fontSize: FontSize.sm, marginTop: 2, lineHeight: 18 },
-
-  fieldGroup: { gap: Spacing.sm },
-  fieldLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },
-  locationHint: { fontSize: FontSize.xs, marginLeft: 2 },
-  row: { flexDirection: 'row', gap: Spacing.md },
-
-  scheduleBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    borderRadius: BorderRadius.xl, borderWidth: 1.2, padding: Spacing.mdl, minHeight: 76,
-  },
-  scheduleIconBox: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  scheduleDateText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-  scheduleTimeText: { fontSize: FontSize.sm, marginTop: 2 },
-  schedulePlaceholder: { fontSize: FontSize.md },
-
-  vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  vehicleCard: {
-    alignItems: 'center', gap: 8,
-    paddingHorizontal: Spacing.mdl, paddingVertical: Spacing.mdl,
-    borderRadius: BorderRadius.xl, borderWidth: 1.2,
-    width: '31%', flexGrow: 1,
-  },
-  vehicleIconBox: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  vehicleLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-
-  earningHint: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
-    borderRadius: BorderRadius.md,
-  },
-  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  presetChip: {
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 6,
-  },
-  presetText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  earningText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-
-  reviewCard: {
-    borderRadius: BorderRadius.xl, borderWidth: 1.2, padding: Spacing.xl, gap: Spacing.md,
-  },
-  reviewHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
-  },
-  reviewLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, letterSpacing: 0.8 },
-  reviewRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  reviewDot: { width: 12, height: 12, borderRadius: 6 },
-  reviewValue: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold },
-  reviewConnector: { paddingLeft: 4, height: 16, justifyContent: 'center' },
-  reviewLine: { width: 2, flex: 1, marginLeft: 4, borderRadius: 1 },
-  reviewMeta: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    borderTopWidth: 1, paddingTop: Spacing.sm, marginTop: 4,
-  },
-  reviewMetaText: { fontSize: FontSize.sm },
-  reviewDetailsGrid: {
-    flexDirection: 'row', gap: Spacing.md, marginTop: 4,
-  },
-  reviewDetailItem: { flex: 1, alignItems: 'center', gap: 6 },
-  reviewDetailIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  reviewDetailLabel: { fontSize: FontSize.xs },
-  reviewDetailValue: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-
-  infoBox: {
-    flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start',
-    borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1.2,
-  },
-  infoText: { flex: 1, fontSize: FontSize.sm, lineHeight: 22 },
-
   draftBanner: {
     borderWidth: 1,
     borderRadius: BorderRadius.md,
@@ -953,71 +502,15 @@ const styles = StyleSheet.create({
   },
   draftBannerText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   draftBannerAction: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-  smartPriceCard: {
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1.2,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-  smartPriceTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  smartPriceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.full,
-  },
-  smartPriceBadgeText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-  },
-  smartPriceDemandText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-  },
-  smartPriceBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  smartPriceAmount: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.5,
-  },
-  smartPriceRange: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
-  },
-  smartPriceApplyBtn: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-  },
-  smartPriceApplyText: {
-    color: '#FFFFFF',
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
-  },
-  presetSection: {
-    gap: Spacing.xs,
-    marginTop: 2,
-  },
-  presetSectionLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    marginLeft: 2,
-  },
   footer: {
-    flexDirection: 'row', gap: Spacing.md,
-    position: 'absolute', bottom: 0, left: -Spacing.md, right: -Spacing.md,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+    flexDirection: 'row',
+    gap: Spacing.md,
+    position: 'absolute',
+    bottom: 0,
+    left: -Spacing.md,
+    right: -Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

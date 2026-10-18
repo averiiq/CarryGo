@@ -62,6 +62,7 @@ export default function TripDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<TabFilter>('all');
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [openingChatRequestId, setOpeningChatRequestId] = useState<string | null>(null);
 
   const trip = (tripQuery.data ?? undefined) as Trip | undefined;
   const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
@@ -270,10 +271,55 @@ export default function TripDetailScreen() {
     ]);
   };
 
-  const handleChat = (req: Request) => {
+  const handleChat = async (req: Request) => {
+    if (!user) {
+      Haptic.warning();
+      showAlert('Sign In Required', 'Please sign in to view and send messages.');
+      return;
+    }
+
+    if (openingChatRequestId === req.id) return;
+
     const conv = conversations.find(c => c.requestId === req.id);
-    if (conv?.id) router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
-    else showAlert('No Chat', 'Chat opens once the request is accepted.');
+    if (conv?.id) {
+      router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
+      return;
+    }
+
+    try {
+      setOpeningChatRequestId(req.id);
+      const parcel = parcels.find(p => p.id === req.parcelId);
+      const route = parcel ? `${parcel.fromCity} → ${parcel.toCity}` : trip ? `${trip.fromCity} → ${trip.toCity}` : 'Route';
+      const otherUserId = req.senderId === user.id ? req.travellerId : req.senderId;
+      const otherUserName = req.senderId === user.id ? (trip?.userName || req.travellerName || 'Traveler') : (req.senderName || 'Sender');
+
+      const newConv = await createConversationAsync({
+        requestId: req.id,
+        participantIds: [user.id, otherUserId],
+        participantNames: {
+          [user.id]: user.fullName || user.name || 'You',
+          [otherUserId]: otherUserName,
+        },
+        parcelDescription: parcel?.description || 'Parcel delivery',
+        route,
+      });
+
+      if (newConv?.id) {
+        router.push(`/chat/${encodeURIComponent(String(newConv.id))}` as never);
+      } else {
+        const refetched = await conversationsQuery.refetch();
+        const found = refetched.data?.find(c => c.requestId === req.id);
+        if (found?.id) {
+          router.push(`/chat/${encodeURIComponent(String(found.id))}` as never);
+        } else {
+          showAlert('Chat Error', 'Could not open conversation. Please try again.');
+        }
+      }
+    } catch (err: any) {
+      showAlert('Chat Error', getUserErrorMessage(err, 'Could not open chat. Please try again.'));
+    } finally {
+      setOpeningChatRequestId(null);
+    }
   };
 
   const handleDelivery = (req: Request) => {
