@@ -132,20 +132,35 @@ export const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 2,
   },
+  routeTimeText: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 14,
+    fontWeight: FontWeight.extrabold,
+    marginBottom: 1,
+  },
   routeCityText: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.6,
+    letterSpacing: -0.5,
+  },
+  transportCapsuleWrap: {
+    alignItems: 'center',
+    gap: 3,
+    marginHorizontal: Spacing.xs,
   },
   transportCapsule: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: Spacing.sm,
+  },
+  transportDurationText: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
   },
 
   // Departure Strip
@@ -153,9 +168,9 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.22)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 12,
   },
   departureStripText: {
@@ -163,11 +178,58 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: FontWeight.semibold,
   },
+  departureBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245, 158, 11, 0.28)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
   departureConfirmedBadge: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 10,
+    color: '#FEF3C7',
+    fontSize: 9,
     fontWeight: FontWeight.bold,
     letterSpacing: 0.4,
+  },
+
+  // Fare Overview Banner (for Sender)
+  fareOverviewBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+  },
+  fareOverviewLabel: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+  },
+  fareOverviewRupee: {
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+  },
+  fareOverviewAmount: {
+    fontSize: 24,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.5,
+  },
+  fareOverviewRate: {
+    fontSize: 12,
+  },
+  instantBookPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  instantBookPillText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
   },
 
   // Ticket Body
@@ -483,6 +545,25 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: FontWeight.medium,
   },
+  vehicleAmenitiesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingTop: 4,
+  },
+  amenityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  amenityChipText: {
+    fontSize: 11,
+    fontWeight: FontWeight.semibold,
+  },
 
   // What Traveler Allows To Carry Card
   allowsToCarryCard: {
@@ -511,6 +592,23 @@ export const styles = StyleSheet.create({
   allowsHeaderSub: {
     fontSize: 12,
     marginTop: 2,
+  },
+  dimensionsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  dimensionsTitle: {
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+  },
+  dimensionsSub: {
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
   },
   allowsGrid: {
     flexDirection: 'row',

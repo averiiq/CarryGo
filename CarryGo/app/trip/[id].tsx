@@ -14,7 +14,7 @@ import { useParcelsByIdsQuery, useParcelQuery, useTripQuery, useUpdateTripStatus
 import { useRequestsByTripQuery, useUpdateRequestStatusMutation, useCreateRequestMutation } from '@/features/requests/queries';
 import { SendRequestModal, QuickCreateParcelParams } from '@/components/feature/SendRequestModal';
 import { NegotiateTripModal, NegotiationParams } from '@/components/feature/NegotiateTripModal';
-import { estimateTripDuration, formatDurationLabel } from '@/components/feature/matching/blaBlaHelpers';
+import { estimateTripDuration, formatDurationLabel, getRouteTimelineMeta } from '@/components/feature/matching/blaBlaHelpers';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Trip, Parcel } from '@/types';
@@ -101,6 +101,8 @@ export default function TripDetailScreen() {
     }
     return userParcels.length > 0 ? userParcels[0] : null;
   }, [singleParcelQuery.data, parcelId, userParcels]);
+
+  const timeline = useMemo(() => (trip ? getRouteTimelineMeta(trip) : null), [trip]);
 
   const calculatedPrice = useMemo(() => {
     if (!trip) return 180;
@@ -648,27 +650,58 @@ export default function TripDetailScreen() {
             <View style={styles.ticketRouteRow}>
               <View style={styles.routeCityCol}>
                 <Text style={styles.routeLabel}>DEPARTURE</Text>
+                <Text style={styles.routeTimeText}>{timeline?.departureTime || trip.time}</Text>
                 <Text style={styles.routeCityText} numberOfLines={1}>{trip.fromCity}</Text>
               </View>
 
-              <View style={styles.transportCapsule}>
-                <MaterialIcons name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'arrow-forward'} size={22} color="#fff" />
+              <View style={styles.transportCapsuleWrap}>
+                <View style={styles.transportCapsule}>
+                  <MaterialIcons name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'arrow-forward'} size={20} color="#fff" />
+                </View>
+                <Text style={styles.transportDurationText}>{timeline?.durationLabel || 'Direct'}</Text>
               </View>
 
               <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
                 <Text style={styles.routeLabel}>DESTINATION</Text>
+                <Text style={styles.routeTimeText}>{timeline?.arrivalTime || 'Est. Arrival'}</Text>
                 <Text style={styles.routeCityText} numberOfLines={1}>{trip.toCity}</Text>
               </View>
             </View>
 
             {/* Departure Time Ribbon */}
             <View style={styles.departureStrip}>
-              <Text style={styles.departureStripText}>
-                {trip.date} • {trip.time}
-              </Text>
-              <Text style={styles.departureConfirmedBadge}>CONFIRMED</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MaterialIcons name="event" size={14} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.departureStripText}>
+                  {trip.date} • {trip.time}
+                </Text>
+              </View>
+              <View style={styles.departureBadgePill}>
+                <MaterialIcons name="bolt" size={13} color="#FBBF24" />
+                <Text style={styles.departureConfirmedBadge}>CONFIRMED</Text>
+              </View>
             </View>
           </View>
+
+          {/* Fare Overview Banner for Senders */}
+          {!isOwner ? (
+            <View style={[styles.fareOverviewBanner, { backgroundColor: C.surfaceElevated, borderBottomColor: C.surfaceBorder }]}>
+              <View>
+                <Text style={[styles.fareOverviewLabel, { color: C.textMuted }]}>
+                  {activeParcel ? `Fare for ${activeParcel.weight}kg ${activeParcel.category}` : 'Estimated Delivery Fare'}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                  <Text style={[styles.fareOverviewRupee, { color: C.textPrimary }]}>₹</Text>
+                  <Text style={[styles.fareOverviewAmount, { color: C.textPrimary }]}>{calculatedPrice}</Text>
+                  <Text style={[styles.fareOverviewRate, { color: C.textMuted }]}>· ₹{trip.pricePerKg}/kg</Text>
+                </View>
+              </View>
+              <View style={[styles.instantBookPill, { backgroundColor: C.successSubtle }]}>
+                <MaterialIcons name="verified" size={13} color={C.success} />
+                <Text style={[styles.instantBookPillText, { color: C.success }]}>Space Guaranteed</Text>
+              </View>
+            </View>
+          ) : null}
 
           {/* Ticket Body with Luggage Trunk & Stats */}
           <View style={styles.ticketBody}>
@@ -825,6 +858,33 @@ export default function TripDetailScreen() {
                 <Text style={[styles.trustPointText, { color: C.textSecondary }]}>Fast Handover</Text>
               </View>
             </View>
+
+            {/* Vehicle amenities row */}
+            <View style={styles.vehicleAmenitiesRow}>
+              <View style={[styles.amenityChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <MaterialIcons name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'directions-car'} size={14} color={C.primary} />
+                <Text style={[styles.amenityChipText, { color: C.textPrimary }]}>
+                  {(trip.vehicleType || 'Car').toUpperCase()}
+                </Text>
+              </View>
+
+              {['car', 'flight', 'train'].includes(trip.vehicleType?.toLowerCase() || 'car') ? (
+                <View style={[styles.amenityChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                  <MaterialIcons name="ac-unit" size={13} color="#0284C7" />
+                  <Text style={[styles.amenityChipText, { color: C.textPrimary }]}>AC Comfort</Text>
+                </View>
+              ) : null}
+
+              <View style={[styles.amenityChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <MaterialIcons name="luggage" size={13} color={C.success} />
+                <Text style={[styles.amenityChipText, { color: C.textPrimary }]}>Trunk Space</Text>
+              </View>
+
+              <View style={[styles.amenityChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <MaterialIcons name="bolt" size={14} color="#D97706" />
+                <Text style={[styles.amenityChipText, { color: C.textPrimary }]}>Instant Confirm</Text>
+              </View>
+            </View>
           </View>
         ) : null}
 
@@ -841,6 +901,19 @@ export default function TripDetailScreen() {
                 </Text>
                 <Text style={[styles.allowsHeaderSub, { color: C.textMuted }]}>
                   {remainingWeight > 0 ? `${remainingWeight.toFixed(1)} kg space free` : 'Space full'} · {(trip.vehicleType || 'Car').toUpperCase()}
+                </Text>
+              </View>
+            </View>
+
+            {/* Standard dimensions badge */}
+            <View style={[styles.dimensionsBadge, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <MaterialIcons name="straighten" size={16} color={C.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.dimensionsTitle, { color: C.textPrimary }]}>
+                  Maximum Package Dimensions
+                </Text>
+                <Text style={[styles.dimensionsSub, { color: C.textMuted }]}>
+                  Up to 60 × 40 × 30 cm · Standard vehicle boot or seat compartment fit
                 </Text>
               </View>
             </View>

@@ -202,6 +202,29 @@ export function NegotiateTripModal({
               placeholderTextColor={C.textMuted}
             />
           </View>
+          <View style={styles.quickChipsRow}>
+            {[`${trip.fromCity} Bus Stand`, `${trip.fromCity} Railway Stn`, 'Highway Toll Plaza'].map((suggestion) => (
+              <Pressable
+                key={suggestion}
+                onPress={() => {
+                  Haptic.select();
+                  setPickupLandmark(suggestion);
+                }}
+                style={[
+                  styles.quickChip,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  pickupLandmark === suggestion && { backgroundColor: C.primarySubtle, borderColor: C.primary + '80' },
+                ]}
+              >
+                <Text style={[
+                  styles.quickChipText,
+                  { color: pickupLandmark === suggestion ? C.primary : C.textSecondary },
+                ]}>
+                  {suggestion}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
           {/* Drop Input */}
           <View style={[styles.inputBox, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -216,6 +239,29 @@ export function NegotiateTripModal({
               placeholder={`e.g. ${trip.toCity} Junction or City Center`}
               placeholderTextColor={C.textMuted}
             />
+          </View>
+          <View style={styles.quickChipsRow}>
+            {[`${trip.toCity} Bus Stand`, `${trip.toCity} Railway Stn`, 'City Center'].map((suggestion) => (
+              <Pressable
+                key={suggestion}
+                onPress={() => {
+                  Haptic.select();
+                  setDropLandmark(suggestion);
+                }}
+                style={[
+                  styles.quickChip,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  dropLandmark === suggestion && { backgroundColor: C.primarySubtle, borderColor: C.primary + '80' },
+                ]}
+              >
+                <Text style={[
+                  styles.quickChipText,
+                  { color: dropLandmark === suggestion ? C.primary : C.textSecondary },
+                ]}>
+                  {suggestion}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
@@ -324,6 +370,25 @@ export function NegotiateTripModal({
               multiline
               numberOfLines={3}
             />
+          </View>
+          <View style={styles.quickChipsRow}>
+            {['Can meet on highway', 'Sealed box', 'Urgent delivery', 'Flexible on time'].map((suggestion) => (
+              <Pressable
+                key={suggestion}
+                onPress={() => {
+                  Haptic.select();
+                  setCustomNote((prev) => (prev ? `${prev} · ${suggestion}` : suggestion));
+                }}
+                style={[
+                  styles.quickChip,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                ]}
+              >
+                <Text style={[styles.quickChipText, { color: C.textSecondary }]}>
+                  + {suggestion}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
@@ -592,5 +657,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: FontWeight.bold,
+  },
+  quickChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  quickChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  quickChipText: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
   },
 });
