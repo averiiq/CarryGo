@@ -6,6 +6,7 @@ export type ParcelDraft = {
   fromCity: string;
   toCity: string;
   deliveryDate: string;
+  preferredTime?: string;
   category: ParcelCategory;
   description: string;
   weight: string;
@@ -17,6 +18,7 @@ export const EMPTY_PARCEL_DRAFT: ParcelDraft = {
   fromCity: '',
   toCity: '',
   deliveryDate: '',
+  preferredTime: 'anytime',
   category: 'documents',
   description: '',
   weight: '',
@@ -24,18 +26,35 @@ export const EMPTY_PARCEL_DRAFT: ParcelDraft = {
   images: [],
 };
 
+export const PARCEL_CATEGORY_IMAGES: Record<ParcelCategory, any> = {
+  documents: require('@/assets/images/categories/documents.jpg'),
+  electronics: require('@/assets/images/categories/electronics.jpg'),
+  clothing: require('@/assets/images/categories/clothing.jpg'),
+  food: require('@/assets/images/categories/food.jpg'),
+  medicine: require('@/assets/images/categories/medicine.jpg'),
+  other: require('@/assets/images/categories/other.jpg'),
+};
+
 export const PARCEL_CATEGORIES: {
   type: ParcelCategory;
   label: string;
+  tagline: string;
   icon: keyof typeof MaterialIcons.glyphMap;
   color: string;
 }[] = [
-  { type: 'documents', label: 'Documents', icon: 'description', color: '#6B7280' },
-  { type: 'electronics', label: 'Electronics', icon: 'devices', color: '#0F766E' },
-  { type: 'clothing', label: 'Clothing', icon: 'checkroom', color: '#64748B' },
-  { type: 'food', label: 'Food', icon: 'restaurant', color: '#EA580C' },
-  { type: 'medicine', label: 'Medicine', icon: 'local-pharmacy', color: '#16A34A' },
-  { type: 'other', label: 'Other', icon: 'inventory-2', color: '#4B5563' },
+  { type: 'documents', label: 'Documents', tagline: 'Letters, books & files', icon: 'description', color: '#2563EB' },
+  { type: 'electronics', label: 'Electronics', tagline: 'Phones, tech & gadgets', icon: 'devices', color: '#059669' },
+  { type: 'clothing', label: 'Clothing', tagline: 'Apparel, shoes & wear', icon: 'checkroom', color: '#7C3AED' },
+  { type: 'food', label: 'Food & Sweets', tagline: 'Packaged dry foods', icon: 'restaurant', color: '#EA580C' },
+  { type: 'medicine', label: 'Medicine', tagline: 'Healthcare & pharma', icon: 'local-pharmacy', color: '#DB2777' },
+  { type: 'other', label: 'General / Box', tagline: 'Cartons & parcels', icon: 'inventory-2', color: '#4F46E5' },
+];
+
+export const PREFERRED_TIME_PRESETS = [
+  { id: 'anytime', label: 'Anytime', icon: 'schedule' as const, timeRange: 'All day' },
+  { id: 'morning', label: 'Morning', icon: 'wb-sunny' as const, timeRange: '08:00 – 12:00' },
+  { id: 'afternoon', label: 'Afternoon', icon: 'wb-twilight' as const, timeRange: '12:00 – 17:00' },
+  { id: 'evening', label: 'Evening', icon: 'nights-stay' as const, timeRange: '17:00 – 21:00' },
 ];
 
 export const PARCEL_WEIGHT_PRESETS = ['0.5', '1', '2', '5'];

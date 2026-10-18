@@ -149,6 +149,7 @@ export default function CreateParcelScreen() {
       fromCity: typeof params.fromCity === 'string' ? normalizeParcelCity(params.fromCity) : '',
       toCity: typeof params.toCity === 'string' ? normalizeParcelCity(params.toCity) : '',
       deliveryDate: typeof params.deliveryDate === 'string' ? params.deliveryDate : '',
+      preferredTime: 'anytime',
       category: isValidCategory ? prefillCategory : 'documents',
       description: typeof params.description === 'string' ? params.description : '',
       weight: typeof params.weight === 'string' ? params.weight : '',

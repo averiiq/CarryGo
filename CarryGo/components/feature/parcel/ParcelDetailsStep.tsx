@@ -1,39 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
 import { Input } from '@/components/ui/Input';
 import { ParcelImagePicker } from '@/components/feature/ParcelImagePicker';
 import { Haptic } from '@/services/haptics.service';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
-import {
-  DocumentsIllustration,
-  ElectronicsIllustration,
-  ClothingIllustration,
-  FoodIllustration,
-  MedicineIllustration,
-  OtherIllustration,
-} from '@/components/illustrations';
 import { PriceEstimate } from '@/services/price-estimator.service';
-import { ParcelCategory } from '@/types';
 import {
   ParcelDraft,
   PARCEL_CATEGORIES,
+  PARCEL_CATEGORY_IMAGES,
   PARCEL_WEIGHT_PRESETS,
   PARCEL_OFFER_PRESETS,
 } from './types';
-
-const CATEGORY_ILLUSTRATIONS: Record<
-  ParcelCategory,
-  React.FC<{ size?: number; color?: string; active?: boolean }>
-> = {
-  documents: DocumentsIllustration,
-  electronics: ElectronicsIllustration,
-  clothing: ClothingIllustration,
-  food: FoodIllustration,
-  medicine: MedicineIllustration,
-  other: OtherIllustration,
-};
 
 interface ParcelDetailsStepProps {
   form: ParcelDraft;
@@ -71,6 +52,7 @@ export function ParcelDetailsStep({
       keyboardDismissMode="on-drag"
       extraScrollHeight={130}
     >
+      {/* Header */}
       <View style={styles.stepHeaderWrap}>
         <View
           style={[
@@ -81,59 +63,114 @@ export function ParcelDetailsStep({
           <MaterialIcons name="inventory-2" size={22} color={C.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Parcel details</Text>
+          <Text style={[styles.stepTitle, { color: C.textPrimary }]}>What are you sending?</Text>
           <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-            Add parcel category, photos, weight and offer
+            Select category, photos, weight and delivery offer
           </Text>
         </View>
       </View>
 
+      {/* Real Visual Category Selection */}
       <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Category</Text>
+        <View style={styles.categoryHeaderRow}>
+          <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Category</Text>
+          <Text style={[styles.categorySubLabel, { color: C.textMuted }]}>Tap to choose package type</Text>
+        </View>
+
         <View style={styles.categoryGrid}>
           {PARCEL_CATEGORIES.map((cat) => {
-            const Illustration = CATEGORY_ILLUSTRATIONS[cat.type];
             const isActive = form.category === cat.type;
+            const categoryImage = PARCEL_CATEGORY_IMAGES[cat.type];
+
             return (
               <Pressable
                 key={cat.type}
+                accessibilityRole="button"
+                accessibilityLabel={`Category: ${cat.label}`}
+                accessibilityState={{ selected: isActive }}
                 style={({ pressed }) => [
                   styles.categoryCard,
-                  { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-                  isActive && { backgroundColor: cat.color + '14', borderColor: cat.color },
-                  pressed && { transform: [{ scale: 0.96 }] },
+                  {
+                    backgroundColor: C.card,
+                    borderColor: isActive ? C.primary : C.surfaceBorder,
+                    borderWidth: isActive ? 2 : 1,
+                  },
+                  isActive && {
+                    shadowColor: C.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.16,
+                    shadowRadius: 8,
+                    elevation: 3,
+                  },
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={() => {
                   Haptic.select();
                   updateField('category', cat.type);
                 }}
               >
-                <Illustration size={40} color={isActive ? cat.color : C.textMuted} active={isActive} />
-                <Text style={[styles.categoryLabel, { color: isActive ? cat.color : C.textSecondary }]}>
-                  {cat.label}
-                </Text>
+                {/* Real Image Container */}
+                <View style={styles.categoryImageWrap}>
+                  <Image
+                    source={categoryImage}
+                    style={styles.categoryImage}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                  {isActive ? (
+                    <View style={[styles.categoryCheckBadge, { backgroundColor: C.primary }]}>
+                      <MaterialIcons name="check" size={13} color="#FFFFFF" />
+                    </View>
+                  ) : null}
+                </View>
+
+                {/* Content info */}
+                <View style={styles.categoryContent}>
+                  <View style={styles.categoryTitleRow}>
+                    <View style={[styles.categoryIconWrap, { backgroundColor: cat.color + '18' }]}>
+                      <MaterialIcons name={cat.icon} size={13} color={cat.color} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.categoryLabel,
+                        { color: isActive ? C.primary : C.textPrimary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {cat.label}
+                    </Text>
+                  </View>
+                  <Text style={[styles.categoryTagline, { color: C.textMuted }]} numberOfLines={1}>
+                    {cat.tagline}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}
         </View>
       </View>
 
-      <ParcelImagePicker
-        images={form.images}
-        onImagesChange={(imgs) => updateField('images', imgs)}
-        error={fieldErrors.images}
-      />
+      {/* Parcel Photos */}
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Parcel photos</Text>
+        <ParcelImagePicker
+          images={form.images}
+          onImagesChange={(imgs) => updateField('images', imgs)}
+          error={fieldErrors.images}
+        />
+      </View>
 
+      {/* Description */}
       <View style={styles.fieldGroup}>
         <Input
-          label="Description"
-          placeholder="What's inside? Any special handling?"
+          label="Item description"
+          placeholder="Briefly describe what's inside (e.g., college marksheet, wrapped electronics)"
           value={form.description}
           onChangeText={(v) => updateField('description', v)}
           multiline
           numberOfLines={3}
           maxLength={300}
-          style={{ minHeight: 80, textAlignVertical: 'top' }}
+          style={{ minHeight: 76, textAlignVertical: 'top' }}
           error={fieldErrors.description}
         />
         <Text style={[styles.charCount, { color: C.textMuted }]}>{form.description.length}/300</Text>
@@ -208,21 +245,22 @@ export function ParcelDetailsStep({
         </View>
       ) : null}
 
+      {/* Weight Input & Presets */}
       <View style={styles.fieldGroup}>
         <Input
           label="Weight (kg)"
-          placeholder="e.g. 0.5"
+          placeholder="e.g. 1"
           value={form.weight}
           onChangeText={(v) => updateField('weight', v)}
           keyboardType="decimal-pad"
           error={fieldErrors.weight}
         />
         <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Weight:</Text>
+          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Presets:</Text>
           <View style={styles.presetRow}>
             {PARCEL_WEIGHT_PRESETS.map((value) => (
               <Pressable
-                key={'weight-' + value}
+                key={`weight-${value}`}
                 style={({ pressed }) => [
                   styles.presetChip,
                   { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
@@ -251,25 +289,26 @@ export function ParcelDetailsStep({
         </View>
       </View>
 
+      {/* Price Offer Input & Quick Fare Presets */}
       <View style={styles.fieldGroup}>
         <Input
-          label="Price Offer (₹)"
-          placeholder="e.g. 150"
+          label="Your delivery offer (₹)"
+          placeholder="e.g. 200"
           value={form.priceOffer}
           onChangeText={(v) => updateField('priceOffer', v)}
-          keyboardType="decimal-pad"
+          keyboardType="numeric"
           error={fieldErrors.priceOffer}
         />
         <View style={styles.presetSection}>
           <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Offers:</Text>
           <View style={styles.presetRow}>
-            {activeOfferPresets.map((value) => (
+            {activeOfferPresets.map((val) => (
               <Pressable
-                key={'offer-' + value}
+                key={`offer-${val}`}
                 style={({ pressed }) => [
                   styles.presetChip,
                   { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.priceOffer === value && {
+                  form.priceOffer === val && {
                     backgroundColor: C.successSubtle,
                     borderColor: C.success,
                   },
@@ -277,16 +316,16 @@ export function ParcelDetailsStep({
                 ]}
                 onPress={() => {
                   Haptic.select();
-                  updateField('priceOffer', value);
+                  updateField('priceOffer', val);
                 }}
               >
                 <Text
                   style={[
                     styles.presetText,
-                    { color: form.priceOffer === value ? C.success : C.textSecondary },
+                    { color: form.priceOffer === val ? C.success : C.textSecondary },
                   ]}
                 >
-                  ₹{value}
+                  ₹{val}
                 </Text>
               </Pressable>
             ))}
@@ -317,38 +356,75 @@ const styles = StyleSheet.create({
   stepSubtitle: { fontSize: FontSize.sm, marginTop: 2, lineHeight: 18 },
   fieldGroup: { gap: Spacing.sm },
   fieldLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },
-  charCount: { fontSize: FontSize.xs, textAlign: 'right', marginTop: -4 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  categoryCard: {
+  categoryHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: Spacing.smd,
-    paddingVertical: Spacing.mdl,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1.2,
-    width: '31%',
-    flexGrow: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
   },
-  categoryLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  presetSection: {
-    gap: Spacing.xs,
-    marginTop: 2,
-  },
-  presetSectionLabel: {
+  categorySubLabel: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
-    marginLeft: 2,
   },
-  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  presetChip: {
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 6,
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
-  presetText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  smartPriceCard: {
+  categoryCard: {
+    flexBasis: '48%',
+    flexGrow: 1,
     borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+  },
+  categoryImageWrap: {
+    width: '100%',
+    height: 94,
+    backgroundColor: '#00000010',
+    position: 'relative',
+  },
+  categoryImage: {
+    width: '100%',
+    height: '100%',
+  },
+  categoryCheckBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryContent: {
+    padding: Spacing.sm,
+    gap: 2,
+  },
+  categoryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  categoryIconWrap: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    flex: 1,
+  },
+  categoryTagline: {
+    fontSize: FontSize.xs - 1,
+    marginLeft: 26,
+  },
+  charCount: { fontSize: FontSize.xs, textAlign: 'right', marginTop: -2, marginRight: 4 },
+  smartPriceCard: {
+    borderRadius: BorderRadius.lg,
     borderWidth: 1.2,
     padding: Spacing.md,
     gap: Spacing.sm,
@@ -366,48 +442,39 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: BorderRadius.full,
   },
-  smartPriceBadgeText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-  },
-  smartPriceDemandText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-  },
+  smartPriceBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  smartPriceDemandText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   smartPriceBody: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
-  smartPriceAmount: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.5,
-  },
-  smartPriceRange: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
-  },
+  smartPriceAmount: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
+  smartPriceRange: { fontSize: FontSize.xs, marginTop: 1 },
   smartPriceApplyBtn: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
+    paddingVertical: 9,
+    borderRadius: BorderRadius.full,
   },
-  smartPriceApplyText: {
-    color: '#FFFFFF',
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
-  },
+  smartPriceApplyText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold, color: '#FFFFFF' },
   smartPriceLoadingCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    padding: Spacing.md,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    padding: Spacing.sm + 2,
   },
-  smartPriceLoadingText: {
-    fontSize: FontSize.xs,
+  smartPriceLoadingText: { fontSize: FontSize.sm },
+  presetSection: { gap: 6, marginTop: 4 },
+  presetSectionLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginLeft: 2 },
+  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  presetChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
+  presetText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 });

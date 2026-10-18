@@ -7,7 +7,7 @@ import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips'
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
 import { Haptic } from '@/services/haptics.service';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
-import { ParcelDraft } from './types';
+import { ParcelDraft, PREFERRED_TIME_PRESETS } from './types';
 
 interface ParcelRouteStepProps {
   form: ParcelDraft;
@@ -52,7 +52,7 @@ export function ParcelRouteStep({
         <View style={{ flex: 1 }}>
           <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where's it going?</Text>
           <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-            Choose route and preferred handover day
+            Choose route and preferred handover schedule
           </Text>
         </View>
       </View>
@@ -140,6 +140,65 @@ export function ParcelRouteStep({
           />
         </Pressable>
       </View>
+
+      {/* Preferred Handover Window Selector */}
+      <View style={styles.fieldGroup}>
+        <View style={styles.timeHeaderRow}>
+          <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Preferred handover window</Text>
+          <Text style={[styles.timeSubtext, { color: C.textMuted }]}>Optional</Text>
+        </View>
+        <View style={styles.timeGrid}>
+          {PREFERRED_TIME_PRESETS.map((t) => {
+            const isSelected = (form.preferredTime || 'anytime') === t.id;
+            return (
+              <Pressable
+                key={t.id}
+                style={({ pressed }) => [
+                  styles.timeChip,
+                  {
+                    backgroundColor: isSelected ? C.primarySubtle : C.surface,
+                    borderColor: isSelected ? C.primary : C.surfaceBorder,
+                  },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+                onPress={() => {
+                  Haptic.select();
+                  updateField('preferredTime', t.id);
+                }}
+              >
+                <View
+                  style={[
+                    styles.timeIconWrap,
+                    { backgroundColor: isSelected ? C.primary + '20' : C.surfaceElevated },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={t.icon}
+                    size={16}
+                    color={isSelected ? C.primary : C.textSecondary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.timeLabel,
+                      { color: isSelected ? C.primary : C.textPrimary },
+                    ]}
+                  >
+                    {t.label}
+                  </Text>
+                  <Text style={[styles.timeRangeText, { color: isSelected ? C.primary : C.textMuted }]}>
+                    {t.timeRange}
+                  </Text>
+                </View>
+                {isSelected ? (
+                  <MaterialIcons name="check-circle" size={16} color={C.primary} />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </KeyboardAwareScrollView>
   );
 }
@@ -183,4 +242,46 @@ const styles = StyleSheet.create({
   scheduleDateText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   scheduleHintText: { fontSize: FontSize.sm, marginTop: 2 },
   schedulePlaceholder: { fontSize: FontSize.md },
+
+  timeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  timeSubtext: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  timeChip: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.2,
+  },
+  timeIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  timeRangeText: {
+    fontSize: FontSize.xs - 1,
+    marginTop: 1,
+  },
 });
