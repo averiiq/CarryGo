@@ -17,7 +17,7 @@ import { NegotiateTripModal, NegotiationParams } from '@/components/feature/Nego
 import { estimateTripDuration, formatDurationLabel, getRouteTimelineMeta } from '@/components/feature/matching/blaBlaHelpers';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { Request, Trip, Parcel } from '@/types';
+import { Request, Trip, Parcel, ParcelCategory } from '@/types';
 import { isRequestIncoming } from '@/services/requests.service';
 import { createDelivery } from '@/services/deliveries.service';
 import { sendLocalNotification } from '@/services/notifications.service';
@@ -45,7 +45,25 @@ const vehicleGradients: Record<string, [string, string]> = {
 type TabFilter = 'all' | 'pending' | 'active' | 'done';
 
 export default function TripDetailScreen() {
-  const { id, parcelId } = useLocalSearchParams<{ id: string; parcelId?: string }>();
+  const {
+    id,
+    parcelId,
+    draftFromCity,
+    draftToCity,
+    draftWeight,
+    draftCategory,
+    draftPrice,
+    draftDesc,
+  } = useLocalSearchParams<{
+    id: string;
+    parcelId?: string;
+    draftFromCity?: string;
+    draftToCity?: string;
+    draftWeight?: string;
+    draftCategory?: string;
+    draftPrice?: string;
+    draftDesc?: string;
+  }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -93,14 +111,33 @@ export default function TripDetailScreen() {
   const parcels = parcelsQuery.data ?? [];
   const allParcels = useMemo(() => flattenInfiniteData(allParcelsQuery.data), [allParcelsQuery.data]);
   const userParcels = useMemo(() => allParcels.filter(p => p.userId === user?.id && p.status === 'open'), [allParcels, user?.id]);
+
+  const draftParcel = useMemo<Parcel | null>(() => {
+    if (!draftCategory && !draftWeight) return null;
+    return {
+      id: 'draft-parcel',
+      userId: user?.id || 'draft-sender',
+      userName: user?.fullName || user?.name || 'Sender',
+      fromCity: draftFromCity || trip?.fromCity || '',
+      toCity: draftToCity || trip?.toCity || '',
+      category: (draftCategory as ParcelCategory) || 'documents',
+      weight: Number(draftWeight) || 1,
+      priceOffer: Number(draftPrice) || 180,
+      description: draftDesc || 'Parcel delivery',
+      status: 'open',
+      createdAt: new Date().toISOString(),
+    };
+  }, [draftCategory, draftWeight, draftPrice, draftFromCity, draftToCity, draftDesc, user, trip]);
+
   const activeParcel = useMemo(() => {
+    if (draftParcel) return draftParcel;
     if (singleParcelQuery.data) return singleParcelQuery.data;
     if (parcelId) {
       const found = userParcels.find(p => p.id === parcelId);
       if (found) return found;
     }
     return userParcels.length > 0 ? userParcels[0] : null;
-  }, [singleParcelQuery.data, parcelId, userParcels]);
+  }, [draftParcel, singleParcelQuery.data, parcelId, userParcels]);
 
   const timeline = useMemo(() => (trip ? getRouteTimelineMeta(trip) : null), [trip]);
 
@@ -144,8 +181,24 @@ export default function TripDetailScreen() {
     }
 
     try {
+      let resolvedParcelId = chosenParcel.id;
+      if (resolvedParcelId === 'draft-parcel') {
+        const created = await createParcelMutation.mutateAsync({
+          userId: user.id,
+          userName: user.fullName || user.name || 'Sender',
+          fromCity: chosenParcel.fromCity || targetTrip.fromCity,
+          toCity: chosenParcel.toCity || targetTrip.toCity,
+          category: chosenParcel.category || 'documents',
+          weight: chosenParcel.weight || 1,
+          description: chosenParcel.description || `Delivery from ${targetTrip.fromCity} to ${targetTrip.toCity}`,
+          priceOffer: priceToUse,
+          status: 'open',
+        });
+        resolvedParcelId = created.id;
+      }
+
       const result = await createRequestAsync({
-        parcelId: chosenParcel.id,
+        parcelId: resolvedParcelId,
         tripId: targetTrip.id,
         senderId: user.id,
         senderName: user.fullName || user.name || 'Sender',
@@ -187,15 +240,15 @@ export default function TripDetailScreen() {
 
     try {
       let parcelToUse = activeParcel;
-      if (!parcelToUse) {
+      if (!parcelToUse || parcelToUse.id === 'draft-parcel') {
         parcelToUse = await createParcelMutation.mutateAsync({
           userId: user.id,
           userName: user.fullName || user.name || 'Sender',
           fromCity: trip.fromCity,
           toCity: trip.toCity,
-          category: 'documents',
-          weight: 1,
-          description: `Negotiated delivery on trip ${trip.fromCity} → ${trip.toCity}`,
+          category: activeParcel?.category || 'documents',
+          weight: activeParcel?.weight || 1,
+          description: activeParcel?.description || `Negotiated delivery on trip ${trip.fromCity} → ${trip.toCity}`,
           priceOffer: params.offeredPrice,
           status: 'open',
         });
@@ -244,15 +297,15 @@ export default function TripDetailScreen() {
 
     try {
       let parcelToUse = activeParcel;
-      if (!parcelToUse) {
+      if (!parcelToUse || parcelToUse.id === 'draft-parcel') {
         parcelToUse = await createParcelMutation.mutateAsync({
           userId: user.id,
           userName: user.fullName || user.name || 'Sender',
           fromCity: trip.fromCity,
           toCity: trip.toCity,
-          category: 'documents',
-          weight: 1,
-          description: `Delivery inquiry on trip ${trip.fromCity} → ${trip.toCity}`,
+          category: activeParcel?.category || 'documents',
+          weight: activeParcel?.weight || 1,
+          description: activeParcel?.description || `Delivery inquiry on trip ${trip.fromCity} → ${trip.toCity}`,
           priceOffer: params.offeredPrice,
           status: 'open',
         });

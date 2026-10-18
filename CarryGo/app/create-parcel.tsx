@@ -32,13 +32,13 @@ import {
   validateParcelDetails,
   ParcelRouteStep,
   ParcelDetailsStep,
-  ParcelReviewStep,
+  ParcelAvailableTripsStep,
 } from '@/components/feature/parcel';
 
 const STEPS = [
   { label: 'Route' },
   { label: 'Details' },
-  { label: 'Review' },
+  { label: 'Available Trips' },
 ];
 
 export default function CreateParcelScreen() {
@@ -284,6 +284,23 @@ export default function CreateParcelScreen() {
     setStep(index);
   };
 
+  const handleSelectTrip = (targetTrip: any) => {
+    const prepared = prepareDraft();
+    Haptic.confirm();
+    router.push({
+      pathname: '/trip/[id]',
+      params: {
+        id: targetTrip.id,
+        draftFromCity: prepared.fromCity,
+        draftToCity: prepared.toCity,
+        draftWeight: prepared.weight,
+        draftCategory: prepared.category,
+        draftPrice: prepared.priceOffer,
+        draftDesc: prepared.description,
+      },
+    });
+  };
+
   const handleUseCurrentLocation = async () => {
     if (isDetectingCurrentLocation) return;
     Haptic.tap();
@@ -459,41 +476,42 @@ export default function CreateParcelScreen() {
           />
         )}
         {step === 2 && (
-          <ParcelReviewStep
+          <ParcelAvailableTripsStep
             form={form}
             C={C}
-            onEdit={handleStepPress}
-            hasKyc={isKycApproved}
+            onSelectTrip={handleSelectTrip}
+            onEditDetails={() => {
+              setDirection('backward');
+              setStep(1);
+            }}
+            onPostOpenRequest={handleSubmit}
+            isPostingOpenRequest={createParcelMutation.isPending || isSubmitting}
           />
         )}
 
-        <View
-          style={[
-            styles.footer,
-            {
-              backgroundColor: C.background,
-              borderTopColor: C.surfaceBorder,
-              paddingBottom: Math.max(insets.bottom, Spacing.md),
-              bottom: footerOffset,
-            },
-          ]}
-        >
-          {step > 0 && (
-            <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
-          )}
-          {step < 2 ? (
-            <Button title="Next" onPress={goNext} fullWidth={step === 0} style={step > 0 ? { flex: 2 } : undefined} />
-          ) : (
+        {step < 2 ? (
+          <View
+            style={[
+              styles.footer,
+              {
+                backgroundColor: C.background,
+                borderTopColor: C.surfaceBorder,
+                paddingBottom: Math.max(insets.bottom, Spacing.md),
+                bottom: footerOffset,
+              },
+            ]}
+          >
+            {step > 0 && (
+              <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
+            )}
             <Button
-              title="Send Parcel"
-              onPress={handleSubmit}
-              loading={createParcelMutation.isPending || isSubmitting}
+              title={step === 0 ? 'Continue to Details ➔' : 'Find Available Trips ➔'}
+              onPress={goNext}
               fullWidth={step === 0}
               style={step > 0 ? { flex: 2 } : undefined}
-              icon={<MaterialIcons name="check" size={18} color="#fff" />}
             />
-          )}
-        </View>
+          </View>
+        ) : null}
       </WizardContainer>
     </>
   );
