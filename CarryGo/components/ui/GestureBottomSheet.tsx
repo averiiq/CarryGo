@@ -72,20 +72,37 @@ export function GestureBottomSheet({
     backdropProgress.value = withTiming(1, { duration: 240 });
   }, [backdropProgress, translateY]);
 
-  const animateClose = useCallback(() => {
+  const animateClose = useCallback((velocity = 0) => {
     'worklet';
     backdropProgress.value = withTiming(0, { duration: 180 });
-    translateY.value = withTiming(SCREEN_HEIGHT, { duration: 200 }, (finished) => {
-      if (finished) {
-        runOnJS(handleDismissFinished)();
-      }
-    });
+    if (velocity > 80) {
+      translateY.value = withSpring(
+        SCREEN_HEIGHT,
+        {
+          velocity,
+          damping: 24,
+          stiffness: 260,
+          mass: 0.8,
+        },
+        (finished) => {
+          if (finished) {
+            runOnJS(handleDismissFinished)();
+          }
+        }
+      );
+    } else {
+      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 200 }, (finished) => {
+        if (finished) {
+          runOnJS(handleDismissFinished)();
+        }
+      });
+    }
   }, [backdropProgress, handleDismissFinished, translateY, SCREEN_HEIGHT]);
 
-  const triggerCloseWithHaptic = useCallback(() => {
+  const triggerCloseWithHaptic = useCallback((velocity = 0) => {
     Haptic.tap();
     Keyboard.dismiss();
-    animateClose();
+    animateClose(velocity);
   }, [animateClose]);
 
   const dismissKeyboard = useCallback(() => {
@@ -160,9 +177,9 @@ export function GestureBottomSheet({
     })
     .onEnd((event) => {
       if (event.translationY > DISMISS_THRESHOLD || event.velocityY > DISMISS_VELOCITY) {
-        runOnJS(triggerCloseWithHaptic)();
+        runOnJS(triggerCloseWithHaptic)(event.velocityY);
       } else {
-        translateY.value = withSpring(0, { damping: 24, stiffness: 280, mass: 0.85 });
+        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 24, stiffness: 280, mass: 0.85 });
         backdropProgress.value = withTiming(1, { duration: 180 });
       }
     });
@@ -191,9 +208,9 @@ export function GestureBottomSheet({
     })
     .onEnd((event) => {
       if (event.translationY > DISMISS_THRESHOLD || event.velocityY > DISMISS_VELOCITY) {
-        runOnJS(triggerCloseWithHaptic)();
+        runOnJS(triggerCloseWithHaptic)(event.velocityY);
       } else {
-        translateY.value = withSpring(0, { damping: 24, stiffness: 280, mass: 0.85 });
+        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 24, stiffness: 280, mass: 0.85 });
         backdropProgress.value = withTiming(1, { duration: 180 });
       }
     });
@@ -287,27 +304,28 @@ const styles = StyleSheet.create({
   sheetCard: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    borderTopWidth: 1,
+    borderTopWidth: 1.2,
     borderLeftWidth: 1,
     borderRightWidth: 1,
     overflow: 'hidden',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 24,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 28,
   },
   handleContainer: {
     width: '100%',
     alignItems: 'center',
     paddingTop: Spacing.sm + 2,
-    paddingBottom: Spacing.xs + 4,
+    paddingBottom: Spacing.xs + 2,
     // Generous hit target to ensure effortless downward swiping
     minHeight: 28,
   },
   handleBar: {
-    width: 48,
-    height: 5,
+    width: 44,
+    height: 4.5,
     borderRadius: BorderRadius.full,
+    opacity: 0.85,
   },
 });

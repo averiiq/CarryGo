@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useAuth } from '@/hooks/useAuth';
 import { Haptic } from '@/services/haptics.service';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { UserNotificationPreferences } from '@/types';
 import {
   fetchNotificationPreferences,
   updateNotificationPreferences,
+  checkNotificationPermissions,
+  requestNotificationPermissions,
+  openSystemNotificationSettings,
+  sendTestNotification,
+  registerForPushNotifications,
+  savePushToken,
+  NotificationPermissionState,
 } from '@/services/notifications.service';
 
 type PrefKey = keyof Omit<UserNotificationPreferences, 'userId' | 'updatedAt'>;
@@ -39,6 +47,7 @@ interface PreferenceSection {
 
 export default function NotificationSettingsScreen() {
   const { C } = useThemeColors();
+  const { user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -47,7 +56,18 @@ export default function NotificationSettingsScreen() {
   const [saving, setSaving] = useState<PrefKey | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPrefs = async () => {
+  // Diagnostic states
+  const [permState, setPermState] = useState<NotificationPermissionState | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [refreshingToken, setRefreshingToken] = useState(false);
+
+  const loadDiagnostics = useCallback(async () => {
+    const state = await checkNotificationPermissions();
+    setPermState(state);
+  }, []);
+
+  const loadPrefs = useCallback(async () => {
     setLoading(true);
     setError(null);
     const { data, error: fetchError } = await fetchNotificationPreferences();
@@ -56,10 +76,13 @@ export default function NotificationSettingsScreen() {
     } else {
       setPrefs(data);
     }
+    await loadDiagnostics();
     setLoading(false);
-  };
+  }, [loadDiagnostics]);
 
-  useEffect(() => { void loadPrefs(); }, []);
+  useEffect(() => {
+    void loadPrefs();
+  }, [loadPrefs]);
 
   const toggle = async (key: PrefKey) => {
     if (!prefs || saving) return;
@@ -72,6 +95,64 @@ export default function NotificationSettingsScreen() {
     if (saveError) {
       setPrefs(prefs);
       setError('Failed to save. Please try again.');
+    }
+  };
+
+  const handleFixPermissions = async () => {
+    Haptic.tap();
+    if (permState && !permState.granted && !permState.canAskAgain) {
+      // Blocked permanently in OS settings — deep link to settings
+      await openSystemNotificationSettings();
+    } else {
+      // Re-prompt permission dialog
+      const result = await requestNotificationPermissions();
+      setPermState(result);
+      if (result.granted && user?.id) {
+        const token = await registerForPushNotifications();
+        if (token) await savePushToken(user.id, token);
+      }
+    }
+  };
+
+  const handleRefreshToken = async () => {
+    if (!user?.id || refreshingToken) return;
+    Haptic.tap();
+    setRefreshingToken(true);
+    setTestResult(null);
+    try {
+      const token = await registerForPushNotifications();
+      if (token) {
+        await savePushToken(user.id, token);
+        setTestResult({ success: true, message: 'Device token refreshed and registered successfully!' });
+      } else {
+        setTestResult({ success: false, message: 'Could not generate push token. Ensure notifications are allowed.' });
+      }
+      await loadDiagnostics();
+    } catch {
+      setTestResult({ success: false, message: 'Failed to refresh token.' });
+    } finally {
+      setRefreshingToken(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    if (!user?.id || testing) return;
+    Haptic.select();
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await sendTestNotification(user.id);
+      setTestResult(res);
+      if (res.success) {
+        Haptic.success();
+      } else {
+        Haptic.error();
+      }
+    } catch (err) {
+      setTestResult({ success: false, message: err instanceof Error ? err.message : 'Test failed' });
+      Haptic.error();
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -117,8 +198,8 @@ export default function NotificationSettingsScreen() {
           <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Notification Preferences</Text>
-          <Text style={[styles.headerSub, { color: C.textMuted }]}>Customize which alerts you receive</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Notification Settings</Text>
+          <Text style={[styles.headerSub, { color: C.textMuted }]}>Permissions, health & preferences</Text>
         </View>
         {saving ? <ActivityIndicator size="small" color={C.primary} /> : <Ionicons name="notifications" size={22} color={C.primary} />}
       </View>
@@ -126,7 +207,7 @@ export default function NotificationSettingsScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={C.primary} />
-          <Text style={[styles.centreText, { color: C.textMuted }]}>Loading preferences…</Text>
+          <Text style={[styles.centreText, { color: C.textMuted }]}>Checking notification channels…</Text>
         </View>
       ) : error && !prefs ? (
         <View style={styles.center}>
@@ -138,13 +219,107 @@ export default function NotificationSettingsScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32 }]} showsVerticalScrollIndicator={false}>
+
+          {/* Device Health & Diagnostics Card */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Device Health & Diagnostics</Text>
+            <View style={[styles.diagCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              {/* Permission Status Row */}
+              <View style={styles.diagRow}>
+                <View style={[styles.diagIconWrap, { backgroundColor: permState?.granted ? '#10B98118' : '#EF444418' }]}>
+                  <MaterialIcons
+                    name={permState?.granted ? 'check-circle' : 'notifications-off'}
+                    size={20}
+                    color={permState?.granted ? '#10B981' : '#EF4444'}
+                  />
+                </View>
+                <View style={styles.diagInfo}>
+                  <Text style={[styles.diagLabel, { color: C.textPrimary }]}>
+                    System Notification Permission
+                  </Text>
+                  <Text style={[styles.diagStatusText, { color: permState?.granted ? '#10B981' : '#EF4444' }]}>
+                    {permState?.granted ? 'Active & Enabled' : 'Disabled / Blocked'}
+                  </Text>
+                </View>
+                {!permState?.granted && (
+                  <Pressable
+                    onPress={handleFixPermissions}
+                    style={({ pressed }) => [
+                      styles.fixBtn,
+                      { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1, transform: pressed ? [{ scale: 0.97 }] : [{ scale: 1 }] }
+                    ]}
+                  >
+                    <Text style={styles.fixBtnText}>Enable</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: C.surfaceBorder + '80' }]} />
+
+              {/* Channels & Action Row */}
+              <View style={styles.diagActionsRow}>
+                <Pressable
+                  onPress={handleSendTest}
+                  disabled={testing}
+                  style={({ pressed }) => [
+                    styles.actionPill,
+                    { backgroundColor: C.primarySubtle, borderColor: C.primary + '40', opacity: pressed ? 0.8 : 1, transform: pressed ? [{ scale: 0.97 }] : [{ scale: 1 }] }
+                  ]}
+                >
+                  {testing ? (
+                    <ActivityIndicator size="small" color={C.primary} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="send" size={15} color={C.primary} />
+                      <Text style={[styles.actionPillText, { color: C.primary }]}>Send Test Notification</Text>
+                    </>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={handleRefreshToken}
+                  disabled={refreshingToken}
+                  style={({ pressed }) => [
+                    styles.actionPill,
+                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: pressed ? 0.8 : 1, transform: pressed ? [{ scale: 0.97 }] : [{ scale: 1 }] }
+                  ]}
+                >
+                  {refreshingToken ? (
+                    <ActivityIndicator size="small" color={C.textSecondary} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="refresh" size={15} color={C.textSecondary} />
+                      <Text style={[styles.actionPillText, { color: C.textSecondary }]}>Refresh Token</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+
+              {/* Test Result Message */}
+              {testResult && (
+                <View style={[styles.testResultBox, { backgroundColor: testResult.success ? '#10B98115' : '#EF444415', borderColor: testResult.success ? '#10B98140' : '#EF444440' }]}>
+                  <MaterialIcons
+                    name={testResult.success ? 'check' : 'warning'}
+                    size={15}
+                    color={testResult.success ? '#10B981' : '#EF4444'}
+                  />
+                  <Text style={[styles.testResultText, { color: testResult.success ? '#10B981' : '#EF4444' }]}>
+                    {testResult.message}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Info note */}
           <View style={[styles.infoNote, { backgroundColor: C.primarySubtle, borderColor: C.primary + '30' }]}>
             <MaterialIcons name="info-outline" size={15} color={C.primary} />
             <Text style={[styles.infoNoteText, { color: C.textSecondary }]}>
-              Critical security and emergency notifications are always delivered, regardless of these settings.
+              Critical security alerts, OTP verifications, and delivery completions bypass preference filters and are always delivered.
             </Text>
           </View>
 
+          {/* Preference sections */}
           {sections.map((section) => (
             <View key={section.title} style={styles.section}>
               <Text style={[styles.sectionTitle, { color: C.textMuted }]}>{section.title}</Text>
@@ -219,6 +394,19 @@ const styles = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: FontWeight.bold, fontSize: FontSize.sm },
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.md, gap: 4 },
+  diagCard: { borderRadius: BorderRadius.lg, borderWidth: 1, padding: 14, gap: 12, marginBottom: 10 },
+  diagRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  diagIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  diagInfo: { flex: 1 },
+  diagLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  diagStatusText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 2 },
+  fixBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: BorderRadius.full },
+  fixBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  diagActionsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  actionPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: BorderRadius.full, borderWidth: 1 },
+  actionPillText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  testResultBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: BorderRadius.md, borderWidth: 1 },
+  testResultText: { fontSize: FontSize.xs, flex: 1, lineHeight: 16 },
   infoNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: BorderRadius.md, borderWidth: 1, marginBottom: 8 },
   infoNoteText: { flex: 1, fontSize: 12, lineHeight: 17 },
   section: { marginBottom: 16 },
@@ -232,8 +420,7 @@ const styles = StyleSheet.create({
   prefDesc: { fontSize: 11.5, lineHeight: 16 },
   critBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   critBadgeText: { fontSize: 10, fontWeight: FontWeight.bold },
-  divider: { height: 1, marginHorizontal: 14 },
+  divider: { height: 1 },
   errBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: BorderRadius.md, borderWidth: 1, marginTop: 8 },
   errText: { fontSize: 12, flex: 1 },
 });
-

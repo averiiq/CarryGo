@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
 import { Input } from '@/components/ui/Input';
 import { ParcelImagePicker } from '@/components/feature/ParcelImagePicker';
 import { Haptic } from '@/services/haptics.service';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
 import { PriceEstimate } from '@/services/price-estimator.service';
 import {
   ParcelDraft,
@@ -43,6 +43,9 @@ export function ParcelDetailsStep({
       )
     : PARCEL_OFFER_PRESETS;
 
+  const charCount = form.description.length;
+  const isNearLimit = charCount >= 280;
+
   return (
     <KeyboardAwareScrollView
       style={styles.stepContent}
@@ -52,32 +55,17 @@ export function ParcelDetailsStep({
       keyboardDismissMode="on-drag"
       extraScrollHeight={130}
     >
-      {/* Header */}
-      <View style={styles.stepHeaderWrap}>
-        <View
-          style={[
-            styles.stepHeaderIcon,
-            { backgroundColor: C.primarySubtle, borderColor: C.primary + '25', borderWidth: 1 },
-          ]}
-        >
-          <MaterialIcons name="inventory-2" size={22} color={C.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.stepTitle, { color: C.textPrimary }]}>What are you sending?</Text>
-          <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-            Select category, photos, weight and delivery offer
-          </Text>
-        </View>
-      </View>
+      {/* Compact inline header */}
+      <Text style={[styles.stepTitle, { color: C.textPrimary }]}>What are you sending?</Text>
 
-      {/* Real Visual Category Selection */}
+      {/* Horizontal scrollable category selector */}
       <View style={styles.fieldGroup}>
-        <View style={styles.categoryHeaderRow}>
-          <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Category</Text>
-          <Text style={[styles.categorySubLabel, { color: C.textMuted }]}>Tap to choose package type</Text>
-        </View>
-
-        <View style={styles.categoryGrid}>
+        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Category</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryScroll}
+        >
           {PARCEL_CATEGORIES.map((cat) => {
             const isActive = form.category === cat.type;
             const categoryImage = PARCEL_CATEGORY_IMAGES[cat.type];
@@ -89,74 +77,67 @@ export function ParcelDetailsStep({
                 accessibilityLabel={`Category: ${cat.label}`}
                 accessibilityState={{ selected: isActive }}
                 style={({ pressed }) => [
-                  styles.categoryCard,
+                  styles.categoryChip,
                   {
-                    backgroundColor: C.card,
+                    backgroundColor: isActive ? C.primarySubtle : C.surface,
                     borderColor: isActive ? C.primary : C.surfaceBorder,
-                    borderWidth: isActive ? 2 : 1,
+                    borderWidth: isActive ? 1.5 : 1,
                   },
                   isActive && {
                     shadowColor: C.primary,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.16,
-                    shadowRadius: 8,
-                    elevation: 3,
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.14,
+                    shadowRadius: 6,
+                    elevation: 2,
                   },
-                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
                 ]}
                 onPress={() => {
                   Haptic.select();
                   updateField('category', cat.type);
                 }}
               >
-                {/* Real Image Container */}
-                <View style={styles.categoryImageWrap}>
+                {/* Compact round image */}
+                <View style={styles.categoryImgWrap}>
                   <Image
                     source={categoryImage}
-                    style={styles.categoryImage}
+                    style={styles.categoryImg}
                     contentFit="cover"
                     transition={200}
                   />
                   {isActive ? (
                     <View style={[styles.categoryCheckBadge, { backgroundColor: C.primary }]}>
-                      <MaterialIcons name="check" size={13} color="#FFFFFF" />
+                      <MaterialIcons name="check" size={10} color="#FFFFFF" />
                     </View>
                   ) : null}
                 </View>
 
-                {/* Content info */}
-                <View style={styles.categoryContent}>
-                  <View style={styles.categoryTitleRow}>
-                    <View style={[styles.categoryIconWrap, { backgroundColor: cat.color + '18' }]}>
-                      <MaterialIcons name={cat.icon} size={13} color={cat.color} />
-                    </View>
-                    <Text
-                      style={[
-                        styles.categoryLabel,
-                        { color: isActive ? C.primary : C.textPrimary },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {cat.label}
-                    </Text>
-                  </View>
-                  <Text style={[styles.categoryTagline, { color: C.textMuted }]} numberOfLines={1}>
-                    {cat.tagline}
-                  </Text>
-                </View>
+                {/* Label + tagline */}
+                <Text
+                  style={[
+                    styles.categoryLabel,
+                    { color: isActive ? C.primary : C.textPrimary },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {cat.label}
+                </Text>
+                <Text style={[styles.categoryTagline, { color: C.textMuted }]} numberOfLines={1}>
+                  {cat.tagline}
+                </Text>
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
 
       {/* Parcel Photos */}
       <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Parcel photos</Text>
         <ParcelImagePicker
           images={form.images}
           onImagesChange={(imgs) => updateField('images', imgs)}
           error={fieldErrors.images}
+          category={form.category}
         />
       </View>
 
@@ -173,7 +154,15 @@ export function ParcelDetailsStep({
           style={{ minHeight: 76, textAlignVertical: 'top' }}
           error={fieldErrors.description}
         />
-        <Text style={[styles.charCount, { color: C.textMuted }]}>{form.description.length}/300</Text>
+        <Text
+          style={[
+            styles.charCount,
+            { color: isNearLimit ? C.warning : C.textMuted },
+            charCount >= 300 && { color: C.error },
+          ]}
+        >
+          {charCount}/300
+        </Text>
       </View>
 
       {/* Smart Price Guidance Card */}
@@ -188,7 +177,7 @@ export function ParcelDetailsStep({
             <View style={[styles.smartPriceBadge, { backgroundColor: C.primarySubtle }]}>
               <MaterialIcons name="auto-awesome" size={13} color={C.primary} />
               <Text style={[styles.smartPriceBadgeText, { color: C.primary }]}>
-                CarryGo Smart Estimate
+                Smart Estimate
               </Text>
             </View>
             <Text
@@ -198,8 +187,8 @@ export function ParcelDetailsStep({
               ]}
             >
               {priceRecommendation.demandLevel === 'high'
-                ? '🔥 High Traveler Demand'
-                : '⚡ Recommended Rate'}
+                ? '🔥 High Demand'
+                : '⚡ Recommended'}
             </Text>
           </View>
 
@@ -209,7 +198,7 @@ export function ParcelDetailsStep({
                 ₹{priceRecommendation.suggestedPrice}
               </Text>
               <Text style={[styles.smartPriceRange, { color: C.textMuted }]}>
-                Suggested bracket: ₹{priceRecommendation.minPrice} – ₹{priceRecommendation.maxPrice}
+                ₹{priceRecommendation.minPrice} – ₹{priceRecommendation.maxPrice}
               </Text>
             </View>
 
@@ -218,7 +207,7 @@ export function ParcelDetailsStep({
               style={({ pressed }) => [
                 styles.smartPriceApplyBtn,
                 { backgroundColor: C.primary },
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
               ]}
               onPress={() => {
                 Haptic.success();
@@ -240,7 +229,7 @@ export function ParcelDetailsStep({
         >
           <MaterialIcons name="hourglass-empty" size={16} color={C.primary} />
           <Text style={[styles.smartPriceLoadingText, { color: C.textMuted }]}>
-            Calculating best corridor rate...
+            Calculating best rate...
           </Text>
         </View>
       ) : null}
@@ -268,7 +257,7 @@ export function ParcelDetailsStep({
                     backgroundColor: C.primarySubtle,
                     borderColor: C.primary,
                   },
-                  pressed && { opacity: 0.8 },
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
                 ]}
                 onPress={() => {
                   Haptic.select();
@@ -289,7 +278,7 @@ export function ParcelDetailsStep({
         </View>
       </View>
 
-      {/* Price Offer Input & Quick Fare Presets */}
+      {/* Price Offer Input & Quick Fare Presets — unified to primary blue */}
       <View style={styles.fieldGroup}>
         <Input
           label="Your delivery offer (₹)"
@@ -309,10 +298,10 @@ export function ParcelDetailsStep({
                   styles.presetChip,
                   { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                   form.priceOffer === val && {
-                    backgroundColor: C.successSubtle,
-                    borderColor: C.success,
+                    backgroundColor: C.primarySubtle,
+                    borderColor: C.primary,
                   },
-                  pressed && { opacity: 0.8 },
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
                 ]}
                 onPress={() => {
                   Haptic.select();
@@ -322,7 +311,7 @@ export function ParcelDetailsStep({
                 <Text
                   style={[
                     styles.presetText,
-                    { color: form.priceOffer === val ? C.success : C.textSecondary },
+                    { color: form.priceOffer === val ? C.primary : C.textSecondary },
                   ]}
                 >
                   ₹{val}
@@ -338,91 +327,60 @@ export function ParcelDetailsStep({
 
 const styles = StyleSheet.create({
   stepContent: { flex: 1 },
-  stepInner: { gap: Spacing.lg, paddingBottom: 132 },
-  stepHeaderWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.xs,
+  stepInner: { gap: Spacing.lg, paddingBottom: 110 },
+  stepTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.4,
   },
-  stepHeaderIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
-  stepSubtitle: { fontSize: FontSize.sm, marginTop: 2, lineHeight: 18 },
   fieldGroup: { gap: Spacing.sm },
   fieldLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },
-  categoryHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-  },
-  categorySubLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+
+  /* Horizontal scrollable category chips */
+  categoryScroll: {
     gap: Spacing.sm,
+    paddingRight: Spacing.md,
   },
-  categoryCard: {
-    flexBasis: '48%',
-    flexGrow: 1,
-    borderRadius: BorderRadius.xl,
+  categoryChip: {
+    width: 108,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
+    alignItems: 'center',
+    paddingBottom: Spacing.sm,
   },
-  categoryImageWrap: {
+  categoryImgWrap: {
     width: '100%',
-    height: 94,
-    backgroundColor: '#00000010',
+    height: 68,
     position: 'relative',
   },
-  categoryImage: {
+  categoryImg: {
     width: '100%',
     height: '100%',
   },
   categoryCheckBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryContent: {
-    padding: Spacing.sm,
-    gap: 2,
-  },
-  categoryTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  categoryIconWrap: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
+    top: 4,
+    right: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryLabel: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
-    flex: 1,
+    marginTop: 6,
+    textAlign: 'center',
   },
   categoryTagline: {
-    fontSize: FontSize.xs - 1,
-    marginLeft: 26,
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 1,
+    paddingHorizontal: 4,
   },
-  charCount: { fontSize: FontSize.xs, textAlign: 'right', marginTop: -2, marginRight: 4 },
+
+  charCount: { fontSize: FontSize.xs, textAlign: 'right', marginTop: -2, marginRight: 4, fontWeight: FontWeight.medium },
   smartPriceCard: {
     borderRadius: BorderRadius.lg,
     borderWidth: 1.2,

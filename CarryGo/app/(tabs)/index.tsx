@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ActivityIndicator, Animated, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, FlatList, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,12 +36,16 @@ function HomeHeader({
   unreadCount,
   onNotifications,
   onProfilePress,
+  locationCity,
+  onCityPress,
 }: {
   userName: string;
   avatarUri?: string;
   unreadCount: number;
   onNotifications: () => void;
   onProfilePress?: () => void;
+  locationCity?: string;
+  onCityPress?: () => void;
 }) {
   const { C } = useThemeColors();
   const initial = (userName || 'U').charAt(0).toUpperCase();
@@ -51,43 +54,79 @@ function HomeHeader({
 
   return (
     <View style={styles.headerTop}>
-      <Pressable onPress={onProfilePress} style={styles.userProfileWrap} accessibilityRole="button" accessibilityLabel="View profile">
-        <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33', overflow: 'hidden' }]}>
+      <Pressable
+        onPress={() => {
+          Haptic.tap();
+          onProfilePress?.();
+        }}
+        style={({ pressed }) => [
+          styles.userProfileWrap,
+          pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="View profile"
+      >
+        <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={{ width: 44, height: 44, borderRadius: 22 }} contentFit="cover" />
           ) : (
             <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
           )}
+          <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card, borderWidth: 1.5 }]} />
         </View>
         <View style={styles.greetingWrap}>
-          <Text style={[styles.greetingSub, { color: C.textMuted }]}>{greeting},</Text>
+          <Text style={[styles.greetingSub, { color: C.textMuted }]}>{greeting} 👋</Text>
           <Text style={[styles.greetingName, { color: C.textPrimary }]} numberOfLines={1}>
             {userName}
           </Text>
         </View>
       </Pressable>
 
-      <Pressable
-        onPress={() => {
-          Haptic.tap();
-          onNotifications();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel="Notifications"
-        hitSlop={TouchTarget.smallHitSlop}
-        style={({ pressed }) => [
-          styles.notifyBtn,
-          { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-          pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
-        ]}
-      >
-        <MaterialIcons name="notifications-none" size={22} color={C.textPrimary} />
-        {unreadCount > 0 ? (
-          <View style={[styles.notifyBadge, { backgroundColor: C.error }]}>
-            <Text style={styles.notifyBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-          </View>
+      <View style={styles.headerRightActions}>
+        {onCityPress ? (
+          <Pressable
+            onPress={() => {
+              Haptic.tap();
+              onCityPress();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Active transit hub: ${locationCity || 'Choose City'}`}
+            style={({ pressed }) => [
+              styles.hubSelectorPill,
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+            ]}
+          >
+            <MaterialIcons name="place" size={13} color={C.primary} />
+            <Text style={[styles.hubSelectorText, { color: C.textPrimary }]} numberOfLines={1}>
+              {locationCity || 'India'}
+            </Text>
+            <MaterialIcons name="expand-more" size={14} color={C.textMuted} />
+          </Pressable>
         ) : null}
-      </Pressable>
+
+        <Pressable
+          onPress={() => {
+            Haptic.tap();
+            onNotifications();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+          hitSlop={TouchTarget.smallHitSlop}
+          style={({ pressed }) => [
+            styles.notifyBtn,
+            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] },
+          ]}
+        >
+          <MaterialIcons name="notifications-none" size={21} color={C.textPrimary} />
+          {unreadCount > 0 ? (
+            <View style={[styles.notifyBadge, { backgroundColor: C.error }]}>
+              <Text style={styles.notifyBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          ) : null}
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -114,14 +153,14 @@ function SearchBarTrigger({
       style={({ pressed }) => [
         styles.searchBar,
         { backgroundColor: C.card, borderColor: hasFilter ? C.primary : C.surfaceBorder },
-        pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+        pressed && { opacity: 0.92, transform: [{ scale: 0.985 }] },
       ]}
     >
       <View style={[styles.searchIconWrap, { backgroundColor: C.primarySubtle }]}>
         <MaterialIcons name="search" size={20} color={C.primary} />
       </View>
       <View style={styles.searchCopyWrap}>
-        <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Where are you sending to?</Text>
+        <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Where are you traveling or sending?</Text>
         <Text style={[styles.searchSubPlaceholder, { color: C.textMuted }]}>Search routes, cities or dates</Text>
       </View>
       <Pressable
@@ -140,10 +179,11 @@ function SearchBarTrigger({
             borderColor: hasFilter ? C.primary : C.surfaceBorder,
             borderWidth: 1,
           },
-          pressed && { opacity: 0.8 },
+          pressed && { opacity: 0.75, transform: [{ scale: 0.94 }] },
         ]}
       >
         <MaterialIcons name="tune" size={17} color={hasFilter ? C.primary : C.textSecondary} />
+        {hasFilter ? <View style={[styles.activeFilterDotOnTrigger, { backgroundColor: C.primary }]} /> : null}
       </Pressable>
     </Pressable>
   );
@@ -163,20 +203,23 @@ function QuickActions() {
         accessibilityRole="button"
         accessibilityLabel="Send Parcel"
         style={({ pressed }) => [
-          styles.quickActionCard,
-          styles.quickActionPrimaryCard,
-          { backgroundColor: C.primary, borderColor: C.primary },
-          pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+          styles.quickActionTile,
+          { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder },
+          pressed && { opacity: 0.92, transform: [{ scale: 0.978 }] },
         ]}
       >
-        <View style={styles.quickActionIconWrap}>
-          <MaterialIcons name="inventory-2" size={19} color="#FFFFFF" />
+        <View style={styles.quickActionTileTop}>
+          <View style={[styles.quickActionIconBubble, { backgroundColor: C.primary }]}>
+            <MaterialIcons name="inventory-2" size={18} color="#FFFFFF" />
+          </View>
+          <View style={[styles.quickActionMiniArrow, { backgroundColor: '#FFFFFF' }]}>
+            <MaterialIcons name="arrow-outward" size={13} color={C.primary} />
+          </View>
         </View>
         <View style={styles.quickActionCopy}>
-          <Text style={[styles.quickActionTitle, { color: '#FFFFFF' }]}>Send Parcel</Text>
-          <Text style={[styles.quickActionSub, { color: 'rgba(255,255,255,0.85)' }]}>Get it delivered</Text>
+          <Text style={[styles.quickActionTitle, { color: C.textPrimary }]}>Send Parcel</Text>
+          <Text style={[styles.quickActionSub, { color: C.textSecondary }]}>Get items delivered fast</Text>
         </View>
-        <MaterialIcons name="arrow-forward" size={15} color="rgba(255,255,255,0.8)" style={styles.quickActionArrow} />
       </Pressable>
 
       <Pressable
@@ -187,19 +230,23 @@ function QuickActions() {
         accessibilityRole="button"
         accessibilityLabel="Post a Trip"
         style={({ pressed }) => [
-          styles.quickActionCard,
+          styles.quickActionTile,
           { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-          pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+          pressed && { opacity: 0.92, transform: [{ scale: 0.978 }] },
         ]}
       >
-        <View style={[styles.quickActionIconWrap, { backgroundColor: C.primarySubtle }]}>
-          <MaterialIcons name="flight-takeoff" size={19} color={C.primary} />
+        <View style={styles.quickActionTileTop}>
+          <View style={[styles.quickActionIconBubble, { backgroundColor: C.surfaceElevated }]}>
+            <MaterialIcons name="flight-takeoff" size={18} color={C.primary} />
+          </View>
+          <View style={[styles.quickActionMiniArrow, { backgroundColor: C.surfaceElevated }]}>
+            <MaterialIcons name="arrow-outward" size={13} color={C.textMuted} />
+          </View>
         </View>
         <View style={styles.quickActionCopy}>
           <Text style={[styles.quickActionTitle, { color: C.textPrimary }]}>Post a Trip</Text>
-          <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Earn on your route</Text>
+          <Text style={[styles.quickActionSub, { color: C.textMuted }]}>Earn cash while traveling</Text>
         </View>
-        <MaterialIcons name="arrow-forward" size={15} color={C.textMuted} style={styles.quickActionArrow} />
       </Pressable>
     </View>
   );
@@ -338,7 +385,7 @@ const FeedTripItem = React.memo(function FeedTripItem({
   const handleShare = useCallback(() => onShare(trip), [onShare, trip]);
 
   return (
-    <View style={isTablet ? styles.tabletCardWrap : undefined}>
+    <View style={isTablet ? styles.tabletCardWrap : styles.feedCardWrap}>
       <SwipeableCard
         onShare={handleShare}
         onSecondaryAction={!isOwner && trip.status === 'active' && FeatureFlags.payments && !existingRequest ? handleRequest : undefined}
@@ -386,7 +433,7 @@ const FeedParcelItem = React.memo(function FeedParcelItem({
   const handleShare = useCallback(() => onShare(parcel), [onShare, parcel]);
 
   return (
-    <View style={isTablet ? styles.tabletCardWrap : undefined}>
+    <View style={isTablet ? styles.tabletCardWrap : styles.feedCardWrap}>
       <SwipeableCard
         onShare={handleShare}
         onSecondaryAction={!isOwner && parcel.status === 'open' && !existingRequest ? handleCarry : undefined}
@@ -436,7 +483,7 @@ export default function HomeScreen() {
     toCity: string;
   } | null>(null);
 
-  const flashListRef = useRef<any>(null);
+  const listRef = useRef<FlatList<FeedItem>>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [isScrolledDown, setIsScrolledDown] = useState(false);
   const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
@@ -1095,7 +1142,7 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => {
             Haptic.tap();
-            flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            listRef.current?.scrollToOffset({ offset: 0, animated: true });
           }}
           style={styles.miniHeaderLeft}
           accessibilityRole="button"
@@ -1176,12 +1223,15 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
 
-      <FlashList
-        ref={flashListRef}
+      <FlatList
+        ref={listRef}
         data={feedData}
         keyExtractor={(item) => `${item.type}-${item.data.id}`}
         renderItem={renderItem}
-        estimatedItemSize={236}
+        removeClippedSubviews={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         ListHeaderComponent={
@@ -1193,6 +1243,8 @@ export default function HomeScreen() {
                 unreadCount={unreadCount}
                 onNotifications={() => setShowNotifications(true)}
                 onProfilePress={() => router.push('/(tabs)/profile')}
+                locationCity={locationCity}
+                onCityPress={() => setShowCityPicker(true)}
               />
             </Animated.View>
 
@@ -1277,18 +1329,22 @@ export default function HomeScreen() {
             />
           )
         }
-        ListFooterComponent={tripsQuery.isFetchingNextPage || parcelsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footerLoader} color={C.primary} /> : null}
+        ListFooterComponent={
+          feedData.length > 0 ? (
+            <View style={styles.feedFooterEnd}>
+              <View style={[styles.feedFooterLine, { backgroundColor: C.surfaceBorder }]} />
+              <View style={[styles.feedFooterPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <MaterialIcons name="check-circle" size={13} color={C.primary} />
+                <Text style={[styles.feedFooterText, { color: C.textSecondary }]}>
+                  All {feedData.length} {activeTab === 'trips' ? 'trips' : 'parcels'} shown
+                </Text>
+              </View>
+              <View style={[styles.feedFooterLine, { backgroundColor: C.surfaceBorder }]} />
+            </View>
+          ) : null
+        }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
-        onEndReachedThreshold={0.35}
-        onEndReached={() => {
-          if (activeTab === 'trips') {
-            if (tripsQuery.hasNextPage && !tripsQuery.isFetchingNextPage) tripsQuery.fetchNextPage();
-            return;
-          }
-
-          if (parcelsQuery.hasNextPage && !parcelsQuery.isFetchingNextPage) parcelsQuery.fetchNextPage();
-        }}
-        contentContainerStyle={{ ...styles.listContent, paddingBottom: Math.max(116, insets.bottom + 104) }}
+        contentContainerStyle={{ paddingBottom: Math.max(88, insets.bottom + 80) }}
       />
 
       {/* Floating Action Button (FAB) for fast one-tap creation on scroll */}
@@ -1377,6 +1433,17 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   avatarInitial: {
     fontSize: FontSize.lg,
@@ -1395,10 +1462,34 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     letterSpacing: -0.2,
   },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+  },
+  hubSelectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    gap: 3,
+    maxWidth: 135,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  hubSelectorText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
   notifyBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.lg,
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1407,11 +1498,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
+    position: 'relative',
   },
   notifyBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -2,
+    right: -2,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -1436,9 +1528,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   searchIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1448,7 +1540,7 @@ const styles = StyleSheet.create({
   searchPlaceholder: {
     fontSize: FontSize.sm + 0.5,
     fontWeight: FontWeight.semibold,
-    letterSpacing: -0.1,
+    letterSpacing: -0.2,
   },
   searchSubPlaceholder: {
     fontSize: FontSize.xs,
@@ -1457,61 +1549,66 @@ const styles = StyleSheet.create({
   filterIconBadge: {
     width: 38,
     height: 38,
-    borderRadius: 10,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  activeFilterDotOnTrigger: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 
   quickActionsRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.sm + 2,
   },
-  quickActionCard: {
+  quickActionTile: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: Spacing.sm,
-    minHeight: 56,
-    gap: Spacing.xs + 2,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.2,
+    padding: Spacing.md,
+    gap: Spacing.sm,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
   },
-  quickActionPrimaryCard: {
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 3,
+  quickActionTileTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  quickActionIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  quickActionIconBubble: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionMiniArrow: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   quickActionCopy: {
-    flex: 1,
+    gap: 2,
   },
   quickActionTitle: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.1,
+    letterSpacing: -0.3,
   },
   quickActionSub: {
-    fontSize: 10.5,
-    marginTop: 1,
-    lineHeight: 14,
-  },
-  quickActionArrow: {
-    marginLeft: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
   },
 
   marketplaceSection: {
@@ -1730,6 +1827,9 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
+  feedCardWrap: {
+    width: '100%',
+  },
 
   filterSummary: {
     minHeight: 34,
@@ -1793,6 +1893,31 @@ const styles = StyleSheet.create({
 
   stateWrap: { marginHorizontal: Spacing.md, marginTop: Spacing.md },
   footerLoader: { paddingVertical: Spacing.lg },
+  feedFooterEnd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+  },
+  feedFooterLine: {
+    flex: 1,
+    height: 1,
+  },
+  feedFooterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.sm + 4,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  feedFooterText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
 });
 
 

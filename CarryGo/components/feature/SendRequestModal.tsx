@@ -202,8 +202,25 @@ export function SendRequestModal({
               </Text>
             </View>
           </View>
-          <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
-            <MaterialIcons name="close" size={20} color={C.textMuted} />
+          <Pressable
+            onPress={() => {
+              Haptic.tap();
+              onClose();
+            }}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close request modal"
+            style={({ pressed }) => [
+              styles.closeBtn,
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <MaterialIcons name="close" size={18} color={C.textMuted} />
           </Pressable>
         </View>
 
@@ -560,7 +577,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    padding: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: Spacing.md,

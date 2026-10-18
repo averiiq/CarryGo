@@ -1513,8 +1513,20 @@ export default function SupportScreen() {
             </View>
 
             <Pressable
-              style={[styles.chatBotCloseBtn, { backgroundColor: C.surfaceElevated }]}
-              onPress={() => setShowChatBotModal(false)}
+              style={({ pressed }) => [
+                styles.chatBotCloseBtn,
+                {
+                  backgroundColor: C.surfaceElevated,
+                  borderColor: C.surfaceBorder,
+                  borderWidth: 1,
+                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+              onPress={() => {
+                Haptic.tap();
+                setShowChatBotModal(false);
+              }}
               hitSlop={TouchTarget.smallHitSlop}
               accessibilityRole="button"
               accessibilityLabel="Close Chat Bot"

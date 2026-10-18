@@ -12,7 +12,7 @@ const categoryConfig: Record<string, { icon: keyof typeof MaterialIcons.glyphMap
   clothing: { icon: 'checkroom', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },
   food: { icon: 'restaurant', color: '#EA580C', bg: '#FFEDD5', border: '#FED7AA' },
   medicine: { icon: 'medical-services', color: '#DC2626', bg: '#FEE2E2', border: '#FECACA' },
-  other: { icon: 'inventory-2', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+  other: { icon: 'inventory-2', color: '#104BB9', bg: '#EEF4FF', border: '#DBE8FD' },
 };
 
 interface ParcelCardProps {
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   },
   matchItem: {
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.25)',
+    borderColor: 'rgba(26, 76, 162, 0.25)',
   },
   specText: {
     fontSize: 11.5,

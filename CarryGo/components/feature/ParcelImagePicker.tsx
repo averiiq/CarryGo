@@ -9,6 +9,13 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAlert } from '@/template';
 import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import {
+  ANGLE_SLOTS,
+  ImageFingerprint,
+  computeImageFingerprint,
+  assessImageAngleDiversity,
+  classifyParcelWithAI,
+} from '@/lib/parcelVision';
 
 const MAX_IMAGES = 4;
 
@@ -38,18 +45,22 @@ interface ImageMetadata {
   fileName?: string;
   md5?: string;
   size?: number;
+  fingerprint?: ImageFingerprint;
+  detectedItem?: string;
 }
 
 type ParcelImagePickerProps = {
   images: string[];
   onImagesChange: (images: string[]) => void;
   error?: string;
+  category?: string;
 };
 
-export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImagePickerProps) {
+export function ParcelImagePicker({ images, onImagesChange, error, category }: ParcelImagePickerProps) {
   const { C } = useThemeColors();
   const { showAlert } = useAlert();
   const [processingIndex, setProcessingIndex] = useState<number | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
   const mountedRef = useRef(true);
   const sourceMetaRef = useRef<Map<number, ImageMetadata>>(new Map());
 
@@ -66,29 +77,20 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
     }
   };
 
-  const showSourcePicker = (slotIndex: number) => {
-    Haptic.tap();
-    showAlert(
-      'Add Photo',
-      'Choose how to add a parcel photo',
-      [
-        { text: 'Camera', onPress: () => captureFromCamera(slotIndex) },
-        { text: 'Gallery', onPress: () => pickFromGallery(slotIndex) },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-    );
-  };
-
   const captureFromCamera = async (slotIndex: number) => {
+    Haptic.tap();
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      showAlert('Permission Needed', 'Camera access is required to take parcel photos.');
+      showAlert(
+        'Camera Permission Needed',
+        'Live camera access is required to capture parcel photos from different angles. Please enable camera access in Settings.',
+      );
       return;
     }
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.85,
       allowsEditing: true,
       aspect: [4, 3],
     });
@@ -98,161 +100,115 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
     }
   };
 
-  const pickFromGallery = async (slotIndex: number) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showAlert('Permission Needed', 'Photo library access is required to select parcel photos.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [4, 3],
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      await handleImageResult(result.assets[0], slotIndex);
-    }
-  };
-
-  const checkIfDuplicate = async (
-    asset: ImagePicker.ImagePickerAsset,
-    slotIndex: number,
-    assetInfo: { md5?: string; size?: number } | null
-  ): Promise<boolean> => {
-    const candidateUri = asset.uri;
-    const candidateName = asset.fileName ? asset.fileName.toLowerCase() : extractFileName(candidateUri);
-
-    for (let i = 0; i < images.length; i++) {
-      if (i === slotIndex) continue;
-
-      const existingUri = images[i];
-      if (!existingUri) continue;
-
-      // 1. Direct URI match
-      if (existingUri === candidateUri) {
-        return true;
-      }
-
-      // 2. Tracked metadata match
-      const meta = sourceMetaRef.current.get(i);
-      if (meta) {
-        if (meta.originalUri === candidateUri) {
-          return true;
-        }
-        if (asset.fileName && meta.fileName && meta.fileName === asset.fileName.toLowerCase()) {
-          return true;
-        }
-        if (meta.md5 && assetInfo?.md5 && meta.md5 === assetInfo.md5) {
-          return true;
-        }
-        if (
-          meta.size !== undefined &&
-          assetInfo?.size !== undefined &&
-          meta.size > 0 &&
-          meta.size === assetInfo.size &&
-          meta.fileName === candidateName
-        ) {
-          return true;
-        }
-      }
-
-      // 3. Fallback file name match
-      const existingName = extractFileName(existingUri);
-      if (
-        candidateName &&
-        candidateName.length > 3 &&
-        candidateName !== 'image.jpg' &&
-        candidateName !== 'photo.jpg' &&
-        existingName === candidateName
-      ) {
-        return true;
-      }
-
-      // 4. Existing file hash match
-      const existingInfo = await getFileInfo(existingUri);
-      if (existingInfo?.md5 && assetInfo?.md5 && existingInfo.md5 === assetInfo.md5) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  const checkProcessedDuplicate = async (
-    optimizedUri: string,
-    slotIndex: number
-  ): Promise<boolean> => {
-    const optimizedInfo = await getFileInfo(optimizedUri);
-    for (let i = 0; i < images.length; i++) {
-      if (i === slotIndex) continue;
-      const existingUri = images[i];
-      if (!existingUri) continue;
-
-      if (existingUri === optimizedUri) {
-        return true;
-      }
-
-      const existingInfo = await getFileInfo(existingUri);
-      if (
-        existingInfo?.md5 &&
-        optimizedInfo?.md5 &&
-        existingInfo.md5 === optimizedInfo.md5
-      ) {
-        return true;
-      }
-      if (
-        existingInfo?.size &&
-        optimizedInfo?.size &&
-        existingInfo.size > 0 &&
-        existingInfo.size === optimizedInfo.size
-      ) {
-        return true;
-      }
-    }
-    return false;
-  };
 
   const handleImageResult = async (asset: ImagePicker.ImagePickerAsset, slotIndex: number) => {
     setProcessingIndex(slotIndex);
-    const assetInfo = await getFileInfo(asset.uri);
+    setProcessingStatus('Analyzing AI angles…');
 
-    const isDuplicate = await checkIfDuplicate(asset, slotIndex, assetInfo);
-    if (isDuplicate) {
-      if (mountedRef.current) setProcessingIndex(null);
-      Haptic.error();
-      showAlert('Duplicate Image', 'This image has already been added. Please select a different image.');
-      return;
+    // 1. Basic file check
+    const assetInfo = await getFileInfo(asset.uri);
+    const candidateUri = asset.uri;
+    const candidateName = asset.fileName ? asset.fileName.toLowerCase() : extractFileName(candidateUri);
+
+    // 2. Compute AI perceptual fingerprint & angle diversity check
+    let newFingerprint: ImageFingerprint | null = null;
+    try {
+      newFingerprint = await computeImageFingerprint(asset.uri);
+    } catch (e) {
+      console.warn('[ParcelImagePicker] Fingerprint error:', e);
     }
 
+    if (newFingerprint) {
+      // Gather all existing fingerprints from metadata
+      const existingFingerprints: (ImageFingerprint | null)[] = [];
+      for (let i = 0; i < images.length; i++) {
+        const meta = sourceMetaRef.current.get(i);
+        existingFingerprints.push(meta?.fingerprint || null);
+      }
+
+      const angleCheck = assessImageAngleDiversity(newFingerprint, existingFingerprints, slotIndex);
+
+      if (!angleCheck.isValid) {
+        if (mountedRef.current) {
+          setProcessingIndex(null);
+          setProcessingStatus('');
+        }
+        Haptic.error();
+
+        const title =
+          angleCheck.code === 'SAME_ANGLE'
+            ? 'Different Angle Required'
+            : angleCheck.code === 'EXACT_DUPLICATE'
+              ? 'Duplicate Photo'
+              : 'Invalid Image';
+
+        showAlert(title, angleCheck.message);
+        return;
+      }
+    }
+
+    // 3. Fallback file identity matching
+    for (let i = 0; i < images.length; i++) {
+      if (i === slotIndex) continue;
+      const existingUri = images[i];
+      if (!existingUri) continue;
+
+      if (existingUri === candidateUri) {
+        if (mountedRef.current) setProcessingIndex(null);
+        Haptic.error();
+        showAlert('Duplicate Image', 'This image has already been added. Each slot requires a different photo.');
+        return;
+      }
+
+      const meta = sourceMetaRef.current.get(i);
+      if (meta) {
+        if (meta.md5 && assetInfo?.md5 && meta.md5 === assetInfo.md5) {
+          if (mountedRef.current) setProcessingIndex(null);
+          Haptic.error();
+          showAlert('Duplicate Image', `This image is identical to Photo #${i + 1}. Please capture a different angle.`);
+          return;
+        }
+      }
+    }
+
+    // 4. Optimize image compression
+    setProcessingStatus('Optimizing…');
     const optimizedUri = await processImage(asset.uri);
     if (!mountedRef.current) return;
 
     if (!optimizedUri) {
       setProcessingIndex(null);
+      setProcessingStatus('');
       Haptic.error();
       showAlert('Error', 'Failed to process image. Please try again.');
       return;
     }
 
-    const isProcessedDuplicate = await checkProcessedDuplicate(optimizedUri, slotIndex);
-    if (isProcessedDuplicate) {
-      setProcessingIndex(null);
-      Haptic.error();
-      showAlert('Duplicate Image', 'This image has already been added. Please select a different image.');
-      return;
+    // 5. Cloud/Local AI classification
+    let detectedItem = 'Physical Parcel';
+    try {
+      const aiResult = await classifyParcelWithAI(optimizedUri, category);
+      if (aiResult.detectedItem) {
+        detectedItem = aiResult.detectedItem;
+      }
+      if (!aiResult.isValidParcel) {
+        console.log('[ParcelImagePicker] AI flagged non-parcel:', aiResult.warning);
+      }
+    } catch {
+      // Non-blocking fallback
     }
 
     setProcessingIndex(null);
+    setProcessingStatus('');
 
-    // Record source metadata for subsequent duplicate checks
+    // Save metadata with AI fingerprint
     sourceMetaRef.current.set(slotIndex, {
       originalUri: asset.uri,
-      fileName: asset.fileName ? asset.fileName.toLowerCase() : extractFileName(asset.uri),
+      fileName: candidateName,
       md5: assetInfo?.md5,
       size: assetInfo?.size,
+      fingerprint: newFingerprint || undefined,
+      detectedItem,
     });
 
     const updated = [...images];
@@ -286,20 +242,27 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
   return (
     <View style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={[styles.label, { color: C.textSecondary }]}>Parcel Photos</Text>
+        <View style={styles.labelLeft}>
+          <Text style={[styles.label, { color: C.textPrimary }]}>Live Parcel Photos</Text>
+          <View style={[styles.aiPill, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name="photo-camera" size={10} color={C.primary} />
+            <Text style={[styles.aiPillText, { color: C.primary }]}>Live Camera Only</Text>
+          </View>
+        </View>
         <Text style={[styles.counter, { color: images.length > 0 ? C.primary : C.textMuted }]}>
           {images.length}/{MAX_IMAGES}
         </Text>
       </View>
+
       <Text style={[styles.hint, { color: error ? C.error : C.textMuted }]}>
-        {error || 'Add at least 1 clear parcel photo (up to 4 recommended)'}
+        {error || 'Live camera only: Capture different angles (front, side, top, label) directly with your camera.'}
       </Text>
 
       <View style={styles.grid}>
         {slots.map((slotIndex) => {
           const imageUri = images[slotIndex];
           const isProcessing = processingIndex === slotIndex;
-          const isFirst = slotIndex === 0;
+          const slotConfig = ANGLE_SLOTS[slotIndex];
           const isNextEmpty = !imageUri && slotIndex === images.length;
           const isDisabledSlot = !imageUri && slotIndex > images.length;
 
@@ -310,15 +273,16 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
                 <Pressable
                   style={[styles.removeBtn, { backgroundColor: C.error }]}
                   onPress={() => removeImage(slotIndex)}
-                  hitSlop={6}
+                  hitSlop={8}
                 >
                   <MaterialIcons name="close" size={12} color="#fff" />
                 </Pressable>
-                {isFirst && (
-                  <View style={[styles.mainBadge, { backgroundColor: C.primary }]}>
-                    <Text style={styles.mainBadgeText}>Main</Text>
-                  </View>
-                )}
+
+                {/* Angle Badge */}
+                <View style={[styles.slotBadge, { backgroundColor: 'rgba(15, 23, 42, 0.82)' }]}>
+                  <MaterialIcons name="check" size={10} color="#10B981" />
+                  <Text style={styles.slotBadgeText}>{slotConfig.shortLabel}</Text>
+                </View>
               </View>
             );
           }
@@ -331,26 +295,33 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
                 styles.emptySlot,
                 {
                   backgroundColor: isNextEmpty ? C.primarySubtle : C.surfaceElevated,
-                  borderColor: error && slotIndex === 0 ? C.error : isNextEmpty ? C.primary + '55' : C.surfaceBorder,
-                  opacity: isDisabledSlot ? 0.4 : pressed ? 0.7 : 1,
+                  borderColor: error && slotIndex === 0 ? C.error : isNextEmpty ? C.primary + '65' : C.surfaceBorder,
+                  opacity: isDisabledSlot ? 0.38 : pressed ? 0.75 : 1,
+                  transform: pressed && !isDisabledSlot ? [{ scale: 0.97 }] : [{ scale: 1 }],
                 },
               ]}
-              onPress={() => !isDisabledSlot && !isProcessing && showSourcePicker(slotIndex)}
+              onPress={() => !isDisabledSlot && !isProcessing && captureFromCamera(slotIndex)}
               disabled={isDisabledSlot || isProcessing}
             >
               {isProcessing ? (
-                <ActivityIndicator size="small" color={C.primary} />
+                <View style={styles.processingWrap}>
+                  <ActivityIndicator size="small" color={C.primary} />
+                  <Text style={[styles.processingText, { color: C.primary }]}>AI Checking</Text>
+                </View>
               ) : (
                 <>
-                  <View style={[styles.addIconWrap, { backgroundColor: isNextEmpty ? C.primary + '20' : C.surfaceBorder }]}>
+                  <View style={[styles.addIconWrap, { backgroundColor: isNextEmpty ? C.primary + '22' : C.surfaceBorder }]}>
                     <MaterialIcons
-                      name={isNextEmpty ? 'add-a-photo' : 'photo-camera'}
-                      size={20}
+                      name={slotConfig.icon as any}
+                      size={18}
                       color={isNextEmpty ? C.primary : C.textMuted}
                     />
                   </View>
-                  <Text style={[styles.slotLabel, { color: isNextEmpty ? C.primary : C.textMuted }]}>
-                    {isFirst ? 'Front' : slotIndex === 1 ? 'Back' : slotIndex === 2 ? 'Side' : 'Label'}
+                  <Text style={[styles.slotLabel, { color: isNextEmpty ? C.primaryDark : C.textMuted }]}>
+                    {slotConfig.shortLabel}
+                  </Text>
+                  <Text style={[styles.slotSubLabel, { color: C.textMuted }]}>
+                    {slotIndex === 0 ? 'Overview' : slotIndex === 1 ? 'Angle' : slotIndex === 2 ? 'Top' : 'Detail'}
                   </Text>
                 </>
               )}
@@ -365,13 +336,23 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
 const styles = StyleSheet.create({
   container: { gap: Spacing.sm },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },
+  labelLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  label: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, marginLeft: 2 },
+  aiPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  aiPillText: { fontSize: 9.5, fontWeight: FontWeight.bold },
   counter: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  hint: { fontSize: FontSize.xs, marginLeft: 2, marginTop: -2 },
+  hint: { fontSize: FontSize.xs, marginLeft: 2, marginTop: -2, lineHeight: 16 },
   grid: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
   slot: {
     flex: 1,
-    aspectRatio: 1,
+    aspectRatio: 0.9,
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
     overflow: 'hidden',
@@ -379,33 +360,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filledSlot: { position: 'relative' },
-  emptySlot: { gap: 6, borderStyle: 'dashed' },
+  emptySlot: { gap: 3, borderStyle: 'dashed', paddingVertical: 8 },
   image: { width: '100%', height: '100%' },
   removeBtn: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    top: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
-  mainBadge: {
+  slotBadge: {
     position: 'absolute',
-    bottom: 6,
-    left: 6,
+    bottom: 5,
+    left: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  mainBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  slotBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: '700' },
   addIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  slotLabel: { fontSize: 10, fontWeight: '600' },
+  slotLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 1 },
+  slotSubLabel: { fontSize: 9, fontWeight: '500' },
+  processingWrap: { alignItems: 'center', justifyContent: 'center', gap: 4 },
+  processingText: { fontSize: 9, fontWeight: '700' },
 });

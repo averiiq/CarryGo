@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient } from '@/template';
 import { User } from '@/types';
 import { ensureProfile, fetchProfile, isProfileComplete } from '@/services/profile.service';
-import { registerForPushNotifications, savePushToken } from '@/services/notifications.service';
+import { registerForPushNotifications, savePushToken, unregisterPushToken } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { AUTH_TIMEOUTS } from '@/constants/timing';
 import { FeatureFlags } from '@/constants/featureFlags';
@@ -280,6 +280,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      if (user?.id) {
+        await unregisterPushToken(user.id).catch(() => {});
+      }
       const sb = getSupabaseClient();
       await sb.auth.signOut();
     } finally {
@@ -287,13 +290,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       persistUser(null);
       queryClient.clear();
     }
-  }, [queryClient, persistUser]);
+  }, [user, queryClient, persistUser]);
 
   const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
     const { error } = await requestAccountDeletion();
     if (error) return { error };
 
     try {
+      if (user?.id) {
+        await unregisterPushToken(user.id).catch(() => {});
+      }
       const sb = getSupabaseClient();
       await sb.auth.signOut();
     } finally {
@@ -303,7 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return { error: null };
-  }, [persistUser, queryClient]);
+  }, [user, persistUser, queryClient]);
 
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser(prev => {

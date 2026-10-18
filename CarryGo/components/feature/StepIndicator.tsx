@@ -81,7 +81,8 @@ export function StepIndicator({ steps, currentStep, onStepPress }: StepIndicator
                 {
                   backgroundColor: isActive ? C.primarySubtle : isComplete ? C.surface : C.surfaceElevated,
                   borderColor: isActive ? C.primary : isComplete ? C.primary + '55' : C.surfaceBorder,
-                  opacity: pressed ? 0.8 : 1,
+                  opacity: pressed ? 0.85 : 1,
+                  transform: pressed ? [{ scale: 0.97 }] : [{ scale: 1 }],
                   paddingHorizontal: isSmallDevice ? 4 : Spacing.sm,
                 },
               ]}

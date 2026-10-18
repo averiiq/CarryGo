@@ -1,6 +1,6 @@
 // CarryGo design tokens for a trust-first, calm logistics UI
 
-// Light palette (Signature CarryGo Emerald Green brand palette)
+// Light palette (Modern Royal Electric Blue brand palette)
 export const LightColors = {
   background: '#F8FAFC',
   surface: '#FFFFFF',
@@ -13,34 +13,34 @@ export const LightColors = {
   cardSubtle: '#F8FAFC',
   cardBorder: '#E2E8F0',
 
-  // Signature Emerald Green Primary Brand Palette
-  primary: '#059669',
-  primaryDark: '#047857',
-  primaryLight: '#10B981',
-  primarySubtle: '#ECFDF5',
-  primaryBorder: '#A7F3D0',
-  primaryGlow: 'rgba(5, 150, 105, 0.16)',
+  // Modern Royal Electric Blue Primary Brand Palette
+  primary: '#1A4CA2',
+  primaryDark: '#123777',
+  primaryLight: '#2565CE',
+  primarySubtle: '#EEF4FF',
+  primaryBorder: '#BFD5FA',
+  primaryGlow: 'rgba(26, 76, 162, 0.16)',
 
-  // Clean Emerald Accent Palette
-  accent: '#059669',
-  accentDark: '#047857',
-  accentLight: '#34D399',
-  accentSubtle: '#ECFDF5',
-  accentBorder: '#A7F3D0',
+  // Clean Accent Palette
+  accent: '#1A4CA2',
+  accentDark: '#123777',
+  accentLight: '#2D72E2',
+  accentSubtle: '#EEF4FF',
+  accentBorder: '#BFD5FA',
   accentText: '#FFFFFF',
 
   // Named helpers for backwards compatibility
-  cobalt: '#059669',
-  cobaltDark: '#047857',
-  cobaltLight: '#10B981',
-  cobaltSubtle: '#ECFDF5',
-  cobaltBorder: '#A7F3D0',
+  cobalt: '#1A4CA2',
+  cobaltDark: '#123777',
+  cobaltLight: '#2D72E2',
+  cobaltSubtle: '#EEF4FF',
+  cobaltBorder: '#BFD5FA',
 
-  lime: '#10B981',
-  limeDark: '#059669',
-  limeLight: '#34D399',
-  limeSubtle: '#ECFDF5',
-  limeBorder: '#A7F3D0',
+  lime: '#104BB9',
+  limeDark: '#123777',
+  limeLight: '#2D72E2',
+  limeSubtle: '#EEF4FF',
+  limeBorder: '#BFD5FA',
   limeText: '#FFFFFF',
 
   textPrimary: '#0F172A',
@@ -53,11 +53,11 @@ export const LightColors = {
   successSubtle: '#ECFDF5',
   successBorder: '#A7F3D0',
 
-  error: '#DC2626',
+  error: '#EF4444',
   errorSubtle: '#FEF2F2',
   errorBorder: '#FECACA',
 
-  warning: '#D97706',
+  warning: '#F59E0B',
   warningSubtle: '#FFFBEB',
   warningBorder: '#FDE68A',
 
@@ -70,14 +70,14 @@ export const LightColors = {
 
   locked: '#64748B',
   lockedSubtle: '#F1F5F9',
-  released: '#059669',
+  released: '#10B981',
   releasedSubtle: '#ECFDF5',
 
-  pending: '#D97706',
-  accepted: '#059669',
-  rejected: '#DC2626',
+  pending: '#F59E0B',
+  accepted: '#1A4CA2',
+  rejected: '#EF4444',
   inTransit: '#0284C7',
-  delivered: '#059669',
+  delivered: '#10B981',
 
   overlay: 'rgba(15, 23, 42, 0.55)',
   overlayLight: 'rgba(15, 23, 42, 0.15)',
@@ -164,14 +164,14 @@ export const Shadow = {
     elevation: 2,
   },
   glow: {
-    shadowColor: '#059669',
+    shadowColor: '#1A4CA2',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 16,
     elevation: 3,
   },
   limeGlow: {
-    shadowColor: '#10B981',
+    shadowColor: '#104BB9',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 16,
@@ -206,8 +206,8 @@ export const Shadow = {
  */
 export const BoxShadow = {
   card: '0px 4px 14px rgba(15, 23, 42, 0.04)',
-  glow: '0px 6px 16px rgba(5, 150, 105, 0.16)',
-  limeGlow: '0px 6px 16px rgba(16, 185, 129, 0.24)',
+  glow: '0px 6px 16px rgba(26, 76, 162, 0.16)',
+  limeGlow: '0px 6px 16px rgba(16, 75, 185, 0.22)',
   sm: '0px 2px 6px rgba(15, 23, 42, 0.03)',
   md: '0px 6px 16px rgba(15, 23, 42, 0.06)',
   float: '0px 10px 24px rgba(15, 23, 42, 0.08)',
@@ -218,15 +218,15 @@ export const LightShadow = {
 };
 
 export const Gradients = {
-  primary: ['#059669', '#047857'] as [string, string],
-  primaryVibrant: ['#10B981', '#059669'] as [string, string],
-  accent: ['#10B981', '#059669'] as [string, string],
-  lime: ['#10B981', '#059669'] as [string, string],
-  cobalt: ['#059669', '#047857'] as [string, string],
-  hero: ['#FFFFFF', '#F0FDF4', '#F8FAFC'] as [string, string, string],
-  card: ['rgba(5, 150, 105, 0.05)', 'rgba(5, 150, 105, 0.0)'] as [string, string],
-  cobaltSoft: ['#ECFDF5', '#D1FAE5'] as [string, string],
-  limeSoft: ['#ECFDF5', '#D1FAE5'] as [string, string],
+  primary: ['#1A4CA2', '#123777'] as [string, string],
+  primaryVibrant: ['#2565CE', '#1A4CA2'] as [string, string],
+  accent: ['#1A4CA2', '#123777'] as [string, string],
+  lime: ['#2565CE', '#1A4CA2'] as [string, string],
+  cobalt: ['#1A4CA2', '#123777'] as [string, string],
+  hero: ['#FFFFFF', '#EEF4FF', '#F8FAFC'] as [string, string, string],
+  card: ['rgba(26, 76, 162, 0.04)', 'rgba(26, 76, 162, 0.0)'] as [string, string],
+  cobaltSoft: ['#EEF4FF', '#DBE8FD'] as [string, string],
+  limeSoft: ['#EEF4FF', '#DBE8FD'] as [string, string],
   success: ['#10B981', '#059669'] as [string, string],
   warm: ['#F59E0B', '#D97706'] as [string, string],
   sky: ['#0EA5E9', '#0284C7'] as [string, string],

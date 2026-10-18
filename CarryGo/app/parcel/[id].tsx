@@ -844,7 +844,19 @@ export default function ParcelDetailScreen() {
           onRequestClose={() => setShowImageModal(false)}
         >
           <View style={styles.modalBackdrop}>
-            <Pressable style={styles.modalCloseBtn} onPress={() => setShowImageModal(false)}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalCloseBtn,
+                { transform: [{ scale: pressed ? 0.92 : 1 }], opacity: pressed ? 0.8 : 1 },
+              ]}
+              onPress={() => {
+                Haptic.tap();
+                setShowImageModal(false);
+              }}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close photo viewer"
+            >
               <MaterialIcons name="close" size={24} color="#fff" />
             </Pressable>
             <Image

@@ -439,6 +439,14 @@ export default function CreateParcelScreen() {
         currentStep={step}
         onStepPress={handleStepPress}
         direction={direction}
+        title="Send a Parcel"
+        onBack={() => {
+          if (step > 0) {
+            goBack();
+          } else {
+            router.back();
+          }
+        }}
       >
         {showDraftBanner ? (
           <View style={[styles.draftBanner, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -505,7 +513,7 @@ export default function CreateParcelScreen() {
               <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
             )}
             <Button
-              title={step === 0 ? 'Continue to Details ➔' : 'Find Available Trips ➔'}
+              title={step === 0 ? 'Continue to Details' : 'Find Available Trips'}
               onPress={goNext}
               fullWidth={step === 0}
               style={step > 0 ? { flex: 2 } : undefined}
@@ -535,8 +543,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     position: 'absolute',
     bottom: 0,
-    left: -Spacing.md,
-    right: -Spacing.md,
+    left: 0,
+    right: 0,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,

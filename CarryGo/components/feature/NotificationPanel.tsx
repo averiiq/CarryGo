@@ -266,8 +266,15 @@ export function NotificationPanel({
               accessibilityRole="button"
               accessibilityLabel="View all notifications in full screen"
               style={({ pressed }) => [
-                { padding: 7, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated },
-                pressed && { opacity: 0.7 },
+                {
+                  padding: 7,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: C.surfaceBorder,
+                  backgroundColor: C.surfaceElevated,
+                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                },
+                pressed && { opacity: 0.75 },
               ]}
             >
               <MaterialIcons name="open-in-full" size={16} color={C.textSecondary} />
@@ -277,16 +284,55 @@ export function NotificationPanel({
                 onPress={() => { Haptic.tap(); onPressSettings(); onClose(); }}
                 hitSlop={8}
                 style={({ pressed }) => [
-                  { padding: 7, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated },
-                  pressed && { opacity: 0.7 },
+                  {
+                    padding: 7,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: C.surfaceBorder,
+                    backgroundColor: C.surfaceElevated,
+                    transform: [{ scale: pressed ? 0.92 : 1 }],
+                  },
+                  pressed && { opacity: 0.75 },
                 ]}
               >
                 <MaterialIcons name="tune" size={16} color={C.textSecondary} />
               </Pressable>
             ) : null}
-            <Pressable onPress={() => { Haptic.tap(); markAllRead(); }} style={({ pressed }) => [styles.markReadBtn, pressed && { opacity: 0.7 }]}>
+            <Pressable
+              onPress={() => { Haptic.tap(); markAllRead(); }}
+              style={({ pressed }) => [
+                styles.markReadBtn,
+                { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
               <MaterialIcons name="done-all" size={16} color={C.primary} />
               <Text style={[styles.markReadText, { color: C.primary }]}>Mark all read</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                onClose();
+              }}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close notifications"
+              style={({ pressed }) => [
+                {
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: C.surfaceElevated,
+                  borderColor: C.surfaceBorder,
+                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <MaterialIcons name="close" size={18} color={C.textMuted} />
             </Pressable>
           </View>
         </View>

@@ -39,14 +39,50 @@ export function FilterPanel({ visible, filters, onClose, onApply, C }: FilterPan
       <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
         <View style={styles.filterHeaderRow}>
           <Text style={[styles.filterTitle, { color: C.textPrimary }]}>Filter Listings</Text>
-          <Pressable
-            onPress={() => { setLocal(DEFAULT_FILTERS); onApply(DEFAULT_FILTERS); onClose(); }}
-            hitSlop={TouchTarget.smallHitSlop}
-            style={[styles.resetPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
-          >
-            <MaterialIcons name="refresh" size={13} color={C.textSecondary} />
-            <Text style={[styles.resetPillText, { color: C.textSecondary }]}>Reset</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                setLocal(DEFAULT_FILTERS);
+                onApply(DEFAULT_FILTERS);
+                onClose();
+              }}
+              hitSlop={TouchTarget.smallHitSlop}
+              style={({ pressed }) => [
+                styles.resetPill,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
+              ]}
+            >
+              <MaterialIcons name="refresh" size={13} color={C.textSecondary} />
+              <Text style={[styles.resetPillText, { color: C.textSecondary }]}>Reset</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                onClose();
+              }}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close filter panel"
+              style={({ pressed }) => [
+                {
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: C.surfaceElevated,
+                  borderColor: C.surfaceBorder,
+                  borderWidth: 1,
+                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <MaterialIcons name="close" size={16} color={C.textMuted} />
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView
@@ -102,7 +138,14 @@ export function FilterPanel({ visible, filters, onClose, onApply, C }: FilterPan
         </ScrollView>
 
         <Pressable
-          style={({ pressed }) => [styles.applyBtn, { backgroundColor: C.primary, opacity: pressed ? 0.88 : 1 }]}
+          style={({ pressed }) => [
+            styles.applyBtn,
+            {
+              backgroundColor: C.primary,
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
           onPress={() => { Haptic.confirm(); onApply(local); onClose(); }}
         >
           <MaterialIcons name="tune" size={16} color="#fff" />

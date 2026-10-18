@@ -1,11 +1,17 @@
 import { getSupabaseClient } from '@/template';
-import { AppNotification } from '@/types';
+import { AppNotification, UserNotificationPreferences } from '@/types';
 import type { Database } from '@/types/database';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { FeatureFlags } from '@/constants/featureFlags';
+import { captureException } from '@/lib/monitoring';
+
+export const EAS_PROJECT_ID =
+  Constants.expoConfig?.extra?.eas?.projectId ??
+  Constants.easConfig?.projectId ??
+  '85ee60ab-6a6a-4f2e-9688-9fbd4dabca3b';
 
 try {
   Notifications.setNotificationHandler({
@@ -49,73 +55,213 @@ function mapRow(row: NotificationRow): AppNotification {
   };
 }
 
-// ── Permission & Token ───────────────────────────────────────────────────────
+// ── Android Notification Channels ──────────────────────────────────────────
+
+export async function setupNotificationChannels(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'General Updates',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#4F8EF7',
+      sound: 'default',
+      enableLights: true,
+      enableVibrate: true,
+      showBadge: true,
+    });
+    await Notifications.setNotificationChannelAsync('messages', {
+      name: 'Chat & Messages',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 200, 200, 200],
+      lightColor: '#00D09E',
+      sound: 'default',
+      enableLights: true,
+      enableVibrate: true,
+      showBadge: true,
+    });
+    await Notifications.setNotificationChannelAsync('deliveries', {
+      name: 'Deliveries & Requests',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 150, 150, 300],
+      lightColor: '#22C55E',
+      sound: 'default',
+      enableLights: true,
+      enableVibrate: true,
+      showBadge: true,
+    });
+    await Notifications.setNotificationChannelAsync('payments', {
+      name: 'Payments & Escrow',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 300, 200, 300],
+      lightColor: '#F59E0B',
+      sound: 'default',
+      enableLights: true,
+      enableVibrate: true,
+      showBadge: true,
+    });
+    console.log('[Notifications] Android channels configured with MAX importance and sound.');
+  } catch (err) {
+    console.warn('[Notifications] Failed to setup notification channels:', err);
+  }
+}
+
+// Immediately initialize Android channels on module load
+void setupNotificationChannels();
+
+// ── Permission & Token Management ──────────────────────────────────────────
+
+export interface NotificationPermissionState {
+  granted: boolean;
+  status: Notifications.PermissionStatus;
+  canAskAgain: boolean;
+}
+
+export async function checkNotificationPermissions(): Promise<NotificationPermissionState> {
+  try {
+    const permissions = await Notifications.getPermissionsAsync();
+    return {
+      granted: permissions.status === 'granted',
+      status: permissions.status,
+      canAskAgain: permissions.canAskAgain ?? true,
+    };
+  } catch (err) {
+    console.warn('[Notifications] getPermissionsAsync error:', err);
+    return {
+      granted: false,
+      status: Notifications.PermissionStatus.UNDETERMINED,
+      canAskAgain: true,
+    };
+  }
+}
+
+export async function requestNotificationPermissions(): Promise<NotificationPermissionState> {
+  try {
+    await setupNotificationChannels();
+    const permissions = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+        allowDisplayInCarPlay: false,
+        allowCriticalAlerts: false,
+        provideAppNotificationSettings: true,
+      },
+    });
+    return {
+      granted: permissions.status === 'granted',
+      status: permissions.status,
+      canAskAgain: permissions.canAskAgain ?? true,
+    };
+  } catch (err) {
+    console.warn('[Notifications] requestPermissionsAsync error:', err);
+    captureException(err, { context: 'requestNotificationPermissions' });
+    return {
+      granted: false,
+      status: Notifications.PermissionStatus.DENIED,
+      canAskAgain: false,
+    };
+  }
+}
+
+export async function openSystemNotificationSettings(): Promise<void> {
+  try {
+    await Linking.openSettings();
+  } catch (err) {
+    console.warn('[Notifications] openSettings error:', err);
+  }
+}
 
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#4F8EF7',
-        sound: 'default',
-      });
-      await Notifications.setNotificationChannelAsync('messages', {
-        name: 'Chat & Messages',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 200, 200, 200],
-        lightColor: '#00D09E',
-        sound: 'default',
-      });
-      await Notifications.setNotificationChannelAsync('deliveries', {
-        name: 'Deliveries',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 100, 200, 300],
-        lightColor: '#22C55E',
-      });
-      await Notifications.setNotificationChannelAsync('payments', {
-        name: 'Payments',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 300, 200, 300],
-        lightColor: '#F59E0B',
-      });
+    await setupNotificationChannels();
+
+    const perm = await checkNotificationPermissions();
+    let isGranted = perm.granted;
+    if (!isGranted && perm.canAskAgain) {
+      const requested = await requestNotificationPermissions();
+      isGranted = requested.granted;
     }
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    if (!isGranted) {
+      console.log('[Notifications] Push notification permission not granted. Status:', perm.status);
+      return null;
     }
-    if (finalStatus !== 'granted') return null;
 
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-    if (!projectId) return null;
+    const projectId = EAS_PROJECT_ID;
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    console.log('[Notifications] Expo push token acquired:', tokenData.data ? `${tokenData.data.substring(0, 22)}...` : 'empty');
     return tokenData.data;
-  } catch {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[Notifications] Failed to obtain Expo push token:', msg);
+    // Suppress reporting known Expo Go SDK 53 limitation to Sentry/monitoring
+    if (!msg.includes('Expo Go') && !msg.includes('not supported in Expo Go')) {
+      captureException(err, { context: 'registerForPushNotifications' });
+    }
     return null;
   }
 }
 
 export async function savePushToken(userId: string, token: string) {
-  const sb = getSupabaseClient();
-  await sb.rpc('upsert_user_device', {
-    p_device_key: `${Platform.OS}:${token}`,
-    p_expo_push_token: token,
-    p_platform: Platform.OS,
-    p_app_version: Application.nativeApplicationVersion || undefined,
-  });
-  await sb.from('user_profiles').update({ push_token: token }).eq('id', userId);
+  try {
+    const sb = getSupabaseClient();
+    const deviceKey = `${Platform.OS}:${token}`;
+    const { error: rpcErr } = await sb.rpc('upsert_user_device', {
+      p_device_key: deviceKey,
+      p_expo_push_token: token,
+      p_platform: Platform.OS,
+      p_app_version: Application.nativeApplicationVersion || undefined,
+    });
+    if (rpcErr) {
+      console.warn('[Notifications] upsert_user_device error:', rpcErr.message);
+    }
+    await sb.from('user_profiles').update({ push_token: token }).eq('id', userId);
+    console.log('[Notifications] Push token successfully registered for user:', userId);
+  } catch (err) {
+    console.warn('[Notifications] Error saving push token:', err);
+    captureException(err, { context: 'savePushToken' });
+  }
+}
+
+export async function unregisterPushToken(userId: string): Promise<void> {
+  try {
+    const sb = getSupabaseClient();
+    try {
+      const tokenData = await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID }).catch(() => null);
+      if (tokenData?.data) {
+        await sb
+          .from('user_devices')
+          .update({ invalidated_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('expo_push_token', tokenData.data);
+      }
+    } catch {}
+    await sb.from('user_profiles').update({ push_token: null }).eq('id', userId);
+    console.log('[Notifications] Push token unregistered for user on sign-out:', userId);
+  } catch (err) {
+    console.warn('[Notifications] Error during push token unregistration:', err);
+  }
 }
 
 // ── Local notifications (rich) ───────────────────────────────────────────────
 
-export async function sendLocalNotification(title: string, body: string, data?: Record<string, string>) {
+export async function sendLocalNotification(
+  title: string,
+  body: string,
+  data?: Record<string, string>,
+  channelId: 'default' | 'messages' | 'deliveries' | 'payments' = 'default'
+) {
+  await setupNotificationChannels();
   await Notifications.scheduleNotificationAsync({
-    content: { title, body, sound: true, data: data || {} },
-    trigger: null,
+    content: {
+      title,
+      body,
+      sound: true,
+      data: data || {},
+      badge: 1,
+    },
+    trigger: Platform.OS === 'android' ? { channelId } : null,
   });
 }
 
@@ -398,19 +544,28 @@ export async function dispatchNotification(payload: DispatchNotificationPayload)
     if (tokens.length > 0) {
       const channelId = payload.type === 'chat_message'
         ? 'messages'
-        : payload.type.startsWith('delivery')
+        : (payload.type.startsWith('delivery') || payload.type.startsWith('request') || payload.type === 'new_request')
           ? 'deliveries'
           : payload.type.startsWith('payment')
             ? 'payments'
             : 'default';
+
+      const isUrgent =
+        payload.priority === 'high' ||
+        payload.type === 'chat_message' ||
+        payload.type.startsWith('delivery') ||
+        payload.type.startsWith('request') ||
+        payload.type === 'new_request' ||
+        payload.type.startsWith('payment');
 
       const pushMessages = tokens.map((token) => ({
         to: token,
         title: trimmedTitle,
         body: trimmedBody,
         sound: 'default' as const,
-        priority: (payload.priority === 'high' || payload.type === 'chat_message') ? 'high' as const : 'default' as const,
+        priority: isUrgent ? ('high' as const) : ('default' as const),
         channelId,
+        badge: 1,
         data: {
           type: payload.type,
           relatedId: payload.relatedId,
@@ -424,12 +579,29 @@ export async function dispatchNotification(payload: DispatchNotificationPayload)
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json',
+            Accept: 'application/json',
           },
           body: JSON.stringify(pushMessages),
         });
         const pushResult = await pushResponse.json().catch(() => null);
         console.log('[dispatchNotification] Expo push response:', pushResponse.status, JSON.stringify(pushResult));
+
+        // Auto-cleanup dead tokens when Expo reports DeviceNotRegistered
+        if (pushResult && Array.isArray(pushResult.data)) {
+          for (let i = 0; i < pushResult.data.length; i++) {
+            const ticket = pushResult.data[i];
+            if (ticket?.status === 'error' && ticket?.details?.error === 'DeviceNotRegistered') {
+              const deadToken = tokens[i];
+              if (deadToken) {
+                console.log('[dispatchNotification] Pruning dead token:', deadToken);
+                void sb
+                  .from('user_devices')
+                  .update({ invalidated_at: new Date().toISOString() })
+                  .eq('expo_push_token', deadToken);
+              }
+            }
+          }
+        }
       } catch (pushErr) {
         console.warn('[dispatchNotification] Expo push network error:', pushErr);
       }
@@ -792,8 +964,6 @@ export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: st
 
 // ── Notification Preferences ─────────────────────────────────────────────────
 
-import type { UserNotificationPreferences } from '@/types';
-
 export async function fetchNotificationPreferences(): Promise<{ data: UserNotificationPreferences | null; error: string | null }> {
   const sb = getSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -841,4 +1011,36 @@ export async function updateNotificationPreferences(prefs: Partial<UserNotificat
   });
   return { error: error?.message || null };
 }
+
+export async function sendTestNotification(userId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    await setupNotificationChannels();
+    // 1. Send immediate local notification
+    await sendLocalNotification(
+      '🔔 CarryGo Notification Test',
+      'Sound, vibration, and channels are functioning properly on this device!',
+      { type: 'test' },
+      'default'
+    );
+
+    // 2. Dispatch remote push through server pipeline
+    const result = await dispatchNotification({
+      userId,
+      title: '🚀 Remote Push Verified',
+      body: 'Your device is successfully connected to the CarryGo push notification network.',
+      type: 'general',
+      priority: 'high',
+    });
+
+    if (result.success) {
+      return { success: true, message: 'Test notification delivered successfully!' };
+    } else {
+      return { success: false, message: result.error || 'Failed to dispatch test notification' };
+    }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    return { success: false, message: errorMsg };
+  }
+}
+
 

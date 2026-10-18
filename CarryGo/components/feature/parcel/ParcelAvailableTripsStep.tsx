@@ -68,54 +68,59 @@ export function ParcelAvailableTripsStep({
 
   return (
     <View style={styles.container}>
-      {/* ── BlaBlaCar Top Header Pill ── */}
-      <View style={[styles.headerPill, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back to parcel details"
-          onPress={() => {
-            Haptic.tap();
-            onEditDetails();
-          }}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          hitSlop={8}
-        >
-          <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
-        </Pressable>
-
-        <View style={styles.headerInfoCol}>
+      {/* ── Summary Card Header ── */}
+      <View style={[styles.summaryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={styles.summaryTop}>
           <View style={styles.routeRow}>
+            <View style={[styles.routeDot, { backgroundColor: C.primary }]} />
             <Text style={[styles.cityText, { color: C.textPrimary }]} numberOfLines={1}>
               {form.fromCity || 'Origin'}
             </Text>
-            <MaterialIcons name="swap-horiz" size={16} color={C.textMuted} style={styles.swapIcon} />
+            <MaterialIcons name="arrow-forward" size={14} color={C.textMuted} />
+            <View style={[styles.routeDot, { backgroundColor: C.error }]} />
             <Text style={[styles.cityText, { color: C.textPrimary }]} numberOfLines={1}>
               {form.toCity || 'Destination'}
             </Text>
           </View>
-          <Text style={[styles.metaText, { color: C.textMuted }]} numberOfLines={1}>
-            {form.deliveryDate ? formatScheduleDate(form.deliveryDate) : 'Today'} · {parcelWeightNum} kg · {categoryLabel}
-          </Text>
+
+          <Pressable
+            onPress={() => {
+              Haptic.select();
+              browseTripsQuery.refetch();
+            }}
+            style={({ pressed }) => [
+              styles.refreshBtn,
+              { backgroundColor: C.surfaceElevated },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
+            ]}
+            hitSlop={8}
+          >
+            <MaterialIcons name="refresh" size={16} color={C.textMuted} />
+          </Pressable>
         </View>
 
-        <Pressable
-          onPress={() => {
-            Haptic.select();
-            browseTripsQuery.refetch();
-          }}
-          style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.7 }]}
-          hitSlop={8}
-        >
-          <MaterialIcons name="refresh" size={18} color={C.textMuted} />
-        </Pressable>
+        <View style={styles.summaryMeta}>
+          <View style={[styles.metaPill, { backgroundColor: C.surfaceElevated }]}>
+            <MaterialIcons name="event" size={12} color={C.textMuted} />
+            <Text style={[styles.metaText, { color: C.textSecondary }]}>
+              {form.deliveryDate ? formatScheduleDate(form.deliveryDate) : 'Today'}
+            </Text>
+          </View>
+          <View style={[styles.metaPill, { backgroundColor: C.surfaceElevated }]}>
+            <MaterialIcons name="scale" size={12} color={C.textMuted} />
+            <Text style={[styles.metaText, { color: C.textSecondary }]}>{parcelWeightNum} kg</Text>
+          </View>
+          <View style={[styles.metaPill, { backgroundColor: C.surfaceElevated }]}>
+            <MaterialIcons name="inventory-2" size={12} color={C.textMuted} />
+            <Text style={[styles.metaText, { color: C.textSecondary }]}>{categoryLabel}</Text>
+          </View>
+        </View>
       </View>
 
       {/* ── Section Title & Sort Chips ── */}
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
-          <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
-            Outbound · {form.deliveryDate ? formatScheduleDate(form.deliveryDate) : 'Today'}
-          </Text>
+          <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Available Trips</Text>
           {sortedTrips.length > 0 ? (
             <View style={[styles.countBadge, { backgroundColor: C.primarySubtle }]}>
               <Text style={[styles.countBadgeText, { color: C.primary }]}>
@@ -142,12 +147,13 @@ export function ParcelAvailableTripsStep({
                       Haptic.select();
                       setSortBy(s.key);
                     }}
-                    style={[
+                    style={({ pressed }) => [
                       styles.sortChip,
                       {
                         backgroundColor: isSelected ? C.primarySubtle : C.surfaceElevated,
                         borderColor: isSelected ? C.primary : C.surfaceBorder,
                       },
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
                     ]}
                   >
                     <MaterialIcons
@@ -176,20 +182,19 @@ export function ParcelAvailableTripsStep({
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={C.primary} />
           <Text style={[styles.loadingText, { color: C.textSecondary }]}>
-            Searching available trips from {form.fromCity} to {form.toCity}...
+            Searching trips on this route...
           </Text>
         </View>
       ) : sortedTrips.length === 0 ? (
         <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           <View style={[styles.emptyIconWrap, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons name="directions-car" size={36} color={C.primary} />
+            <MaterialIcons name="directions-car" size={32} color={C.primary} />
           </View>
           <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-            No Direct Trips Available Today
+            No trips on this route yet
           </Text>
           <Text style={[styles.emptySubtitle, { color: C.textMuted }]}>
-            No travelers are currently traveling on the {form.fromCity} → {form.toCity} corridor on this date.
-            You can list your parcel as an Open Request so traveling members can send you delivery offers!
+            Post your parcel request so travelers can send you offers.
           </Text>
 
           <Pressable
@@ -201,7 +206,7 @@ export function ParcelAvailableTripsStep({
             style={({ pressed }) => [
               styles.postRequestBtn,
               { backgroundColor: C.primary },
-              pressed && { opacity: 0.9 },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
             ]}
           >
             {isPostingOpenRequest ? (
@@ -209,7 +214,7 @@ export function ParcelAvailableTripsStep({
             ) : (
               <>
                 <MaterialIcons name="send" size={16} color="#FFFFFF" />
-                <Text style={styles.postRequestBtnText}>Publish to Live Marketplace</Text>
+                <Text style={styles.postRequestBtnText}>Post Parcel Request</Text>
               </>
             )}
           </Pressable>
@@ -222,7 +227,7 @@ export function ParcelAvailableTripsStep({
             style={({ pressed }) => [
               styles.editDetailsBtn,
               { borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.7 },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
             ]}
           >
             <MaterialIcons name="edit" size={14} color={C.textSecondary} />
@@ -257,45 +262,65 @@ export function ParcelAvailableTripsStep({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: Spacing.md,
+    /* No extra horizontal padding — WizardContainer already provides it */
   },
-  headerPill: {
+
+  /* Summary card replaces cramped pill header */
+  summaryCard: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  summaryTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-    gap: 10,
-  },
-  backBtn: {
-    padding: 2,
-  },
-  headerInfoCol: {
-    flex: 1,
+    justifyContent: 'space-between',
   },
   routeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  routeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   cityText: {
-    fontSize: 14,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
-    maxWidth: 110,
-  },
-  swapIcon: {
-    marginHorizontal: 4,
-  },
-  metaText: {
-    fontSize: 11,
-    marginTop: 1,
+    maxWidth: 120,
   },
   refreshBtn: {
-    padding: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  summaryMeta: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  metaText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+
   sectionHeader: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.smd,
     gap: 8,
   },
   sectionTitleRow: {
@@ -304,7 +329,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FontSize.lg,
     fontWeight: FontWeight.extrabold,
     letterSpacing: -0.3,
   },
@@ -357,30 +382,30 @@ const styles = StyleSheet.create({
   emptyCard: {
     alignItems: 'center',
     padding: Spacing.xl,
-    borderRadius: 20,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    marginVertical: Spacing.md,
+    marginVertical: Spacing.sm,
     gap: Spacing.sm,
   },
   emptyIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: FontSize.xs,
+    lineHeight: 17,
     textAlign: 'center',
-    maxWidth: 290,
-    marginBottom: Spacing.sm,
+    maxWidth: 260,
+    marginBottom: Spacing.xs,
   },
   postRequestBtn: {
     flexDirection: 'row',
@@ -388,7 +413,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: BorderRadius.sm,
     width: '100%',
     justifyContent: 'center',
   },

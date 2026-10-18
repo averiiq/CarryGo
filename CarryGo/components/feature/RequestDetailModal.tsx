@@ -106,12 +106,21 @@ export function RequestDetailModal({
                 Haptic.tap();
                 onClose();
               }}
-              style={[styles.closeBtn, { backgroundColor: C.surfaceElevated }]}
+              style={({ pressed }) => [
+                styles.closeBtn,
+                {
+                  backgroundColor: C.surfaceElevated,
+                  borderColor: C.surfaceBorder,
+                  borderWidth: 1,
+                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
               hitSlop={TouchTarget.smallHitSlop}
               accessibilityRole="button"
               accessibilityLabel="Close details"
             >
-              <Ionicons name="close" size={20} color={C.textPrimary} />
+              <Ionicons name="close" size={18} color={C.textPrimary} />
             </Pressable>
           </View>
 

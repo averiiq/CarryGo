@@ -117,12 +117,23 @@ export const PanVerificationModal: React.FC<PanVerificationModalProps> = ({
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Close"
-                    onPress={handleDismiss}
+                    onPress={() => {
+                      Haptic.tap();
+                      handleDismiss();
+                    }}
                     disabled={isVerifying}
                     hitSlop={12}
-                    style={styles.closeBtn}
+                    style={({ pressed }) => [
+                      styles.closeBtn,
+                      {
+                        backgroundColor: C.surfaceElevated,
+                        borderColor: C.surfaceBorder,
+                        transform: [{ scale: pressed ? 0.92 : 1 }],
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
                   >
-                    <MaterialIcons name="close" size={22} color={C.textMuted} />
+                    <MaterialIcons name="close" size={18} color={C.textMuted} />
                   </Pressable>
                 )}
               </View>
@@ -274,7 +285,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeBtn: {
-    padding: Spacing.xs,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: FontSize.lg,

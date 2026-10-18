@@ -68,10 +68,16 @@ export function CityPicker({
           <Pressable
             onPress={handleClose}
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close city picker"
             style={({ pressed }) => [
               styles.closeCircle,
-              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.7 },
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
             ]}
           >
             <MaterialIcons name="close" size={18} color={C.textSecondary} />

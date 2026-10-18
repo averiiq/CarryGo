@@ -54,7 +54,15 @@ export function KycMandatoryModal({ visible, onClose, actionType = 'trip' }: Kyc
                 Haptic.tap();
                 onClose();
               }}
-              style={[styles.closeBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+              style={({ pressed }) => [
+                styles.closeBtn,
+                {
+                  backgroundColor: C.surfaceElevated,
+                  borderColor: C.surfaceBorder,
+                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
               hitSlop={12}
             >
               <Feather name="x" size={18} color={C.textMuted} />

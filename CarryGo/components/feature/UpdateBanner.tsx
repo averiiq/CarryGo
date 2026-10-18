@@ -100,14 +100,27 @@ export function UpdateBanner() {
           ]}
         >
           {/* Top Close Button */}
-          <TouchableOpacity
-            style={[styles.closeButton, { backgroundColor: C.surfaceElevated }]}
-            onPress={handleDismiss}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          <Pressable
+            style={({ pressed }) => [
+              styles.closeButton,
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                borderWidth: 1,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+            onPress={() => {
+              Haptic.tap();
+              handleDismiss();
+            }}
+            hitSlop={12}
+            accessibilityRole="button"
             accessibilityLabel="Close update dialog"
           >
             <Ionicons name="close" size={18} color={C.textMuted} />
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Icon Badge */}
           <View

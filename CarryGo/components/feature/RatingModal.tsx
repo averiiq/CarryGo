@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, TextInput, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
-import { Colors, FontSize, FontWeight, Spacing, BorderRadius, Shadow } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { Haptic } from '@/services/haptics.service';
 import { submitRating } from '@/services/ratings.service';
 import { useAlert } from '@/template';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
@@ -17,6 +19,7 @@ interface RatingModalProps {
 }
 
 export function RatingModal({ visible, requestId, fromUserId, toUserId, toUserName, onDone }: RatingModalProps) {
+  const { C } = useThemeColors();
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState('');
@@ -27,11 +30,22 @@ export function RatingModal({ visible, requestId, fromUserId, toUserId, toUserNa
 
   const ratingLabels = ['', 'Terrible', 'Poor', 'Good', 'Great', 'Excellent'];
 
+  const handleSelectStar = (star: number) => {
+    if (star === 5) {
+      Haptic.success();
+    } else {
+      Haptic.select();
+    }
+    setRating(star);
+  };
+
   const handleSubmit = async () => {
     if (rating === 0) {
+      Haptic.warning();
       showAlert('Select Rating', 'Please tap a star to rate your experience');
       return;
     }
+    Haptic.confirm();
     setLoading(true);
     const { error } = await submitRating({ fromUserId, toUserId, requestId, rating, comment: comment.trim() || undefined });
     setLoading(false);
@@ -51,136 +65,187 @@ export function RatingModal({ visible, requestId, fromUserId, toUserId, toUserNa
       maxHeight="88%"
     >
       <View style={{ paddingHorizontal: Spacing.xl, paddingBottom: Spacing.lg }}>
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.iconRing}>
-                <Ionicons name="star" size={28} color={Colors.warning} />
-              </View>
-              <Text style={styles.title}>Rate Your Experience</Text>
-              <Text style={styles.subtitle}>How was your delivery with</Text>
-              <Text style={styles.userName}>{toUserName || 'User'}</Text>
-            </View>
+        {/* Header with Close */}
+        <View style={styles.topRow}>
+          <View style={{ width: 32 }} />
+          <View style={[styles.iconRing, { backgroundColor: C.warningSubtle, borderColor: C.warning + '44' }]}>
+            <Ionicons name="star" size={28} color={C.warning} />
+          </View>
+          <Pressable
+            onPress={() => {
+              Haptic.tap();
+              onDone();
+            }}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close rating dialog"
+            style={({ pressed }) => [
+              styles.closeBtn,
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <MaterialIcons name="close" size={18} color={C.textMuted} />
+          </Pressable>
+        </View>
 
-            {/* Stars */}
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map(star => (
-                <Pressable
-                  key={star}
-                  onPress={() => setRating(star)}
-                  onPressIn={() => setHovered(star)}
-                  onPressOut={() => setHovered(0)}
-                  hitSlop={8}
-                >
-                  <Ionicons
-                    name={star <= activeRating ? 'star' : 'star-outline'}
-                    size={42}
-                    color={star <= activeRating ? Colors.warning : Colors.textMuted}
-                  />
-                </Pressable>
-              ))}
-            </View>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: C.textPrimary }]}>Rate Your Experience</Text>
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>How was your delivery with</Text>
+          <Text style={[styles.userName, { color: C.primary }]}>{toUserName || 'User'}</Text>
+        </View>
 
-            {activeRating > 0 ? (
-              <Text style={styles.ratingLabel}>{ratingLabels[activeRating]}</Text>
-            ) : null}
-
-            {/* Comment */}
-            <View style={styles.commentBox}>
-              <TextInput
-                style={styles.commentInput}
-                value={comment}
-                onChangeText={setComment}
-                placeholder="Leave a comment (optional)..."
-                placeholderTextColor={Colors.textMuted}
-                multiline
-                numberOfLines={3}
-                maxLength={200}
-                textAlignVertical="top"
-                accessibilityLabel="Rating comment"
+        {/* Stars */}
+        <View style={styles.starsRow}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Pressable
+              key={star}
+              onPress={() => handleSelectStar(star)}
+              onPressIn={() => setHovered(star)}
+              onPressOut={() => setHovered(0)}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.starBtn,
+                { transform: [{ scale: pressed ? 0.86 : 1 }] },
+              ]}
+            >
+              <Ionicons
+                name={star <= activeRating ? 'star' : 'star-outline'}
+                size={40}
+                color={star <= activeRating ? C.warning : C.textMuted}
               />
-              <Text style={styles.charCount}>{comment.length}/200</Text>
-            </View>
+            </Pressable>
+          ))}
+        </View>
 
-            {/* Actions */}
-            <View style={styles.actions}>
-              <Pressable
-                style={[styles.skipBtn]}
-                onPress={onDone}
-              >
-                <Text style={styles.skipText}>Skip</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.submitBtn, rating === 0 && styles.submitBtnDisabled, loading && styles.submitBtnDisabled]}
-                onPress={handleSubmit}
-                disabled={rating === 0 || loading}
-              >
-                <Ionicons name="checkmark-circle" size={18} color={Colors.textInverse} />
-                <Text style={styles.submitText}>{loading ? 'Saving...' : 'Submit Rating'}</Text>
-              </Pressable>
-            </View>
+        {activeRating > 0 ? (
+          <Text style={[styles.ratingLabel, { color: C.warning }]}>{ratingLabels[activeRating]}</Text>
+        ) : null}
+
+        {/* Comment */}
+        <View style={[styles.commentBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+          <TextInput
+            style={[styles.commentInput, { color: C.textPrimary }]}
+            value={comment}
+            onChangeText={setComment}
+            placeholder="Leave a comment (optional)..."
+            placeholderTextColor={C.textMuted}
+            multiline
+            numberOfLines={3}
+            maxLength={200}
+            textAlignVertical="top"
+            accessibilityLabel="Rating comment"
+          />
+          <Text style={[styles.charCount, { color: C.textMuted }]}>{comment.length}/200</Text>
+        </View>
+
+        {/* Actions */}
+        <View style={styles.actions}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.skipBtn,
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+            onPress={() => {
+              Haptic.tap();
+              onDone();
+            }}
+          >
+            <Text style={[styles.skipText, { color: C.textSecondary }]}>Skip</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.submitBtn,
+              {
+                backgroundColor: C.primary,
+                transform: [{ scale: pressed && rating > 0 && !loading ? 0.97 : 1 }],
+              },
+              rating === 0 && styles.submitBtnDisabled,
+              loading && styles.submitBtnDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={rating === 0 || loading}
+          >
+            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+            <Text style={styles.submitText}>{loading ? 'Saving...' : 'Submit Rating'}</Text>
+          </Pressable>
+        </View>
       </View>
     </GestureBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoid: {
-    flex: 1,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: Spacing.xs,
   },
-  overlay: {
-    flexGrow: 1,
-    backgroundColor: Colors.overlayMedium,
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xl,
   },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
-    width: '100%',
-    gap: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.surfaceBorder,
-    ...Shadow.card,
-  },
-  header: { alignItems: 'center', gap: Spacing.sm },
+  header: { alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.md },
   iconRing: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.warningSubtle,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.warning + '44',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
   },
-  title: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.textPrimary },
-  subtitle: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  userName: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.primary },
-  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm },
-  ratingLabel: { textAlign: 'center', fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.warning },
+  title: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
+  subtitle: { fontSize: FontSize.sm },
+  userName: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm, marginVertical: Spacing.sm },
+  starBtn: { padding: 4 },
+  ratingLabel: { textAlign: 'center', fontSize: FontSize.md, fontWeight: FontWeight.semibold, marginBottom: Spacing.sm },
   commentBox: {
-    backgroundColor: Colors.surfaceElevated,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.surfaceBorder,
-    padding: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.sm + 2,
+    marginBottom: Spacing.md,
   },
   commentInput: {
-    fontSize: FontSize.md, color: Colors.textPrimary,
-    minHeight: 70, lineHeight: 22,
+    fontSize: FontSize.sm,
+    minHeight: 64,
+    lineHeight: 20,
   },
-  charCount: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'right', marginTop: 4 },
+  charCount: { fontSize: FontSize.xs, textAlign: 'right', marginTop: 4 },
   actions: { flexDirection: 'row', gap: Spacing.md },
   skipBtn: {
-    flex: 1, paddingVertical: Spacing.sm + 2,
-    alignItems: 'center', borderRadius: BorderRadius.md,
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 1, borderColor: Colors.surfaceBorder,
+    flex: 1,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
   },
-  skipText: { fontSize: FontSize.md, color: Colors.textMuted, fontWeight: FontWeight.medium },
+  skipText: { fontSize: FontSize.md, fontWeight: FontWeight.medium },
   submitBtn: {
-    flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: Spacing.sm + 2,
-    backgroundColor: Colors.primary, borderRadius: BorderRadius.md,
+    flex: 2,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: BorderRadius.lg,
   },
-  submitBtnDisabled: { opacity: 0.5 },
-  submitText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.textInverse },
+  submitBtnDisabled: { opacity: 0.45 },
+  submitText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: '#FFFFFF' },
 });

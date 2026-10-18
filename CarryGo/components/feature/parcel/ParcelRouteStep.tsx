@@ -1,13 +1,17 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
 import { InteractiveRouteCard } from '@/components/feature/InteractiveRouteCard';
 import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
 import { Haptic } from '@/services/haptics.service';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
 import { ParcelDraft, PREFERRED_TIME_PRESETS } from './types';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface ParcelRouteStepProps {
   form: ParcelDraft;
@@ -30,6 +34,10 @@ export function ParcelRouteStep({
   isDetectingCurrentLocation,
   locationHint,
 }: ParcelRouteStepProps) {
+  const [showTimeWindow, setShowTimeWindow] = useState(
+    form.preferredTime !== undefined && form.preferredTime !== 'anytime'
+  );
+
   return (
     <KeyboardAwareScrollView
       style={styles.stepContent}
@@ -40,22 +48,8 @@ export function ParcelRouteStep({
       keyboardDismissMode="on-drag"
       extraScrollHeight={130}
     >
-      <View style={styles.stepHeaderWrap}>
-        <View
-          style={[
-            styles.stepHeaderIcon,
-            { backgroundColor: C.primarySubtle, borderColor: C.primary + '25', borderWidth: 1 },
-          ]}
-        >
-          <MaterialIcons name="alt-route" size={22} color={C.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where's it going?</Text>
-          <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
-            Choose route and preferred handover schedule
-          </Text>
-        </View>
-      </View>
+      {/* Compact inline header */}
+      <Text style={[styles.stepTitle, { color: C.textPrimary }]}>Where's it going?</Text>
 
       <HaryanaCorridorChips
         activeFromCity={form.fromCity}
@@ -80,6 +74,7 @@ export function ParcelRouteStep({
         locationHint={locationHint}
       />
 
+      {/* Date selector — compact */}
       <View style={styles.fieldGroup}>
         <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Send by</Text>
         <Pressable
@@ -93,7 +88,7 @@ export function ParcelRouteStep({
                   ? C.error
                   : C.surfaceBorder,
             },
-            pressed && { opacity: 0.85 },
+            pressed && { opacity: 0.85, transform: [{ scale: Motion.cardScale }] },
           ]}
           onPress={() => {
             Haptic.tap();
@@ -108,7 +103,7 @@ export function ParcelRouteStep({
           >
             <MaterialIcons
               name="event-available"
-              size={20}
+              size={18}
               color={form.deliveryDate ? C.primary : C.textMuted}
             />
           </View>
@@ -135,69 +130,94 @@ export function ParcelRouteStep({
           </View>
           <MaterialIcons
             name={form.deliveryDate ? 'edit' : 'chevron-right'}
-            size={18}
+            size={16}
             color={form.deliveryDate ? C.primary : C.textMuted}
           />
         </Pressable>
       </View>
 
-      {/* Preferred Handover Window Selector */}
+      {/* Collapsible Preferred Handover Window */}
       <View style={styles.fieldGroup}>
-        <View style={styles.timeHeaderRow}>
-          <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Preferred handover window</Text>
-          <Text style={[styles.timeSubtext, { color: C.textMuted }]}>Optional</Text>
-        </View>
-        <View style={styles.timeGrid}>
-          {PREFERRED_TIME_PRESETS.map((t) => {
-            const isSelected = (form.preferredTime || 'anytime') === t.id;
-            return (
-              <Pressable
-                key={t.id}
-                style={({ pressed }) => [
-                  styles.timeChip,
-                  {
-                    backgroundColor: isSelected ? C.primarySubtle : C.surface,
-                    borderColor: isSelected ? C.primary : C.surfaceBorder,
-                  },
-                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-                ]}
-                onPress={() => {
-                  Haptic.select();
-                  updateField('preferredTime', t.id);
-                }}
-              >
-                <View
-                  style={[
-                    styles.timeIconWrap,
-                    { backgroundColor: isSelected ? C.primary + '20' : C.surfaceElevated },
+        <Pressable
+          style={({ pressed }) => [
+            styles.timeToggleRow,
+            pressed && { opacity: 0.8 },
+          ]}
+          onPress={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            Haptic.select();
+            setShowTimeWindow((prev) => !prev);
+          }}
+        >
+          <View style={styles.timeToggleLeft}>
+            <MaterialIcons name="schedule" size={16} color={C.textSecondary} />
+            <Text style={[styles.fieldLabel, { color: C.textSecondary, marginLeft: 0 }]}>
+              Preferred handover window
+            </Text>
+          </View>
+          <View style={styles.timeToggleRight}>
+            <Text style={[styles.timeSubtext, { color: C.textMuted }]}>Optional</Text>
+            <MaterialIcons
+              name={showTimeWindow ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+              size={20}
+              color={C.textMuted}
+            />
+          </View>
+        </Pressable>
+
+        {showTimeWindow ? (
+          <View style={styles.timeGrid}>
+            {PREFERRED_TIME_PRESETS.map((t) => {
+              const isSelected = (form.preferredTime || 'anytime') === t.id;
+              return (
+                <Pressable
+                  key={t.id}
+                  style={({ pressed }) => [
+                    styles.timeChip,
+                    {
+                      backgroundColor: isSelected ? C.primarySubtle : C.surface,
+                      borderColor: isSelected ? C.primary : C.surfaceBorder,
+                    },
+                    pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
                   ]}
+                  onPress={() => {
+                    Haptic.select();
+                    updateField('preferredTime', t.id);
+                  }}
                 >
-                  <MaterialIcons
-                    name={t.icon}
-                    size={16}
-                    color={isSelected ? C.primary : C.textSecondary}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
+                  <View
                     style={[
-                      styles.timeLabel,
-                      { color: isSelected ? C.primary : C.textPrimary },
+                      styles.timeIconWrap,
+                      { backgroundColor: isSelected ? C.primary + '20' : C.surfaceElevated },
                     ]}
                   >
-                    {t.label}
-                  </Text>
-                  <Text style={[styles.timeRangeText, { color: isSelected ? C.primary : C.textMuted }]}>
-                    {t.timeRange}
-                  </Text>
-                </View>
-                {isSelected ? (
-                  <MaterialIcons name="check-circle" size={16} color={C.primary} />
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
+                    <MaterialIcons
+                      name={t.icon}
+                      size={14}
+                      color={isSelected ? C.primary : C.textSecondary}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.timeLabel,
+                        { color: isSelected ? C.primary : C.textPrimary },
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                    <Text style={[styles.timeRangeText, { color: isSelected ? C.primary : C.textMuted }]}>
+                      {t.timeRange}
+                    </Text>
+                  </View>
+                  {isSelected ? (
+                    <MaterialIcons name="check-circle" size={14} color={C.primary} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
     </KeyboardAwareScrollView>
   );
@@ -205,49 +225,51 @@ export function ParcelRouteStep({
 
 const styles = StyleSheet.create({
   stepContent: { flex: 1 },
-  stepInner: { gap: Spacing.lg, paddingBottom: 132 },
-  stepHeaderWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.xs,
+  stepInner: { gap: Spacing.lg, paddingBottom: 110 },
+  stepTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.4,
   },
-  stepHeaderIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
-  stepSubtitle: { fontSize: FontSize.sm, marginTop: 2, lineHeight: 18 },
   fieldGroup: { gap: Spacing.sm },
   fieldLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },
   scheduleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    borderRadius: BorderRadius.xl,
+    gap: Spacing.smd,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1.2,
-    padding: Spacing.mdl,
-    minHeight: 76,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.smd,
+    minHeight: 56,
   },
   scheduleIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scheduleDateText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-  scheduleHintText: { fontSize: FontSize.sm, marginTop: 2 },
-  schedulePlaceholder: { fontSize: FontSize.md },
+  scheduleHintText: { fontSize: FontSize.xs, marginTop: 1 },
+  schedulePlaceholder: { fontSize: FontSize.sm },
 
-  timeHeaderRow: {
+  timeToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 2,
+    paddingVertical: 4,
+  },
+  timeToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  timeToggleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   timeSubtext: {
     fontSize: FontSize.xs,
@@ -264,15 +286,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.smd,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
     borderWidth: 1.2,
   },
   timeIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -41,6 +41,16 @@ function normalizeNotificationPayload(data: NotificationPayload): { type: string
   };
 }
 
+const seenNotificationKeys = new Set<string>();
+
+function shouldProcessNotification(key: string): boolean {
+  if (!key) return true;
+  if (seenNotificationKeys.has(key)) return false;
+  seenNotificationKeys.add(key);
+  setTimeout(() => seenNotificationKeys.delete(key), 8_000); // 8-second deduplication window
+  return true;
+}
+
 let globalLastHandledResponseId: string | null = null;
 let realtimeChannelInstance = 0;
 
@@ -143,6 +153,7 @@ export function useNotifications() {
             void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
             if (payload.eventType === 'INSERT' && payload.new) {
               const newNotif = payload.new as {
+                id?: string;
                 title?: string;
                 body?: string;
                 type?: string;
@@ -150,36 +161,17 @@ export function useNotifications() {
                 deep_link?: string;
               };
               if (newNotif.title && newNotif.body) {
-                // Show instant in-app banner toast
-                notifCtx?.showBanner({
-                  title: newNotif.title,
-                  body: newNotif.body,
-                  type: newNotif.type,
-                  relatedId: newNotif.related_id,
-                  deepLink: newNotif.deep_link,
-                });
-
-                const targetChannelId = newNotif.type === 'message'
-                  ? 'messages'
-                  : newNotif.type === 'payment'
-                    ? 'payments'
-                    : (newNotif.type === 'request' || newNotif.type === 'delivery' || newNotif.type === 'delivery_otp')
-                      ? 'deliveries'
-                      : 'default';
-
-                void Notifications.scheduleNotificationAsync({
-                  content: {
+                const dedupeKey = newNotif.id || `notif_${newNotif.type}_${newNotif.title}_${newNotif.related_id}`;
+                if (shouldProcessNotification(dedupeKey)) {
+                  // Show instant in-app banner toast
+                  notifCtx?.showBanner({
                     title: newNotif.title,
                     body: newNotif.body,
-                    sound: true,
-                    data: {
-                      type: newNotif.type,
-                      relatedId: newNotif.related_id,
-                      deepLink: newNotif.deep_link,
-                    },
-                  },
-                  trigger: { channelId: targetChannelId },
-                }).catch(() => {});
+                    type: newNotif.type,
+                    relatedId: newNotif.related_id,
+                    deepLink: newNotif.deep_link,
+                  });
+                }
               }
             }
           }
@@ -199,13 +191,17 @@ export function useNotifications() {
       void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
       const content = notification.request.content;
       if (content.title && content.body) {
-        notifCtx?.showBanner({
-          title: content.title,
-          body: content.body,
-          type: (content.data?.type as string) || 'general',
-          relatedId: (content.data?.relatedId as string) || undefined,
-          deepLink: (content.data?.deepLink as string) || undefined,
-        });
+        const notifId = (content.data?.notificationId as string) || (content.data?.id as string) || notification.request.identifier;
+        const dedupeKey = notifId || `push_${content.data?.type}_${content.title}_${content.data?.relatedId}`;
+        if (shouldProcessNotification(dedupeKey)) {
+          notifCtx?.showBanner({
+            title: content.title,
+            body: content.body,
+            type: (content.data?.type as string) || 'general',
+            relatedId: (content.data?.relatedId as string) || undefined,
+            deepLink: (content.data?.deepLink as string) || undefined,
+          });
+        }
       }
     });
 

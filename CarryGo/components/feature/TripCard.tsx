@@ -20,7 +20,7 @@ export const VEHICLE_CONFIG: Record<
   car: { icon: 'directions-car', color: '#0284C7', bg: '#E0F2FE', border: '#BAE6FD', label: 'Car' },
   bus: { icon: 'directions-bus', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', label: 'Bus' },
   train: { icon: 'train', color: '#0D9488', bg: '#CCFBF1', border: '#99F6E4', label: 'Train' },
-  flight: { icon: 'flight', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', label: 'Flight' },
+  flight: { icon: 'flight', color: '#104BB9', bg: '#EEF4FF', border: '#DBE8FD', label: 'Flight' },
 };
 
 export function getVehicleMeta(vehicleType?: string, isDark: boolean = false) {
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   },
   matchItem: {
     borderWidth: 1,
-    borderColor: 'rgba(5, 150, 105, 0.25)',
+    borderColor: 'rgba(26, 76, 162, 0.25)',
   },
   specText: {
     fontSize: 11.5,

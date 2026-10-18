@@ -539,8 +539,30 @@ function MatchBreakdownSheet({ visible, details, onClose, C }: {
       <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg }}>
         <View style={styles.sheetHeader}>
           <Text style={[styles.sheetTitle, { color: C.textPrimary }]}>Why this match?</Text>
-          <Pressable onPress={onClose} hitSlop={8}>
-            <MaterialIcons name={'close'} size={20} color={C.textMuted} />
+          <Pressable
+            onPress={() => {
+              Haptic.tap();
+              onClose();
+            }}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close match details"
+            style={({ pressed }) => [
+              {
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                borderWidth: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <MaterialIcons name="close" size={18} color={C.textMuted} />
           </Pressable>
         </View>
         <Text style={[styles.sheetRoute, { color: C.textSecondary }]}>{details.title}</Text>

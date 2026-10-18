@@ -156,13 +156,13 @@ export const LiveMarketplaceHeader = React.memo(function LiveMarketplaceHeader({
                 style={[
                   styles.radarPulseRing,
                   {
-                    backgroundColor: '#10B981',
+                    backgroundColor: C.primary,
                     transform: [{ scale: pulseAnim }],
                     opacity: pulseOpacity,
                   },
                 ]}
               />
-              <View style={[styles.radarCoreDot, { backgroundColor: '#10B981' }]} />
+              <View style={[styles.radarCoreDot, { backgroundColor: C.primary }]} />
             </View>
             <Text style={[styles.sectionHeading, { color: C.textPrimary }]}>Live Marketplace</Text>
           </View>
@@ -297,7 +297,7 @@ export const LiveMarketplaceHeader = React.memo(function LiveMarketplaceHeader({
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'trips' }}
           accessibilityLabel={`Available Trips, ${tripsCount} active trips`}
-          style={styles.tabButton}
+          style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.85 }]}
         >
           <MaterialIcons
             name="flight-takeoff"
@@ -340,7 +340,7 @@ export const LiveMarketplaceHeader = React.memo(function LiveMarketplaceHeader({
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'parcels' }}
           accessibilityLabel={`Parcels to Carry, ${parcelsCount} open packages`}
-          style={styles.tabButton}
+          style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.85 }]}
         >
           <MaterialIcons
             name="inventory-2"
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   liveStatusPillText: {
     fontSize: 9,
     fontWeight: FontWeight.bold,
-    color: '#059669',
+    color: '#1A4CA2',
     letterSpacing: 0.5,
   },
   sectionSubtitle: {
@@ -801,6 +801,11 @@ const styles = StyleSheet.create({
     width: '50%',
     borderRadius: BorderRadius.md - 2,
     zIndex: 1,
+    shadowColor: '#1A4CA2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 3,
   },
   tabButton: {
     flex: 1,

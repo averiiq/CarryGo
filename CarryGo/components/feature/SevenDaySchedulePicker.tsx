@@ -153,14 +153,21 @@ export function SevenDaySchedulePicker({
             <Text style={[styles.pickerSubtitle, { color: C.textMuted }]}>{subtitle}</Text>
           </View>
           <Pressable
-            onPress={onClose}
+            onPress={() => {
+              Haptic.tap();
+              onClose();
+            }}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Close schedule picker"
             style={({ pressed }) => [
               styles.closeCircle,
-              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.7 },
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
             ]}
           >
             <MaterialIcons name="close" size={18} color={C.textSecondary} />

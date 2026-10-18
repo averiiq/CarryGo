@@ -143,8 +143,25 @@ export function NegotiateTripModal({
               Propose pickup & drop landmarks, fare offer, or chat with {trip.userName}.
             </Text>
           </View>
-          <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
-            <MaterialIcons name="close" size={22} color={C.textMuted} />
+          <Pressable
+            onPress={() => {
+              Haptic.tap();
+              onClose();
+            }}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close negotiation"
+            style={({ pressed }) => [
+              styles.closeBtn,
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <MaterialIcons name="close" size={18} color={C.textMuted} />
           </Pressable>
         </View>
 
@@ -464,7 +481,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   closeBtn: {
-    padding: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   routeCard: {
     borderRadius: 14,

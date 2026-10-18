@@ -177,13 +177,25 @@ export function CitySelectModal({
         {/* Top Header Bar */}
         <View style={[styles.headerBar, { borderBottomColor: C.surfaceBorder, paddingTop: Math.max(insets.top, 14) }]}>
           <Pressable
-            onPress={onClose}
+            onPress={() => {
+              Haptic.tap();
+              onClose();
+            }}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Close city selector"
-            style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [
+              styles.closeBtn,
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                borderWidth: 1,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
           >
-            <MaterialIcons name="close" size={22} color={C.textPrimary} />
+            <MaterialIcons name="close" size={18} color={C.textPrimary} />
           </Pressable>
 
           <View style={styles.headerTitleWrap}>

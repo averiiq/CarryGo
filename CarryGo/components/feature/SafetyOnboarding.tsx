@@ -96,8 +96,24 @@ export default function SafetyOnboarding({ visible, onComplete, onClose }: Safet
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Go back"
-            onPress={currentStep === 0 ? handleClose : goBack}
-            style={[styles.headerButton, { backgroundColor: C.surfaceElevated }]}
+            onPress={() => {
+              Haptic.tap();
+              if (currentStep === 0) {
+                handleClose();
+              } else {
+                goBack();
+              }
+            }}
+            style={({ pressed }) => [
+              styles.headerButton,
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+                borderWidth: 1,
+                transform: [{ scale: pressed ? 0.92 : 1 }],
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
             hitSlop={12}
           >
             <MaterialIcons
