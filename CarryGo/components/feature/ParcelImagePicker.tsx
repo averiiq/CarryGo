@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-nati
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAlert } from '@/template';
@@ -10,6 +11,34 @@ import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 
 const MAX_IMAGES = 4;
+
+function extractFileName(uri: string): string {
+  const clean = uri.split('?')[0].split('#')[0];
+  const lastSlash = clean.lastIndexOf('/');
+  return lastSlash >= 0 ? clean.substring(lastSlash + 1).toLowerCase() : clean.toLowerCase();
+}
+
+async function getFileInfo(uri: string): Promise<{ md5?: string; size?: number } | null> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri, { md5: true, size: true });
+    if (info.exists) {
+      return {
+        md5: 'md5' in info && typeof info.md5 === 'string' ? info.md5 : undefined,
+        size: 'size' in info && typeof info.size === 'number' ? info.size : undefined,
+      };
+    }
+  } catch {
+    // Fail silently if file is inaccessible
+  }
+  return null;
+}
+
+interface ImageMetadata {
+  originalUri: string;
+  fileName?: string;
+  md5?: string;
+  size?: number;
+}
 
 type ParcelImagePickerProps = {
   images: string[];
@@ -22,6 +51,7 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
   const { showAlert } = useAlert();
   const [processingIndex, setProcessingIndex] = useState<number | null>(null);
   const mountedRef = useRef(true);
+  const sourceMetaRef = useRef<Map<number, ImageMetadata>>(new Map());
 
   useEffect(() => {
     return () => { mountedRef.current = false; };
@@ -64,7 +94,7 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
     });
 
     if (!result.canceled && result.assets[0]) {
-      await handleImageResult(result.assets[0].uri, slotIndex);
+      await handleImageResult(result.assets[0], slotIndex);
     }
   };
 
@@ -83,34 +113,171 @@ export function ParcelImagePicker({ images, onImagesChange, error }: ParcelImage
     });
 
     if (!result.canceled && result.assets[0]) {
-      await handleImageResult(result.assets[0].uri, slotIndex);
+      await handleImageResult(result.assets[0], slotIndex);
     }
   };
 
-  const handleImageResult = async (uri: string, slotIndex: number) => {
-    setProcessingIndex(slotIndex);
-    const optimizedUri = await processImage(uri);
-    if (!mountedRef.current) return;
-    setProcessingIndex(null);
+  const checkIfDuplicate = async (
+    asset: ImagePicker.ImagePickerAsset,
+    slotIndex: number,
+    assetInfo: { md5?: string; size?: number } | null
+  ): Promise<boolean> => {
+    const candidateUri = asset.uri;
+    const candidateName = asset.fileName ? asset.fileName.toLowerCase() : extractFileName(candidateUri);
 
-    if (optimizedUri) {
-      const updated = [...images];
-      if (slotIndex < updated.length) {
-        updated[slotIndex] = optimizedUri;
-      } else {
-        updated.push(optimizedUri);
+    for (let i = 0; i < images.length; i++) {
+      if (i === slotIndex) continue;
+
+      const existingUri = images[i];
+      if (!existingUri) continue;
+
+      // 1. Direct URI match
+      if (existingUri === candidateUri) {
+        return true;
       }
-      onImagesChange(updated);
-      Haptic.confirm();
-    } else {
+
+      // 2. Tracked metadata match
+      const meta = sourceMetaRef.current.get(i);
+      if (meta) {
+        if (meta.originalUri === candidateUri) {
+          return true;
+        }
+        if (asset.fileName && meta.fileName && meta.fileName === asset.fileName.toLowerCase()) {
+          return true;
+        }
+        if (meta.md5 && assetInfo?.md5 && meta.md5 === assetInfo.md5) {
+          return true;
+        }
+        if (
+          meta.size !== undefined &&
+          assetInfo?.size !== undefined &&
+          meta.size > 0 &&
+          meta.size === assetInfo.size &&
+          meta.fileName === candidateName
+        ) {
+          return true;
+        }
+      }
+
+      // 3. Fallback file name match
+      const existingName = extractFileName(existingUri);
+      if (
+        candidateName &&
+        candidateName.length > 3 &&
+        candidateName !== 'image.jpg' &&
+        candidateName !== 'photo.jpg' &&
+        existingName === candidateName
+      ) {
+        return true;
+      }
+
+      // 4. Existing file hash match
+      const existingInfo = await getFileInfo(existingUri);
+      if (existingInfo?.md5 && assetInfo?.md5 && existingInfo.md5 === assetInfo.md5) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  const checkProcessedDuplicate = async (
+    optimizedUri: string,
+    slotIndex: number
+  ): Promise<boolean> => {
+    const optimizedInfo = await getFileInfo(optimizedUri);
+    for (let i = 0; i < images.length; i++) {
+      if (i === slotIndex) continue;
+      const existingUri = images[i];
+      if (!existingUri) continue;
+
+      if (existingUri === optimizedUri) {
+        return true;
+      }
+
+      const existingInfo = await getFileInfo(existingUri);
+      if (
+        existingInfo?.md5 &&
+        optimizedInfo?.md5 &&
+        existingInfo.md5 === optimizedInfo.md5
+      ) {
+        return true;
+      }
+      if (
+        existingInfo?.size &&
+        optimizedInfo?.size &&
+        existingInfo.size > 0 &&
+        existingInfo.size === optimizedInfo.size
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const handleImageResult = async (asset: ImagePicker.ImagePickerAsset, slotIndex: number) => {
+    setProcessingIndex(slotIndex);
+    const assetInfo = await getFileInfo(asset.uri);
+
+    const isDuplicate = await checkIfDuplicate(asset, slotIndex, assetInfo);
+    if (isDuplicate) {
+      if (mountedRef.current) setProcessingIndex(null);
+      Haptic.error();
+      showAlert('Duplicate Image', 'This image has already been added. Please select a different image.');
+      return;
+    }
+
+    const optimizedUri = await processImage(asset.uri);
+    if (!mountedRef.current) return;
+
+    if (!optimizedUri) {
+      setProcessingIndex(null);
       Haptic.error();
       showAlert('Error', 'Failed to process image. Please try again.');
+      return;
     }
+
+    const isProcessedDuplicate = await checkProcessedDuplicate(optimizedUri, slotIndex);
+    if (isProcessedDuplicate) {
+      setProcessingIndex(null);
+      Haptic.error();
+      showAlert('Duplicate Image', 'This image has already been added. Please select a different image.');
+      return;
+    }
+
+    setProcessingIndex(null);
+
+    // Record source metadata for subsequent duplicate checks
+    sourceMetaRef.current.set(slotIndex, {
+      originalUri: asset.uri,
+      fileName: asset.fileName ? asset.fileName.toLowerCase() : extractFileName(asset.uri),
+      md5: assetInfo?.md5,
+      size: assetInfo?.size,
+    });
+
+    const updated = [...images];
+    if (slotIndex < updated.length) {
+      updated[slotIndex] = optimizedUri;
+    } else {
+      updated.push(optimizedUri);
+    }
+    onImagesChange(updated);
+    Haptic.confirm();
   };
 
   const removeImage = (index: number) => {
     Haptic.tap();
     const updated = images.filter((_, i) => i !== index);
+    const nextMeta = new Map<number, ImageMetadata>();
+    let targetIdx = 0;
+    for (let i = 0; i < images.length; i++) {
+      if (i !== index) {
+        const meta = sourceMetaRef.current.get(i);
+        if (meta) nextMeta.set(targetIdx, meta);
+        targetIdx++;
+      }
+    }
+    sourceMetaRef.current = nextMeta;
     onImagesChange(updated);
   };
 

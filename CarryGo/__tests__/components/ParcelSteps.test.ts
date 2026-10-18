@@ -92,6 +92,17 @@ describe('Parcel Steps - Validation & Formatting Helpers', () => {
       expect(errors.images).toBe('Add at least 1 parcel photo');
     });
 
+    it('flags duplicate parcel images', () => {
+      const draft: ParcelDraft = {
+        ...EMPTY_PARCEL_DRAFT,
+        images: ['https://example.com/item.jpg', 'https://example.com/item.jpg'],
+        weight: '2',
+        priceOffer: '250',
+      };
+      const errors = validateParcelDetails(draft);
+      expect(errors.images).toBe('Duplicate images are not allowed');
+    });
+
     describe('weight validation', () => {
       it('flags empty weight', () => {
         const draft: ParcelDraft = {

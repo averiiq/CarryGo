@@ -69,6 +69,11 @@ export function validateParcelDetails(draft: ParcelDraft): Record<string, string
   const errors: Record<string, string> = {};
   if (!draft.images || draft.images.length < 1) {
     errors.images = 'Add at least 1 parcel photo';
+  } else {
+    const uniqueImages = new Set(draft.images);
+    if (uniqueImages.size !== draft.images.length) {
+      errors.images = 'Duplicate images are not allowed';
+    }
   }
   const parcelWeight = Number(draft.weight);
   const offerAmount = Number(draft.priceOffer);
