@@ -17,7 +17,6 @@ import { AppErrorBoundary, TripCard, BlaBlaTripCard, MatchDiagnosticCard, Lottie
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 import { Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
-import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { scoreMatch, MatchScore, DiagnosticAction, checkTripParcelRoute } from '@/services/smart-matching.service';
@@ -197,7 +196,6 @@ export default function MatchingScreen() {
               if (result) {
                 setSentRequests(prev => new Set([...prev, trip.id]));
                 void requestsQuery.refetch();
-                await sendLocalNotification('Request Sent!', `Your request was sent to ${trip.userName}`);
                 Haptic.success();
                 showAlert(
                   'Request Sent! 🎉',

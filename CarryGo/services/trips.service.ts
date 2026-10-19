@@ -11,11 +11,19 @@ import { expireStaleUnmatchedListings } from '@/services/listing-expiry.service'
 
 type TripRow = Database['public']['Tables']['trips']['Row'];
 
-function mapRow(row: TripRow): Trip {
+function mapRow(row: any): Trip {
   return {
     id: row.id,
     userId: row.user_id,
     userName: row.user_name,
+    userAvatar:
+      row.user_avatar ||
+      row.avatar_url ||
+      row.selfie_url ||
+      row.users?.avatar ||
+      row.users?.avatar_url ||
+      row.users?.selfie_url ||
+      undefined,
     userRating: row.user_rating ?? 0,
     fromCity: row.from_city,
     toCity: row.to_city,
@@ -26,6 +34,7 @@ function mapRow(row: TripRow): Trip {
     pricePerKg: Number(row.price_per_kg),
     status: row.status as Trip['status'],
     createdAt: row.created_at,
+    allowedCategories: Array.isArray(row.allowed_categories) ? row.allowed_categories : undefined,
   };
 }
 
@@ -152,9 +161,11 @@ export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
   }
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('trips').insert({
+  const avatarValue = trip.userAvatar || (trip as any).selfieUrl || (trip as any).avatar || (trip as any).avatar_url;
+  const insertPayload: any = {
     user_id: trip.userId,
     user_name: trip.userName,
+    user_avatar: avatarValue || null,
     user_rating: trip.userRating,
     from_city: trip.fromCity,
     to_city: trip.toCity,
@@ -164,9 +175,33 @@ export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
     available_capacity: trip.availableCapacity,
     price_per_kg: trip.pricePerKg,
     status: trip.status,
-  }).select().single();
+  };
+  if (trip.allowedCategories && Array.isArray(trip.allowedCategories)) {
+    insertPayload.allowed_categories = trip.allowedCategories;
+  }
+
+  let { data, error } = await sb.from('trips').insert(insertPayload).select().single();
+  if (error && (insertPayload.allowed_categories || insertPayload.user_avatar)) {
+    // Retry without columns that might not exist in an older schema
+    const fallbackPayload: any = { ...insertPayload };
+    delete fallbackPayload.allowed_categories;
+    delete fallbackPayload.user_avatar;
+    const retry = await sb.from('trips').insert(fallbackPayload).select().single();
+    if (!retry.error) {
+      data = retry.data;
+      error = null;
+    }
+  }
+
   if (error) return { data: null, error: error.message };
-  return { data: mapRow(data), error: null };
+  const mapped = mapRow(data);
+  if (avatarValue && !mapped.userAvatar) {
+    mapped.userAvatar = avatarValue;
+  }
+  if (trip.allowedCategories) {
+    mapped.allowedCategories = trip.allowedCategories;
+  }
+  return { data: mapped, error: null };
 }
 
 export async function updateTripStatus(tripId: string, status: Trip['status'], userId: string) {

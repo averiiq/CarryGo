@@ -18,7 +18,7 @@ import {
 } from '@/components/feature/trip';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFormDraft } from '@/hooks/useFormDraft';
-import { VehicleType } from '@/types';
+import { VehicleType, ParcelCategory } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import { Haptic } from '@/services/haptics.service';
@@ -35,6 +35,8 @@ const STEPS = [
   { label: 'Review' },
 ];
 
+const ALL_CATEGORIES: ParcelCategory[] = ['documents', 'electronics', 'clothing', 'food', 'medicine', 'other'];
+
 type TripDraft = {
   fromCity: string;
   toCity: string;
@@ -43,10 +45,18 @@ type TripDraft = {
   vehicle: VehicleType;
   capacity: string;
   price: string;
+  allowedCategories?: ParcelCategory[];
 };
 
 const EMPTY_DRAFT: TripDraft = {
-  fromCity: '', toCity: '', date: '', time: '', vehicle: 'car', capacity: '', price: '',
+  fromCity: '',
+  toCity: '',
+  date: '',
+  time: '',
+  vehicle: 'car',
+  capacity: '',
+  price: '',
+  allowedCategories: ALL_CATEGORIES,
 };
 
 function normalizeCity(value: string) {
@@ -196,6 +206,7 @@ export default function CreateTripScreen() {
       time: form.time || '10:00 AM',
       capacity: form.capacity.trim(),
       price: form.price.trim(),
+      allowedCategories: form.allowedCategories && form.allowedCategories.length > 0 ? form.allowedCategories : ALL_CATEGORIES,
     };
 
     if (
@@ -204,7 +215,8 @@ export default function CreateTripScreen() {
       prepared.date !== form.date ||
       prepared.time !== form.time ||
       prepared.capacity !== form.capacity ||
-      prepared.price !== form.price
+      prepared.price !== form.price ||
+      prepared.allowedCategories !== form.allowedCategories
     ) {
       setForm(prepared);
     }
@@ -254,6 +266,10 @@ export default function CreateTripScreen() {
       errors.price = 'Enter price per kg';
     } else if (!Number.isFinite(pricePerKg) || pricePerKg < 1 || pricePerKg > 50000) {
       errors.price = 'Rs 1 - Rs 50,000';
+    }
+
+    if (!draft.allowedCategories || draft.allowedCategories.length === 0) {
+      errors.allowedCategories = 'Select at least 1 item category you can carry';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -368,9 +384,11 @@ export default function CreateTripScreen() {
     Haptic.confirm();
     try {
       const realRating = user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0) : 0;
+      const userAvatar = user.avatar || user.selfieUrl || (user as any).avatarUrl || (user as any).userSelfieUrl;
       const result = await createTripMutation.mutateAsync({
         userId: user.id,
         userName: user.fullName || user.name || 'User',
+        userAvatar: userAvatar || undefined,
         userRating: realRating,
         fromCity: prepared.fromCity,
         toCity: prepared.toCity,
@@ -380,6 +398,7 @@ export default function CreateTripScreen() {
         availableCapacity: Number(prepared.capacity),
         pricePerKg: Number(prepared.price),
         status: 'active',
+        allowedCategories: prepared.allowedCategories,
       });
       try {
         await notifyRouteSubscribers({
@@ -432,6 +451,67 @@ export default function CreateTripScreen() {
         currentStep={step}
         onStepPress={handleStepPress}
         direction={direction}
+        title="Post a Trip"
+        onBack={() => {
+          if (step > 0) {
+            goBack();
+          } else {
+            router.back();
+          }
+        }}
+        footer={
+          <View
+            style={[
+              styles.footerContainer,
+              {
+                backgroundColor: C.surface,
+                borderTopColor: C.surfaceBorder,
+                paddingBottom: Math.max(insets.bottom, Spacing.md),
+                marginBottom: footerOffset,
+              },
+            ]}
+          >
+            <View style={styles.footerInner}>
+              {step > 0 && (
+                <Button
+                  title="Back"
+                  onPress={goBack}
+                  variant="outline"
+                  size="md"
+                  style={styles.backButton}
+                  icon={<MaterialIcons name="arrow-back" size={18} color={C.textPrimary} />}
+                />
+              )}
+              {step === 0 ? (
+                <Button
+                  title="Continue to Details"
+                  onPress={goNext}
+                  fullWidth
+                  size="md"
+                  style={styles.primaryButtonFull}
+                  icon={<MaterialIcons name="arrow-forward" size={18} color="#fff" />}
+                />
+              ) : step === 1 ? (
+                <Button
+                  title="Review Trip"
+                  onPress={goNext}
+                  size="md"
+                  style={styles.primaryButton}
+                  icon={<MaterialIcons name="arrow-forward" size={18} color="#fff" />}
+                />
+              ) : (
+                <Button
+                  title="Publish Trip"
+                  onPress={handleSubmit}
+                  loading={createTripMutation.isPending || isSubmitting}
+                  size="md"
+                  style={styles.primaryButton}
+                  icon={<MaterialIcons name="rocket-launch" size={18} color="#fff" />}
+                />
+              )}
+            </View>
+          </View>
+        }
       >
         {showDraftBanner ? (
           <View style={[styles.draftBanner, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -466,24 +546,6 @@ export default function CreateTripScreen() {
           />
         )}
         {step === 2 && <TripReviewStep form={form} onEdit={handleStepPress} hasKyc={isKycApproved} />}
-
-        <View style={[styles.footer, { backgroundColor: C.background, borderTopColor: C.surfaceBorder, paddingBottom: Math.max(insets.bottom, Spacing.md), bottom: footerOffset }]}>
-          {step > 0 && (
-            <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
-          )}
-          {step < 2 ? (
-            <Button title="Next" onPress={goNext} fullWidth={step === 0} style={step > 0 ? { flex: 2 } : undefined} />
-          ) : (
-            <Button
-              title="Post Trip"
-              onPress={handleSubmit}
-              loading={createTripMutation.isPending || isSubmitting}
-              fullWidth={step === 0}
-              style={step > 0 ? { flex: 2 } : undefined}
-              icon={<MaterialIcons name="check" size={18} color="#fff" />}
-            />
-          )}
-        </View>
       </WizardContainer>
     </>
   );
@@ -502,16 +564,29 @@ const styles = StyleSheet.create({
   },
   draftBannerText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   draftBannerAction: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-  footer: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    position: 'absolute',
-    bottom: 0,
-    left: -Spacing.md,
-    right: -Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+  footerContainer: {
+    width: '100%',
     borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: Spacing.smd,
+    paddingHorizontal: Spacing.md,
+  },
+  footerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.smd,
+    width: '100%',
+    maxWidth: 540,
+    alignSelf: 'center',
+  },
+  backButton: {
+    minWidth: 92,
+    flexShrink: 0,
+  },
+  primaryButton: {
+    flex: 1,
+  },
+  primaryButtonFull: {
+    flex: 1,
   },
 });
 

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
+import Svg, { Line } from 'react-native-svg';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatScheduleDate } from './SevenDaySchedulePicker';
+import { resolveImageUrl, getCategoryFallbackImage, getVehicleImage } from '@/constants/images';
 
 interface DigitalWaybillCardProps {
   type: 'parcel' | 'trip';
@@ -17,10 +19,16 @@ interface DigitalWaybillCardProps {
   weightOrCapacity: string;
   priceOrOffer: string;
   images?: string[];
+  vehicleImage?: any;
+  categoryImage?: any;
   description?: string;
   onEditRoute: () => void;
   onEditDetails: () => void;
   hasKyc?: boolean;
+  showTrustCard?: boolean;
+  userAvatar?: string;
+  userName?: string;
+  userRating?: number;
 }
 
 export function DigitalWaybillCard({
@@ -34,12 +42,25 @@ export function DigitalWaybillCard({
   weightOrCapacity,
   priceOrOffer,
   images = [],
+  vehicleImage,
+  categoryImage,
   description,
   onEditRoute,
   onEditDetails,
   hasKyc,
+  showTrustCard = true,
+  userAvatar,
+  userName,
+  userRating,
 }: DigitalWaybillCardProps) {
   const { C } = useThemeColors();
+  const [avatarError, setAvatarError] = useState(false);
+
+  const resolvedAvatar = resolveImageUrl(userAvatar);
+  const fallbackMediaImage = type === 'trip' 
+    ? getVehicleImage(categoryOrVehicle) 
+    : getCategoryFallbackImage(categoryOrVehicle);
+  const effectiveMediaImage = vehicleImage || categoryImage || fallbackMediaImage;
 
   return (
     <View style={styles.container}>
@@ -54,7 +75,7 @@ export function DigitalWaybillCard({
         ]}
       >
         {/* Ticket Header */}
-        <View style={[styles.ticketHeader, { backgroundColor: C.surfaceElevated }]}>
+        <View style={[styles.ticketHeader, { backgroundColor: C.surfaceElevated, borderBottomColor: C.surfaceBorderLight, borderBottomWidth: 1 }]}>
           <View style={styles.ticketBadgeRow}>
             <View style={[styles.ticketTypeBadge, { backgroundColor: C.primarySubtle }]}>
               <MaterialIcons
@@ -63,12 +84,59 @@ export function DigitalWaybillCard({
                 color={C.primary}
               />
               <Text style={[styles.ticketTypeBadgeText, { color: C.primary }]}>
-                {type === 'parcel' ? 'PARCEL WAYBILL' : 'TRAVELLER ITINERARY'}
+                {type === 'parcel' ? 'PARCEL WAYBILL' : 'ITINERARY DETAILS'}
               </Text>
             </View>
             <View style={styles.liveIndicator}>
               <View style={[styles.liveDot, { backgroundColor: C.success }]} />
-              <Text style={[styles.liveText, { color: C.success }]}>Ready to Match</Text>
+              <Text style={[styles.liveText, { color: C.success }]}>Ready to Publish</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* User / Traveller Profile Strip */}
+        <View style={[styles.profileStrip, { backgroundColor: C.surface, borderBottomColor: C.surfaceBorderLight, borderBottomWidth: 1 }]}>
+          <View style={styles.profileAvatarWrap}>
+            {resolvedAvatar && !avatarError ? (
+              <Image
+                source={{ uri: resolvedAvatar }}
+                style={styles.profileAvatarImg}
+                contentFit="cover"
+                transition={200}
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <View style={[styles.profileAvatarPlaceholder, { backgroundColor: C.primarySubtle }]}>
+                <Text style={[styles.profileAvatarLetter, { color: C.primary }]}>
+                  {(userName || 'T').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={[styles.profileVerifiedBadge, { backgroundColor: '#10B981', borderColor: C.card }]}>
+              <MaterialIcons name="check" size={8} color="#FFFFFF" />
+            </View>
+          </View>
+
+          <View style={styles.profileMeta}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.profileName, { color: C.textPrimary }]} numberOfLines={1}>
+                {userName || (type === 'trip' ? 'Traveller Profile' : 'Sender Profile')}
+              </Text>
+              <View style={[styles.verifiedTag, { backgroundColor: C.successSubtle }]}>
+                <Text style={[styles.verifiedTagText, { color: C.success }]}>
+                  {hasKyc ? 'KYC VERIFIED' : 'ACTIVE'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.profileSubRow}>
+              <MaterialIcons name="star" size={13} color="#F59E0B" />
+              <Text style={[styles.profileRatingText, { color: C.textSecondary }]}>
+                {userRating && userRating > 0 ? userRating.toFixed(1) : '5.0'}
+              </Text>
+              <Text style={[styles.profileDot, { color: C.textMuted }]}>•</Text>
+              <Text style={[styles.profileRoleText, { color: C.textMuted }]}>
+                {type === 'trip' ? 'Confirmed Carrier' : 'Verified Sender'}
+              </Text>
             </View>
           </View>
         </View>
@@ -122,15 +190,19 @@ export function DigitalWaybillCard({
           </View>
         </View>
 
-        {/* Perforated Divider Line */}
-        <View style={styles.perforatedLineRow}>
-          <View style={[styles.notchLeft, { backgroundColor: C.background, borderColor: C.surfaceBorder }]} />
-          <View style={styles.dashedLine}>
-            {Array.from({ length: 18 }).map((_, i) => (
-              <View key={i} style={[styles.dash, { backgroundColor: C.surfaceBorder }]} />
-            ))}
-          </View>
-          <View style={[styles.notchRight, { backgroundColor: C.background, borderColor: C.surfaceBorder }]} />
+        {/* Sleek Minimal Dashed Divider Line */}
+        <View style={styles.dashedDividerWrapper}>
+          <Svg height="2" width="100%">
+            <Line
+              x1="0"
+              y1="1"
+              x2="100%"
+              y2="1"
+              stroke={C.surfaceBorder}
+              strokeWidth="1.2"
+              strokeDasharray="6, 5"
+            />
+          </Svg>
         </View>
 
         {/* Details Section */}
@@ -152,25 +224,38 @@ export function DigitalWaybillCard({
           </View>
 
           {/* Photos Preview if parcel */}
-          {images.length > 0 && (
+          {images && images.length > 0 && (
             <View style={styles.photosRow}>
-              {images.map((uri, index) => (
-                <View key={index} style={[styles.photoThumb, { borderColor: C.surfaceBorder }]}>
-                  <Image source={{ uri }} style={styles.photoImg} contentFit="cover" />
-                  {index === 0 && (
-                    <View style={[styles.primaryPhotoBadge, { backgroundColor: C.primary }]}>
-                      <Text style={styles.primaryPhotoBadgeText}>Cover</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
+              {images.map((uri, index) => {
+                const resolvedUri = resolveImageUrl(uri);
+                return (
+                  <View key={index} style={[styles.photoThumb, { borderColor: C.surfaceBorder }]}>
+                    <Image source={{ uri: resolvedUri }} style={styles.photoImg} contentFit="cover" />
+                    {index === 0 && (
+                      <View style={[styles.primaryPhotoBadge, { backgroundColor: C.primary }]}>
+                        <Text style={styles.primaryPhotoBadgeText}>Cover</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           )}
 
           {/* Specs Grid */}
           <View style={styles.specsGrid}>
-            <View style={[styles.specCard, { backgroundColor: C.surfaceElevated }]}>
-              <MaterialIcons name={categoryOrVehicleIcon} size={20} color={C.primary} />
+            <View style={[styles.specCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorderLight }]}>
+              {effectiveMediaImage ? (
+                <View style={styles.specImageWrap}>
+                  <Image
+                    source={effectiveMediaImage}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                  />
+                </View>
+              ) : (
+                <MaterialIcons name={categoryOrVehicleIcon} size={20} color={C.primary} />
+              )}
               <Text style={[styles.specLabel, { color: C.textMuted }]}>
                 {type === 'parcel' ? 'Category' : 'Vehicle'}
               </Text>
@@ -179,7 +264,7 @@ export function DigitalWaybillCard({
               </Text>
             </View>
 
-            <View style={[styles.specCard, { backgroundColor: C.surfaceElevated }]}>
+            <View style={[styles.specCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorderLight }]}>
               <MaterialIcons name="fitness-center" size={20} color={C.info} />
               <Text style={[styles.specLabel, { color: C.textMuted }]}>
                 {type === 'parcel' ? 'Weight' : 'Space'}
@@ -189,7 +274,7 @@ export function DigitalWaybillCard({
               </Text>
             </View>
 
-            <View style={[styles.specCard, { backgroundColor: C.surfaceElevated }]}>
+            <View style={[styles.specCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorderLight }]}>
               <MaterialIcons name="currency-rupee" size={20} color={C.success} />
               <Text style={[styles.specLabel, { color: C.textMuted }]}>
                 {type === 'parcel' ? 'Offer' : 'Rate'}
@@ -213,60 +298,58 @@ export function DigitalWaybillCard({
         </View>
 
         {/* Cost & Settlement Breakdown */}
-        <View style={[styles.costSummary, { borderTopColor: C.surfaceBorder }]}>
+        <View style={[styles.costSummary, { borderTopColor: C.surfaceBorder, backgroundColor: C.surfaceElevated }]}>
           <View style={styles.costRow}>
-            <Text style={[styles.costLabel, { color: C.textSecondary }]}>
-              {type === 'parcel' ? 'Parcel Delivery Offer' : 'Potential Full-Trip Payout'}
-            </Text>
-            <Text style={[styles.costValue, { color: C.textPrimary }]}>
+            <View>
+              <Text style={[styles.costLabel, { color: C.textSecondary }]}>
+                {type === 'parcel' ? 'Parcel Delivery Offer' : 'Potential Full-Trip Payout'}
+              </Text>
+              <Text style={[styles.costSub, { color: C.textMuted }]}>
+                {type === 'parcel' ? 'Paid upon delivery OTP' : `${weightOrCapacity || 0} kg at ₹${priceOrOffer || 0}/kg`}
+              </Text>
+            </View>
+            <Text style={[styles.costValue, { color: C.success }]}>
               ₹
               {type === 'parcel'
                 ? priceOrOffer || '0'
-                : (Number(weightOrCapacity || 0) * Number(priceOrOffer || 0)).toFixed(0)}
+                : Number((Number(weightOrCapacity || 0) * Number(priceOrOffer || 0)).toFixed(0)).toLocaleString('en-IN')}
             </Text>
-          </View>
-          <View style={styles.costRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <MaterialIcons name="verified-user" size={13} color={C.success} />
-              <Text style={[styles.costLabel, { color: C.textSecondary }]}>
-                100% Escrow Protection & Insurance
-              </Text>
-            </View>
-            <Text style={[styles.freeTag, { color: C.success }]}>FREE (₹0)</Text>
           </View>
         </View>
       </View>
 
       {/* Trust & Verification Badges */}
-      <View style={[styles.trustCard, { backgroundColor: C.card, borderColor: C.surfaceBorder }]}>
-        <View style={styles.trustItem}>
-          <View style={[styles.trustIconBox, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons name="security" size={18} color={C.primary} />
+      {showTrustCard ? (
+        <View style={[styles.trustCard, { backgroundColor: C.card, borderColor: C.surfaceBorder }]}>
+          <View style={styles.trustItem}>
+            <View style={[styles.trustIconBox, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name="security" size={18} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.trustTitle, { color: C.textPrimary }]}>
+                6-Digit Handshake OTP
+              </Text>
+              <Text style={[styles.trustSub, { color: C.textMuted }]}>
+                Delivery confirmed only when recipient enters the unique code.
+              </Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.trustTitle, { color: C.textPrimary }]}>
-              6-Digit Handshake OTP
-            </Text>
-            <Text style={[styles.trustSub, { color: C.textMuted }]}>
-              Delivery confirmed only when recipient enters the unique code.
-            </Text>
-          </View>
-        </View>
 
-        <View style={styles.trustItem}>
-          <View style={[styles.trustIconBox, { backgroundColor: C.successSubtle }]}>
-            <MaterialIcons name="account-balance-wallet" size={18} color={C.success} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.trustTitle, { color: C.textPrimary }]}>
-              Automated Escrow Vault
-            </Text>
-            <Text style={[styles.trustSub, { color: C.textMuted }]}>
-              Funds held securely and released instantly upon successful dropoff.
-            </Text>
+          <View style={styles.trustItem}>
+            <View style={[styles.trustIconBox, { backgroundColor: C.successSubtle }]}>
+              <MaterialIcons name="account-balance-wallet" size={18} color={C.success} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.trustTitle, { color: C.textPrimary }]}>
+                Automated Escrow Vault
+              </Text>
+              <Text style={[styles.trustSub, { color: C.textMuted }]}>
+                Funds held securely and released instantly upon successful dropoff.
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
+      ) : null}
 
       {/* KYC Reminder Banner if unverified */}
       {!hasKyc ? (
@@ -298,6 +381,84 @@ const styles = StyleSheet.create({
   ticketHeader: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
+  },
+  profileStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.smd,
+    gap: Spacing.sm + 2,
+  },
+  profileAvatarWrap: {
+    position: 'relative',
+    width: 38,
+    height: 38,
+  },
+  profileAvatarImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+  },
+  profileAvatarPlaceholder: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+  },
+  profileAvatarLetter: {
+    fontSize: 15,
+    fontWeight: FontWeight.bold,
+  },
+  profileVerifiedBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileMeta: {
+    flex: 1,
+    gap: 2,
+  },
+  profileName: {
+    fontSize: FontSize.sm + 1,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  verifiedTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: BorderRadius.full,
+  },
+  verifiedTagText: {
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.3,
+  },
+  profileSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  profileRatingText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  profileDot: {
+    fontSize: 10,
+    marginHorizontal: 2,
+  },
+  profileRoleText: {
+    fontSize: 11,
   },
   ticketBadgeRow: {
     flexDirection: 'row',
@@ -404,42 +565,13 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
   },
-  perforatedLineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 20,
-    marginVertical: -2,
-    overflow: 'hidden',
-  },
-  notchLeft: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.2,
-    marginLeft: -10,
-  },
-  notchRight: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.2,
-    marginRight: -10,
-  },
-  dashedLine: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-  },
-  dash: {
-    width: 5,
-    height: 1.5,
-    borderRadius: 1,
+  dashedDividerWrapper: {
+    height: 14,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
   },
   detailsSection: {
-    padding: Spacing.md + 2,
+    padding: Spacing.md,
     gap: Spacing.sm,
   },
   photosRow: {
@@ -479,13 +611,28 @@ const styles = StyleSheet.create({
   specCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.smd,
     paddingHorizontal: 4,
     borderRadius: BorderRadius.lg,
-    gap: 3,
+    borderWidth: 1,
+    gap: 4,
+  },
+  specImageWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   specLabel: {
     fontSize: 10,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   specValue: {
     fontSize: FontSize.xs + 1,
@@ -505,9 +652,9 @@ const styles = StyleSheet.create({
   },
   costSummary: {
     borderTopWidth: 1,
-    paddingHorizontal: Spacing.md + 2,
-    paddingVertical: Spacing.sm + 2,
-    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.smd,
+    gap: 4,
   },
   costRow: {
     flexDirection: 'row',
@@ -516,15 +663,15 @@ const styles = StyleSheet.create({
   },
   costLabel: {
     fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  costSub: {
+    fontSize: 11,
+    marginTop: 2,
   },
   costValue: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
-  },
-  freeTag: {
-    fontSize: 10,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.5,
   },
   trustCard: {
     borderRadius: BorderRadius.xl,

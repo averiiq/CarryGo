@@ -248,7 +248,8 @@ export function NotificationPanel({
     <GestureBottomSheet
       visible={visible}
       onClose={onClose}
-      maxHeight="86%"
+      containerStyle={{ height: '84%', minHeight: 460 }}
+      maxHeight="88%"
       showHandle
       enablePanDownToClose
     >
@@ -388,6 +389,7 @@ export function NotificationPanel({
           <FlatList
             data={groupedNotifications}
             keyExtractor={(group) => group.key}
+            style={{ flex: 1 }}
             renderItem={({ item, index }) => (
               <AnimatedNotifItem
                 group={item}

@@ -34,7 +34,8 @@
       }
     },
     "android": {
-      "package": "in.averiq.carrygo",
+      "package": "com.averiq.carygoo",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 13,
       "softwareKeyboardLayoutMode": "resize",
       "allowBackup": false,
@@ -42,14 +43,12 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.READ_CALENDAR",
         "android.permission.READ_CONTACTS",
-        "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
         "android.permission.WRITE_CALENDAR",
-        "android.permission.WRITE_CONTACTS",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_CONTACTS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -64,6 +63,13 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CarryGo needs access to your photo library to select profile photos and parcel pictures.",
+          "cameraPermission": "CarryGo needs camera access to capture profile photos and parcel verification images."
+        }
+      ],
       [
         "expo-splash-screen",
         {

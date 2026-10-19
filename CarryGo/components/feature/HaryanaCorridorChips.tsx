@@ -67,6 +67,8 @@ export const HaryanaCorridorChips = React.memo(function HaryanaCorridorChips({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={true}
         contentContainerStyle={[styles.scrollContent, compactPadding && styles.scrollContentCompact]}
       >
         {TOP_HARYANA_CORRIDORS.map((c) => {

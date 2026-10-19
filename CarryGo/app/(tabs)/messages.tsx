@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -27,6 +28,7 @@ interface ConversationRowModel {
   id: string;
   displayName: string;
   displayInitial: string;
+  avatarUri?: string;
   routeLabel: string;
   previewText: string;
   previewTimeLabel: string;
@@ -77,6 +79,9 @@ function toConversationRowModel(
 
   const displayName = safeText(namedOtherEntry?.[1], unnamedOtherId ? 'User' : 'Traveller');
   const displayInitial = displayName.charAt(0)?.toUpperCase() || 'U';
+  const otherUserId = namedOtherEntry?.[0] || unnamedOtherId;
+  const participantAvatars = (conversation as any).participantAvatars || {};
+  const avatarUri = otherUserId ? participantAvatars[otherUserId] : undefined;
   const previewText = safeText(conversation.lastMessage?.text, 'Start the conversation');
   const routeLabel = safeText(conversation.route, 'Delivery chat');
   const previewTimeValue = getLastTimestampValue(conversation.lastMessage?.timestamp);
@@ -85,6 +90,7 @@ function toConversationRowModel(
     id: conversation.id,
     displayName,
     displayInitial,
+    avatarUri,
     routeLabel,
     previewText,
     previewTimeLabel: formatConversationTime(conversation.lastMessage?.timestamp),
@@ -178,7 +184,16 @@ const ConversationRowItem = React.memo(function ConversationRowItem({
               },
             ]}
           >
-            <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
+            {item.avatarUri ? (
+              <Image
+                source={{ uri: item.avatarUri }}
+                style={{ width: '100%', height: '100%', borderRadius: 24 }}
+                contentFit="cover"
+                transition={200}
+              />
+            ) : (
+              <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
+            )}
             {item.isUnread ? (
               <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card }]} />
             ) : null}

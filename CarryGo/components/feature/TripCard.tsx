@@ -1,10 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Trip, Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { resolveImageUrl, getVehicleImage } from '@/constants/images';
 
 export const VEHICLE_CONFIG: Record<
   string,
@@ -104,10 +105,12 @@ export const TripCard = React.memo(function TripCard({
 }: TripCardProps) {
   const { C, S, isDark } = useThemeColors();
   const scale = useRef(new Animated.Value(1)).current;
+  const [avatarError, setAvatarError] = useState(false);
 
   if (!trip) return null;
 
   const vMeta = getVehicleMeta(trip.vehicleType, isDark);
+  const vehicleAsset = getVehicleImage(trip.vehicleType);
   const rawName = trip.userName || 'User';
   const userName = rawName.trim();
   const avatarLetter = (userName.charAt(0) || 'U').toUpperCase();
@@ -126,6 +129,16 @@ export const TripCard = React.memo(function TripCard({
     Animated.spring(scale, { toValue: 0.985, useNativeDriver: true, ...Motion.springFast }).start();
   const onPressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
+
+  const tripAvatarUri =
+    trip.userAvatar ||
+    (trip as any).avatar ||
+    (trip as any).avatar_url ||
+    (trip as any).user_avatar ||
+    (trip as any).selfieUrl ||
+    (trip as any).userSelfieUrl;
+  const isSelfieVerified = Boolean((trip as any).selfieUrl || (trip as any).userSelfieUrl || (trip as any).isSelfieVerified);
+  const resolvedTripAvatar = resolveImageUrl(tripAvatarUri);
 
   return (
     <Pressable
@@ -163,19 +176,23 @@ export const TripCard = React.memo(function TripCard({
             <View
               style={[
                 styles.avatar,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 },
+                { backgroundColor: C.surfaceElevated, borderColor: isSelfieVerified ? C.success : C.surfaceBorder, borderWidth: 1.5 },
               ]}
             >
-              {trip.userAvatar ? (
+              {resolvedTripAvatar && !avatarError ? (
                 <Image
-                  source={{ uri: trip.userAvatar }}
+                  source={{ uri: resolvedTripAvatar }}
                   style={styles.avatarImage}
                   contentFit="cover"
                   transition={200}
+                  onError={() => setAvatarError(true)}
                 />
               ) : (
                 <Text style={[styles.avatarLetter, { color: C.primary }]}>{avatarLetter}</Text>
               )}
+              {isSelfieVerified ? (
+                <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.card }]} />
+              ) : null}
             </View>
 
             <View style={styles.userMeta}>
@@ -233,14 +250,17 @@ export const TripCard = React.memo(function TripCard({
             </View>
           </View>
 
-          {/* Vehicle Mode Badge */}
+          {/* Vehicle Mode Badge with vehicle photo */}
           <View
             style={[
               styles.vehicleChip,
               { backgroundColor: vMeta.bg, borderColor: vMeta.border },
             ]}
           >
-            <MaterialIcons name={vMeta.icon} size={13} color={vMeta.color} />
+            <View style={styles.vehicleThumbnailWrap}>
+              <Image source={vehicleAsset} style={styles.vehicleThumbnail} contentFit="cover" />
+            </View>
+            <MaterialIcons name={vMeta.icon} size={12} color={vMeta.color} />
             <Text style={[styles.vehicleLabel, { color: vMeta.color }]}>{vMeta.label}</Text>
           </View>
         </View>
@@ -340,7 +360,10 @@ export const TripCard = React.memo(function TripCard({
           {typeof matchScore === 'number' && (
             <Pressable
               style={[styles.specItem, styles.matchItem, { backgroundColor: C.primarySubtle }]}
-              onPress={onMatchPress}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                onMatchPress?.();
+              }}
               disabled={!onMatchPress}
             >
               <MaterialIcons name="auto-awesome" size={12} color={C.primary} />
@@ -350,6 +373,29 @@ export const TripCard = React.memo(function TripCard({
             </Pressable>
           )}
         </View>
+
+        {/* Allowed Categories Pill Strip */}
+        {trip.allowedCategories && trip.allowedCategories.length > 0 && (
+          <View style={[styles.allowedStrip, { borderTopColor: C.surfaceBorderLight }]}>
+            <MaterialIcons name="inventory-2" size={12} color={C.textMuted} />
+            <Text style={[styles.allowedLabel, { color: C.textMuted }]}>CAN CARRY:</Text>
+            <View style={styles.allowedBadgesWrap}>
+              {trip.allowedCategories.map((cat) => (
+                <View
+                  key={cat}
+                  style={[
+                    styles.allowedBadge,
+                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                  ]}
+                >
+                  <Text style={[styles.allowedBadgeText, { color: C.textSecondary }]}>
+                    {cat}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Pricing & Contextual Action Bar */}
         <View style={[styles.footerRow, { borderTopColor: C.surfaceBorderLight }]}>
@@ -368,7 +414,10 @@ export const TripCard = React.memo(function TripCard({
                 { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder, borderWidth: 1 },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={onPress}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                onPress?.();
+              }}
             >
               <MaterialIcons name="tune" size={14} color={C.primary} />
               <Text style={[styles.actionButtonText, { color: C.primary }]}>Manage Trip</Text>
@@ -380,7 +429,11 @@ export const TripCard = React.memo(function TripCard({
                 { backgroundColor: C.primary },
                 pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                if (onTrackDelivery) onTrackDelivery(existingRequest.id);
+                else onPress?.();
+              }}
             >
               <MaterialIcons name="radar" size={14} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Track Delivery</Text>
@@ -392,7 +445,11 @@ export const TripCard = React.memo(function TripCard({
                 { backgroundColor: C.warningSubtle, borderColor: C.warningBorder, borderWidth: 1 },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={() => (onViewRequest ? onViewRequest(existingRequest.id) : onPress?.())}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                if (onViewRequest) onViewRequest(existingRequest.id);
+                else onPress?.();
+              }}
             >
               <MaterialIcons name="schedule" size={14} color={C.warning} />
               <Text style={[styles.actionButtonText, { color: C.warning }]}>Request Sent</Text>
@@ -404,7 +461,11 @@ export const TripCard = React.memo(function TripCard({
                 { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                if (onTrackDelivery) onTrackDelivery(existingRequest.id);
+                else onPress?.();
+              }}
             >
               <MaterialIcons name="check-circle" size={14} color={C.textSecondary} />
               <Text style={[styles.actionButtonText, { color: C.textSecondary }]}>Completed</Text>
@@ -428,7 +489,10 @@ export const TripCard = React.memo(function TripCard({
                 { backgroundColor: C.primary },
                 pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={onRequest}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                onRequest?.();
+              }}
             >
               <MaterialIcons name="send" size={13} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Send Request</Text>
@@ -541,11 +605,23 @@ const styles = StyleSheet.create({
   vehicleChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4.5,
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
+    gap: 5,
+    paddingLeft: 4,
+    paddingRight: 10,
+    paddingVertical: 3.5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
+  },
+  vehicleThumbnailWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  vehicleThumbnail: {
+    width: '100%',
+    height: '100%',
   },
   vehicleLabel: {
     fontSize: 10,
@@ -707,5 +783,44 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
     letterSpacing: LetterSpacing.wide,
+  },
+  verifiedSelfieDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+  },
+  allowedStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 8,
+    marginTop: 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  allowedLabel: {
+    fontSize: 9.5,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  allowedBadgesWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    flex: 1,
+  },
+  allowedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  allowedBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+    textTransform: 'capitalize',
   },
 });

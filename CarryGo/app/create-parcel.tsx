@@ -101,6 +101,9 @@ export default function CreateParcelScreen() {
           if (isMounted) {
             setPriceRecommendation(est);
             setIsEstimatingPrice(false);
+            if (est?.suggestedPrice) {
+              setForm((prev) => ({ ...prev, priceOffer: String(est.suggestedPrice) }));
+            }
           }
         })
         .catch(() => {
@@ -372,16 +375,18 @@ export default function CreateParcelScreen() {
         uploadedUrls.push(data.cdnUrl);
       }
 
+      const userAvatar = user.avatar || user.selfieUrl || (user as any).avatarUrl || (user as any).userSelfieUrl;
       const result = await createParcelMutation.mutateAsync({
         userId: user.id,
-        userName: user.name || 'User',
+        userName: user.fullName || user.name || 'User',
+        userAvatar: userAvatar || undefined,
         fromCity: prepared.fromCity,
         toCity: prepared.toCity,
         category: prepared.category,
         description: parcelDescription,
         deliveryDate: prepared.deliveryDate,
         weight: Number(prepared.weight),
-        priceOffer: Number(prepared.priceOffer),
+        priceOffer: Number(prepared.priceOffer) || priceRecommendation?.suggestedPrice || 0,
         status: 'open',
         imageUris: uploadedUrls,
       });

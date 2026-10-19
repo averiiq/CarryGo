@@ -30,7 +30,6 @@ import { RouteSubscription, Trip, Parcel } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { Haptic } from '@/services/haptics.service';
-import { sendLocalNotification } from '@/services/notifications.service';
 import { CitySelectModal } from '@/components/feature/CitySelectModal';
 
 // ── Match Alert Data ─────────────────────────────────────────────────────────
@@ -271,13 +270,6 @@ export default function SubscriptionsScreen() {
         const totalCount = trips.length + parcels.length;
         const prevCount = prevMatchCounts.current[sub.id] ?? -1;
 
-        if (prevCount >= 0 && totalCount > prevCount) {
-          const newCount = totalCount - prevCount;
-          await sendLocalNotification(
-            `New match on ${sub.fromCity} → ${sub.toCity}`,
-            `${newCount} new listing${newCount > 1 ? 's' : ''} available on your subscribed route!`
-          );
-        }
         prevMatchCounts.current[sub.id] = totalCount;
 
         results[sub.id] = {

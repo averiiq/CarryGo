@@ -8,12 +8,14 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Parcel, Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
+import { resolveImageUrl } from '@/constants/images';
 
 export function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
@@ -126,8 +128,18 @@ export function SendRequestModal({
     return filtered.length > 0 ? filtered : [Math.min(0.5, maxCapacity)];
   }, [maxCapacity]);
 
+  const [avatarError, setAvatarError] = useState(false);
+
   if (!trip) return null;
 
+  const rawAvatar =
+    trip.userAvatar ||
+    (trip as any).avatar ||
+    (trip as any).avatar_url ||
+    (trip as any).user_avatar ||
+    (trip as any).selfieUrl ||
+    (trip as any).userSelfieUrl;
+  const resolvedAvatar = resolveImageUrl(rawAvatar);
   const selectedParcel = matchingParcels.find((p) => p.id === selectedParcelId) || matchingParcels[0];
   const calculatedCost = selectedParcel
     ? calculateParcelDeliveryPrice(selectedParcel.weight, trip.pricePerKg)
@@ -183,9 +195,19 @@ export function SendRequestModal({
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={[styles.avatarWrap, { backgroundColor: C.primarySubtle }]}>
-              <Text style={[styles.avatarText, { color: C.primary }]}>
-                {trip.userName ? trip.userName.charAt(0).toUpperCase() : 'T'}
-              </Text>
+              {resolvedAvatar && !avatarError ? (
+                <Image
+                  source={{ uri: resolvedAvatar }}
+                  style={styles.avatarImage}
+                  contentFit="cover"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <Text style={[styles.avatarText, { color: C.primary }]}>
+                  {trip.userName ? trip.userName.charAt(0).toUpperCase() : 'T'}
+                </Text>
+              )}
+              <View style={styles.verifiedDot} />
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.nameRow}>
@@ -544,6 +566,24 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 21,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   avatarText: {
     fontSize: FontSize.lg,

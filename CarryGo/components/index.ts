@@ -45,3 +45,4 @@ export { InteractiveRouteCard } from './feature/InteractiveRouteCard';
 export { LiveMarketplaceHeader, type MarketplaceSortOption } from './feature/LiveMarketplaceHeader';
 export { RequestSuccessModal } from './feature/RequestSuccessModal';
 export { RequestDetailModal } from './feature/RequestDetailModal';
+export { AnimatedIcon, InteractiveAnimatedIcon, type AnimatedIconName, type AnimatedIconRef, type AnimatedIconProps } from './ui/AnimatedIcon';

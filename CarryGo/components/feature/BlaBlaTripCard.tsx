@@ -10,6 +10,7 @@ import {
   getRouteTimelineMeta,
   formatBlaBlaPrice,
 } from './matching/blaBlaHelpers';
+import { resolveImageUrl, getVehicleImage } from '@/constants/images';
 
 const VEHICLE_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   bike: 'two-wheeler',
@@ -38,6 +39,16 @@ export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
 }: BlaBlaTripCardProps) {
   const { C, isDark } = useThemeColors();
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [avatarError, setAvatarError] = React.useState(false);
+
+  const rawAvatar =
+    trip.userAvatar ||
+    (trip as any).avatar ||
+    (trip as any).avatar_url ||
+    (trip as any).user_avatar ||
+    (trip as any).selfieUrl ||
+    (trip as any).userSelfieUrl;
+  const resolvedAvatar = resolveImageUrl(rawAvatar);
 
   const timeline = getRouteTimelineMeta(trip);
   const effectivePrice = typeof price === 'number' && price > 0 ? price : (trip.pricePerKg * 2 || 180);
@@ -137,19 +148,24 @@ export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
         {/* ── Bottom Section: Traveler Info & Indicators ── */}
         <View style={styles.bottomSection}>
           <View style={styles.travelerRow}>
-            {/* Mode of travel icon */}
+            {/* Mode of travel thumbnail or icon */}
             <View style={styles.vehicleIconWrap}>
-              <MaterialIcons name={vehicleIcon} size={18} color={C.textMuted} />
+              <Image
+                source={getVehicleImage(trip.vehicleType)}
+                style={styles.vehicleThumbnail}
+                contentFit="cover"
+              />
             </View>
 
             {/* Avatar with verified badge */}
             <View style={styles.avatarWrap}>
-              {trip.userAvatar ? (
+              {resolvedAvatar && !avatarError ? (
                 <Image
-                  source={{ uri: trip.userAvatar }}
+                  source={{ uri: resolvedAvatar }}
                   style={styles.avatarImage}
                   contentFit="cover"
                   transition={200}
+                  onError={() => setAvatarError(true)}
                 />
               ) : (
                 <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]}>
@@ -159,7 +175,7 @@ export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
                 </View>
               )}
               {/* Verified checkmark badge */}
-              <View style={[styles.verifiedBadge, { backgroundColor: '#2563EB', borderColor: C.surface }]}>
+              <View style={[styles.verifiedBadge, { backgroundColor: '#10B981', borderColor: C.surface }]}>
                 <MaterialIcons name="check" size={9} color="#FFFFFF" />
               </View>
             </View>
@@ -299,8 +315,17 @@ const styles = StyleSheet.create({
   },
   vehicleIconWrap: {
     marginRight: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  vehicleThumbnail: {
+    width: '100%',
+    height: '100%',
   },
   avatarWrap: {
     position: 'relative',

@@ -20,12 +20,20 @@ function parseImageUris(raw: string | null): string[] | undefined {
   return [raw];
 }
 
-function mapRow(row: ParcelRow): Parcel {
+function mapRow(row: any): Parcel {
   const imageUris = parseImageUris(row.image_url);
   return {
     id: row.id,
     userId: row.user_id,
     userName: row.user_name,
+    userAvatar:
+      row.user_avatar ||
+      row.avatar_url ||
+      row.selfie_url ||
+      row.users?.avatar ||
+      row.users?.avatar_url ||
+      row.users?.selfie_url ||
+      undefined,
     fromCity: row.from_city,
     toCity: row.to_city,
     category: row.category as Parcel['category'],
@@ -184,9 +192,11 @@ export async function createParcel(parcel: Omit<Parcel, 'id' | 'createdAt'>) {
   const imageUrl = parcel.imageUris && parcel.imageUris.length > 0
     ? JSON.stringify(parcel.imageUris)
     : parcel.imageUri ?? null;
-  const { data, error } = await sb.from('parcels').insert({
+  const avatarValue = parcel.userAvatar || (parcel as any).selfieUrl || (parcel as any).avatar || (parcel as any).avatar_url;
+  const insertPayload: any = {
     user_id: parcel.userId,
     user_name: parcel.userName,
+    user_avatar: avatarValue || null,
     from_city: parcel.fromCity,
     to_city: parcel.toCity,
     category: parcel.category,
@@ -196,9 +206,25 @@ export async function createParcel(parcel: Omit<Parcel, 'id' | 'createdAt'>) {
     price_offer: parcel.priceOffer,
     status: parcel.status as any,
     image_url: imageUrl,
-  }).select().single();
+  };
+
+  let { data, error } = await sb.from('parcels').insert(insertPayload).select().single();
+  if (error && insertPayload.user_avatar) {
+    const fallbackPayload: any = { ...insertPayload };
+    delete fallbackPayload.user_avatar;
+    const retry = await sb.from('parcels').insert(fallbackPayload).select().single();
+    if (!retry.error) {
+      data = retry.data;
+      error = null;
+    }
+  }
+
   if (error) return { data: null, error: error.message };
-  return { data: mapRow(data), error: null };
+  const mapped = mapRow(data);
+  if (avatarValue && !mapped.userAvatar) {
+    mapped.userAvatar = avatarValue;
+  }
+  return { data: mapped, error: null };
 }
 
 export async function updateParcelStatus(parcelId: string, status: Parcel['status'], userId: string) {

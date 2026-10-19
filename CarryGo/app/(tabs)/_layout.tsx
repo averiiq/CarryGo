@@ -12,6 +12,8 @@ import { useConversationsQuery } from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { ThemeColors, TouchTarget } from '@/constants/theme';
 
+import { AnimatedIcon, type AnimatedIconName } from '@/components';
+
 function TabBadge({ count, C, isFocused }: { count: number; C: ThemeColors; isFocused?: boolean }) {
   if (count === 0) return null;
   return (
@@ -25,6 +27,7 @@ type TabMeta = {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   outlineIcon: keyof typeof Ionicons.glyphMap;
+  animatedIcon: AnimatedIconName;
   badge?: number;
   dotAlert?: boolean;
 };
@@ -32,15 +35,15 @@ type TabMeta = {
 function getTabMeta(routeName: string, pendingRequests: number, unreadMessages: number, kycPending: boolean): TabMeta {
   switch (routeName) {
     case 'index':
-      return { label: 'Home', icon: 'home', outlineIcon: 'home-outline' };
+      return { label: 'Home', icon: 'home', outlineIcon: 'home-outline', animatedIcon: 'home' };
     case 'requests':
-      return { label: 'Requests', icon: 'swap-horizontal', outlineIcon: 'swap-horizontal-outline', badge: pendingRequests };
+      return { label: 'Requests', icon: 'swap-horizontal', outlineIcon: 'swap-horizontal-outline', animatedIcon: 'activity', badge: pendingRequests };
     case 'messages':
-      return { label: 'Messages', icon: 'chatbubbles', outlineIcon: 'chatbubbles-outline', badge: unreadMessages };
+      return { label: 'Messages', icon: 'chatbubbles', outlineIcon: 'chatbubbles-outline', animatedIcon: 'messageSquare', badge: unreadMessages };
     case 'profile':
-      return { label: 'Profile', icon: 'person', outlineIcon: 'person-outline', dotAlert: kycPending };
+      return { label: 'Profile', icon: 'person', outlineIcon: 'person-outline', animatedIcon: 'user', dotAlert: kycPending };
     default:
-      return { label: routeName, icon: 'ellipse', outlineIcon: 'ellipse-outline' };
+      return { label: routeName, icon: 'ellipse', outlineIcon: 'ellipse-outline', animatedIcon: 'home' };
   }
 }
 
@@ -205,10 +208,11 @@ function FloatingCapsuleTabBar({
             >
               <View style={styles.tabItem}>
                 <View style={styles.iconContainer}>
-                  <Ionicons
-                    name={isFocused ? meta.icon : meta.outlineIcon}
-                    size={isSmallDevice ? 19 : 20}
+                  <AnimatedIcon
+                    name={meta.animatedIcon}
+                    size={isSmallDevice ? 20 : 22}
                     color={tintColor}
+                    playOnTrigger={isFocused}
                   />
                   {(meta.badge ?? 0) > 0 ? (
                     <TabBadge count={meta.badge ?? 0} C={C} isFocused={isFocused} />

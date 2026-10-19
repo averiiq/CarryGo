@@ -67,13 +67,30 @@ jest.mock('expo-notifications', () => ({
 jest.mock('lottie-react-native', () => {
   const React = require('react');
   const { View } = require('react-native');
-  return React.forwardRef((props: any, ref: any) => {
+  const MockLottie = React.forwardRef((props: any, ref: any) => {
     return React.createElement(View, { ...props, ref, testID: props.testID || 'lottie-animation' });
   });
+  return {
+    __esModule: true,
+    default: MockLottie,
+    LottieView: MockLottie,
+  };
 });
 
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
+}));
+
+jest.mock('expo-updates', () => ({
+  isEnabled: true,
+  isEmbeddedLaunch: true,
+  updateId: 'mock-update-id',
+  channel: 'preview',
+  runtimeVersion: '1.0.0',
+  createdAt: new Date(),
+  checkForUpdateAsync: jest.fn().mockResolvedValue({ isAvailable: false }),
+  fetchUpdateAsync: jest.fn().mockResolvedValue({ isNew: false }),
+  reloadAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@expo/vector-icons', () => ({

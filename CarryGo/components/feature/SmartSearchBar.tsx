@@ -232,7 +232,7 @@ export const SmartSearchBar = React.memo(function SmartSearchBar({
         {recentSearches.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Recent</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled={true}>
               <View style={styles.chipsRow}>
                 {recentSearches.map((item, idx) => (
                   <Pressable
@@ -252,7 +252,7 @@ export const SmartSearchBar = React.memo(function SmartSearchBar({
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Popular Routes</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled={true}>
             <View style={styles.chipsRow}>
               {POPULAR_ROUTES.map(route => (
                 <Pressable

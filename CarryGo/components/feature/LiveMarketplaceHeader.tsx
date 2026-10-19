@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
+import { AnimatedIcon, type AnimatedIconRef } from '@/components/ui/AnimatedIcon';
 import type { Trip, Parcel } from '@/types';
 
 export type MarketplaceSortOption = 'recent' | 'price' | 'capacity' | 'urgent';
@@ -103,6 +104,7 @@ export const LiveMarketplaceHeader = React.memo(function LiveMarketplaceHeader({
   tabIndicatorAnim,
 }: LiveMarketplaceHeaderProps) {
   const { C } = useThemeColors();
+  const filterIconRef = useRef<AnimatedIconRef>(null);
 
   // Pulse animation for live radar dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -215,6 +217,7 @@ export const LiveMarketplaceHeader = React.memo(function LiveMarketplaceHeader({
           <Pressable
             onPress={() => {
               Haptic.tap();
+              filterIconRef.current?.play();
               onOpenFilters();
             }}
             hitSlop={TouchTarget.smallHitSlop}
@@ -229,8 +232,9 @@ export const LiveMarketplaceHeader = React.memo(function LiveMarketplaceHeader({
               pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
             ]}
           >
-            <MaterialIcons
-              name="tune"
+            <AnimatedIcon
+              ref={filterIconRef}
+              name="filter"
               size={17}
               color={hasFilter ? C.primary : C.textSecondary}
             />

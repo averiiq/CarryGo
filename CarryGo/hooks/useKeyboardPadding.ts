@@ -51,8 +51,8 @@ export function useKeyboardPadding(options?: UseKeyboardPaddingOptions) {
     ? keyboardHeight + (options?.activePadding ?? Spacing.xl)
     : Math.max(insets.bottom, Spacing.md) + (options?.inactivePadding ?? 0);
 
-  // Offset for absolute footers above the software keyboard
-  const footerOffset = isKeyboardVisible ? keyboardHeight : 0;
+  // Offset for absolute footers above the software keyboard (iOS only, Android adjustResize handles window frame)
+  const footerOffset = isKeyboardVisible && Platform.OS === 'ios' ? keyboardHeight : 0;
 
   return {
     isKeyboardVisible,

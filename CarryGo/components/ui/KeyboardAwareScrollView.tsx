@@ -158,13 +158,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
         });
         setTimeout(() => {
           performScrollIntoView(focusedNodeRef.current, h);
-        }, 60);
-        setTimeout(() => {
-          performScrollIntoView(focusedNodeRef.current, h);
-        }, 180);
-        setTimeout(() => {
-          performScrollIntoView(focusedNodeRef.current, h);
-        }, 320);
+        }, 120);
       };
 
       const onHide = () => {
@@ -177,18 +171,9 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       const showSub = Keyboard.addListener(showEvent, onShow);
       const hideSub = Keyboard.addListener(hideEvent, onHide);
 
-      let androidShowSub: any = null;
-      let androidHideSub: any = null;
-      if (Platform.OS === 'android') {
-        androidShowSub = Keyboard.addListener('keyboardDidShow', onShow);
-        androidHideSub = Keyboard.addListener('keyboardDidHide', onHide);
-      }
-
       return () => {
         showSub.remove();
         hideSub.remove();
-        androidShowSub?.remove();
-        androidHideSub?.remove();
       };
     }, [performScrollIntoView]);
 

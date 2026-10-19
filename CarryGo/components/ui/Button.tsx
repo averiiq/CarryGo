@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Pressable,
   Text,
@@ -45,6 +45,12 @@ export function Button({
   const { C, S } = useThemeColors();
   const isDisabled = disabled || loading;
   const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isDisabled) {
+      scale.setValue(1);
+    }
+  }, [isDisabled, scale]);
 
   const onPressIn = () => {
     Animated.spring(scale, {
@@ -125,6 +131,7 @@ export function Button({
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[StyleSheet.absoluteFillObject, { borderRadius: BorderRadius.md }]}
+            pointerEvents="none"
           />
         ) : null}
 

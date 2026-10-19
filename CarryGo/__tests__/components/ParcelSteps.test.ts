@@ -143,7 +143,7 @@ describe('Parcel Steps - Validation & Formatting Helpers', () => {
     });
 
     describe('price offer validation', () => {
-      it('flags empty price offer', () => {
+      it('allows empty price offer for negotiable pricing', () => {
         const draft: ParcelDraft = {
           ...EMPTY_PARCEL_DRAFT,
           images: ['https://example.com/item.jpg'],
@@ -151,7 +151,7 @@ describe('Parcel Steps - Validation & Formatting Helpers', () => {
           priceOffer: '',
         };
         const errors = validateParcelDetails(draft);
-        expect(errors.priceOffer).toBe('Enter price offer');
+        expect(errors.priceOffer).toBeUndefined();
       });
 
       it('flags price offer below 1 or above 100,000', () => {

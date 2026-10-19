@@ -64,6 +64,8 @@ export function ParcelDetailsStep({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
           contentContainerStyle={styles.categoryScroll}
         >
           {PARCEL_CATEGORIES.map((cat) => {
@@ -165,74 +167,53 @@ export function ParcelDetailsStep({
         </Text>
       </View>
 
-      {/* Smart Price Guidance Card */}
-      {priceRecommendation ? (
-        <View
-          style={[
-            styles.smartPriceCard,
-            { backgroundColor: C.surface, borderColor: C.primary + '40' },
-          ]}
-        >
-          <View style={styles.smartPriceTop}>
-            <View style={[styles.smartPriceBadge, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="auto-awesome" size={13} color={C.primary} />
-              <Text style={[styles.smartPriceBadgeText, { color: C.primary }]}>
-                Smart Estimate
-              </Text>
-            </View>
-            <Text
-              style={[
-                styles.smartPriceDemandText,
-                { color: priceRecommendation.demandLevel === 'high' ? C.warning : C.success },
-              ]}
-            >
-              {priceRecommendation.demandLevel === 'high'
-                ? '🔥 High Demand'
-                : '⚡ Recommended'}
+      {/* Dynamic Negotiation & Reference Guidance Card */}
+      <View
+        style={[
+          styles.smartPriceCard,
+          { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+        ]}
+      >
+        <View style={styles.smartPriceTop}>
+          <View style={[styles.smartPriceBadge, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name="handshake" size={14} color={C.primary} />
+            <Text style={[styles.smartPriceBadgeText, { color: C.primary }]}>
+              Negotiable Pricing
             </Text>
           </View>
-
-          <View style={styles.smartPriceBody}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.smartPriceAmount, { color: C.textPrimary }]}>
-                ₹{priceRecommendation.suggestedPrice}
-              </Text>
-              <Text style={[styles.smartPriceRange, { color: C.textMuted }]}>
-                ₹{priceRecommendation.minPrice} – ₹{priceRecommendation.maxPrice}
-              </Text>
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.smartPriceApplyBtn,
-                { backgroundColor: C.primary },
-                pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
-              ]}
-              onPress={() => {
-                Haptic.success();
-                updateField('priceOffer', String(priceRecommendation.suggestedPrice));
-              }}
-            >
-              <Text style={styles.smartPriceApplyText}>
-                Apply ₹{priceRecommendation.suggestedPrice}
-              </Text>
-            </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <MaterialIcons name="lock-clock" size={13} color={C.textMuted} />
+            <Text style={[styles.smartPriceRange, { color: C.textMuted }]}>
+              Agreed with Traveller
+            </Text>
           </View>
         </View>
-      ) : isEstimatingPrice ? (
-        <View
-          style={[
-            styles.smartPriceLoadingCard,
-            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-          ]}
-        >
-          <MaterialIcons name="hourglass-empty" size={16} color={C.primary} />
-          <Text style={[styles.smartPriceLoadingText, { color: C.textMuted }]}>
-            Calculating best rate...
-          </Text>
-        </View>
-      ) : null}
+
+        <Text style={[{ fontSize: FontSize.xs, lineHeight: 18, color: C.textSecondary, marginTop: 6 }]}>
+          Senders do not set a fixed price. When a traveller offers to carry your parcel or you request a trip, you negotiate the delivery reward directly.
+        </Text>
+
+        {priceRecommendation ? (
+          <View style={[styles.smartPriceBody, { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.surfaceBorder }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 10, fontWeight: FontWeight.semibold, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Estimated Corridor Benchmark
+              </Text>
+              <Text style={[styles.smartPriceAmount, { color: C.primary, marginTop: 2 }]}>
+                ~₹{priceRecommendation.suggestedPrice}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 11, color: C.textMuted, maxWidth: '48%', textAlign: 'right' }}>
+              Reference only (₹{priceRecommendation.minPrice} – ₹{priceRecommendation.maxPrice})
+            </Text>
+          </View>
+        ) : isEstimatingPrice ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.xs }}>
+            <MaterialIcons name="hourglass-empty" size={13} color={C.primary} />
+            <Text style={{ fontSize: FontSize.xs, color: C.textMuted }}>Calculating corridor benchmark...</Text>
+          </View>
+        ) : null}
+      </View>
 
       {/* Weight Input & Presets */}
       <View style={styles.fieldGroup}>
@@ -271,50 +252,6 @@ export function ParcelDetailsStep({
                   ]}
                 >
                   {value} kg
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      </View>
-
-      {/* Price Offer Input & Quick Fare Presets — unified to primary blue */}
-      <View style={styles.fieldGroup}>
-        <Input
-          label="Your delivery offer (₹)"
-          placeholder="e.g. 200"
-          value={form.priceOffer}
-          onChangeText={(v) => updateField('priceOffer', v)}
-          keyboardType="numeric"
-          error={fieldErrors.priceOffer}
-        />
-        <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Offers:</Text>
-          <View style={styles.presetRow}>
-            {activeOfferPresets.map((val) => (
-              <Pressable
-                key={`offer-${val}`}
-                style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.priceOffer === val && {
-                    backgroundColor: C.primarySubtle,
-                    borderColor: C.primary,
-                  },
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
-                ]}
-                onPress={() => {
-                  Haptic.select();
-                  updateField('priceOffer', val);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.presetText,
-                    { color: form.priceOffer === val ? C.primary : C.textSecondary },
-                  ]}
-                >
-                  ₹{val}
                 </Text>
               </Pressable>
             ))}

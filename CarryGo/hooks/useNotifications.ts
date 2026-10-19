@@ -14,6 +14,8 @@ import {
   markNotificationsRead,
   registerForPushNotifications,
   savePushToken,
+  setPendingNotificationRoute,
+  consumePendingNotificationRoute,
 } from '@/services/notifications.service';
 import { useAuth } from './useAuth';
 import { useOptionalNotificationContext } from '@/contexts/NotificationContext';
@@ -21,7 +23,11 @@ import type { Href } from 'expo-router';
 
 type NotificationPayload = Record<string, unknown> | undefined;
 
-function normalizeNotificationPayload(data: NotificationPayload): { type: string | null; relatedId?: string } {
+function normalizeNotificationPayload(data: NotificationPayload): {
+  type: string | null;
+  relatedId?: string;
+  deepLink?: string;
+} {
   if (!data) return { type: null };
 
   const rawType = data.type ?? data.notification_type;
@@ -32,12 +38,18 @@ function normalizeNotificationPayload(data: NotificationPayload): { type: string
     ?? data.request_id
     ?? data.deliveryId
     ?? data.delivery_id
+    ?? data.tripId
+    ?? data.trip_id
+    ?? data.parcelId
+    ?? data.parcel_id
     ?? data.conversationId
     ?? data.conversation_id;
+  const rawDeepLink = data.deepLink ?? data.deep_link;
 
   return {
     type: typeof rawType === 'string' ? rawType : null,
     relatedId: typeof rawRelatedId === 'string' ? rawRelatedId : undefined,
+    deepLink: typeof rawDeepLink === 'string' ? rawDeepLink : undefined,
   };
 }
 
@@ -85,13 +97,20 @@ export function useNotifications() {
   }, [refetch]);
 
   const handleNotificationRoute = useCallback((data: NotificationPayload) => {
-    const { type, relatedId } = normalizeNotificationPayload(data);
-    if (!type) return;
+    const { type, relatedId, deepLink } = normalizeNotificationPayload(data);
+    if (!type && !deepLink) return;
 
-    const route = getDeepLinkRoute(type, relatedId);
+    const route = getDeepLinkRoute(type || 'general', relatedId, deepLink);
     if (!route) return;
-    setTimeout(() => router.push(route as Href), 400);
-  }, [router]);
+
+    if (user) {
+      setTimeout(() => router.push(route as Href), 350);
+    } else {
+      // User is not authenticated yet. Store pending route and redirect to login
+      setPendingNotificationRoute(route);
+      router.push('/login' as Href);
+    }
+  }, [router, user]);
 
   const markOneRead = useCallback(async (notification: AppNotification) => {
     if (!user || notification.read) return;
@@ -121,9 +140,38 @@ export function useNotifications() {
     }
   }, [queryClient, user]);
 
+  // ── Global Notification Response Listener (Cold Start + Warm Background) ──
+  useEffect(() => {
+    let mounted = true;
+
+    const onResponseReceived = (response: Notifications.NotificationResponse) => {
+      const responseId = response.notification.request.identifier;
+      if (lastHandledResponseRef.current === responseId || globalLastHandledResponseId === responseId) return;
+      lastHandledResponseRef.current = responseId;
+      globalLastHandledResponseId = responseId;
+
+      console.log('[Notifications] Response tapped. Identifier:', responseId);
+      handleNotificationRoute(response.notification.request.content.data as Record<string, unknown>);
+    };
+
+    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(onResponseReceived);
+
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!mounted || !response) return;
+      onResponseReceived(response);
+    });
+
+    return () => {
+      mounted = false;
+      responseListenerRef.current?.remove();
+    };
+  }, [handleNotificationRoute]);
+
+  // ── Push Token Registration & OS Rotation Listener ─────────────────────────
   useEffect(() => {
     if (!user) return;
     let mounted = true;
+
     (async () => {
       try {
         const token = await registerForPushNotifications();
@@ -132,9 +180,32 @@ export function useNotifications() {
         captureException(err, { context: 'useNotifications.registerPush' });
       }
     })();
-    return () => { mounted = false; };
+
+    // Listen for OS token updates (e.g., token rotation)
+    const tokenSub = Notifications.addPushTokenListener((tokenData) => {
+      if (tokenData?.data && mounted) {
+        console.log('[Notifications] Push token rotated by OS, updating registration...');
+        void savePushToken(user.id, tokenData.data);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      tokenSub.remove();
+    };
   }, [user]);
 
+  // ── Pending Route Consumption On Auth State Change ─────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    const pendingRoute = consumePendingNotificationRoute();
+    if (pendingRoute) {
+      console.log('[Notifications] Authenticated. Navigating to pending notification destination:', pendingRoute);
+      setTimeout(() => router.push(pendingRoute as Href), 400);
+    }
+  }, [user, router]);
+
+  // ── Realtime & Foreground Listeners (Authenticated User Only) ──────────────
   useEffect(() => {
     if (!user) return;
 
@@ -176,13 +247,7 @@ export function useNotifications() {
             }
           }
         )
-        .subscribe((status) => {
-          if (!channelMounted && realtimeChannel) {
-            try {
-              void sb.removeChannel(realtimeChannel);
-            } catch {}
-          }
-        });
+        .subscribe();
     } catch (err) {
       captureException(err, { context: 'useNotifications.realtimeSubscribe' });
     }
@@ -205,23 +270,6 @@ export function useNotifications() {
       }
     });
 
-    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
-      const responseId = response.notification.request.identifier;
-      if (lastHandledResponseRef.current === responseId || globalLastHandledResponseId === responseId) return;
-      lastHandledResponseRef.current = responseId;
-      globalLastHandledResponseId = responseId;
-      handleNotificationRoute(response.notification.request.content.data as Record<string, unknown>);
-    });
-
-    void Notifications.getLastNotificationResponseAsync().then(response => {
-      if (!channelMounted || !response) return;
-      const responseId = response.notification.request.identifier;
-      if (lastHandledResponseRef.current === responseId || globalLastHandledResponseId === responseId) return;
-      lastHandledResponseRef.current = responseId;
-      globalLastHandledResponseId = responseId;
-      handleNotificationRoute(response.notification.request.content.data as Record<string, unknown>);
-    });
-
     const appStateSubscription = AppState.addEventListener('change', nextState => {
       if (nextState === 'active') {
         void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
@@ -232,7 +280,6 @@ export function useNotifications() {
       channelMounted = false;
       appStateSubscription.remove();
       notifListenerRef.current?.remove();
-      responseListenerRef.current?.remove();
       if (realtimeChannel) {
         try {
           void sb.removeChannel(realtimeChannel);
@@ -241,7 +288,7 @@ export function useNotifications() {
         }
       }
     };
-  }, [handleNotificationRoute, queryClient, user]);
+  }, [notifCtx, queryClient, user]);
 
   const markAllRead = async () => {
     if (!user) return;
@@ -262,7 +309,11 @@ export function useNotifications() {
 
   const openNotification = async (notification: AppNotification) => {
     await markOneRead(notification);
-    handleNotificationRoute({ type: notification.type, relatedId: notification.relatedId });
+    handleNotificationRoute({
+      type: notification.type,
+      relatedId: notification.relatedId,
+      deepLink: notification.deepLink || undefined,
+    });
   };
 
   return {

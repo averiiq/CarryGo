@@ -16,6 +16,7 @@ export function useAppUpdates() {
   const [isUpdateReady, setIsUpdateReady] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [versionInfo] = useState<AppVersionInfo>(getAppVersionInfo);
 
   const lastCheckedRef = useRef<number>(0);
@@ -43,6 +44,15 @@ export function useAppUpdates() {
         return;
       }
 
+      const msg =
+        (checkResult.manifest as any)?.message ||
+        (checkResult.manifest as any)?.metadata?.message ||
+        (checkResult.manifest as any)?.extra?.expoClient?.extra?.eas?.updateMessage ||
+        null;
+      if (msg) {
+        setUpdateMessage(msg);
+      }
+
       // Update is available: Download in background
       setIsDownloading(true);
       if (isManual) {
@@ -55,6 +65,14 @@ export function useAppUpdates() {
       if (fetchResult.success) {
         setIsUpdateReady(true);
         setStatusMessage('New update ready to apply!');
+        const fetchMsg =
+          (fetchResult.manifest as any)?.message ||
+          (fetchResult.manifest as any)?.metadata?.message ||
+          (fetchResult.manifest as any)?.extra?.expoClient?.extra?.eas?.updateMessage ||
+          null;
+        if (fetchMsg) {
+          setUpdateMessage(fetchMsg);
+        }
       } else if (isManual) {
         setStatusMessage(fetchResult.error || 'Failed to download update.');
       }
@@ -91,6 +109,7 @@ export function useAppUpdates() {
     isDownloading,
     isUpdateReady,
     statusMessage,
+    updateMessage,
     lastCheckTime,
     versionInfo,
     checkForUpdate: () => checkAndUpdate(true),

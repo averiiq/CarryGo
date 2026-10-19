@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { Request, Parcel } from '@/types';
+import { resolveImageUrl } from '@/constants/images';
 
 type StatusKey = 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'failed';
 
@@ -61,6 +63,7 @@ export function RequestItem({
   onPayment,
 }: RequestItemProps) {
   const { C } = useThemeColors();
+  const [avatarError, setAvatarError] = React.useState(false);
   const actions = getRequestItemActions(request.status, viewerRole);
   const isTraveller = viewerRole === 'traveller';
   const isSender = viewerRole === 'sender';
@@ -68,19 +71,36 @@ export function RequestItem({
   const isAccepted = request.status === 'accepted';
   const isCompleted = request.status === 'completed';
 
+  const rawAvatar = isTraveller
+    ? ((request as any).senderSelfieUrl || request.senderAvatar)
+    : ((request as any).travellerSelfieUrl || request.travellerAvatar);
+  const personAvatar = resolveImageUrl(rawAvatar);
+  const personName = isTraveller ? (request.senderName || 'Sender') : (request.travellerName || 'Traveler');
+
   return (
     <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
       {/* Top Header Row */}
       <View style={styles.topRow}>
         <View style={styles.personInfo}>
           <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
-            <Text style={[styles.avatarText, { color: C.primary }]}>
-              {(request.senderName || 'U').charAt(0).toUpperCase()}
-            </Text>
+            {personAvatar && !avatarError ? (
+              <Image
+                source={{ uri: personAvatar }}
+                style={{ width: '100%', height: '100%', borderRadius: 21 }}
+                contentFit="cover"
+                transition={200}
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <Text style={[styles.avatarText, { color: C.primary }]}>
+                {personName.charAt(0).toUpperCase()}
+              </Text>
+            )}
+            <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.surface }]} />
           </View>
           <View>
             <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: C.textPrimary }]}>{request.senderName}</Text>
+              <Text style={[styles.name, { color: C.textPrimary }]}>{personName}</Text>
               <MaterialIcons name="verified" size={14} color={C.success} />
             </View>
             <Text style={[styles.time, { color: C.textMuted }]}>
@@ -272,6 +292,15 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  verifiedSelfieDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
   },
   avatarText: {
     fontSize: 16,

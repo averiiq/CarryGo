@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "545728018644",
+    "project_id": "carrygo-36259",
+    "storage_bucket": "carrygo-36259.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:545728018644:android:0296d5bb953d0af8dd2341",
+        "android_client_info": {
+          "package_name": "com.averiq.carygoo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsPLG5Gx-4E061I379kFE3Kx-GB6hfwSg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:545728018644:android:0296d5bb953d0af8dd2341",
+        "android_client_info": {
+          "package_name": "in.averiq.carrygo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsPLG5Gx-4E061I379kFE3Kx-GB6hfwSg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

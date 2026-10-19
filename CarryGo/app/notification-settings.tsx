@@ -26,7 +26,11 @@ import {
   sendTestNotification,
   registerForPushNotifications,
   savePushToken,
+  runNotificationDiagnostics,
+  getNotificationEnvironment,
   NotificationPermissionState,
+  DiagnosticReport,
+  NotificationEnvironmentInfo,
 } from '@/services/notifications.service';
 
 type PrefKey = keyof Omit<UserNotificationPreferences, 'userId' | 'updatedAt'>;
@@ -58,14 +62,21 @@ export default function NotificationSettingsScreen() {
 
   // Diagnostic states
   const [permState, setPermState] = useState<NotificationPermissionState | null>(null);
-  const [testing, setTesting] = useState(false);
+  const [envInfo, setEnvInfo] = useState<NotificationEnvironmentInfo | null>(null);
+  const [diagReport, setDiagReport] = useState<DiagnosticReport | null>(null);
+  const [runningDiag, setRunningDiag] = useState(false);
+  const [testing, setTesting] = useState<'remote' | 'local' | null>(null);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [refreshingToken, setRefreshingToken] = useState(false);
 
   const loadDiagnostics = useCallback(async () => {
+    const env = getNotificationEnvironment();
+    setEnvInfo(env);
     const state = await checkNotificationPermissions();
     setPermState(state);
-  }, []);
+    const report = await runNotificationDiagnostics(user?.id);
+    setDiagReport(report);
+  }, [user?.id]);
 
   const loadPrefs = useCallback(async () => {
     setLoading(true);
@@ -101,7 +112,7 @@ export default function NotificationSettingsScreen() {
   const handleFixPermissions = async () => {
     Haptic.tap();
     if (permState && !permState.granted && !permState.canAskAgain) {
-      // Blocked permanently in OS settings — deep link to settings
+      // Blocked permanently in OS settings — deep link to system settings
       await openSystemNotificationSettings();
     } else {
       // Re-prompt permission dialog
@@ -111,6 +122,20 @@ export default function NotificationSettingsScreen() {
         const token = await registerForPushNotifications();
         if (token) await savePushToken(user.id, token);
       }
+    }
+    await loadDiagnostics();
+  };
+
+  const handleRunDiagnostics = async () => {
+    Haptic.tap();
+    setRunningDiag(true);
+    setTestResult(null);
+    try {
+      const report = await runNotificationDiagnostics(user?.id);
+      setDiagReport(report);
+      Haptic.select();
+    } finally {
+      setRunningDiag(false);
     }
   };
 
@@ -123,9 +148,14 @@ export default function NotificationSettingsScreen() {
       const token = await registerForPushNotifications();
       if (token) {
         await savePushToken(user.id, token);
-        setTestResult({ success: true, message: 'Device token refreshed and registered successfully!' });
+        setTestResult({ success: true, message: 'Device token refreshed and registered successfully with CarryGo cloud!' });
       } else {
-        setTestResult({ success: false, message: 'Could not generate push token. Ensure notifications are allowed.' });
+        setTestResult({
+          success: false,
+          message: envInfo?.isExpoGo
+            ? 'Running in Expo Go. Push tokens are not generated in Expo Go SDK 53+. Use standalone APK.'
+            : 'Could not generate push token. Ensure notifications are allowed and Google Play Services is available.',
+        });
       }
       await loadDiagnostics();
     } catch {
@@ -135,24 +165,25 @@ export default function NotificationSettingsScreen() {
     }
   };
 
-  const handleSendTest = async () => {
+  const handleSendTest = async (mode: 'remote' | 'local') => {
     if (!user?.id || testing) return;
     Haptic.select();
-    setTesting(true);
+    setTesting(mode);
     setTestResult(null);
     try {
-      const res = await sendTestNotification(user.id);
+      const res = await sendTestNotification(user.id, mode);
       setTestResult(res);
       if (res.success) {
         Haptic.success();
       } else {
         Haptic.error();
       }
+      await loadDiagnostics();
     } catch (err) {
       setTestResult({ success: false, message: err instanceof Error ? err.message : 'Test failed' });
       Haptic.error();
     } finally {
-      setTesting(false);
+      setTesting(null);
     }
   };
 
@@ -220,9 +251,49 @@ export default function NotificationSettingsScreen() {
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32 }]} showsVerticalScrollIndicator={false}>
 
-          {/* Device Health & Diagnostics Card */}
+          {/* Environment Status Banner */}
+          {envInfo?.isExpoGo ? (
+            <View style={[styles.envBanner, { backgroundColor: '#F59E0B18', borderColor: '#F59E0B60' }]}>
+              <MaterialIcons name="warning" size={20} color="#F59E0B" />
+              <View style={styles.envBannerContent}>
+                <Text style={[styles.envBannerTitle, { color: '#B45309' }]}>Running in Expo Go Client</Text>
+                <Text style={[styles.envBannerText, { color: '#92400E' }]}>
+                  Expo Go isolates notifications to the Expo Go app. Tapping notifications opens Expo Go instead of CarryGo. To test production notifications, install the standalone CarryGo APK (in.averiq.carrygo).
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.envBanner, { backgroundColor: '#10B98115', borderColor: '#10B98150' }]}>
+              <MaterialIcons name="verified" size={20} color="#10B981" />
+              <View style={styles.envBannerContent}>
+                <Text style={[styles.envBannerTitle, { color: '#047857' }]}>Production Standalone App Active</Text>
+                <Text style={[styles.envBannerText, { color: '#065F46' }]}>
+                  Native Firebase Cloud Messaging (FCM) is active for package &quot;{envInfo?.applicationId || 'com.averiq.carygoo'}&quot;. Tapping notifications opens CarryGo directly.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Device Health & 7-State Diagnostics Card */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Device Health & Diagnostics</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Device Health & Diagnostics</Text>
+              <Pressable
+                onPress={handleRunDiagnostics}
+                disabled={runningDiag}
+                style={({ pressed }) => [styles.runDiagBtn, pressed && { opacity: 0.7 }]}
+              >
+                {runningDiag ? (
+                  <ActivityIndicator size="small" color={C.primary} />
+                ) : (
+                  <>
+                    <MaterialIcons name="sync" size={14} color={C.primary} />
+                    <Text style={[styles.runDiagText, { color: C.primary }]}>Run Check</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+
             <View style={[styles.diagCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               {/* Permission Status Row */}
               <View style={styles.diagRow}>
@@ -238,7 +309,7 @@ export default function NotificationSettingsScreen() {
                     System Notification Permission
                   </Text>
                   <Text style={[styles.diagStatusText, { color: permState?.granted ? '#10B981' : '#EF4444' }]}>
-                    {permState?.granted ? 'Active & Enabled' : 'Disabled / Blocked'}
+                    {permState?.granted ? 'Granted & Active' : permState?.status === 'denied' ? 'Denied by User' : 'Not Yet Requested'}
                   </Text>
                 </View>
                 {!permState?.granted && (
@@ -249,29 +320,85 @@ export default function NotificationSettingsScreen() {
                       { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1, transform: pressed ? [{ scale: 0.97 }] : [{ scale: 1 }] }
                     ]}
                   >
-                    <Text style={styles.fixBtnText}>Enable</Text>
+                    <Text style={styles.fixBtnText}>{permState?.canAskAgain ? 'Enable' : 'Settings'}</Text>
                   </Pressable>
                 )}
               </View>
 
               <View style={[styles.divider, { backgroundColor: C.surfaceBorder + '80' }]} />
 
+              {/* Diagnostic State Summary */}
+              {diagReport && (
+                <View style={styles.diagReportBox}>
+                  <View style={styles.diagReportHeader}>
+                    <View style={[
+                      styles.stateBadge,
+                      { backgroundColor: diagReport.status === 'healthy' ? '#10B98120' : diagReport.status === 'warning' ? '#F59E0B20' : '#EF444420' }
+                    ]}>
+                      <Text style={[
+                        styles.stateBadgeText,
+                        { color: diagReport.status === 'healthy' ? '#10B981' : diagReport.status === 'warning' ? '#D97706' : '#EF4444' }
+                      ]}>
+                        State {diagReport.state}: {diagReport.stateName}
+                      </Text>
+                    </View>
+                    <Text style={[styles.metaText, { color: C.textMuted }]}>
+                      {diagReport.details.registeredDevicesCount} active device(s)
+                    </Text>
+                  </View>
+                  <Text style={[styles.diagReportMsg, { color: C.textSecondary }]}>{diagReport.message}</Text>
+                  {diagReport.details.tokenType && (
+                    <View style={styles.tokenTypeRow}>
+                      <Text style={[styles.tokenTypeLabel, { color: C.textMuted }]}>Push Engine:</Text>
+                      <View style={[styles.tokenTypeBadge, { backgroundColor: diagReport.details.tokenType === 'fcm' ? '#10B98120' : '#F59E0B20' }]}>
+                        <Text style={[styles.tokenTypeText, { color: diagReport.details.tokenType === 'fcm' ? '#10B981' : '#D97706' }]}>
+                          {diagReport.details.tokenType === 'fcm' ? '🔥 Native Firebase (FCM)' : '⚡ Expo Push Proxy'}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                  {diagReport.recommendation ? (
+                    <Text style={[styles.diagReportRec, { color: C.primary }]}>💡 {diagReport.recommendation}</Text>
+                  ) : null}
+                </View>
+              )}
+
+              <View style={[styles.divider, { backgroundColor: C.surfaceBorder + '80' }]} />
+
               {/* Channels & Action Row */}
               <View style={styles.diagActionsRow}>
                 <Pressable
-                  onPress={handleSendTest}
-                  disabled={testing}
+                  onPress={() => void handleSendTest('remote')}
+                  disabled={testing !== null}
                   style={({ pressed }) => [
                     styles.actionPill,
                     { backgroundColor: C.primarySubtle, borderColor: C.primary + '40', opacity: pressed ? 0.8 : 1, transform: pressed ? [{ scale: 0.97 }] : [{ scale: 1 }] }
                   ]}
                 >
-                  {testing ? (
+                  {testing === 'remote' ? (
                     <ActivityIndicator size="small" color={C.primary} />
                   ) : (
                     <>
                       <MaterialIcons name="send" size={15} color={C.primary} />
-                      <Text style={[styles.actionPillText, { color: C.primary }]}>Send Test Notification</Text>
+                      <Text style={[styles.actionPillText, { color: C.primary }]}>Test Remote Push</Text>
+                    </>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => void handleSendTest('local')}
+                  disabled={testing !== null}
+                  style={({ pressed }) => [
+                    styles.actionPill,
+                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: pressed ? 0.8 : 1, transform: pressed ? [{ scale: 0.97 }] : [{ scale: 1 }] }
+                  ]}
+                >
+                  {testing === 'local' ? (
+                    <ActivityIndicator size="small" color={C.textPrimary} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="volume-up" size={15} color={C.textPrimary} />
+                      <Text style={[styles.actionPillText, { color: C.textPrimary }]}>Test Sound & Channels</Text>
                     </>
                   )}
                 </Pressable>
@@ -289,7 +416,7 @@ export default function NotificationSettingsScreen() {
                   ) : (
                     <>
                       <MaterialIcons name="refresh" size={15} color={C.textSecondary} />
-                      <Text style={[styles.actionPillText, { color: C.textSecondary }]}>Refresh Token</Text>
+                      <Text style={[styles.actionPillText, { color: C.textSecondary }]}>Sync Token</Text>
                     </>
                   )}
                 </Pressable>
@@ -299,8 +426,8 @@ export default function NotificationSettingsScreen() {
               {testResult && (
                 <View style={[styles.testResultBox, { backgroundColor: testResult.success ? '#10B98115' : '#EF444415', borderColor: testResult.success ? '#10B98140' : '#EF444440' }]}>
                   <MaterialIcons
-                    name={testResult.success ? 'check' : 'warning'}
-                    size={15}
+                    name={testResult.success ? 'check-circle' : 'warning'}
+                    size={16}
                     color={testResult.success ? '#10B981' : '#EF4444'}
                   />
                   <Text style={[styles.testResultText, { color: testResult.success ? '#10B981' : '#EF4444' }]}>
@@ -315,7 +442,7 @@ export default function NotificationSettingsScreen() {
           <View style={[styles.infoNote, { backgroundColor: C.primarySubtle, borderColor: C.primary + '30' }]}>
             <MaterialIcons name="info-outline" size={15} color={C.primary} />
             <Text style={[styles.infoNoteText, { color: C.textSecondary }]}>
-              Critical security alerts, OTP verifications, and delivery completions bypass preference filters and are always delivered.
+              Critical security alerts, OTP verifications, escrow releases, and delivery completions bypass preference filters and are always delivered.
             </Text>
           </View>
 
@@ -394,6 +521,13 @@ const styles = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: FontWeight.bold, fontSize: FontSize.sm },
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.md, gap: 4 },
+  envBanner: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: BorderRadius.lg, borderWidth: 1, marginBottom: 14, alignItems: 'flex-start' },
+  envBannerContent: { flex: 1, gap: 2 },
+  envBannerTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  envBannerText: { fontSize: 11.5, lineHeight: 16 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 2 },
+  runDiagBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 2, paddingHorizontal: 6 },
+  runDiagText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   diagCard: { borderRadius: BorderRadius.lg, borderWidth: 1, padding: 14, gap: 12, marginBottom: 10 },
   diagRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   diagIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
@@ -402,6 +536,17 @@ const styles = StyleSheet.create({
   diagStatusText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 2 },
   fixBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: BorderRadius.full },
   fixBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  diagReportBox: { gap: 6, paddingVertical: 2 },
+  diagReportHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stateBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  stateBadgeText: { fontSize: 11, fontWeight: FontWeight.bold },
+  metaText: { fontSize: 11 },
+  diagReportMsg: { fontSize: 12, lineHeight: 17 },
+  diagReportRec: { fontSize: 11.5, fontWeight: FontWeight.medium, lineHeight: 16 },
+  tokenTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 2 },
+  tokenTypeLabel: { fontSize: 11.5 },
+  tokenTypeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  tokenTypeText: { fontSize: 11, fontWeight: FontWeight.bold },
   diagActionsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   actionPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: BorderRadius.full, borderWidth: 1 },
   actionPillText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },

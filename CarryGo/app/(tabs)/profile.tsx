@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,9 +17,13 @@ import { useRequestsQuery } from '@/features/requests/queries';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn, useBreathing, useHeartbeat } from '@/hooks/useAnimations';
 import { useAppUpdates } from '@/hooks/useAppUpdates';
+import { AnimatedIcon, type AnimatedIconName, type AnimatedIconRef } from '@/components';
+import { resolveImageUrl } from '@/constants/images';
 
 interface MenuItemProps {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
+  animatedIconName?: AnimatedIconName;
+  animatedIconColor?: string;
   label: string;
   onPress?: () => void;
   danger?: boolean;
@@ -28,7 +32,17 @@ interface MenuItemProps {
   subtitle?: string;
 }
 
-function MenuItem({ icon, label, onPress, danger, right, C, subtitle }: MenuItemProps) {
+function MenuItem({ icon, animatedIconName, animatedIconColor, label, onPress, danger, right, C, subtitle }: MenuItemProps) {
+  const iconRef = useRef<AnimatedIconRef>(null);
+
+  const handlePress = () => {
+    if (onPress) {
+      Haptic.tap();
+      iconRef.current?.play();
+      onPress();
+    }
+  };
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -36,11 +50,20 @@ function MenuItem({ icon, label, onPress, danger, right, C, subtitle }: MenuItem
         pressed && { backgroundColor: C.primarySubtle, opacity: 0.9, transform: [{ scale: 0.98 }] },
       ]}
       hitSlop={TouchTarget.smallHitSlop}
-      onPress={() => { if (onPress) { Haptic.tap(); onPress(); } }}
+      onPress={handlePress}
       disabled={!onPress && !right}
     >
       <View style={[styles.menuIconWrap, { backgroundColor: danger ? C.errorSubtle : C.surfaceElevated }]}>
-        {icon}
+        {animatedIconName ? (
+          <AnimatedIcon
+            ref={iconRef}
+            name={animatedIconName}
+            size={19}
+            color={animatedIconColor || (danger ? C.error : C.primary)}
+          />
+        ) : (
+          icon
+        )}
       </View>
       <View style={styles.menuLabelWrap}>
         <Text style={[styles.menuLabel, { color: danger ? C.error : C.textPrimary }]}>{label}</Text>
@@ -137,6 +160,12 @@ export default function ProfileScreen() {
   const starHeartbeat = useHeartbeat(5000, 1.12);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [showKyc, setShowKyc] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+  const resolvedAvatar = resolveImageUrl(user?.avatar);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatar]);
   const tripsQuery = useTripsQuery(Boolean(user));
   const parcelsQuery = useParcelsQuery(Boolean(user));
   const requestsQuery = useRequestsQuery(user?.id);
@@ -351,8 +380,13 @@ export default function ProfileScreen() {
                   style={[styles.avatarInner, { backgroundColor: C.surface }]}
                 >
                   <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
-                    {user.avatar ? (
-                      <Image source={{ uri: user.avatar }} style={styles.avatarImage} contentFit="cover" />
+                    {resolvedAvatar && !avatarError ? (
+                      <Image
+                        source={{ uri: resolvedAvatar }}
+                        style={styles.avatarImage}
+                        contentFit="cover"
+                        onError={() => setAvatarError(true)}
+                      />
                     ) : (
                       <Text style={[styles.avatarText, { color: C.primary }]}>
                         {displayName.charAt(0).toUpperCase()}
@@ -433,7 +467,7 @@ export default function ProfileScreen() {
             >
               <View style={styles.editBtnLeft}>
                 <View style={[styles.editIconCircle, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                  <Ionicons name="pencil" size={13} color={C.primary} />
+                  <AnimatedIcon name="edit" size={15} color={C.primary} />
                 </View>
                 <View style={styles.editTextWrap}>
                   <Text style={[styles.editProfileFullBtnText, { color: C.textPrimary }]}>Edit Profile</Text>
@@ -544,7 +578,8 @@ export default function ProfileScreen() {
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
-                icon={<MaterialIcons name="bar-chart" size={18} color={C.primary} />}
+                animatedIconName="activity"
+                animatedIconColor={C.primary}
                 label="My Activity"
                 subtitle={`${myTrips.length} trips • ${myParcels.length} parcels`}
                 onPress={() => router.push('/my-activity')}
@@ -566,7 +601,8 @@ export default function ProfileScreen() {
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
-                icon={<MaterialIcons name="notifications-active" size={18} color={C.primary} />}
+                animatedIconName="notification"
+                animatedIconColor={C.primary}
                 label="Route Alerts"
                 subtitle="Instant matches for preferred travel corridors"
                 onPress={() => router.push('/subscriptions')}
@@ -574,7 +610,8 @@ export default function ProfileScreen() {
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
               <MenuItem
                 C={C}
-                icon={<MaterialIcons name="tune" size={18} color={C.info} />}
+                animatedIconName="settings"
+                animatedIconColor={C.info}
                 label="Notification Preferences"
                 subtitle="Manage push alerts, sounds, and order updates"
                 onPress={() => router.push('/notification-settings' as any)}
@@ -588,7 +625,8 @@ export default function ProfileScreen() {
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
-                icon={<MaterialIcons name="support-agent" size={18} color={C.primary} />}
+                animatedIconName="phone"
+                animatedIconColor={C.primary}
                 label="Help & Support Desk"
                 subtitle="FAQs, 24/7 AI Chatbot, incident reporting"
                 right={
@@ -607,7 +645,8 @@ export default function ProfileScreen() {
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
               <MenuItem
                 C={C}
-                icon={<MaterialIcons name="description" size={18} color={C.info} />}
+                animatedIconName="shield"
+                animatedIconColor={C.info}
                 label="Terms of Service"
                 subtitle="Platform rules, escrow protocols & policies"
                 onPress={() => router.push('/legal/terms')}
@@ -615,7 +654,8 @@ export default function ProfileScreen() {
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
               <MenuItem
                 C={C}
-                icon={<MaterialIcons name="privacy-tip" size={18} color={C.success} />}
+                animatedIconName="lock"
+                animatedIconColor={C.success}
                 label="Privacy Policy"
                 subtitle="Data protection and identity encryption"
                 onPress={() => router.push('/legal/privacy')}
@@ -623,7 +663,8 @@ export default function ProfileScreen() {
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
               <MenuItem
                 C={C}
-                icon={<MaterialIcons name="replay" size={18} color={C.warning} />}
+                animatedIconName="activity"
+                animatedIconColor={C.warning}
                 label="Refund & Cancellation"
                 subtitle="Escrow refunds, cancellation rules & disputes"
                 onPress={() => router.push('/legal/refund-policy' as any)}
@@ -631,7 +672,8 @@ export default function ProfileScreen() {
               <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
               <MenuItem
                 C={C}
-                icon={<MaterialIcons name="local-shipping" size={18} color={C.primary} />}
+                animatedIconName="package"
+                animatedIconColor={C.primary}
                 label="Shipping & Delivery"
                 subtitle="Peer carriage scope, timelines & handovers"
                 onPress={() => router.push('/legal/shipping-policy' as any)}
@@ -645,20 +687,15 @@ export default function ProfileScreen() {
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
-                icon={
-                  <MaterialIcons
-                    name={isKycApproved ? 'verified' : 'verified-user'}
-                    size={18}
-                    color={
-                      isKycApproved
-                        ? C.success
-                        : isKycSubmitted
-                        ? C.warning
-                        : !isKycAvailable
-                        ? C.warning
-                        : C.error
-                    }
-                  />
+                animatedIconName="shield"
+                animatedIconColor={
+                  isKycApproved
+                    ? C.success
+                    : isKycSubmitted
+                    ? C.warning
+                    : !isKycAvailable
+                    ? C.warning
+                    : C.error
                 }
                 label="KYC Verification"
                 subtitle={

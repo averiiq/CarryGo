@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { AadhaarVerifiedData } from '@/types';
+import { updateProfile } from '@/services/profile.service';
 import {
   generateAadhaarOtp,
   verifyAadhaarOtp,
@@ -387,12 +388,19 @@ export default function KycScreen() {
         return;
       }
 
+      const selfieCdnUrl = uploadRes.data?.cdnUrl || selfieUri;
+      // Authoritatively persist selfie as official profile photo in user_profiles
+      void updateProfile(user.id, { avatar_url: selfieCdnUrl }, user.id).catch(() => {});
+
       Haptic.success();
       updateUser({
         kycStatus: 'submitted',
         verified: false,
         isAadhaarVerified: true,
         isAddressVerified: true,
+        selfieUrl: selfieCdnUrl,
+        avatar: selfieCdnUrl,
+        isSelfieVerified: true,
       });
       setStep('completed');
     } catch (err) {

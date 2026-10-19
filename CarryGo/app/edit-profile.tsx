@@ -32,6 +32,7 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import { Haptic } from '@/services/haptics.service';
 import { CitySelectModal } from '@/components/feature/CitySelectModal';
 import { UserRole } from '@/types';
+import { resolveImageUrl } from '@/constants/images';
 
 // Curated avatar presets for instant profile photo selection
 const AVATAR_PRESETS = [
@@ -79,13 +80,25 @@ export default function EditProfileScreen() {
     );
   }, [avatarUri, name, username, phone, city, role, user]);
 
+  // Check if profile photo is locked to verified KYC selfie
+  const isPhotoLocked = Boolean(
+    user?.kycStatus === 'approved' && user?.selfieUrl
+  );
+
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+
+  const setAvatar = useCallback((uri: string) => {
+    setAvatarLoadError(false);
+    setAvatarUri(uri);
+  }, []);
+
   // Pick photo from Camera
   const handleTakePhoto = useCallback(async () => {
     Haptic.tap();
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        showAlert('Camera Permission Needed', 'Please allow camera access to take your profile picture.');
+        showAlert('Camera Permission Needed', 'Please allow camera access in Settings to take a profile picture, or select a photo from your gallery.');
         return;
       }
 
@@ -93,17 +106,17 @@ export default function EditProfileScreen() {
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.85,
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
         Haptic.success();
-        setAvatarUri(result.assets[0].uri);
+        setAvatar(result.assets[0].uri);
       }
     } catch {
-      showAlert('Camera Error', 'Could not open camera. Please try selecting from your library.');
+      showAlert('Camera Error', 'Could not open camera. Please try selecting from your photo library.');
     }
-  }, [showAlert]);
+  }, [showAlert, setAvatar]);
 
   // Pick photo from Gallery
   const handlePickFromLibrary = useCallback(async () => {
@@ -111,7 +124,7 @@ export default function EditProfileScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        showAlert('Library Permission Needed', 'Please allow photo library access to choose your profile picture.');
+        showAlert('Photos Permission Needed', 'Please allow photo library access in Settings to choose a profile picture, or take a photo with camera.');
         return;
       }
 
@@ -119,23 +132,32 @@ export default function EditProfileScreen() {
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.85,
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
         Haptic.success();
-        setAvatarUri(result.assets[0].uri);
+        setAvatar(result.assets[0].uri);
       }
     } catch {
       showAlert('Gallery Error', 'Could not open photo library. Please try again.');
     }
-  }, [showAlert]);
+  }, [showAlert, setAvatar]);
+
+  const handleChoosePhotoAction = useCallback(() => {
+    Haptic.tap();
+    showAlert('Profile Picture', 'Choose an option to update your profile photo:', [
+      { text: 'Take Photo', onPress: handleTakePhoto },
+      { text: 'Choose from Gallery', onPress: handlePickFromLibrary },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [handleTakePhoto, handlePickFromLibrary, showAlert]);
 
   // Select curated avatar preset
   const handleSelectPreset = useCallback((uri: string) => {
     Haptic.select();
-    setAvatarUri(uri);
-  }, []);
+    setAvatar(uri);
+  }, [setAvatar]);
 
   // Save changes
   const handleSave = async () => {
@@ -250,6 +272,7 @@ export default function EditProfileScreen() {
   if (!user) return null;
 
   const initial = (name || user.name || 'U').charAt(0).toUpperCase();
+  const resolvedAvatar = resolveImageUrl(avatarUri);
 
   return (
     <KeyboardAvoidingView
@@ -318,132 +341,157 @@ export default function EditProfileScreen() {
           <View style={styles.avatarRow}>
             {/* Main Avatar Frame */}
             <View style={styles.avatarFrameWrap}>
-              <View style={[styles.avatarOuterRing, { borderColor: avatarUri ? C.primary : C.warning }]}>
-                {avatarUri ? (
+              <Pressable
+                onPress={handleChoosePhotoAction}
+                style={[
+                  styles.avatarOuterRing,
+                  {
+                    borderColor: isPhotoLocked ? C.success : (avatarUri ? C.primary : C.warning),
+                    borderWidth: isPhotoLocked ? 2 : 1.5,
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile picture"
+              >
+                {resolvedAvatar && !avatarLoadError ? (
                   <Image
-                    source={{ uri: avatarUri }}
+                    source={{ uri: resolvedAvatar }}
                     style={styles.avatarImage}
                     contentFit="cover"
                     transition={200}
+                    onError={() => setAvatarLoadError(true)}
                   />
                 ) : (
                   <View style={[styles.avatarFallback, { backgroundColor: C.primarySubtle }]}>
                     <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
                   </View>
                 )}
-              </View>
-
-              {/* Floating Camera Button Badge */}
-              <Pressable
-                onPress={handleTakePhoto}
-                style={({ pressed }) => [
-                  styles.cameraBadge,
-                  { backgroundColor: C.primary, borderColor: C.surface },
-                  pressed && { transform: [{ scale: 0.92 }] },
-                ]}
-                hitSlop={TouchTarget.smallHitSlop}
-                accessibilityRole="button"
-                accessibilityLabel="Take a profile photo with camera"
-              >
-                <MaterialIcons name="photo-camera" size={16} color="#FFFFFF" />
               </Pressable>
+
+              {/* Verified Lock Badge or Camera Badge */}
+              {isPhotoLocked ? (
+                <View
+                  style={[
+                    styles.cameraBadge,
+                    { backgroundColor: C.success, borderColor: C.surface },
+                  ]}
+                >
+                  <MaterialIcons name="lock" size={14} color="#FFFFFF" />
+                </View>
+              ) : (
+                <Pressable
+                  onPress={handleChoosePhotoAction}
+                  style={({ pressed }) => [
+                    styles.cameraBadge,
+                    { backgroundColor: C.primary, borderColor: C.surface },
+                    pressed && { transform: [{ scale: 0.92 }] },
+                  ]}
+                  hitSlop={TouchTarget.smallHitSlop}
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose profile photo"
+                >
+                  <MaterialIcons name="photo-camera" size={16} color="#FFFFFF" />
+                </Pressable>
+              )}
             </View>
 
-            {/* Photo Action Buttons */}
+            {/* Photo Action Buttons / Lock Info */}
             <View style={styles.avatarActionsCol}>
               <View style={styles.avatarTitleWrap}>
                 <View style={styles.mandatoryBadgeRow}>
                   <Text style={[styles.avatarSectionTitle, { color: C.textPrimary }]}>Profile Picture</Text>
-                  <View style={[styles.mandatoryBadge, { backgroundColor: avatarUri ? C.successSubtle : '#FEF3C7' }]}>
-                    <Text style={[styles.mandatoryBadgeText, { color: avatarUri ? C.success : '#D97706' }]}>
-                      {avatarUri ? 'Photo Active' : 'Required'}
+                  <View style={[styles.mandatoryBadge, { backgroundColor: isPhotoLocked ? C.successSubtle : (avatarUri ? C.successSubtle : '#FEF3C7') }]}>
+                    <MaterialIcons name={isPhotoLocked ? 'lock' : 'verified'} size={11} color={isPhotoLocked ? C.success : C.primary} style={{ marginRight: 3 }} />
+                    <Text style={[styles.mandatoryBadgeText, { color: isPhotoLocked ? C.success : '#D97706' }]}>
+                      {isPhotoLocked ? 'Verified Selfie (Locked)' : (avatarUri ? 'Photo Active' : 'Required')}
                     </Text>
                   </View>
                 </View>
                 <Text style={[styles.avatarSectionSub, { color: C.textMuted }]}>
-                  Visible to senders and travelers on matched journeys
+                  {isPhotoLocked
+                    ? 'Permanently bound to your live verification selfie to ensure community trust. Cannot be changed.'
+                    : 'Visible to senders and travelers on matched journeys'}
                 </Text>
               </View>
 
-              <View style={styles.photoButtonsRow}>
-                <Pressable
-                  onPress={handleTakePhoto}
-                  style={({ pressed }) => [
-                    styles.photoActionBtn,
-                    { backgroundColor: C.primary, borderColor: C.primary },
-                    pressed && { opacity: 0.85 },
-                  ]}
-                >
-                  <MaterialIcons name="camera-alt" size={14} color="#FFFFFF" />
-                  <Text style={[styles.photoActionBtnText, { color: '#FFFFFF' }]}>Camera</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={handlePickFromLibrary}
-                  style={({ pressed }) => [
-                    styles.photoActionBtn,
-                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                    pressed && { opacity: 0.85 },
-                  ]}
-                >
-                  <MaterialIcons name="photo-library" size={14} color={C.textPrimary} />
-                  <Text style={[styles.photoActionBtnText, { color: C.textPrimary }]}>Gallery</Text>
-                </Pressable>
-
-                {avatarUri ? (
+              {!isPhotoLocked ? (
+                <View style={styles.photoButtonsRow}>
                   <Pressable
-                    onPress={() => {
-                      Haptic.tap();
-                      setAvatarUri('');
-                    }}
+                    onPress={handleTakePhoto}
                     style={({ pressed }) => [
-                      styles.photoRemoveBtn,
-                      { backgroundColor: C.errorSubtle, borderColor: C.error + '33' },
-                      pressed && { opacity: 0.8 },
+                      styles.photoActionBtn,
+                      { backgroundColor: C.primary, borderColor: C.primary },
+                      pressed && { opacity: 0.85 },
                     ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Take a photo with camera"
                   >
-                    <MaterialIcons name="delete-outline" size={16} color={C.error} />
+                    <MaterialIcons name="camera-alt" size={14} color="#FFFFFF" />
+                    <Text style={[styles.photoActionBtnText, { color: '#FFFFFF' }]}>Camera</Text>
                   </Pressable>
-                ) : null}
-              </View>
+
+                  <Pressable
+                    onPress={handlePickFromLibrary}
+                    style={({ pressed }) => [
+                      styles.photoActionBtn,
+                      { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                      pressed && { opacity: 0.85 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Choose photo from gallery"
+                  >
+                    <MaterialIcons name="photo-library" size={14} color={C.textPrimary} />
+                    <Text style={[styles.photoActionBtnText, { color: C.textPrimary }]}>Gallery</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <MaterialIcons name="verified-user" size={14} color={C.success} />
+                  <Text style={{ fontSize: FontSize.xs, color: C.success, fontWeight: FontWeight.semibold }}>
+                    Permanent KYC Profile Photo
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
-          {/* Preset Traveler Avatars */}
-          <View style={[styles.presetsSection, { borderTopColor: C.surfaceBorderLight }]}>
-            <Text style={[styles.presetsHeading, { color: C.textSecondary }]}>
-              OR CHOOSE A VERIFIED TRAVELER AVATAR
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetsList}>
-              {AVATAR_PRESETS.map((p) => {
-                const isSelected = avatarUri === p.uri;
-                return (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => handleSelectPreset(p.uri)}
-                    style={({ pressed }) => [
-                      styles.presetChip,
-                      {
-                        borderColor: isSelected ? C.primary : C.surfaceBorder,
-                        backgroundColor: isSelected ? C.primarySubtle : C.surfaceElevated,
-                      },
-                      pressed && { transform: [{ scale: 0.95 }] },
-                    ]}
-                  >
-                    <Image source={{ uri: p.uri }} style={styles.presetImage} contentFit="cover" />
-                    <Text
-                      style={[
-                        styles.presetLabel,
-                        { color: isSelected ? C.primaryDark : C.textSecondary, fontWeight: isSelected ? '700' : '500' },
+          {/* Preset Traveler Avatars only shown if not locked */}
+          {!isPhotoLocked ? (
+            <View style={[styles.presetsSection, { borderTopColor: C.surfaceBorderLight }]}>
+              <Text style={[styles.presetsHeading, { color: C.textSecondary }]}>
+                OR CHOOSE A VERIFIED TRAVELER AVATAR
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetsList}>
+                {AVATAR_PRESETS.map((p) => {
+                  const isSelected = avatarUri === p.uri;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => handleSelectPreset(p.uri)}
+                      style={({ pressed }) => [
+                        styles.presetChip,
+                        {
+                          borderColor: isSelected ? C.primary : C.surfaceBorder,
+                          backgroundColor: isSelected ? C.primarySubtle : C.surfaceElevated,
+                        },
+                        pressed && { transform: [{ scale: 0.95 }] },
                       ]}
                     >
-                      {p.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
+                      <Image source={{ uri: p.uri }} style={styles.presetImage} contentFit="cover" />
+                      <Text
+                        style={[
+                          styles.presetLabel,
+                          { color: isSelected ? C.primaryDark : C.textSecondary, fontWeight: isSelected ? '700' : '500' },
+                        ]}
+                      >
+                        {p.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
         </View>
 
         {/* ── 2. PERSONAL IDENTITY INFORMATION ── */}

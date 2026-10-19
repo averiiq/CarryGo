@@ -1,11 +1,13 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, PanResponder } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Request, RequestStatus } from '@/types';
 import { FontSize, FontWeight, BorderRadius, ThemeColors, TouchTarget } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
+import { resolveImageUrl } from '@/constants/images';
 
 export interface RequestCardProps {
   request: Request;
@@ -224,6 +226,11 @@ export function getRequestCardViewModel({
             : (request.createdBy === request.senderId ? 'Traveler' : 'Sender'))
         : (isIncoming ? 'Sender' : 'Traveler'));
 
+  const rawAvatar = isSender
+    ? ((request as any).travellerSelfieUrl || request.travellerAvatar)
+    : ((request as any).senderSelfieUrl || request.senderAvatar);
+  const personAvatar = resolveImageUrl(rawAvatar);
+
   const showSwipeHint = !isRequester && request.status === 'pending';
   const { pickup, drop, hasExactRoute } = getRouteLocations(request);
 
@@ -305,6 +312,7 @@ export function getRequestCardViewModel({
     showReceiptReview,
     contextBanner,
     formattedDate,
+    personAvatar,
     stepper: { step1, step2, step3 },
   };
 }
@@ -327,6 +335,7 @@ export const RequestCard = React.memo(function RequestCard({
   const { C, S } = useThemeColors();
   const { isTablet, swipeThreshold } = useResponsive();
   const translateX = useRef(new Animated.Value(0)).current;
+  const [avatarError, setAvatarError] = React.useState(false);
 
   const sc = STATUS_CONFIG(C)[request.status] || STATUS_CONFIG(C).pending;
 
@@ -427,9 +436,20 @@ export const RequestCard = React.memo(function RequestCard({
           <View style={styles.topRow}>
             <View style={styles.userBlock}>
               <View style={[styles.avatar, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                <Text style={[styles.avatarText, { color: C.primary }]}>
-                  {vm.personName.charAt(0).toUpperCase()}
-                </Text>
+                {vm.personAvatar && !avatarError ? (
+                  <Image
+                    source={{ uri: vm.personAvatar }}
+                    style={{ width: '100%', height: '100%', borderRadius: 19 }}
+                    contentFit="cover"
+                    transition={200}
+                    onError={() => setAvatarError(true)}
+                  />
+                ) : (
+                  <Text style={[styles.avatarText, { color: C.primary }]}>
+                    {vm.personName.charAt(0).toUpperCase()}
+                  </Text>
+                )}
+                <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.card }]} />
               </View>
               <View style={styles.userMeta}>
                 <View style={styles.userNameRow}>
@@ -772,6 +792,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+  },
+  verifiedSelfieDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    borderWidth: 1.5,
   },
   avatarText: {
     fontSize: 15,

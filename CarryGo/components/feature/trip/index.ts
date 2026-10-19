@@ -2,6 +2,8 @@ export { TripRouteStep } from './TripRouteStep';
 export {
   TripDetailsStep,
   VEHICLES,
+  VEHICLE_IMAGES,
+  CARRY_CATEGORY_IMAGES,
   VEHICLE_MAX_CAPACITY,
   VEHICLE_QUICK_DEFAULTS,
   CAPACITY_PRESETS,

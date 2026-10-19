@@ -103,10 +103,10 @@ export function validateParcelDetails(draft: ParcelDraft): Record<string, string
     errors.weight = '0.1 - 100 kg';
   }
 
-  if (!draft.priceOffer.trim()) {
-    errors.priceOffer = 'Enter price offer';
-  } else if (!Number.isFinite(offerAmount) || offerAmount < 1 || offerAmount > 100000) {
-    errors.priceOffer = 'Rs 1 - Rs 1,00,000';
+  if (draft.priceOffer && draft.priceOffer.trim()) {
+    if (!Number.isFinite(offerAmount) || offerAmount < 1 || offerAmount > 100000) {
+      errors.priceOffer = 'Rs 1 - Rs 1,00,000';
+    }
   }
 
   return errors;

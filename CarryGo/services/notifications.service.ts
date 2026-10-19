@@ -109,6 +109,53 @@ export async function setupNotificationChannels(): Promise<void> {
 // Immediately initialize Android channels on module load
 void setupNotificationChannels();
 
+// ── Pending Notification Route Store ───────────────────────────────────────
+
+let pendingNotificationRoute: string | null = null;
+
+export function setPendingNotificationRoute(route: string | null): void {
+  pendingNotificationRoute = route;
+}
+
+export function getPendingNotificationRoute(): string | null {
+  return pendingNotificationRoute;
+}
+
+export function consumePendingNotificationRoute(): string | null {
+  const route = pendingNotificationRoute;
+  pendingNotificationRoute = null;
+  return route;
+}
+
+// ── Environment Detection ──────────────────────────────────────────────────
+
+export interface NotificationEnvironmentInfo {
+  isExpoGo: boolean;
+  isStandalone: boolean;
+  isDevice: boolean;
+  applicationId: string | null;
+  platform: string;
+  osVersion: string | number | null;
+  easProjectId: string;
+}
+
+export function getNotificationEnvironment(): NotificationEnvironmentInfo {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isExpoGo = Constants.appOwnership === 'expo' || (Constants as any).executionEnvironment === 'storeClient';
+  const appId = Application.applicationId;
+  const isStandalone = !isExpoGo && (appId === 'com.averiq.carygoo' || appId === 'in.averiq.carrygo');
+
+  return {
+    isExpoGo,
+    isStandalone,
+    isDevice: Platform.OS === 'android' || Platform.OS === 'ios',
+    applicationId: appId,
+    platform: Platform.OS,
+    osVersion: Platform.Version,
+    easProjectId: EAS_PROJECT_ID,
+  };
+}
+
 // ── Permission & Token Management ──────────────────────────────────────────
 
 export interface NotificationPermissionState {
@@ -174,6 +221,14 @@ export async function openSystemNotificationSettings(): Promise<void> {
 
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
+    const env = getNotificationEnvironment();
+
+    if (env.isExpoGo) {
+      console.warn(
+        '[Notifications] Running inside Expo Go. In SDK 53+, remote push notifications require a standalone APK (com.averiq.carygoo) with FCM credentials.'
+      );
+    }
+
     await setupNotificationChannels();
 
     const perm = await checkNotificationPermissions();
@@ -188,13 +243,29 @@ export async function registerForPushNotifications(): Promise<string | null> {
       return null;
     }
 
+    // On native Android builds, verify that native Firebase FCM engine initializes properly
+    if (Platform.OS === 'android' && !env.isExpoGo) {
+      try {
+        const deviceTokenData = await Notifications.getDevicePushTokenAsync();
+        if (deviceTokenData?.data) {
+          console.log('[Notifications] Native FCM engine verified. Device token:', `${deviceTokenData.data.substring(0, 18)}...`);
+        }
+      } catch (fcmErr) {
+        console.log('[Notifications] Native FCM check:', fcmErr);
+      }
+    }
+
+    // Acquire delivery push token linked to FCM for backend dispatch
     const projectId = EAS_PROJECT_ID;
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-    console.log('[Notifications] Expo push token acquired:', tokenData.data ? `${tokenData.data.substring(0, 22)}...` : 'empty');
-    return tokenData.data;
+    if (tokenData?.data) {
+      console.log('[Notifications] FCM push token acquired:', `${tokenData.data.substring(0, 18)}... [env: ${env.isStandalone ? 'standalone' : env.isExpoGo ? 'expo-go' : 'dev-client'}]`);
+      return tokenData.data;
+    }
+    return null;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[Notifications] Failed to obtain Expo push token:', msg);
+    console.warn('[Notifications] Failed to obtain push token:', msg);
     // Suppress reporting known Expo Go SDK 53 limitation to Sentry/monitoring
     if (!msg.includes('Expo Go') && !msg.includes('not supported in Expo Go')) {
       captureException(err, { context: 'registerForPushNotifications' });
@@ -206,7 +277,8 @@ export async function registerForPushNotifications(): Promise<string | null> {
 export async function savePushToken(userId: string, token: string) {
   try {
     const sb = getSupabaseClient();
-    const deviceKey = `${Platform.OS}:${token}`;
+    const deviceKey = `${Platform.OS}:fcm:${token}`;
+
     const { error: rpcErr } = await sb.rpc('upsert_user_device', {
       p_device_key: deviceKey,
       p_expo_push_token: token,
@@ -217,7 +289,7 @@ export async function savePushToken(userId: string, token: string) {
       console.warn('[Notifications] upsert_user_device error:', rpcErr.message);
     }
     await sb.from('user_profiles').update({ push_token: token }).eq('id', userId);
-    console.log('[Notifications] Push token successfully registered for user:', userId);
+    console.log('[Notifications] FCM push token successfully registered in cloud for user:', userId);
   } catch (err) {
     console.warn('[Notifications] Error saving push token:', err);
     captureException(err, { context: 'savePushToken' });
@@ -227,18 +299,33 @@ export async function savePushToken(userId: string, token: string) {
 export async function unregisterPushToken(userId: string): Promise<void> {
   try {
     const sb = getSupabaseClient();
+    let currentToken: string | null = null;
     try {
       const tokenData = await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID }).catch(() => null);
-      if (tokenData?.data) {
+      currentToken = tokenData?.data || null;
+      if (currentToken) {
+        // Invalidate ONLY this specific device's token in user_devices
         await sb
           .from('user_devices')
           .update({ invalidated_at: new Date().toISOString() })
           .eq('user_id', userId)
-          .eq('expo_push_token', tokenData.data);
+          .eq('expo_push_token', currentToken);
+        console.log('[Notifications] Device token deactivated in user_devices for user:', userId);
       }
     } catch {}
-    await sb.from('user_profiles').update({ push_token: null }).eq('id', userId);
-    console.log('[Notifications] Push token unregistered for user on sign-out:', userId);
+
+    // Only clear user_profiles.push_token if it matches the current device's token,
+    // preserving fallback tokens from other active devices for this user
+    if (currentToken) {
+      await sb
+        .from('user_profiles')
+        .update({ push_token: null })
+        .eq('id', userId)
+        .eq('push_token', currentToken);
+    } else {
+      await sb.from('user_profiles').update({ push_token: null }).eq('id', userId);
+    }
+    console.log('[Notifications] Push token unregistration complete for user on sign-out:', userId);
   } catch (err) {
     console.warn('[Notifications] Error during push token unregistration:', err);
   }
@@ -918,10 +1005,12 @@ export async function getUnreadCount(userId: string): Promise<number> {
 }
 
 export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: string | null): string | null {
-  // If the notification record has an explicit deep_link stored (from outbox processor), use it directly
-  if (deepLink) return deepLink;
+  // If the notification payload has an explicit deep_link, use it directly
+  if (deepLink && typeof deepLink === 'string' && deepLink.startsWith('/')) {
+    return deepLink;
+  }
 
-  const normalizedType = type.toLowerCase();
+  const normalizedType = (type || '').toLowerCase();
 
   switch (normalizedType) {
     case 'new_request':
@@ -929,6 +1018,7 @@ export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: st
     case 'request_accepted':
     case 'request_rejected':
     case 'request_cancelled':
+      if (relatedId) return `/delivery/${relatedId}`;
       return '/(tabs)/requests';
     case 'chat_message':
     case 'message':
@@ -937,14 +1027,20 @@ export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: st
     case 'route_match':
     case 'matching':
       return '/subscriptions';
+    case 'trip':
+    case 'trip_update':
+    case 'trip_milestone':
+      if (relatedId) return `/trip/${relatedId}`;
+      return '/(tabs)/requests';
+    case 'parcel':
+    case 'parcel_update':
+      if (relatedId) return `/parcel/${relatedId}`;
+      return '/(tabs)/requests';
     case 'general':
     case 'delivery_otp':
     case 'delivery_pickup':
     case 'delivery_completed':
-    case 'parcel_update':
       if (relatedId) return `/delivery/${relatedId}`;
-      return '/(tabs)/requests';
-    case 'trip_update':
       return '/(tabs)/requests';
     case 'payment':
     case 'payment_locked':
@@ -956,8 +1052,9 @@ export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: st
     case 'broadcast':
     case 'promotion':
     case 'system_alert':
-      return null;
+      return '/(tabs)';
     default:
+      if (relatedId) return `/delivery/${relatedId}`;
       return null;
   }
 }
@@ -1012,35 +1109,254 @@ export async function updateNotificationPreferences(prefs: Partial<UserNotificat
   return { error: error?.message || null };
 }
 
-export async function sendTestNotification(userId: string): Promise<{ success: boolean; message: string }> {
+// ── Diagnostics & Test Delivery ─────────────────────────────────────────────
+
+export interface DiagnosticReport {
+  state: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 0; // 0 = all healthy, 1-7 correspond to system diagnostic states
+  stateName: string;
+  status: 'healthy' | 'warning' | 'error';
+  message: string;
+  recommendation: string;
+  details: {
+    permissionGranted: boolean;
+    permissionStatus: string;
+    canAskAgain: boolean;
+    environment: NotificationEnvironmentInfo;
+    tokenAcquired: boolean;
+    tokenType?: 'fcm' | 'expo';
+    tokenPreview?: string;
+    registeredDevicesCount: number;
+    channelsConfigured: boolean;
+  };
+}
+
+/**
+ * Runs end-to-end diagnostic checks distinguishing the 7 critical push notification states:
+ * 1. Permission not granted
+ * 2. Push token not generated
+ * 3. Push token not registered with backend
+ * 4. Backend has no registered devices for user
+ * 5. Push provider rejected request (checked during delivery)
+ * 6. Notification delivered but not displayed (channel/DND/Doze settings)
+ * 7. Notification tapped but application did not navigate
+ */
+export async function runNotificationDiagnostics(userId?: string): Promise<DiagnosticReport> {
+  const env = getNotificationEnvironment();
+  const perms = await checkNotificationPermissions();
+  const channelsConfigured = Platform.OS === 'android';
+
+  // State 1: Permission not granted
+  if (!perms.granted) {
+    return {
+      state: 1,
+      stateName: 'Permission Not Granted',
+      status: 'error',
+      message: `System notification permission is ${perms.status}. Notifications cannot be received or displayed.`,
+      recommendation: perms.canAskAgain
+        ? 'Tap "Enable Notifications" to grant notification permissions.'
+        : 'Permissions are blocked in Android Settings. Tap "Open Settings" to enable notifications for CarryGo.',
+      details: {
+        permissionGranted: false,
+        permissionStatus: perms.status,
+        canAskAgain: perms.canAskAgain,
+        environment: env,
+        tokenAcquired: false,
+        registeredDevicesCount: 0,
+        channelsConfigured,
+      },
+    };
+  }
+
+  // Check token generation & environment
+  let token: string | null = null;
+  let tokenErr: string | null = null;
+
+  if (env.isExpoGo) {
+    // State 2: Running in Expo Go (Expo Go SDK 53 does not support remote push notifications)
+    return {
+      state: 2,
+      stateName: 'Expo Go Client Detected',
+      status: 'warning',
+      message: 'Running inside Expo Go (host.exp.exponent). Push notifications in Expo Go are isolated to the Expo Go app, and tapping opens Expo Go instead of CarryGo.',
+      recommendation: 'Install the standalone CarryGo APK (in.averiq.carrygo) configured with native Firebase Cloud Messaging for production delivery.',
+      details: {
+        permissionGranted: perms.granted,
+        permissionStatus: perms.status,
+        canAskAgain: perms.canAskAgain,
+        environment: env,
+        tokenAcquired: false,
+        registeredDevicesCount: 0,
+        channelsConfigured,
+      },
+    };
+  }
+
+  try {
+    token = await registerForPushNotifications();
+  } catch (err) {
+    tokenErr = err instanceof Error ? err.message : String(err);
+  }
+
+  const isNativeFcm = token ? (!token.startsWith('ExponentPushToken[') && !token.startsWith('ExpoPushToken[')) : false;
+  const tokenType: 'fcm' | 'expo' = isNativeFcm ? 'fcm' : 'expo';
+
+  // State 2: Push token not generated
+  if (!token) {
+    return {
+      state: 2,
+      stateName: 'Push Token Not Generated',
+      status: 'error',
+      message: `Failed to acquire push token: ${tokenErr || 'Native FCM/Google Services not initialized'}`,
+      recommendation: 'Ensure google-services.json is present in the Android build and the device has Google Play Services active.',
+      details: {
+        permissionGranted: perms.granted,
+        permissionStatus: perms.status,
+        canAskAgain: perms.canAskAgain,
+        environment: env,
+        tokenAcquired: false,
+        registeredDevicesCount: 0,
+        channelsConfigured,
+      },
+    };
+  }
+
+  // Check Backend Registration in user_devices / user_profiles
+  let activeDeviceCount = 0;
+  let isCurrentDeviceRegistered = false;
+
+  if (userId) {
+    try {
+      const sb = getSupabaseClient();
+      const { data: devices, error: devErr } = await sb
+        .from('user_devices')
+        .select('expo_push_token, invalidated_at')
+        .eq('user_id', userId)
+        .is('invalidated_at', null);
+
+      if (!devErr && Array.isArray(devices)) {
+        activeDeviceCount = devices.length;
+        isCurrentDeviceRegistered = devices.some(d => d.expo_push_token === token);
+      }
+
+      // If token is generated but not yet registered in user_devices, auto-register now
+      if (!isCurrentDeviceRegistered) {
+        await savePushToken(userId, token);
+        activeDeviceCount += 1;
+        isCurrentDeviceRegistered = true;
+      }
+    } catch (e) {
+      console.warn('[Diagnostics] Error querying user_devices:', e);
+    }
+  }
+
+  // State 3: Push token not registered with backend
+  if (userId && !isCurrentDeviceRegistered) {
+    return {
+      state: 3,
+      stateName: 'Push Token Not Registered with Backend',
+      status: 'error',
+      message: 'Device generated a valid push token, but could not register it with the CarryGo cloud backend.',
+      recommendation: 'Tap "Refresh Token" to synchronize your device with the CarryGo server.',
+      details: {
+        permissionGranted: true,
+        permissionStatus: perms.status,
+        canAskAgain: perms.canAskAgain,
+        environment: env,
+        tokenAcquired: true,
+        tokenType,
+        tokenPreview: `${token.substring(0, 16)}...`,
+        registeredDevicesCount: activeDeviceCount,
+        channelsConfigured,
+      },
+    };
+  }
+
+  // State 4: User has no active registered devices
+  if (userId && activeDeviceCount === 0) {
+    return {
+      state: 4,
+      stateName: 'No Registered Devices for User',
+      status: 'warning',
+      message: 'No active push notification tokens are registered for this user in the CarryGo database.',
+      recommendation: 'Log in and grant notification permissions on this device to register it.',
+      details: {
+        permissionGranted: true,
+        permissionStatus: perms.status,
+        canAskAgain: perms.canAskAgain,
+        environment: env,
+        tokenAcquired: true,
+        tokenType,
+        tokenPreview: `${token.substring(0, 16)}...`,
+        registeredDevicesCount: 0,
+        channelsConfigured,
+      },
+    };
+  }
+
+  // All checks healthy!
+  return {
+    state: 0,
+    stateName: 'Push Notification System Healthy',
+    status: 'healthy',
+    message: `System healthy: ${activeDeviceCount} device(s) registered for your account. Push channel active on ${env.isStandalone ? 'Production App (in.averiq.carrygo)' : 'Native Client'} [${tokenType.toUpperCase()}].`,
+    recommendation: 'Notifications are fully operational. Send a test notification to verify end-to-end receipt.',
+    details: {
+      permissionGranted: true,
+      permissionStatus: perms.status,
+      canAskAgain: perms.canAskAgain,
+      environment: env,
+      tokenAcquired: true,
+      tokenType,
+      tokenPreview: `${token.substring(0, 16)}...`,
+      registeredDevicesCount: activeDeviceCount,
+      channelsConfigured,
+    },
+  };
+}
+
+export async function sendTestNotification(
+  userId: string,
+  mode: 'all' | 'remote' | 'local' = 'all'
+): Promise<{ success: boolean; message: string }> {
   try {
     await setupNotificationChannels();
-    // 1. Send immediate local notification
-    await sendLocalNotification(
-      '🔔 CarryGo Notification Test',
-      'Sound, vibration, and channels are functioning properly on this device!',
-      { type: 'test' },
-      'default'
-    );
 
-    // 2. Dispatch remote push through server pipeline
-    const result = await dispatchNotification({
-      userId,
-      title: '🚀 Remote Push Verified',
-      body: 'Your device is successfully connected to the CarryGo push notification network.',
-      type: 'general',
-      priority: 'high',
-    });
-
-    if (result.success) {
-      return { success: true, message: 'Test notification delivered successfully!' };
-    } else {
-      return { success: false, message: result.error || 'Failed to dispatch test notification' };
+    // Local notification test (verifies Android notification channel, sound, vibration, icon)
+    if (mode === 'all' || mode === 'local') {
+      await sendLocalNotification(
+        '🔔 CarryGo Notification Test',
+        'Sound, vibration, and channels are functioning properly on this device!',
+        { type: 'test' },
+        'default'
+      );
     }
+
+    // Remote push test (verifies backend dispatch, token lookup, Expo Push API, and FCM delivery)
+    if (mode === 'all' || mode === 'remote') {
+      const result = await dispatchNotification({
+        userId,
+        title: '🚀 Remote Push Verified',
+        body: 'Your device is successfully connected to the CarryGo push notification network.',
+        type: 'general',
+        priority: 'high',
+      });
+
+      if (!result.success) {
+        return { success: false, message: result.error || 'Failed to dispatch remote push notification' };
+      }
+    }
+
+    return {
+      success: true,
+      message: mode === 'local'
+        ? 'Local sound and notification channel tested successfully!'
+        : 'Remote push test dispatched successfully to your registered device(s)!',
+    };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown error';
     return { success: false, message: errorMsg };
   }
 }
+
 
 

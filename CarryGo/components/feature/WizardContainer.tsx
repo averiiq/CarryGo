@@ -2,9 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import Animated, {
   SlideInRight,
-  SlideOutLeft,
   SlideInLeft,
-  SlideOutRight,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -26,6 +24,8 @@ type WizardContainerProps = {
   title?: string;
   /** Called when the back arrow in the header is pressed */
   onBack?: () => void;
+  /** Optional sticky footer rendered outside the animated sliding container */
+  footer?: React.ReactNode;
 };
 
 export function WizardContainer({
@@ -36,6 +36,7 @@ export function WizardContainer({
   direction = 'forward',
   title,
   onBack,
+  footer,
 }: WizardContainerProps) {
   const { C } = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -43,9 +44,6 @@ export function WizardContainer({
   const entering = direction === 'forward'
     ? SlideInRight.springify().damping(22).stiffness(200)
     : SlideInLeft.springify().damping(22).stiffness(200);
-  const exiting = direction === 'forward'
-    ? SlideOutLeft.duration(180)
-    : SlideOutRight.duration(180);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -92,11 +90,11 @@ export function WizardContainer({
       <Animated.View
         key={`step-${currentStep}`}
         entering={entering}
-        exiting={exiting}
-        style={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        style={[styles.content, { paddingBottom: footer ? 0 : insets.bottom + 24 }]}
       >
         {children}
       </Animated.View>
+      {footer}
     </View>
   );
 }

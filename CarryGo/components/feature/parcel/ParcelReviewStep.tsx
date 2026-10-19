@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useAuth } from '@/hooks/useAuth';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
 import { DigitalWaybillCard } from '@/components/feature/DigitalWaybillCard';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
@@ -14,7 +15,18 @@ interface ParcelReviewStepProps {
 }
 
 export function ParcelReviewStep({ form, C, onEdit, hasKyc }: ParcelReviewStepProps) {
+  const { user } = useAuth();
+  const isKycApproved = Boolean(
+    user?.kycStatus === 'approved' ||
+    user?.verified ||
+    user?.isAadhaarVerified
+  );
   const selectedCategory = PARCEL_CATEGORIES.find((c) => c.type === form.category);
+
+  const userAvatar = user?.avatar || user?.selfieUrl || (user as any)?.avatarUrl || (user as any)?.userSelfieUrl;
+  const userName = user?.fullName || user?.name || 'Verified Sender';
+  const userRating = user?.rating && user.rating > 0 ? user.rating : 5.0;
+  const userHasKyc = hasKyc ?? isKycApproved;
 
   return (
     <KeyboardAwareScrollView
@@ -55,7 +67,10 @@ export function ParcelReviewStep({ form, C, onEdit, hasKyc }: ParcelReviewStepPr
         description={form.description}
         onEditRoute={() => onEdit(0)}
         onEditDetails={() => onEdit(1)}
-        hasKyc={hasKyc}
+        hasKyc={userHasKyc}
+        userAvatar={userAvatar}
+        userName={userName}
+        userRating={userRating}
       />
 
       <View

@@ -625,9 +625,11 @@ export default function ParcelDetailScreen() {
           {/* Compensation & Escrow Guarantee Strip */}
           <View style={[styles.escrowBanner, { backgroundColor: C.surfaceElevated }]}>
             <View style={styles.escrowLeft}>
-              <Text style={[styles.offerAmount, { color: C.textPrimary }]}>₹{parcel.priceOffer}</Text>
+              <Text style={[styles.offerAmount, { color: C.textPrimary }]}>
+                {parcel.priceOffer && parcel.priceOffer > 0 ? `₹${parcel.priceOffer}` : 'Negotiable'}
+              </Text>
               <Text style={[styles.offerSubtext, { color: C.textMuted }]}>
-                Carrier Reward ({parcel.weight} kg)
+                {parcel.priceOffer && parcel.priceOffer > 0 ? `Carrier Reward (${parcel.weight} kg)` : `Reward Negotiable with Sender (${parcel.weight} kg)`}
               </Text>
             </View>
             <View style={[styles.escrowRight, { backgroundColor: C.successSubtle }]}>

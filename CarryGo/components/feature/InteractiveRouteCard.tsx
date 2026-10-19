@@ -83,20 +83,12 @@ export function InteractiveRouteCard({
     (selected: string) => {
       if (modalField === 'from') {
         onFromCityChange(selected);
-        // If destination is not selected yet, automatically prompt for destination next
-        if (!toCity) {
-          setTimeout(() => {
-            setModalField('to');
-          }, 350);
-        } else {
-          setModalField(null);
-        }
       } else if (modalField === 'to') {
         onToCityChange(selected);
-        setModalField(null);
       }
+      setModalField(null);
     },
-    [modalField, onFromCityChange, onToCityChange, toCity]
+    [modalField, onFromCityChange, onToCityChange]
   );
 
   return (

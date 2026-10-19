@@ -12,7 +12,6 @@ import { AsyncStateCard, OfflineBanner, RequestCard, RequestDetailModal, LottieA
 import { RatingModal } from '@/components/feature/RatingModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
-import { sendLocalNotification, sendRequestNotification } from '@/services/notifications.service';
 import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
@@ -311,8 +310,6 @@ export default function RequestsScreen() {
                 convId = existing.id;
               }
               await createDelivery(requestId);
-              await sendRequestNotification('received', otherUserName, req.price);
-              await sendLocalNotification('Accepted', `Delivery with ${otherUserName} accepted!`);
             } catch (auxError) {
               console.warn('Post-accept auxiliary step error (non-fatal):', auxError);
             }

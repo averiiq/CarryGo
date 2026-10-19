@@ -100,6 +100,9 @@ export const SwipeableCard = React.memo(function SwipeableCard({
       friction={2}
       enableTrackpadTwoFingerGesture
       rightThreshold={40}
+      activeOffsetX={[-20, 20]}
+      failOffsetY={[-12, 12]}
+      overshootRight={false}
       renderRightActions={renderRightActions}
       onSwipeableWillOpen={() => {
         Haptic.tap();

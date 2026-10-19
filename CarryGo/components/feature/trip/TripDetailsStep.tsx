@@ -1,24 +1,19 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Input } from '@/components/ui/Input';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
-import { VehicleType } from '@/types';
+import { VehicleType, ParcelCategory } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
-import {
-  BikeIllustration,
-  CarIllustration,
-  BusIllustration,
-  TrainIllustration,
-  FlightIllustration,
-} from '@/components/illustrations';
 
 export interface TripDetailsDraft {
   vehicle: VehicleType;
   capacity: string;
   price: string;
+  allowedCategories?: ParcelCategory[];
   [key: string]: any;
 }
 
@@ -30,29 +25,49 @@ export const VEHICLE_MAX_CAPACITY: Record<VehicleType, number> = {
   flight: 25,
 };
 
+export const VEHICLE_IMAGES: Record<VehicleType, any> = {
+  car: require('@/assets/images/vehicles/car.jpg'),
+  bike: require('@/assets/images/vehicles/bike.jpg'),
+  bus: require('@/assets/images/vehicles/bus.jpg'),
+  train: require('@/assets/images/vehicles/train.jpg'),
+  flight: require('@/assets/images/vehicles/flight.jpg'),
+};
+
+export const CARRY_CATEGORY_IMAGES: Record<ParcelCategory, any> = {
+  documents: require('@/assets/images/categories/documents.jpg'),
+  electronics: require('@/assets/images/categories/electronics.jpg'),
+  clothing: require('@/assets/images/categories/clothing.jpg'),
+  food: require('@/assets/images/categories/food.jpg'),
+  medicine: require('@/assets/images/categories/medicine.jpg'),
+  other: require('@/assets/images/categories/other.jpg'),
+};
+
 export const VEHICLES: {
   type: VehicleType;
   label: string;
   icon: keyof typeof MaterialIcons.glyphMap;
   color: string;
 }[] = [
+  { type: 'car', label: 'Car', icon: 'directions-car', color: '#2563EB' },
   { type: 'bike', label: 'Bike', icon: 'two-wheeler', color: '#16A34A' },
-  { type: 'car', label: 'Car', icon: 'directions-car', color: '#4B5563' },
-  { type: 'bus', label: 'Bus', icon: 'directions-bus', color: '#6B7280' },
-  { type: 'train', label: 'Train', icon: 'train', color: '#0F766E' },
-  { type: 'flight', label: 'Flight', icon: 'flight', color: '#15803D' },
+  { type: 'bus', label: 'Bus', icon: 'directions-bus', color: '#D97706' },
+  { type: 'train', label: 'Train', icon: 'train', color: '#0D9488' },
+  { type: 'flight', label: 'Flight', icon: 'flight', color: '#7C3AED' },
 ];
 
-export const VEHICLE_ILLUSTRATIONS: Record<
-  VehicleType,
-  React.FC<{ size?: number; color?: string; active?: boolean }>
-> = {
-  bike: BikeIllustration,
-  car: CarIllustration,
-  bus: BusIllustration,
-  train: TrainIllustration,
-  flight: FlightIllustration,
-};
+export const CARRY_CATEGORIES: {
+  type: ParcelCategory;
+  label: string;
+  tagline: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+}[] = [
+  { type: 'documents', label: 'Documents', tagline: 'Letters, books & files', icon: 'description' },
+  { type: 'electronics', label: 'Electronics', tagline: 'Phones & tech gadgets', icon: 'devices' },
+  { type: 'clothing', label: 'Clothing', tagline: 'Apparel, shoes & fabric', icon: 'checkroom' },
+  { type: 'food', label: 'Food & Sweets', tagline: 'Dry & packaged foods', icon: 'restaurant' },
+  { type: 'medicine', label: 'Medicine', tagline: 'Prescription & first aid', icon: 'local-pharmacy' },
+  { type: 'other', label: 'General / Box', tagline: 'Small boxes & cartons', icon: 'inventory-2' },
+];
 
 export const VEHICLE_QUICK_DEFAULTS: Record<VehicleType, { capacity: string; price: string }> = {
   bike: { capacity: '3', price: '70' },
@@ -62,32 +77,8 @@ export const VEHICLE_QUICK_DEFAULTS: Record<VehicleType, { capacity: string; pri
   flight: { capacity: '8', price: '250' },
 };
 
-export const CAPACITY_PRESETS = ['2', '5', '10', '15'];
-export const PRICE_PRESETS = ['60', '100', '150', '250'];
-
-function StepHeader({
-  title,
-  subtitle,
-  icon,
-  C,
-}: {
-  title: string;
-  subtitle: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  C: any;
-}) {
-  return (
-    <View style={styles.header}>
-      <View style={[styles.headerIconWrapper, { backgroundColor: C.primarySubtle }]}>
-        <MaterialIcons name={icon} size={22} color={C.primary} />
-      </View>
-      <View style={styles.headerTextContainer}>
-        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{title}</Text>
-        <Text style={[styles.headerSubtitle, { color: C.textSecondary }]}>{subtitle}</Text>
-      </View>
-    </View>
-  );
-}
+export const CAPACITY_PRESETS = ['2', '5', '10', '15', '25', '50'];
+export const PRICE_PRESETS = ['60', '80', '100', '150', '250'];
 
 interface TripDetailsStepProps {
   form: TripDetailsDraft;
@@ -115,6 +106,7 @@ export const TripDetailsStep = memo(function TripDetailsStep({
           String(recommendedPrice.min),
           String(recommendedPrice.suggested),
           String(recommendedPrice.max),
+          '100',
         ])
       )
     : PRICE_PRESETS;
@@ -130,215 +122,289 @@ export const TripDetailsStep = memo(function TripDetailsStep({
       keyboardDismissMode="on-drag"
       extraScrollHeight={130}
     >
-      <StepHeader
-        title="Trip details"
-        subtitle="How are you travelling and how much can you carry?"
-        icon="luggage"
-        C={C}
-      />
+      {/* Clean Header */}
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Trip Details</Text>
+      </View>
 
-      {/* Vehicle Type Selection Grid */}
+      {/* Smaller, Simpler Travel Mode Cards */}
       <View style={styles.fieldGroup}>
         <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Travel Mode</Text>
-        <View style={styles.vehicleGrid}>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
+          contentContainerStyle={styles.vehicleRow}
+        >
           {VEHICLES.map((v) => {
-            const Illustration = VEHICLE_ILLUSTRATIONS[v.type];
             const isActive = form.vehicle === v.type;
+            const vehicleImage = VEHICLE_IMAGES[v.type];
+
             return (
               <Pressable
                 key={v.type}
                 accessibilityRole="button"
-                accessibilityLabel={`Select ${v.label} as travel mode`}
-                accessibilityState={{ selected: isActive }}
-                style={({ pressed }) => [
-                  styles.vehicleCard,
-                  { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-                  isActive && { backgroundColor: v.color + '14', borderColor: v.color },
-                  pressed && { transform: [{ scale: 0.96 }] },
-                ]}
+                accessibilityLabel={`Select ${v.label}`}
                 onPress={() => {
                   Haptic.select();
                   updateField('vehicle', v.type);
                   const defaults = VEHICLE_QUICK_DEFAULTS[v.type];
-                  if (!form.capacity) updateField('capacity', defaults.capacity);
+                  if (!form.capacity || Number(form.capacity) > VEHICLE_MAX_CAPACITY[v.type]) {
+                    updateField('capacity', defaults.capacity);
+                  }
                   if (!form.price) updateField('price', defaults.price);
                 }}
+                style={({ pressed }) => [
+                  styles.compactVehicleCard,
+                  {
+                    backgroundColor: isActive ? C.primarySubtle : C.surface,
+                    borderColor: isActive ? C.primary : C.surfaceBorder,
+                  },
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+                ]}
               >
-                <Illustration size={44} color={isActive ? v.color : C.textMuted} active={isActive} />
-                <Text style={[styles.vehicleLabel, { color: isActive ? v.color : C.textSecondary }]}>
+                {/* 3D Image */}
+                <View style={styles.compactImgWrap}>
+                  <Image
+                    source={vehicleImage}
+                    style={styles.compactImg}
+                    contentFit="contain"
+                  />
+                </View>
+
+                {/* Name */}
+                <Text
+                  style={[
+                    styles.compactVehicleName,
+                    {
+                      color: isActive ? C.primary : C.textPrimary,
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.medium,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
                   {v.label}
+                </Text>
+
+                {/* Capacity badge */}
+                <Text style={[styles.compactVehicleCap, { color: C.textMuted }]}>
+                  {VEHICLE_MAX_CAPACITY[v.type]} kg
                 </Text>
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
 
-      {/* Smart Route Guidance Card */}
+      {/* Suggested Corridor Rate (Compact) */}
       {recommendedPrice ? (
-        <View style={[styles.smartPriceCard, { backgroundColor: C.surface, borderColor: C.primary + '40' }]}>
-          <View style={styles.smartPriceTop}>
-            <View style={[styles.smartPriceBadge, { backgroundColor: C.primarySubtle }]}>
+        <View style={[styles.compactGuidanceCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <MaterialIcons name="auto-awesome" size={13} color={C.primary} />
-              <Text style={[styles.smartPriceBadgeText, { color: C.primary }]}>Corridor Rate Guidance</Text>
+              <Text style={[styles.guidanceLabel, { color: C.primary }]}>Suggested Rate</Text>
             </View>
-            <Text style={[styles.smartPriceDemandText, { color: C.primary }]}>
-              ~{recommendedPrice.distanceKm} km route
+            <Text style={[styles.guidancePrice, { color: C.textPrimary }]}>
+              ₹{recommendedPrice.suggested}/kg{' '}
+              <Text style={{ fontSize: 11, color: C.textMuted, fontWeight: FontWeight.regular }}>
+                (₹{recommendedPrice.min} – ₹{recommendedPrice.max})
+              </Text>
             </Text>
           </View>
 
-          <View style={styles.smartPriceBody}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.smartPriceAmount, { color: C.textPrimary }]}>
-                ₹{recommendedPrice.suggested}{' '}
-                <Text
-                  style={{
-                    fontSize: FontSize.sm,
-                    fontWeight: FontWeight.regular,
-                    color: C.textSecondary,
-                  }}
-                >
-                  / kg
-                </Text>
-              </Text>
-              <Text style={[styles.smartPriceRange, { color: C.textMuted }]}>
-                Typical corridor bracket: ₹{recommendedPrice.min} – ₹{recommendedPrice.max} / kg
-              </Text>
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Apply suggested fare of Rs ${recommendedPrice.suggested} per kg`}
-              style={({ pressed }) => [
-                styles.smartPriceApplyBtn,
-                { backgroundColor: C.primary },
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-              ]}
-              onPress={() => {
-                Haptic.success();
-                updateField('price', String(recommendedPrice.suggested));
-              }}
-            >
-              <Text style={styles.smartPriceApplyText}>Apply ₹{recommendedPrice.suggested}/kg</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Apply suggested rate"
+            onPress={() => {
+              Haptic.success();
+              updateField('price', String(recommendedPrice.suggested));
+            }}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.applyBtn,
+              { backgroundColor: C.primary },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Text style={styles.applyBtnText}>Apply</Text>
+          </Pressable>
         </View>
       ) : null}
 
       {/* Available Space / Capacity Input */}
       <View style={styles.fieldGroup}>
         <Input
-          label={`Available Space (kg) — Max ${maxCapacity} kg for ${form.vehicle}`}
+          label={`Available Space (kg) — Max ${maxCapacity} kg`}
           placeholder={`e.g. ${form.capacity || '5'}`}
           value={form.capacity}
           onChangeText={(v) => updateField('capacity', v)}
           keyboardType="decimal-pad"
           error={fieldErrors.capacity}
         />
-        <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Capacity:</Text>
-          <View style={styles.presetRow}>
-            {CAPACITY_PRESETS.filter((v) => Number(v) <= maxCapacity).map((value) => (
-              <Pressable
-                key={`capacity-${value}`}
-                accessibilityRole="button"
-                accessibilityLabel={`Set capacity to ${value} kg`}
-                style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.capacity === value && {
-                    backgroundColor: C.primarySubtle,
-                    borderColor: C.primary,
-                  },
-                  pressed && { opacity: 0.8 },
+        <View style={styles.presetRow}>
+          {CAPACITY_PRESETS.filter((v) => Number(v) <= maxCapacity).map((value) => (
+            <Pressable
+              key={`capacity-${value}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Set capacity to ${value} kg`}
+              style={({ pressed }) => [
+                styles.presetChip,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                form.capacity === value && {
+                  backgroundColor: C.primarySubtle,
+                  borderColor: C.primary,
+                },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => {
+                Haptic.select();
+                updateField('capacity', value);
+              }}
+            >
+              <Text
+                style={[
+                  styles.presetText,
+                  { color: form.capacity === value ? C.primary : C.textSecondary, fontWeight: form.capacity === value ? FontWeight.bold : FontWeight.medium },
                 ]}
-                onPress={() => {
-                  Haptic.select();
-                  updateField('capacity', value);
-                }}
               >
-                <Text
-                  style={[
-                    styles.presetText,
-                    { color: form.capacity === value ? C.primary : C.textSecondary },
-                  ]}
-                >
-                  {value} kg
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+                {value} kg
+              </Text>
+            </Pressable>
+          ))}
         </View>
       </View>
 
       {/* Price Per Kg Input */}
       <View style={styles.fieldGroup}>
         <Input
-          label="Price / kg (₹)"
+          label="Price per kg (₹)"
           placeholder="e.g. 80"
           value={form.price}
           onChangeText={(v) => updateField('price', v)}
           keyboardType="decimal-pad"
           error={fieldErrors.price}
         />
-        <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Fare:</Text>
-          <View style={styles.presetRow}>
-            {activePricePresets.map((value) => (
-              <Pressable
-                key={`price-${value}`}
-                accessibilityRole="button"
-                accessibilityLabel={`Set price to Rs ${value} per kg`}
-                style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.price === value && {
-                    backgroundColor: C.successSubtle,
-                    borderColor: C.success,
-                  },
-                  pressed && { opacity: 0.8 },
+        <View style={styles.presetRow}>
+          {activePricePresets.map((value) => (
+            <Pressable
+              key={`price-${value}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Set price to Rs ${value}`}
+              style={({ pressed }) => [
+                styles.presetChip,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                form.price === value && {
+                  backgroundColor: C.successSubtle,
+                  borderColor: C.success,
+                },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => {
+                Haptic.select();
+                updateField('price', value);
+              }}
+            >
+              <Text
+                style={[
+                  styles.presetText,
+                  { color: form.price === value ? C.success : C.textSecondary, fontWeight: form.price === value ? FontWeight.bold : FontWeight.medium },
                 ]}
-                onPress={() => {
-                  Haptic.select();
-                  updateField('price', value);
-                }}
               >
-                <Text
-                  style={[
-                    styles.presetText,
-                    { color: form.price === value ? C.success : C.textSecondary },
-                  ]}
-                >
-                  ₹{value}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+                ₹{value}/kg
+              </Text>
+            </Pressable>
+          ))}
         </View>
       </View>
 
-      {/* Potential Earnings Preview */}
-      {form.capacity && form.price && Number(form.capacity) > 0 && Number(form.price) > 0 ? (
-        <View
-          style={[
-            styles.earningHint,
-            { backgroundColor: C.successSubtle, borderColor: C.success + '40', borderWidth: 1 },
-          ]}
-        >
-          <MaterialIcons name="trending-up" size={18} color={C.success} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.earningText, { color: C.textPrimary }]}>
-              Potential Earnings:{' '}
-              <Text style={{ color: C.success, fontWeight: FontWeight.bold }}>
-                ₹{(Number(form.capacity) * Number(form.price)).toFixed(0)}
-              </Text>
+      {/* What can you carry? Multi-selection */}
+      <View style={styles.fieldGroup}>
+        <View style={styles.categoryHeader}>
+          <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>What can you carry?</Text>
+          <Pressable
+            onPress={() => {
+              Haptic.tap();
+              const allTypes = CARRY_CATEGORIES.map((c) => c.type);
+              const current = form.allowedCategories || allTypes;
+              if (current.length === allTypes.length) {
+                updateField('allowedCategories', ['documents']);
+              } else {
+                updateField('allowedCategories', allTypes);
+              }
+            }}
+            hitSlop={8}
+          >
+            <Text style={[styles.toggleAllText, { color: C.primary }]}>
+              {(form.allowedCategories || []).length === CARRY_CATEGORIES.length ? 'Clear All' : 'Select All'}
             </Text>
-            <Text style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
-              Carrying packages on your journey offsets travel expenses & tolls!
-            </Text>
-          </View>
+          </Pressable>
         </View>
-      ) : null}
+
+        {fieldErrors.allowedCategories ? (
+          <Text style={[styles.errorText, { color: C.error }]}>{fieldErrors.allowedCategories}</Text>
+        ) : null}
+
+        <View style={styles.carryCategoryGrid}>
+          {CARRY_CATEGORIES.map((cat) => {
+            const currentList = form.allowedCategories || CARRY_CATEGORIES.map((c) => c.type);
+            const isSelected = currentList.includes(cat.type);
+            const catImage = CARRY_CATEGORY_IMAGES[cat.type];
+
+            return (
+              <Pressable
+                key={cat.type}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={`Allow carrying ${cat.label}`}
+                onPress={() => {
+                  Haptic.select();
+                  const next = isSelected
+                    ? currentList.filter((t: string) => t !== cat.type)
+                    : [...currentList, cat.type];
+                  updateField('allowedCategories', next);
+                }}
+                style={({ pressed }) => [
+                  styles.compactCategoryCard,
+                  {
+                    backgroundColor: isSelected ? C.primarySubtle : C.surface,
+                    borderColor: isSelected ? C.primary : C.surfaceBorder,
+                  },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Image
+                  source={catImage}
+                  style={styles.compactCatImg}
+                  contentFit="cover"
+                />
+
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.catTitle, { color: isSelected ? C.primary : C.textPrimary }]}>
+                    {cat.label}
+                  </Text>
+                  <Text style={[styles.catSub, { color: C.textMuted }]} numberOfLines={1}>
+                    {cat.tagline}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.checkboxCircle,
+                    {
+                      borderColor: isSelected ? C.primary : C.surfaceBorder,
+                      backgroundColor: isSelected ? C.primary : 'transparent',
+                    },
+                  ]}
+                >
+                  {isSelected ? <MaterialIcons name="check" size={12} color="#FFFFFF" /> : null}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </KeyboardAwareScrollView>
   );
 });
@@ -349,148 +415,145 @@ const styles = StyleSheet.create({
   },
   stepInner: {
     padding: Spacing.md,
-    gap: Spacing.md,
+    gap: 14,
     paddingBottom: Spacing.xl + 40,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  headerIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTextContainer: {
-    flex: 1,
+    marginBottom: 2,
   },
   headerTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
-  },
-  headerSubtitle: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
+    letterSpacing: -0.3,
   },
   fieldGroup: {
-    gap: Spacing.xs + 2,
-    marginTop: Spacing.xs,
+    gap: 8,
   },
   fieldLabel: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
     letterSpacing: 0.2,
   },
-  vehicleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs + 2,
+  vehicleRow: {
+    gap: 8,
+    paddingVertical: 2,
   },
-  vehicleCard: {
-    flex: 1,
-    minWidth: '28%',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
+  compactVehicleCard: {
+    width: 74,
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
-    gap: 4,
-  },
-  vehicleLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-  },
-  smartPriceCard: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.sm + 4,
-    gap: Spacing.xs + 2,
-  },
-  smartPriceTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  smartPriceBadge: {
-    flexDirection: 'row',
+    padding: 8,
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.full,
   },
-  smartPriceBadgeText: {
-    fontSize: 11,
-    fontWeight: FontWeight.semibold,
-  },
-  smartPriceDemandText: {
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
-  },
-  smartPriceBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-    marginTop: 2,
-  },
-  smartPriceAmount: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  smartPriceRange: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  smartPriceApplyBtn: {
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: Spacing.xs + 4,
-    borderRadius: BorderRadius.lg,
+  compactImgWrap: {
+    width: 44,
+    height: 38,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  smartPriceApplyText: {
-    color: '#fff',
+  compactImg: {
+    width: '100%',
+    height: '100%',
+  },
+  compactVehicleName: {
     fontSize: FontSize.xs,
+    textAlign: 'center',
+  },
+  compactVehicleCap: {
+    fontSize: 10,
+    textAlign: 'center',
+  },
+  compactGuidanceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  guidanceLabel: {
+    fontSize: 10,
     fontWeight: FontWeight.bold,
   },
-  presetSection: {
-    gap: Spacing.xs,
-    marginTop: Spacing.xs,
+  guidancePrice: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    marginTop: 2,
   },
-  presetSectionLabel: {
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
+  applyBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  applyBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
   },
   presetRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.xs,
+    gap: 6,
+    marginTop: 2,
   },
   presetChip: {
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
   presetText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
   },
-  earningHint: {
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleAllText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  carryCategoryGrid: {
+    gap: 6,
+  },
+  compactCategoryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.sm + 2,
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: BorderRadius.lg,
-    marginTop: Spacing.xs,
+    borderWidth: 1,
   },
-  earningText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.medium,
+  compactCatImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+  },
+  catTitle: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  catSub: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  checkboxCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: FontSize.xs,
+    marginTop: -2,
   },
 });

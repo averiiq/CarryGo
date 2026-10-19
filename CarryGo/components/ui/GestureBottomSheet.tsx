@@ -111,9 +111,11 @@ export function GestureBottomSheet({
 
   useEffect(() => {
     if (visible) {
+      translateY.value = SCREEN_HEIGHT;
+      backdropProgress.value = 0;
       animateOpen();
     }
-  }, [visible, animateOpen]);
+  }, [visible, animateOpen, SCREEN_HEIGHT, translateY, backdropProgress]);
 
   // Keyboard elevation tracking
   useEffect(() => {

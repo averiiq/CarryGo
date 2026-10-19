@@ -4,9 +4,10 @@ import {
   TextInput, Animated, Pressable, Platform, useWindowDimensions,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { useRouter } from 'expo-router';
+import { useRouter, Href } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
+import { consumePendingNotificationRoute } from '@/services/notifications.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, Gradients } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -161,7 +162,9 @@ export default function LoginScreen() {
       return;
     }
     Haptic.success(); pulseSuccess();
-    router.replace(requiresProfileSetup ? '/profile-setup' : '/(tabs)');
+    const pendingRoute = consumePendingNotificationRoute();
+    const destination = (requiresProfileSetup ? '/profile-setup' : (pendingRoute || '/(tabs)')) as Href;
+    router.replace(destination);
   }, [email, operationLoading, otpStr, pulseSuccess, router, shake, showAlert, verifyOTP]);
 
   useEffect(() => {

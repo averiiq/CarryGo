@@ -1,11 +1,11 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
 import { InteractiveRouteCard } from '@/components/feature/InteractiveRouteCard';
 import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
-import { formatScheduleDate, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
+import { toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 
@@ -34,30 +34,6 @@ const TIME_PRESETS = [
   { label: 'Night', time: '09:00 PM' },
 ];
 
-function StepHeader({
-  title,
-  subtitle,
-  icon,
-  C,
-}: {
-  title: string;
-  subtitle: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  C: any;
-}) {
-  return (
-    <View style={styles.header}>
-      <View style={[styles.headerIconWrapper, { backgroundColor: C.primarySubtle }]}>
-        <MaterialIcons name={icon} size={22} color={C.primary} />
-      </View>
-      <View style={styles.headerTextContainer}>
-        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{title}</Text>
-        <Text style={[styles.headerSubtitle, { color: C.textSecondary }]}>{subtitle}</Text>
-      </View>
-    </View>
-  );
-}
-
 export const TripRouteStep = memo(function TripRouteStep({
   form,
   updateField,
@@ -69,6 +45,24 @@ export const TripRouteStep = memo(function TripRouteStep({
 }: TripRouteStepProps) {
   const { C } = useThemeColors();
 
+  // Quick date presets: Today, Tomorrow, +2 Days, +3 Days
+  const quickDates = useMemo(() => {
+    const dates = [];
+    const now = new Date();
+    for (let i = 0; i < 4; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      const key = toLocalDateKey(d);
+      let label = 'Today';
+      if (i === 1) label = 'Tomorrow';
+      else if (i === 2 || i === 3) {
+        label = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+      }
+      dates.push({ key, label });
+    }
+    return dates;
+  }, []);
+
   return (
     <KeyboardAwareScrollView
       style={styles.stepContent}
@@ -79,24 +73,26 @@ export const TripRouteStep = memo(function TripRouteStep({
       keyboardDismissMode="on-drag"
       extraScrollHeight={130}
     >
-      <StepHeader
-        title="Where are you going?"
-        subtitle="Choose your journey route, date, and departure time"
-        icon="flight-takeoff"
-        C={C}
-      />
+      {/* Clean Header */}
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
+          Where are you travelling?
+        </Text>
+      </View>
 
+      {/* Corridors */}
       <HaryanaCorridorChips
         activeFromCity={form.fromCity}
         activeToCity={form.toCity}
         onSelectCorridor={(from, to) => {
+          Haptic.select();
           updateField('fromCity', from);
           updateField('toCity', to);
         }}
-        title="Popular Corridors (1-Tap Route)"
+        title="Popular Corridors"
       />
 
-      {/* Modern Interactive Route Card with City Swap */}
+      {/* Route Card */}
       <InteractiveRouteCard
         fromCity={form.fromCity}
         toCity={form.toCity}
@@ -109,76 +105,100 @@ export const TripRouteStep = memo(function TripRouteStep({
         locationHint={locationHint}
       />
 
-      <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Departure Schedule</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Select travel date and departure time"
-          style={({ pressed }) => [
-            styles.scheduleBtn,
-            {
-              backgroundColor: C.surface,
-              borderColor: fieldErrors.date ? C.error : form.date ? C.primary : C.surfaceBorder,
-            },
-            pressed && { opacity: 0.85 },
-          ]}
-          onPress={() => {
-            Haptic.tap();
-            onDatePress();
-          }}
-        >
-          <View style={[styles.scheduleIconBox, { backgroundColor: form.date ? C.primarySubtle : C.surfaceElevated }]}>
-            <MaterialIcons name="event" size={20} color={form.date ? C.primary : C.textMuted} />
+      {/* Compact Schedule Card */}
+      <View style={[styles.scheduleCard, { backgroundColor: C.surface, borderColor: fieldErrors.date ? C.error : C.surfaceBorder }]}>
+        <View style={styles.scheduleHeaderRow}>
+          <View style={styles.scheduleTitleBox}>
+            <MaterialIcons name="event" size={16} color={C.primary} />
+            <Text style={[styles.scheduleTitle, { color: C.textPrimary }]}>Departure Schedule</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            {form.date ? (
-              <>
-                <Text style={[styles.scheduleDateText, { color: C.textPrimary }]}>
-                  {formatScheduleDate(form.date)}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open calendar"
+            onPress={() => {
+              Haptic.tap();
+              onDatePress();
+            }}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.calendarIconBtn,
+              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <MaterialIcons name="calendar-month" size={16} color={C.primary} />
+          </Pressable>
+        </View>
+
+        {/* Compact Quick Date Chips */}
+        <View style={styles.chipRow}>
+          {quickDates.map((d) => {
+            const isSelected = form.date === d.key;
+            return (
+              <Pressable
+                key={d.key}
+                accessibilityRole="button"
+                accessibilityLabel={`Date: ${d.label}`}
+                onPress={() => {
+                  Haptic.select();
+                  updateField('date', d.key);
+                }}
+                style={({ pressed }) => [
+                  styles.pillChip,
+                  {
+                    backgroundColor: isSelected ? C.primarySubtle : C.surfaceElevated,
+                    borderColor: isSelected ? C.primary : C.surfaceBorder,
+                  },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.pillChipText,
+                    { color: isSelected ? C.primary : C.textPrimary, fontWeight: isSelected ? FontWeight.bold : FontWeight.medium },
+                  ]}
+                >
+                  {d.label}
                 </Text>
-                <Text style={[styles.scheduleTimeText, { color: C.textSecondary }]}>
-                  {form.time || 'Tap to choose time'}
-                </Text>
-              </>
-            ) : (
-              <Text style={[styles.schedulePlaceholder, { color: fieldErrors.date ? C.error : C.textMuted }]}>
-                {fieldErrors.date || 'Select date & time'}
-              </Text>
-            )}
-          </View>
-          <MaterialIcons
-            name={form.date ? 'edit' : 'chevron-right'}
-            size={18}
-            color={form.date ? C.primary : C.textMuted}
-          />
-        </Pressable>
+              </Pressable>
+            );
+          })}
+        </View>
 
         {fieldErrors.date ? (
-          <Text style={[styles.errorHelperText, { color: C.error }]}>{fieldErrors.date}</Text>
+          <Text style={[styles.errorText, { color: C.error }]}>{fieldErrors.date}</Text>
         ) : null}
 
-        {/* Quick Time of Day Chips */}
-        <View style={styles.presetRow}>
+        {/* Compact Time Chips */}
+        <View style={styles.chipRow}>
           {TIME_PRESETS.map((t) => {
             const isSelected = form.time === t.time;
             return (
               <Pressable
                 key={t.label}
                 accessibilityRole="button"
-                accessibilityLabel={`Set time to ${t.label} (${t.time})`}
+                accessibilityLabel={`Time: ${t.label}`}
                 onPress={() => {
                   Haptic.select();
                   updateField('time', t.time);
                 }}
                 style={({ pressed }) => [
-                  styles.presetChip,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  isSelected && { backgroundColor: C.primarySubtle, borderColor: C.primary + '88' },
+                  styles.pillChip,
+                  {
+                    backgroundColor: isSelected ? C.primarySubtle : C.surfaceElevated,
+                    borderColor: isSelected ? C.primary : C.surfaceBorder,
+                  },
                   pressed && { opacity: 0.8 },
                 ]}
               >
-                <Text style={[styles.presetText, { color: isSelected ? C.primary : C.textSecondary }]}>
-                  {t.label} ({t.time})
+                <Text
+                  style={[
+                    styles.pillChipText,
+                    { color: isSelected ? C.primary : C.textSecondary, fontWeight: isSelected ? FontWeight.bold : FontWeight.regular },
+                  ]}
+                >
+                  {t.label}
                 </Text>
               </Pressable>
             );
@@ -195,87 +215,61 @@ const styles = StyleSheet.create({
   },
   stepInner: {
     padding: Spacing.md,
-    gap: Spacing.md,
+    gap: 12,
     paddingBottom: Spacing.xl + 40,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  headerIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTextContainer: {
-    flex: 1,
+    marginBottom: 2,
   },
   headerTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
   },
-  headerSubtitle: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
+  scheduleCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: 12,
+    gap: 10,
   },
-  fieldGroup: {
-    gap: Spacing.xs + 2,
-    marginTop: Spacing.xs,
+  scheduleHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  fieldLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    letterSpacing: 0.2,
-  },
-  scheduleBtn: {
+  scheduleTitleBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.sm + 2,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    gap: Spacing.sm,
+    gap: 8,
   },
-  scheduleIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
+  scheduleTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  calendarIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scheduleDateText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-  },
-  scheduleTimeText: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
-  },
-  schedulePlaceholder: {
-    fontSize: FontSize.sm,
-  },
-  errorHelperText: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
-    marginLeft: 2,
-  },
-  presetRow: {
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.xs,
-    marginTop: Spacing.xs,
+    gap: 6,
   },
-  presetChip: {
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: Spacing.xs + 2,
+  pillChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  presetText: {
+  pillChipText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
+  },
+  errorText: {
+    fontSize: FontSize.xs,
+    marginTop: -2,
   },
 });

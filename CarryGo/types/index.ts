@@ -35,6 +35,8 @@ export interface User {
   deletedAt?: string;
   isPanVerified?: boolean;
   panMasked?: string;
+  selfieUrl?: string;
+  isSelfieVerified?: boolean;
 }
 
 export type VehicleType = 'bike' | 'car' | 'bus' | 'train' | 'flight';
@@ -54,6 +56,7 @@ export interface Trip {
   pricePerKg: number;
   status: 'active' | 'completed' | 'cancelled';
   createdAt: string;
+  allowedCategories?: ParcelCategory[];
 }
 
 export type ParcelCategory = 'documents' | 'electronics' | 'clothing' | 'food' | 'medicine' | 'other';

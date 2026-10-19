@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system';
-import { isCloudinaryConfigured, getUploadUrl, buildCloudinaryUrl } from '@/lib/cloudinary';
+import { CLOUDINARY_CONFIG, isCloudinaryConfigured, getUploadUrl, buildCloudinaryUrl } from '@/lib/cloudinary';
 import { optimizeImage, optimizeWithThumbnail, ImagePreset, OptimizedImage } from '@/lib/imageOptimizer';
 import { captureException } from '@/lib/monitoring';
 import { isValidUuid } from '@/lib/sanitize';
@@ -163,6 +163,7 @@ async function uploadToCloudinary(
   const MAX_RETRIES = 1;
   let lastError = '';
 
+  const presetName = CLOUDINARY_CONFIG.uploadPreset || 'carrygo_uploads';
   const params: Record<string, string> = sig?.signature
     ? {
         api_key: sig.apiKey,
@@ -171,7 +172,7 @@ async function uploadToCloudinary(
         public_id: sig.publicId,
       }
     : {
-        upload_preset: 'carrygo_uploads',
+        upload_preset: presetName,
         folder: bucket,
         public_id: publicId,
       };
@@ -220,8 +221,8 @@ export async function uploadImage(
       return { data: null, error: 'Storage is not configured. Check Cloudinary credentials.' };
     }
 
-    if (!isValidUuid(options.userId)) {
-      return { data: null, error: 'Invalid user ID.' };
+    if (!options.userId || typeof options.userId !== 'string' || !options.userId.trim()) {
+      return { data: null, error: 'User ID is required.' };
     }
 
     if (options.generateThumbnail) {

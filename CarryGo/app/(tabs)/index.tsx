@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, ParcelCard, SwipeableCard, TripCard, LiveMarketplaceHeader, MarketplaceSortOption, RequestSuccessModal } from '@/components';
+import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, ParcelCard, SwipeableCard, TripCard, LiveMarketplaceHeader, MarketplaceSortOption, RequestSuccessModal, AnimatedIcon, type AnimatedIconRef } from '@/components';
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
@@ -26,6 +26,7 @@ import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
 import { checkTripParcelRoute } from '@/services/route-compatibility.service';
 import { FilterOptions, Parcel, Trip, Request } from '@/types';
+import { resolveImageUrl } from '@/constants/images';
 
 const DEFAULT_FILTERS: FilterOptions = { fromCity: '', toCity: '', vehicleType: '', dateFrom: '', dateTo: '' };
 type FeedItem = { type: 'trip'; data: Trip } | { type: 'parcel'; data: Parcel };
@@ -48,9 +49,17 @@ function HomeHeader({
   onCityPress?: () => void;
 }) {
   const { C } = useThemeColors();
+  const [imgError, setImgError] = useState(false);
+  const resolvedAvatar = resolveImageUrl(avatarUri);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUri]);
+
   const initial = (userName || 'U').charAt(0).toUpperCase();
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
+  const bellRef = useRef<AnimatedIconRef>(null);
 
   return (
     <View style={styles.headerTop}>
@@ -67,8 +76,13 @@ function HomeHeader({
         accessibilityLabel="View profile"
       >
         <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={{ width: 44, height: 44, borderRadius: 22 }} contentFit="cover" />
+          {resolvedAvatar && !imgError ? (
+            <Image
+              source={{ uri: resolvedAvatar }}
+              style={{ width: 44, height: 44, borderRadius: 22 }}
+              contentFit="cover"
+              onError={() => setImgError(true)}
+            />
           ) : (
             <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
           )}
@@ -108,6 +122,7 @@ function HomeHeader({
         <Pressable
           onPress={() => {
             Haptic.tap();
+            bellRef.current?.play();
             onNotifications();
           }}
           accessibilityRole="button"
@@ -119,7 +134,7 @@ function HomeHeader({
             pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] },
           ]}
         >
-          <MaterialIcons name="notifications-none" size={21} color={C.textPrimary} />
+          <AnimatedIcon ref={bellRef} name="notification" size={22} color={C.textPrimary} />
           {unreadCount > 0 ? (
             <View style={[styles.notifyBadge, { backgroundColor: C.error }]}>
               <Text style={styles.notifyBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -141,11 +156,14 @@ function SearchBarTrigger({
   hasFilter: boolean;
 }) {
   const { C } = useThemeColors();
+  const searchRef = useRef<AnimatedIconRef>(null);
+  const filterRef = useRef<AnimatedIconRef>(null);
 
   return (
     <Pressable
       onPress={() => {
         Haptic.tap();
+        searchRef.current?.play();
         onSearchPress();
       }}
       accessibilityRole="button"
@@ -157,7 +175,7 @@ function SearchBarTrigger({
       ]}
     >
       <View style={[styles.searchIconWrap, { backgroundColor: C.primarySubtle }]}>
-        <MaterialIcons name="search" size={20} color={C.primary} />
+        <AnimatedIcon ref={searchRef} name="searchToX" size={20} color={C.primary} />
       </View>
       <View style={styles.searchCopyWrap}>
         <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Where are you traveling or sending?</Text>
@@ -167,6 +185,7 @@ function SearchBarTrigger({
         onPress={(e) => {
           e.stopPropagation();
           Haptic.tap();
+          filterRef.current?.play();
           onFilterPress();
         }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -182,7 +201,7 @@ function SearchBarTrigger({
           pressed && { opacity: 0.75, transform: [{ scale: 0.94 }] },
         ]}
       >
-        <MaterialIcons name="tune" size={17} color={hasFilter ? C.primary : C.textSecondary} />
+        <AnimatedIcon ref={filterRef} name="filter" size={17} color={hasFilter ? C.primary : C.textSecondary} />
         {hasFilter ? <View style={[styles.activeFilterDotOnTrigger, { backgroundColor: C.primary }]} /> : null}
       </Pressable>
     </Pressable>
@@ -472,6 +491,8 @@ export default function HomeScreen() {
   const [quickVehicle, setQuickVehicle] = useState<string>('');
   const [quickCategory, setQuickCategory] = useState<string>('');
   const [marketplaceSort, setMarketplaceSort] = useState<MarketplaceSortOption>('recent');
+  const stickyFilterRef = useRef<AnimatedIconRef>(null);
+  const stickyBellRef = useRef<AnimatedIconRef>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [carryParcelTarget, setCarryParcelTarget] = useState<Parcel | null>(null);
   const [requestTripTarget, setRequestTripTarget] = useState<Trip | null>(null);
@@ -1198,6 +1219,7 @@ export default function HomeScreen() {
           <Pressable
             onPress={() => {
               Haptic.tap();
+              stickyFilterRef.current?.play();
               setShowFilters(true);
             }}
             hitSlop={TouchTarget.hitSlop}
@@ -1205,11 +1227,12 @@ export default function HomeScreen() {
             accessibilityLabel="Filter listings"
             style={[styles.miniIconBtn, { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface }]}
           >
-            <MaterialIcons name="tune" size={17} color={hasFilter ? C.primary : C.textPrimary} />
+            <AnimatedIcon ref={stickyFilterRef} name="filter" size={17} color={hasFilter ? C.primary : C.textPrimary} />
           </Pressable>
           <Pressable
             onPress={() => {
               Haptic.tap();
+              stickyBellRef.current?.play();
               setShowNotifications(true);
             }}
             hitSlop={TouchTarget.hitSlop}
@@ -1217,7 +1240,7 @@ export default function HomeScreen() {
             accessibilityLabel="Notifications"
             style={[styles.miniIconBtn, { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}
           >
-            <MaterialIcons name="notifications-none" size={18} color={C.textPrimary} />
+            <AnimatedIcon ref={stickyBellRef} name="notification" size={18} color={C.textPrimary} />
             {unreadCount > 0 ? <View style={[styles.miniBadge, { backgroundColor: C.error }]} /> : null}
           </Pressable>
         </View>

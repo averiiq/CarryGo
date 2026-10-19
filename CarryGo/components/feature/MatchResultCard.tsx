@@ -1,11 +1,13 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Trip, Parcel } from '@/types';
 import { calculateRouteDistance, formatTransitTime, estimateTransitTime } from '@/services/route-intelligence.service';
 import { Spacing, BorderRadius, FontSize, FontWeight, Motion } from '@/constants/theme';
+import { resolveImageUrl } from '@/constants/images';
 
 interface MatchResultCardProps {
   trip: Trip;
@@ -24,9 +26,18 @@ export const MatchResultCard = React.memo(function MatchResultCard({
 }: MatchResultCardProps) {
   const { C, S } = useThemeColors();
   const scale = useRef(new Animated.Value(1)).current;
+  const [avatarError, setAvatarError] = React.useState(false);
 
   const distance = calculateRouteDistance(trip.fromCity, trip.toCity);
   const transitTime = estimateTransitTime(trip.fromCity, trip.toCity, trip.vehicleType);
+  const rawAvatar =
+    trip.userAvatar ||
+    (trip as any).avatar ||
+    (trip as any).avatar_url ||
+    (trip as any).user_avatar ||
+    (trip as any).selfieUrl ||
+    (trip as any).userSelfieUrl;
+  const resolvedAvatar = resolveImageUrl(rawAvatar);
 
   const onPressIn = () =>
     Animated.spring(scale, {
@@ -115,9 +126,19 @@ export const MatchResultCard = React.memo(function MatchResultCard({
         {/* Traveller Info */}
         <View style={[styles.travellerRow, { borderTopColor: C.surfaceBorder }]}>
           <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
-            <Text style={[styles.avatarText, { color: C.primary }]}>
-              {(trip.userName || 'U').charAt(0).toUpperCase()}
-            </Text>
+            {resolvedAvatar && !avatarError ? (
+              <Image
+                source={{ uri: resolvedAvatar }}
+                style={styles.avatarImage}
+                contentFit="cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <Text style={[styles.avatarText, { color: C.primary }]}>
+                {(trip.userName || 'U').charAt(0).toUpperCase()}
+              </Text>
+            )}
+            <View style={styles.verifiedDot} />
           </View>
           <View style={styles.travellerInfo}>
             <View style={styles.nameRow}>
@@ -319,6 +340,24 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 18,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   avatarText: {
     fontSize: FontSize.md,

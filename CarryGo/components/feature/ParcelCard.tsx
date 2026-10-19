@@ -1,10 +1,13 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Parcel, Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
+import { resolveImageUrl, getCategoryFallbackImage } from '@/constants/images';
 
 const categoryConfig: Record<string, { icon: keyof typeof MaterialIcons.glyphMap; color: string; bg: string; border: string }> = {
   documents: { icon: 'description', color: '#D97706', bg: '#FEF3C7', border: '#FDE68A' },
@@ -41,6 +44,9 @@ export const ParcelCard = React.memo(function ParcelCard({
   onViewRequest,
 }: ParcelCardProps) {
   const { C, S, isDark } = useThemeColors();
+  const [avatarError, setAvatarError] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
+
   const baseCMeta = categoryConfig[parcel.category] || categoryConfig.other;
   const cMeta = {
     ...baseCMeta,
@@ -84,6 +90,21 @@ export const ParcelCard = React.memo(function ParcelCard({
     existingRequest?.status ? `your offer status: ${existingRequest.status}` : '',
   ].filter(Boolean).join(', ');
 
+  const parcelAvatarUri =
+    parcel.userAvatar ||
+    (parcel as any).avatar ||
+    (parcel as any).avatar_url ||
+    (parcel as any).user_avatar ||
+    (parcel as any).selfieUrl ||
+    (parcel as any).userSelfieUrl;
+  const isSelfieVerified = Boolean((parcel as any).selfieUrl || (parcel as any).userSelfieUrl || (parcel as any).isSelfieVerified);
+
+  const rawParcelPhoto = parcel.imageUri || parcel.imageUris?.[0];
+  const parcelPhoto = resolveImageUrl(rawParcelPhoto);
+  const fallbackCatImage = getCategoryFallbackImage(parcel.category);
+  const hasMultipleImages = Boolean(parcel.imageUris && parcel.imageUris.length > 1);
+  const resolvedAvatar = resolveImageUrl(parcelAvatarUri);
+
   return (
     <Pressable
       onPress={onPress}
@@ -111,12 +132,25 @@ export const ParcelCard = React.memo(function ParcelCard({
             <View
               style={[
                 styles.avatar,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 }
+                { backgroundColor: C.surfaceElevated, borderColor: isSelfieVerified ? C.success : C.surfaceBorder, borderWidth: 1.5 }
               ]}
             >
-              <Text style={[styles.avatarLetter, { color: C.primary }]}>
-                {avatarLetter}
-              </Text>
+              {resolvedAvatar && !avatarError ? (
+                <Image
+                  source={{ uri: resolvedAvatar }}
+                  style={{ width: '100%', height: '100%', borderRadius: 18 }}
+                  contentFit="cover"
+                  transition={200}
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <Text style={[styles.avatarLetter, { color: C.primary }]}>
+                  {avatarLetter}
+                </Text>
+              )}
+              {isSelfieVerified ? (
+                <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.card }]} />
+              ) : null}
             </View>
             <View style={styles.senderMeta}>
               <View style={styles.nameBadgeRow}>
@@ -149,6 +183,39 @@ export const ParcelCard = React.memo(function ParcelCard({
             <Text style={[styles.categoryChipText, { color: cMeta.color }]}>
               {parcel.category.toUpperCase()}
             </Text>
+          </View>
+        </View>
+
+        {/* Parcel Visual Media Container */}
+        <View style={[styles.mediaCardContainer, { borderColor: C.surfaceBorder }]}>
+          <Image
+            source={parcelPhoto && !mediaError ? { uri: parcelPhoto } : fallbackCatImage}
+            style={styles.mediaCardImage}
+            contentFit="cover"
+            transition={200}
+            onError={() => setMediaError(true)}
+          />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.6)']}
+            style={StyleSheet.absoluteFillObject}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+          <View style={styles.mediaCardTopRow}>
+            <View style={[styles.mediaCategoryBadge, { backgroundColor: cMeta.bg, borderColor: cMeta.border }]}>
+              <MaterialIcons name={cMeta.icon} size={12} color={cMeta.color} />
+              <Text style={[styles.mediaCategoryBadgeText, { color: cMeta.color }]}>
+                {parcel.category.toUpperCase()}
+              </Text>
+            </View>
+            {hasMultipleImages ? (
+              <View style={styles.photoCounterBadge}>
+                <MaterialIcons name="photo-camera" size={11} color="#FFFFFF" />
+                <Text style={styles.photoCounterText}>
+                  {parcel.imageUris?.length} Photos
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -207,7 +274,10 @@ export const ParcelCard = React.memo(function ParcelCard({
           {typeof matchScore === 'number' && (
             <Pressable
               style={[styles.specItem, styles.matchItem, { backgroundColor: C.primarySubtle }]}
-              onPress={onMatchPress}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                onMatchPress?.();
+              }}
               disabled={!onMatchPress}
             >
               <MaterialIcons name="auto-awesome" size={12} color={C.primary} />
@@ -227,11 +297,22 @@ export const ParcelCard = React.memo(function ParcelCard({
 
         <View style={[styles.footerRow, { borderTopColor: C.surfaceBorderLight }]}>
           <View style={styles.priceContainer}>
-            <Text style={[styles.priceLabel, { color: C.textMuted }]}>REWARD OFFER</Text>
+            <Text style={[styles.priceLabel, { color: C.textMuted }]}>
+              {parcel.priceOffer && parcel.priceOffer > 0 ? 'EST. REWARD' : 'PRICING'}
+            </Text>
             <View style={styles.priceValueRow}>
-              <Text style={[styles.priceAmount, { color: C.primary }]}>
-                ₹{parcel.priceOffer}
-              </Text>
+              {parcel.priceOffer && parcel.priceOffer > 0 ? (
+                <Text style={[styles.priceAmount, { color: C.primary }]}>
+                  ₹{parcel.priceOffer}
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <MaterialIcons name="handshake" size={14} color={C.primary} />
+                  <Text style={[styles.priceAmount, { color: C.primary, fontSize: FontSize.sm + 1 }]}>
+                    Negotiable
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -242,7 +323,10 @@ export const ParcelCard = React.memo(function ParcelCard({
                 { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder, borderWidth: 1 },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={onPress}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                onPress?.();
+              }}
             >
               <MaterialIcons name="tune" size={14} color={C.primary} />
               <Text style={[styles.actionButtonText, { color: C.primary }]}>Manage Parcel</Text>
@@ -254,7 +338,11 @@ export const ParcelCard = React.memo(function ParcelCard({
                 { backgroundColor: C.primary },
                 pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                if (onTrackDelivery) onTrackDelivery(existingRequest.id);
+                else onPress?.();
+              }}
             >
               <MaterialIcons name="local-shipping" size={14} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Process Delivery</Text>
@@ -266,7 +354,11 @@ export const ParcelCard = React.memo(function ParcelCard({
                 { backgroundColor: C.warningSubtle, borderColor: C.warningBorder, borderWidth: 1 },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={() => (onViewRequest ? onViewRequest(existingRequest.id) : onPress?.())}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                if (onViewRequest) onViewRequest(existingRequest.id);
+                else onPress?.();
+              }}
             >
               <MaterialIcons name="schedule" size={14} color={C.warning} />
               <Text style={[styles.actionButtonText, { color: C.warning }]}>Offer Sent</Text>
@@ -278,7 +370,11 @@ export const ParcelCard = React.memo(function ParcelCard({
                 { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1 },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={() => (onTrackDelivery ? onTrackDelivery(existingRequest.id) : onPress?.())}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                if (onTrackDelivery) onTrackDelivery(existingRequest.id);
+                else onPress?.();
+              }}
             >
               <MaterialIcons name="check-circle" size={14} color={C.textSecondary} />
               <Text style={[styles.actionButtonText, { color: C.textSecondary }]}>Delivered</Text>
@@ -295,7 +391,10 @@ export const ParcelCard = React.memo(function ParcelCard({
                 { backgroundColor: C.primary },
                 pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={onCarry}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                onCarry?.();
+              }}
             >
               <MaterialIcons name="local-shipping" size={14} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Carry Parcel</Text>
@@ -561,5 +660,62 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
     letterSpacing: LetterSpacing.wide,
+  },
+  mediaCardContainer: {
+    height: 112,
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+    borderWidth: 1,
+    position: 'relative',
+    justifyContent: 'space-between',
+  },
+  mediaCardImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  mediaCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.xs + 2,
+    zIndex: 2,
+  },
+  mediaCategoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  mediaCategoryBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.4,
+  },
+  photoCounterBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  photoCounterText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
+  verifiedSelfieDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
   },
 });

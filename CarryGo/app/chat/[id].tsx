@@ -5,7 +5,8 @@ import {
   ScrollView, Keyboard,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
@@ -61,10 +62,10 @@ function buildListItems(messages: ChatMessage[]): ListItem[] {
 }
 
 const MessageBubble = React.memo(function MessageBubble({
-  item, isMine, showAvatar, senderInitial, onLongPress, C,
+  item, isMine, showAvatar, senderInitial, senderAvatar, onLongPress, C,
 }: {
   item: ChatMessage; isMine: boolean; showAvatar: boolean;
-  senderInitial: string; onLongPress: () => void; C: ThemeColors;
+  senderInitial: string; senderAvatar?: string; onLongPress: () => void; C: ThemeColors;
 }) {
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -85,7 +86,11 @@ const MessageBubble = React.memo(function MessageBubble({
       {!isMine ? (
         showAvatar ? (
           <View style={[styles.avatarSmall, { backgroundColor: C.primarySubtle }]}>
-            <Text style={[styles.avatarSmallText, { color: C.primary }]}>{senderInitial}</Text>
+            {senderAvatar ? (
+              <Image source={{ uri: senderAvatar }} style={styles.avatarSmallImage} contentFit="cover" />
+            ) : (
+              <Text style={[styles.avatarSmallText, { color: C.primary }]}>{senderInitial}</Text>
+            )}
           </View>
         ) : (
           <View style={{ width: 28 }} />
@@ -306,10 +311,31 @@ export default function ChatScreen() {
   const chatMessages: ChatMessage[] = (messagesQuery.data?.pages ?? []).flatMap(page => page.items);
 
   const myId = user?.id || '';
+  const otherUserId = useMemo(() => {
+    if (!conversation) return undefined;
+    return conversation.participants.find(p => p !== myId);
+  }, [conversation, myId]);
+
   const otherName = useMemo(() => {
     if (!conversation) return 'User';
     return Object.entries(conversation.participantNames).find(([k]) => k !== myId)?.[1] || 'User';
   }, [conversation, myId]);
+
+  const otherAvatar = useMemo(() => {
+    if (requestQuery.data) {
+      if (myId === requestQuery.data.senderId) {
+        return (requestQuery.data as any).travellerSelfieUrl || requestQuery.data.travellerAvatar;
+      }
+      if (myId === requestQuery.data.travellerId) {
+        return (requestQuery.data as any).senderSelfieUrl || requestQuery.data.senderAvatar;
+      }
+    }
+    const participantAvatars = (conversation as any)?.participantAvatars;
+    if (otherUserId && participantAvatars?.[otherUserId]) {
+      return participantAvatars[otherUserId];
+    }
+    return undefined;
+  }, [requestQuery.data, myId, conversation, otherUserId]);
 
   const listItems = useMemo(() => buildListItems(chatMessages), [chatMessages]);
 
@@ -475,6 +501,7 @@ export default function ChatScreen() {
         isMine={isMine}
         showAvatar={showAvatar}
         senderInitial={msg.senderName?.charAt(0).toUpperCase() || 'U'}
+        senderAvatar={isMine ? (user?.selfieUrl || user?.avatar) : otherAvatar}
         onLongPress={() => handleLongPress(msg)}
         C={C}
       />
@@ -537,6 +564,39 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 25}
     >
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.avatarSmall, { width: 34, height: 34, borderRadius: 17, backgroundColor: C.primarySubtle }]}>
+                {otherAvatar ? (
+                  <Image
+                    source={{ uri: otherAvatar }}
+                    style={{ width: '100%', height: '100%', borderRadius: 17 }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Text style={[styles.avatarSmallText, { fontSize: 14, color: C.primary }]}>
+                    {otherName.charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </View>
+              <View style={{ maxWidth: 190 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: C.textPrimary }} numberOfLines={1}>
+                    {otherName}
+                  </Text>
+                  <MaterialIcons name="verified" size={14} color={C.success} />
+                </View>
+                <Text style={{ fontSize: 11, color: C.textMuted }} numberOfLines={1}>
+                  {conversation?.route || 'Verified CarryGo Delivery'}
+                </Text>
+              </View>
+            </View>
+          ),
+        }}
+      />
       {/* Delivery CTA bar */}
       {!id ? (
         <View style={styles.invalidWrap}>
@@ -826,6 +886,12 @@ const styles = StyleSheet.create({
   messageRowMine: { flexDirection: 'row-reverse' },
   avatarSmall: {
     width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarSmallImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
   },
   avatarSmallText: { fontSize: 12, fontWeight: FontWeight.bold },
   bubble: {

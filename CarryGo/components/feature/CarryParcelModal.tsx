@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Parcel, Trip } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
@@ -123,6 +124,14 @@ export function CarryParcelModal({
     }
   };
 
+  const avatarUri =
+    parcel.userAvatar ||
+    (parcel as any).avatar ||
+    (parcel as any).avatar_url ||
+    (parcel as any).user_avatar ||
+    (parcel as any).selfieUrl ||
+    (parcel as any).userSelfieUrl;
+
   return (
     <GestureBottomSheet
       visible={visible}
@@ -134,9 +143,14 @@ export function CarryParcelModal({
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={[styles.avatarWrap, { backgroundColor: C.primarySubtle }]}>
-              <Text style={[styles.avatarText, { color: C.primary }]}>
-                {parcel.userName ? parcel.userName.charAt(0).toUpperCase() : 'S'}
-              </Text>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatarImage} contentFit="cover" />
+              ) : (
+                <Text style={[styles.avatarText, { color: C.primary }]}>
+                  {parcel.userName ? parcel.userName.charAt(0).toUpperCase() : 'S'}
+                </Text>
+              )}
+              <View style={styles.verifiedDot} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: C.textPrimary }]} numberOfLines={1}>
@@ -449,6 +463,24 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 21,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   avatarText: {
     fontSize: FontSize.lg,

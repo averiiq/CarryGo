@@ -20,7 +20,6 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Trip, Parcel, ParcelCategory } from '@/types';
 import { isRequestIncoming } from '@/services/requests.service';
 import { createDelivery } from '@/services/deliveries.service';
-import { sendLocalNotification } from '@/services/notifications.service';
 import { Haptic } from '@/services/haptics.service';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { RequestItem } from '@/components/feature/RequestItem';
@@ -212,7 +211,6 @@ export default function TripDetailScreen() {
       if (result) {
         setShowRequestModal(false);
         Haptic.success();
-        await sendLocalNotification('Trip Booked! 🎉', `Your delivery request was sent to ${targetTrip.userName}`);
         showAlert(
           'Trip Booked! 🎉',
           `Your delivery request was sent to ${targetTrip.userName}.`,
@@ -269,7 +267,6 @@ export default function TripDetailScreen() {
       if (result) {
         setShowNegotiateModal(false);
         Haptic.success();
-        await sendLocalNotification('Counter-Offer Sent!', `Your counter-offer of ₹${params.offeredPrice} was sent to ${trip.userName}`);
         showAlert(
           'Counter-Offer Sent! 🤝',
           `${trip.userName} has been notified of your proposed pickup/drop spots and price offer.`,
@@ -448,7 +445,6 @@ export default function TripDetailScreen() {
                 });
               }
               await createDelivery(req.id);
-              await sendLocalNotification('Request Accepted', `You accepted delivery from ${req.senderName}`);
             } catch (auxError) {
               console.warn('Post-accept auxiliary step error (non-fatal):', auxError);
             }
@@ -860,8 +856,8 @@ export default function TripDetailScreen() {
           <View style={[styles.travelerProfileCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <View style={styles.travelerTopRow}>
               <View style={styles.travelerAvatarWrap}>
-                {trip.userAvatar ? (
-                  <Image source={{ uri: trip.userAvatar }} style={styles.travelerAvatar} contentFit="cover" />
+                {((trip as any).selfieUrl || (trip as any).userSelfieUrl || trip.userAvatar) ? (
+                  <Image source={{ uri: (trip as any).selfieUrl || (trip as any).userSelfieUrl || trip.userAvatar }} style={styles.travelerAvatar} contentFit="cover" />
                 ) : (
                   <View style={[styles.travelerAvatarPlaceholder, { backgroundColor: C.surfaceElevated }]}>
                     <Text style={[styles.travelerAvatarInitials, { color: C.textPrimary }]}>

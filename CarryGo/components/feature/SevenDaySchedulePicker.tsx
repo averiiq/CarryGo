@@ -185,6 +185,8 @@ export function SevenDaySchedulePicker({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
           style={styles.horizontalScroll}
           contentContainerStyle={styles.dayRow}
         >
@@ -236,6 +238,8 @@ export function SevenDaySchedulePicker({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
               style={styles.horizontalScroll}
               contentContainerStyle={styles.timeRow}
             >
