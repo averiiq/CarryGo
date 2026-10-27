@@ -10,6 +10,14 @@ export {
   PRICE_PRESETS,
 } from './TripDetailsStep';
 export { TripReviewStep } from './TripReviewStep';
+export {
+  calculateRouteDistance,
+  getSuggestedStopovers,
+  calculatePriceGuidance,
+  type PriceGuidance,
+} from './tripPricingAlgorithm';
 export type { TripRouteDraft } from './TripRouteStep';
 export type { TripDetailsDraft } from './TripDetailsStep';
 export type { TripReviewDraft } from './TripReviewStep';
+export { TravelerActiveTripCard, type TravelerActiveTripCardProps } from './TravelerActiveTripCard';
+

@@ -46,3 +46,14 @@ export { LiveMarketplaceHeader, type MarketplaceSortOption } from './feature/Liv
 export { RequestSuccessModal } from './feature/RequestSuccessModal';
 export { RequestDetailModal } from './feature/RequestDetailModal';
 export { AnimatedIcon, InteractiveAnimatedIcon, type AnimatedIconName, type AnimatedIconRef, type AnimatedIconProps } from './ui/AnimatedIcon';
+export { TravelerParcelCard } from './feature/search/TravelerParcelCard';
+export { TravelerCounterOfferSheet } from './feature/parcel/TravelerCounterOfferSheet';
+export { TravelerActiveTripCard } from './feature/trip/TravelerActiveTripCard';
+export {
+  JourneyStatusTracker,
+  TravelerEscrowModal,
+  EscrowSuccessCard,
+  TravelerActionButtonsCard,
+} from './feature/delivery';
+
+

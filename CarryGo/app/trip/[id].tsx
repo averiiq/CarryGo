@@ -18,6 +18,7 @@ import { estimateTripDuration, formatDurationLabel, getRouteTimelineMeta } from 
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Trip, Parcel, ParcelCategory } from '@/types';
+import { Spacing } from '@/constants/theme';
 import { isRequestIncoming } from '@/services/requests.service';
 import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
@@ -848,6 +849,34 @@ export default function TripDetailScreen() {
               </Text>
             </View>
             <MaterialIcons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />
+          </Pressable>
+        ) : null}
+
+        {/* Update Status / Journey Action Card for Traveler (Transition into Phase 5) */}
+        {isOwner && isTripActive && active.length > 0 ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.matchingBanner,
+              { backgroundColor: '#10B981', borderColor: '#059669', marginTop: Spacing.sm },
+              pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }
+            ]}
+            onPress={() => {
+              Haptic.confirm();
+              handleDelivery(active[0]);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Update Status and Journey"
+          >
+            <View style={[styles.matchingIconWrap, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+              <MaterialIcons name="navigation" size={24} color="#fff" />
+            </View>
+            <View style={styles.matchingTextWrap}>
+              <Text style={styles.matchingHeading}>Update Status / Journey</Text>
+              <Text style={styles.matchingSubheading}>
+                Phase 5 Escrow & Delivery tracking ({active.length} accepted {active.length === 1 ? 'parcel' : 'parcels'})
+              </Text>
+            </View>
+            <MaterialIcons name="arrow-forward" size={20} color="#fff" />
           </Pressable>
         ) : null}
 

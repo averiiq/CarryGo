@@ -57,6 +57,7 @@ export interface Trip {
   status: 'active' | 'completed' | 'cancelled';
   createdAt: string;
   allowedCategories?: ParcelCategory[];
+  stopovers?: string[];
 }
 
 export type ParcelCategory = 'documents' | 'electronics' | 'clothing' | 'food' | 'medicine' | 'other';

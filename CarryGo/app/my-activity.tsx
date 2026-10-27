@@ -14,6 +14,8 @@ import {
   useUpdateTripStatusMutation,
   useUserParcelsQuery,
   useUserTripsQuery,
+  useParcelsQuery,
+  flattenInfiniteData,
 } from '@/features/listings/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
@@ -84,6 +86,7 @@ export default function MyActivityScreen() {
   const userTripsQuery = useUserTripsQuery(user?.id);
   const userParcelsQuery = useUserParcelsQuery(user?.id);
   const requestsQuery = useRequestsQuery(user?.id);
+  const allParcelsQuery = useParcelsQuery(true);
   const updateTripStatusMutation = useUpdateTripStatusMutation(user?.id);
   const updateParcelStatusMutation = useUpdateParcelStatusMutation(user?.id);
   const [activeTab, setActiveTab] = useState<Tab>('trips');
@@ -93,6 +96,7 @@ export default function MyActivityScreen() {
   const myTrips = user ? (userTripsQuery.data ?? []) : [];
   const myParcels = user ? (userParcelsQuery.data ?? []) : [];
   const requests = user ? requestsQuery.data ?? [] : [];
+  const allParcels = flattenInfiniteData(allParcelsQuery.data);
   const myRequests = requests.filter(r => r.senderId === user?.id || r.travellerId === user?.id);
   const isInitialLoading = userTripsQuery.isLoading || userParcelsQuery.isLoading || requestsQuery.isLoading;
   const activityError = userTripsQuery.error || userParcelsQuery.error || requestsQuery.error;
@@ -100,7 +104,12 @@ export default function MyActivityScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([userTripsQuery.refetch(), userParcelsQuery.refetch(), requestsQuery.refetch()]);
+      await Promise.all([
+        userTripsQuery.refetch(),
+        userParcelsQuery.refetch(),
+        requestsQuery.refetch(),
+        allParcelsQuery.refetch(),
+      ]);
     } finally { setRefreshing(false); }
   };
 
@@ -108,6 +117,53 @@ export default function MyActivityScreen() {
     Haptic.select();
     Animated.spring(tabAnim, { toValue: tab === 'trips' ? 0 : 1, tension: 220, friction: 20, useNativeDriver: true }).start();
     setActiveTab(tab);
+  };
+
+  const handleUpdateStatus = (trip: Trip, acceptedRequests: Request[]) => {
+    if (acceptedRequests.length === 1) {
+      router.push({ pathname: '/delivery/[id]', params: { id: acceptedRequests[0].id } });
+    } else if (acceptedRequests.length > 1) {
+      showAlert(
+        'Select Shipment to Update Journey',
+        `You have ${acceptedRequests.length} accepted parcels on this trip. Choose which delivery to update:`,
+        [
+          ...acceptedRequests.slice(0, 3).map((req) => ({
+            text: `${req.senderName || 'Sender'} (₹${req.price})`,
+            onPress: () => router.push({ pathname: '/delivery/[id]', params: { id: req.id } }),
+          })),
+          { text: 'Manage Trip', onPress: () => router.push({ pathname: '/trip/[id]', params: { id: trip.id } }) },
+          { text: 'Cancel', style: 'cancel' as const },
+        ]
+      );
+    } else {
+      showAlert(
+        'No Accepted Parcels Yet',
+        `You haven't accepted parcels for this ${trip.fromCity} → ${trip.toCity} trip yet. Find parcels to fill your ${trip.availableCapacity}kg space:`,
+        [
+          {
+            text: 'Find Parcels',
+            onPress: () =>
+              router.push({
+                pathname: '/search',
+                params: { fromCity: trip.fromCity, toCity: trip.toCity, mode: 'parcels' },
+              }),
+          },
+          { text: 'View Trip', onPress: () => router.push({ pathname: '/trip/[id]', params: { id: trip.id } }) },
+          { text: 'Cancel', style: 'cancel' as const },
+        ]
+      );
+    }
+  };
+
+  const handleFindParcels = (trip: Trip) => {
+    router.push({
+      pathname: '/search',
+      params: { fromCity: trip.fromCity, toCity: trip.toCity, mode: 'parcels' },
+    });
+  };
+
+  const handleChatWithSender = (req: Request) => {
+    router.push(`/chat/${encodeURIComponent(String(req.id))}` as never);
   };
 
   const handleCancelTrip = (trip: Trip) => {
@@ -252,7 +308,11 @@ export default function MyActivityScreen() {
         <ActivityTripsList
           trips={myTrips}
           requests={myRequests}
+          parcels={allParcels}
           onTripPress={(trip) => router.push({ pathname: '/trip/[id]', params: { id: trip.id } })}
+          onUpdateStatus={handleUpdateStatus}
+          onFindParcels={handleFindParcels}
+          onChatWithSender={handleChatWithSender}
           onCancelTrip={handleCancelTrip}
           onDeleteTrip={handleDeleteTrip}
           onRepostTrip={handleRepostTrip}

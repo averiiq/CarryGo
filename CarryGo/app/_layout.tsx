@@ -146,10 +146,12 @@ function AppStack() {
         <Stack.Screen name="transactions" options={{ headerShown: false }} />
         <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ headerShown: false }} />
+        <Stack.Screen name="explore" options={{ headerShown: false }} />
         <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="parcel/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="my-activity" options={{ headerShown: false }} />
+        <Stack.Screen name="active-trips" options={{ headerShown: false }} />
         <Stack.Screen name="kyc" options={{ headerShown: false }} />
         <Stack.Screen name="support" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />

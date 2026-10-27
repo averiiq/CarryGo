@@ -1,12 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
-import { Button, Input, KeyboardAwareScrollView } from '@/components';
 import { WizardContainer } from '@/components/feature/WizardContainer';
 import { formatScheduleDate, SevenDaySchedulePicker, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
 import {
@@ -15,6 +14,8 @@ import {
   TripReviewStep,
   VEHICLES,
   VEHICLE_MAX_CAPACITY,
+  calculateRouteDistance,
+  calculatePriceGuidance,
 } from '@/components/feature/trip';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFormDraft } from '@/hooks/useFormDraft';
@@ -23,9 +24,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
-import KycOnboarding from '@/components/feature/KycOnboarding';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
-import { findCity, getDistance } from '@/constants/indian-cities';
 import { useCreateTripMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
 
@@ -37,9 +36,10 @@ const STEPS = [
 
 const ALL_CATEGORIES: ParcelCategory[] = ['documents', 'electronics', 'clothing', 'food', 'medicine', 'other'];
 
-type TripDraft = {
+export type TripDraft = {
   fromCity: string;
   toCity: string;
+  stopovers: string[];
   date: string;
   time: string;
   vehicle: VehicleType;
@@ -51,10 +51,11 @@ type TripDraft = {
 const EMPTY_DRAFT: TripDraft = {
   fromCity: '',
   toCity: '',
+  stopovers: [],
   date: '',
   time: '',
   vehicle: 'car',
-  capacity: '',
+  capacity: '10',
   price: '',
   allowedCategories: ALL_CATEGORIES,
 };
@@ -74,7 +75,7 @@ export default function CreateTripScreen() {
     price?: string;
     repost?: string;
   }>();
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const createTripMutation = useCreateTripMutation();
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
@@ -97,35 +98,17 @@ export default function CreateTripScreen() {
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
   const [locationHint, setLocationHint] = useState<string | null>(null);
 
-  // Corridor distance and recommended fare guidance
+  // Corridor distance calculation (incorporating starting Pick, Stopovers, and final Drop)
   const corridorDistance = useMemo(() => {
-    if (!form.fromCity || !form.toCity) return null;
-    const c1 = findCity(form.fromCity);
-    const c2 = findCity(form.toCity);
-    if (!c1 || !c2) return 160;
-    return getDistance(c1, c2);
-  }, [form.fromCity, form.toCity]);
+    if (!form.fromCity || !form.toCity) return 0;
+    return calculateRouteDistance(form.fromCity, form.toCity, form.stopovers);
+  }, [form.fromCity, form.toCity, form.stopovers]);
 
+  // Negotiable price algorithm: calculates fair fare and provides distance-based guidance
   const recommendedPrice = useMemo(() => {
     if (!corridorDistance) return null;
-    const vehicleMultipliers: Record<VehicleType, number> = {
-      bike: 0.8,
-      car: 1.0,
-      bus: 0.85,
-      train: 0.75,
-      flight: 1.8,
-    };
-    const mult = vehicleMultipliers[form.vehicle] || 1.0;
-    let base = 60;
-    if (corridorDistance > 250) base = 110;
-    else if (corridorDistance > 120) base = 85;
-    else base = 65;
-
-    const rec = Math.round(base * mult);
-    const min = Math.max(30, Math.round(rec * 0.75));
-    const max = Math.round(rec * 1.35);
-    return { suggested: rec, min, max, distanceKm: corridorDistance };
-  }, [corridorDistance, form.vehicle]);
+    return calculatePriceGuidance(corridorDistance, form.vehicle, form.price);
+  }, [corridorDistance, form.vehicle, form.price]);
 
   const hasExternalPrefill = Boolean(
     params.fromCity ||
@@ -146,6 +129,7 @@ export default function CreateTripScreen() {
         fromCity,
         toCity,
         capacity,
+        stopovers: Array.isArray(values.stopovers) ? values.stopovers : prev.stopovers,
         date: values.date ? date : prev.date,
       };
     });
@@ -164,6 +148,7 @@ export default function CreateTripScreen() {
     const nextForm: TripDraft = {
       fromCity: typeof params.fromCity === 'string' ? normalizeCity(params.fromCity) : '',
       toCity: typeof params.toCity === 'string' ? normalizeCity(params.toCity) : '',
+      stopovers: [],
       date: typeof params.date === 'string' && params.date ? params.date : toLocalDateKey(new Date()),
       time: typeof params.time === 'string' && params.time ? params.time : '10:00 AM',
       vehicle: isValidVehicle ? prefillVehicle : 'car',
@@ -202,6 +187,7 @@ export default function CreateTripScreen() {
       ...form,
       fromCity: normalizeCity(form.fromCity),
       toCity: normalizeCity(form.toCity),
+      stopovers: (form.stopovers || []).map(normalizeCity).filter(Boolean),
       date: form.date && form.date >= todayKey ? form.date : todayKey,
       time: form.time || '10:00 AM',
       capacity: form.capacity.trim(),
@@ -227,19 +213,35 @@ export default function CreateTripScreen() {
   const validateRouteStep = (draft: TripDraft) => {
     const errors: Record<string, string> = {};
     const todayKey = toLocalDateKey(new Date());
+
     if (!draft.fromCity) errors.fromCity = 'Select origin city';
     if (!draft.toCity) errors.toCity = 'Select destination city';
+
     if (draft.fromCity && draft.toCity && draft.fromCity.toLowerCase() === draft.toCity.toLowerCase()) {
       errors.toCity = 'Must differ from origin';
     }
+
+    if (draft.stopovers && draft.stopovers.length > 0) {
+      const invalidStop = draft.stopovers.find(
+        (s) =>
+          s.toLowerCase().trim() === draft.fromCity.toLowerCase().trim() ||
+          s.toLowerCase().trim() === draft.toCity.toLowerCase().trim()
+      );
+      if (invalidStop) {
+        errors.stopovers = `Stopover '${invalidStop}' cannot match Pick or Drop`;
+      }
+    }
+
     if (!draft.date) {
       errors.date = 'Select travel date';
     } else if (draft.date < todayKey) {
       errors.date = 'Travel date cannot be in the past';
     }
+
     if (!draft.time) {
       errors.time = 'Select departure time';
     }
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       Haptic.error();
@@ -280,7 +282,6 @@ export default function CreateTripScreen() {
     return true;
   };
 
-
   useEffect(() => {
     if (isDraftRestored) {
       setShowDraftBanner(true);
@@ -294,6 +295,7 @@ export default function CreateTripScreen() {
     clearDraft();
     Haptic.select();
   };
+
   const canMoveToStep = (targetStep: number) => {
     const prepared = prepareDraft();
     for (let checkStep = step; checkStep < targetStep; checkStep++) {
@@ -356,6 +358,7 @@ export default function CreateTripScreen() {
   const handleSubmit = async () => {
     if (createTripMutation.isPending || isSubmitting) return;
     const prepared = prepareDraft();
+
     if (!validateRouteStep(prepared)) {
       setDirection('backward');
       setStep(0);
@@ -379,9 +382,11 @@ export default function CreateTripScreen() {
       setShowKyc(true);
       return;
     }
+
     setFieldErrors({});
     setIsSubmitting(true);
     Haptic.confirm();
+
     try {
       const realRating = user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0) : 0;
       const userAvatar = user.avatar || user.selfieUrl || (user as any).avatarUrl || (user as any).userSelfieUrl;
@@ -399,7 +404,9 @@ export default function CreateTripScreen() {
         pricePerKg: Number(prepared.price),
         status: 'active',
         allowedCategories: prepared.allowedCategories,
+        stopovers: prepared.stopovers,
       });
+
       try {
         await notifyRouteSubscribers({
           listingType: 'trip',
@@ -412,6 +419,7 @@ export default function CreateTripScreen() {
       } catch (notifyErr) {
         console.warn('Failed to notify route subscribers:', notifyErr);
       }
+
       clearDraft();
       Haptic.success();
       router.replace({ pathname: '/trip/[id]', params: { id: result.id } });
@@ -419,7 +427,7 @@ export default function CreateTripScreen() {
       Haptic.error();
       showAlert(
         'Trip Not Posted',
-        getUserErrorMessage(error, 'Failed to post trip. Please try again.'),
+        getUserErrorMessage(error, 'Failed to post trip. Please try again.')
       );
     } finally {
       setIsSubmitting(false);
@@ -436,7 +444,10 @@ export default function CreateTripScreen() {
       <SevenDaySchedulePicker
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
-        onSelect={(d, t) => { updateField('date', d); updateField('time', t || ''); }}
+        onSelect={(d, t) => {
+          updateField('date', d);
+          if (t) updateField('time', t);
+        }}
         C={C}
         initialDate={form.date}
         initialTime={form.time}
@@ -473,52 +484,91 @@ export default function CreateTripScreen() {
           >
             <View style={styles.footerInner}>
               {step > 0 && (
-                <Button
-                  title="Back"
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Go back to previous step"
                   onPress={goBack}
-                  variant="outline"
-                  size="md"
-                  style={styles.backButton}
-                  icon={<MaterialIcons name="arrow-back" size={18} color={C.textPrimary} />}
-                />
+                  style={({ pressed }) => [
+                    styles.backBtnPill,
+                    {
+                      backgroundColor: C.surfaceElevated,
+                      borderColor: C.surfaceBorder,
+                    },
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+                  ]}
+                >
+                  <MaterialIcons name="arrow-back" size={18} color={C.textPrimary} />
+                  <Text style={[styles.backBtnText, { color: C.textPrimary }]}>Back</Text>
+                </Pressable>
               )}
+
               {step === 0 ? (
-                <Button
-                  title="Continue to Details"
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue to Trip Details"
                   onPress={goNext}
-                  fullWidth
-                  size="md"
-                  style={styles.primaryButtonFull}
-                  icon={<MaterialIcons name="arrow-forward" size={18} color="#fff" />}
-                />
+                  style={({ pressed }) => [
+                    styles.greenActionBtn,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                  ]}
+                >
+                  <Text style={styles.greenActionBtnText}>Continue to Details</Text>
+                  <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+                </Pressable>
               ) : step === 1 ? (
-                <Button
-                  title="Review Trip"
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Review Trip"
                   onPress={goNext}
-                  size="md"
-                  style={styles.primaryButton}
-                  icon={<MaterialIcons name="arrow-forward" size={18} color="#fff" />}
-                />
+                  style={({ pressed }) => [
+                    styles.greenActionBtn,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                  ]}
+                >
+                  <Text style={styles.greenActionBtnText}>Review Trip</Text>
+                  <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+                </Pressable>
               ) : (
-                <Button
-                  title="Publish Trip"
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Publish Trip"
                   onPress={handleSubmit}
-                  loading={createTripMutation.isPending || isSubmitting}
-                  size="md"
-                  style={styles.primaryButton}
-                  icon={<MaterialIcons name="rocket-launch" size={18} color="#fff" />}
-                />
+                  disabled={createTripMutation.isPending || isSubmitting}
+                  style={({ pressed }) => [
+                    styles.greenActionBtn,
+                    (createTripMutation.isPending || isSubmitting) && { opacity: 0.6 },
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                  ]}
+                >
+                  {createTripMutation.isPending || isSubmitting ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <MaterialIcons name="rocket-launch" size={18} color="#FFFFFF" />
+                      <Text style={styles.greenActionBtnText}>
+                        Publish Trip{form.price ? ` • ₹${form.price}/kg` : ''}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
               )}
             </View>
           </View>
         }
       >
         {showDraftBanner ? (
-          <View style={[styles.draftBanner, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <MaterialIcons name="restore" size={15} color={C.primary} />
-            <Text style={[styles.draftBannerText, { color: C.textSecondary }]}>Draft restored from last session</Text>
+          <View
+            style={[
+              styles.draftBanner,
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            ]}
+          >
+            <MaterialIcons name="restore" size={15} color="#10B981" />
+            <Text style={[styles.draftBannerText, { color: C.textSecondary }]}>
+              Draft restored from your last session
+            </Text>
             <Pressable onPress={undoDraftRestore} hitSlop={8}>
-              <Text style={[styles.draftBannerAction, { color: C.primary }]}>Clear</Text>
+              <Text style={[styles.draftBannerAction, { color: '#10B981' }]}>Clear</Text>
             </Pressable>
             <Pressable onPress={() => setShowDraftBanner(false)} hitSlop={8} style={{ marginLeft: 4 }}>
               <MaterialIcons name="close" size={15} color={C.textMuted} />
@@ -537,6 +587,7 @@ export default function CreateTripScreen() {
             locationHint={locationHint}
           />
         )}
+
         {step === 1 && (
           <TripDetailsStep
             form={form}
@@ -545,7 +596,14 @@ export default function CreateTripScreen() {
             recommendedPrice={recommendedPrice}
           />
         )}
-        {step === 2 && <TripReviewStep form={form} onEdit={handleStepPress} hasKyc={isKycApproved} />}
+
+        {step === 2 && (
+          <TripReviewStep
+            form={form}
+            onEdit={handleStepPress}
+            hasKyc={isKycApproved}
+          />
+        )}
       </WizardContainer>
     </>
   );
@@ -578,16 +636,42 @@ const styles = StyleSheet.create({
     maxWidth: 540,
     alignSelf: 'center',
   },
-  backButton: {
-    minWidth: 92,
-    flexShrink: 0,
+  backBtnPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    gap: 6,
   },
-  primaryButton: {
-    flex: 1,
+  backBtnText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
   },
-  primaryButtonFull: {
+  // Green action button strictly matching index.styles.ts UI theme
+  greenActionBtn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#10B981',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 3,
+    gap: Spacing.sm,
+  },
+  greenActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.2,
   },
 });
-
-

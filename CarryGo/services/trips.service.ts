@@ -35,6 +35,7 @@ function mapRow(row: any): Trip {
     status: row.status as Trip['status'],
     createdAt: row.created_at,
     allowedCategories: Array.isArray(row.allowed_categories) ? row.allowed_categories : undefined,
+    stopovers: Array.isArray(row.stopovers) ? row.stopovers : undefined,
   };
 }
 
@@ -179,13 +180,17 @@ export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
   if (trip.allowedCategories && Array.isArray(trip.allowedCategories)) {
     insertPayload.allowed_categories = trip.allowedCategories;
   }
+  if (trip.stopovers && Array.isArray(trip.stopovers) && trip.stopovers.length > 0) {
+    insertPayload.stopovers = trip.stopovers;
+  }
 
   let { data, error } = await sb.from('trips').insert(insertPayload).select().single();
-  if (error && (insertPayload.allowed_categories || insertPayload.user_avatar)) {
+  if (error && (insertPayload.allowed_categories || insertPayload.user_avatar || insertPayload.stopovers)) {
     // Retry without columns that might not exist in an older schema
     const fallbackPayload: any = { ...insertPayload };
     delete fallbackPayload.allowed_categories;
     delete fallbackPayload.user_avatar;
+    delete fallbackPayload.stopovers;
     const retry = await sb.from('trips').insert(fallbackPayload).select().single();
     if (!retry.error) {
       data = retry.data;

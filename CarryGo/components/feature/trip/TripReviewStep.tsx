@@ -18,6 +18,7 @@ export interface TripReviewDraft {
   capacity: string;
   price: string;
   allowedCategories?: ParcelCategory[];
+  stopovers?: string[];
 }
 
 interface TripReviewStepProps {
@@ -94,6 +95,63 @@ export const TripReviewStep = memo(function TripReviewStep({
         userName={userName}
         userRating={userRating}
       />
+
+      {/* Stopovers Summary Card */}
+      {form.stopovers && form.stopovers.length > 0 ? (
+        <View
+          style={[
+            styles.allowedCard,
+            {
+              backgroundColor: C.card,
+              borderColor: C.surfaceBorder,
+            },
+          ]}
+        >
+          <View style={styles.allowedHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <MaterialIcons name="add-location-alt" size={15} color="#10B981" />
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>
+                Intermediate Stopovers
+              </Text>
+              <View style={[styles.countBadge, { backgroundColor: '#ECFDF5' }]}>
+                <Text style={[styles.countBadgeText, { color: '#059669' }]}>
+                  {form.stopovers.length} {form.stopovers.length === 1 ? 'Stop' : 'Stops'}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => onEdit(0)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.editAction}
+              accessibilityRole="button"
+              accessibilityLabel="Edit stopovers"
+            >
+              <MaterialIcons name="edit" size={13} color={C.primary} />
+              <Text style={[styles.editLink, { color: C.primary }]}>Edit</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.allowedPillRow}>
+            {form.stopovers.map((city, idx) => (
+              <View
+                key={`review-stop-${idx}-${city}`}
+                style={[
+                  styles.categoryPill,
+                  {
+                    backgroundColor: C.surfaceElevated,
+                    borderColor: C.surfaceBorderLight,
+                  },
+                ]}
+              >
+                <MaterialIcons name="place" size={13} color="#10B981" />
+                <Text style={[styles.categoryPillText, { color: C.textPrimary }]}>
+                  Stop {idx + 1}: {city}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       {/* Allowed Categories Card */}
       {form.allowedCategories && form.allowedCategories.length > 0 ? (

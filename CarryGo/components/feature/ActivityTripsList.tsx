@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, Pressable, Animated, RefreshControl } from 'rea
 import { FlashList } from '@shopify/flash-list';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
-import { Trip, Request } from '@/types';
+import { Trip, Request, Parcel } from '@/types';
 import { Haptic } from '@/services/haptics.service';
+import { TravelerActiveTripCard } from './trip/TravelerActiveTripCard';
 
 const VEHICLE_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   bike: 'two-wheeler', car: 'directions-car', bus: 'directions-bus',
@@ -130,7 +131,11 @@ function TripRow({ trip, requests, onPress, onCancel, onDelete, onRepost, C }: {
 type ActivityTripsListProps = {
   trips: Trip[];
   requests: Request[];
+  parcels?: Parcel[];
   onTripPress: (trip: Trip) => void;
+  onUpdateStatus?: (trip: Trip, acceptedRequests: Request[]) => void;
+  onFindParcels?: (trip: Trip) => void;
+  onChatWithSender?: (req: Request) => void;
   onCancelTrip: (trip: Trip) => void;
   onDeleteTrip: (trip: Trip) => void;
   onRepostTrip: (trip: Trip) => void;
@@ -144,7 +149,11 @@ type ActivityTripsListProps = {
 export function ActivityTripsList({
   trips,
   requests,
+  parcels = [],
   onTripPress,
+  onUpdateStatus,
+  onFindParcels,
+  onChatWithSender,
   onCancelTrip,
   onDeleteTrip,
   onRepostTrip,
@@ -160,15 +169,33 @@ export function ActivityTripsList({
       keyExtractor={item => item.id}
       renderItem={({ item }) => (
         <View style={{ marginBottom: Spacing.sm }}>
-          <TripRow
-            trip={item}
-            requests={requests}
-            onPress={() => onTripPress(item)}
-            onCancel={() => onCancelTrip(item)}
-            onDelete={() => onDeleteTrip(item)}
-            onRepost={() => onRepostTrip(item)}
-            C={C}
-          />
+          {item.status === 'active' ? (
+            <TravelerActiveTripCard
+              trip={item}
+              requests={requests}
+              parcels={parcels}
+              onPress={() => onTripPress(item)}
+              onUpdateStatus={
+                onUpdateStatus
+                  ? (trip, acc) => onUpdateStatus(trip, acc)
+                  : () => onTripPress(item)
+              }
+              onFindParcels={onFindParcels}
+              onChatWithSender={onChatWithSender}
+              onCancelTrip={onCancelTrip}
+              testID={`active-trip-card-${item.id}`}
+            />
+          ) : (
+            <TripRow
+              trip={item}
+              requests={requests}
+              onPress={() => onTripPress(item)}
+              onCancel={() => onCancelTrip(item)}
+              onDelete={() => onDeleteTrip(item)}
+              onRepost={() => onRepostTrip(item)}
+              C={C}
+            />
+          )}
         </View>
       )}
       ListHeaderComponent={listHeader}

@@ -1,851 +1,1272 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, KeyboardAvoidingView, Platform, Animated, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  RefreshControl,
+  Animated,
+  ActivityIndicator,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { TripCard, ParcelCard, KeyboardAwareScrollView } from '@/components';
-import { Trip, Parcel, Request } from '@/types';
-import { INDIAN_CITIES } from '@/constants/indian-cities';
-import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
+import { Parcel, Trip } from '@/types';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { createSubscription } from '@/services/subscriptions.service';
+import { detectCurrentCity } from '@/services/location.service';
 import { useAlert } from '@/template';
 import { flattenInfiniteData, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
-import { useRequestsQuery } from '@/features/requests/queries';
-import { FeatureFlags } from '@/constants/featureFlags';
-import { CityDropdown } from '@/components/feature/CityDropdown';
-import { HistoryChip, SearchHistoryEntry } from '@/components/feature/HistoryChip';
-import { RouteMapView } from '@/components/feature/RouteMapView';
-import { SortOption } from '@/hooks/useSmartSearch';
-import { useResponsive, TouchTarget } from '@/hooks/useResponsive';
-import { styles } from '@/styles/search.styles';
+import { CitySelectModal } from '@/components/feature/CitySelectModal';
 import {
+  SevenDaySchedulePicker,
+  formatScheduleDate,
+} from '@/components/feature/SevenDaySchedulePicker';
+import { HaryanaCorridorChips } from '@/components/feature/HaryanaCorridorChips';
+import { TravelerParcelCard } from '@/components/feature/search/TravelerParcelCard';
+import { TripCard } from '@/components/feature/TripCard';
+import {
+  filterTravelerParcels,
+  sortTravelerParcels,
   filterSearchResults,
   sortSearchResults,
-  formatRouteSubscriptionMessage,
-  SearchItem,
+  type TravelerSortOption,
+  type WeightFilterRange,
 } from '@/components/feature/search/searchHelpers';
 
-const CITIES = INDIAN_CITIES.map(c => c.name);
-
-const HISTORY_KEY = 'carrygo_search_history';
-const MAX_HISTORY = 8;
-
-const VEHICLE_TYPES = [
-  { type: 'bike', label: 'Bike', icon: 'two-wheeler' },
-  { type: 'car', label: 'Car', icon: 'directions-car' },
-  { type: 'bus', label: 'Bus', icon: 'directions-bus' },
-  { type: 'train', label: 'Train', icon: 'train' },
-  { type: 'flight', label: 'Flight', icon: 'flight' },
-] as const;
-
-const POPULAR_ROUTES = [
-  ['Gurugram', 'Faridabad'], ['Gurugram', 'Panipat'], ['Ambala', 'Karnal'],
-  ['Rohtak', 'Hisar'], ['Panchkula', 'Ambala'], ['Rewari', 'Gurugram'],
+const WEIGHT_OPTIONS: { id: WeightFilterRange; label: string }[] = [
+  { id: 'all', label: 'All Weights' },
+  { id: 'under_2', label: '< 2 kg' },
+  { id: '2_5', label: '2–5 kg' },
+  { id: '5_10', label: '5–10 kg' },
+  { id: 'over_10', label: '10+ kg' },
 ];
 
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'date_nearest', label: 'Nearest date' },
-  { value: 'price_low', label: 'Price low' },
-  { value: 'price_high', label: 'Price high' },
-  { value: 'rating_best', label: 'Best rating' },
-  { value: 'distance_shortest', label: 'Shortest route' },
+const CATEGORY_OPTIONS: { id: string; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
+  { id: 'all', label: 'All Items', icon: 'all-inclusive' },
+  { id: 'documents', label: 'Documents', icon: 'description' },
+  { id: 'electronics', label: 'Electronics', icon: 'devices' },
+  { id: 'clothing', label: 'Clothing', icon: 'checkroom' },
+  { id: 'food', label: 'Food', icon: 'restaurant' },
+  { id: 'medicine', label: 'Medicine', icon: 'medical-services' },
+  { id: 'other', label: 'Other', icon: 'inventory-2' },
 ];
 
-type ResultTab = 'all' | 'trips' | 'parcels';
-type ViewMode = 'list' | 'map';
-type FocusedField = 'from' | 'to' | null;
+const SORT_OPTIONS: { id: TravelerSortOption; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
+  { id: 'offer_high', label: 'Highest Offer', icon: 'arrow-upward' },
+  { id: 'date_nearest', label: 'Nearest Date', icon: 'schedule' },
+  { id: 'weight_low', label: 'Lowest Weight', icon: 'fitness-center' },
+  { id: 'offer_low', label: 'Lowest Offer', icon: 'arrow-downward' },
+];
 
 export default function SearchScreen() {
   const { user } = useAuth();
-  const { isSmallDevice, isTablet } = useResponsive();
-  const tripsQuery = useTripsQuery(Boolean(user));
-  const parcelsQuery = useParcelsQuery(Boolean(user));
-  const requestsQuery = useRequestsQuery(user?.id);
   const { showAlert } = useAlert();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { C } = useThemeColors();
+  const { C, S } = useThemeColors();
+  const searchParams = useLocalSearchParams<{
+    fromCity?: string;
+    toCity?: string;
+    date?: string;
+    mode?: string;
+  }>();
 
-  const [fromCity, setFromCity] = useState('');
-  const [toCity, setToCity] = useState('');
-  const [vehicleType, setVehicleType] = useState('');
-  const [tab, setTab] = useState<ResultTab>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [focused, setFocused] = useState<FocusedField>(null);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [history, setHistory] = useState<SearchHistoryEntry[]>([]);
-  const [subscribing, setSubscribing] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('date_nearest');
-  const [showFilters, setShowFilters] = useState(false);
+  // Queries
+  const parcelsQuery = useParcelsQuery(Boolean(user));
+  const tripsQuery = useTripsQuery(Boolean(user));
 
-  const fromInputRef = useRef<TextInput>(null);
-  const toInputRef = useRef<TextInput>(null);
-  const searchBtnScale = useRef(new Animated.Value(1)).current;
-  const resultsFade = useRef(new Animated.Value(0)).current;
-  const filtersHeight = useRef(new Animated.Value(0)).current;
+  // Search Route State
+  const [fromCity, setFromCity] = useState(
+    typeof searchParams.fromCity === 'string' ? searchParams.fromCity : ''
+  );
+  const [toCity, setToCity] = useState(
+    typeof searchParams.toCity === 'string' ? searchParams.toCity : ''
+  );
+  const [travelDate, setTravelDate] = useState(
+    typeof searchParams.date === 'string' ? searchParams.date : ''
+  );
 
+  // Filters State
+  const [selectedWeight, setSelectedWeight] = useState<WeightFilterRange>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedSort, setSelectedSort] = useState<TravelerSortOption>('offer_high');
+  const [activeTab, setActiveTab] = useState<'parcels' | 'trips'>(
+    searchParams.mode === 'trips' ? 'trips' : 'parcels'
+  );
+
+  // Modals & Detection State
+  const [showPickModal, setShowPickModal] = useState(false);
+  const [showDropModal, setShowDropModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+
+  // Animations
+  const swapRotation = useRef(new Animated.Value(0)).current;
+
+  // Sync external search params if changed
   useEffect(() => {
-    AsyncStorage.getItem(HISTORY_KEY).then(raw => {
-      if (raw) setHistory(JSON.parse(raw));
-    });
-  }, []);
+    if (searchParams.fromCity && typeof searchParams.fromCity === 'string') {
+      setFromCity(searchParams.fromCity);
+    }
+    if (searchParams.toCity && typeof searchParams.toCity === 'string') {
+      setToCity(searchParams.toCity);
+    }
+    if (searchParams.date && typeof searchParams.date === 'string') {
+      setTravelDate(searchParams.date);
+    }
+  }, [searchParams.fromCity, searchParams.toCity, searchParams.date]);
 
-  const saveHistory = useCallback(async (from: string, to: string) => {
-    if (!from || !to) return;
-    const entry: SearchHistoryEntry = { fromCity: from, toCity: to, timestamp: Date.now() };
-    const updated = [entry, ...history.filter(h => !(h.fromCity === from && h.toCity === to))].slice(0, MAX_HISTORY);
-    setHistory(updated);
-    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-  }, [history]);
+  // Senders' active parcels
+  const allParcels: Parcel[] = useMemo(() => {
+    return user ? flattenInfiniteData(parcelsQuery.data) : [];
+  }, [user, parcelsQuery.data]);
 
-  const removeHistory = useCallback(async (index: number) => {
-    const updated = history.filter((_, i) => i !== index);
-    setHistory(updated);
-    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-  }, [history]);
+  // All active trips
+  const allTrips: Trip[] = useMemo(() => {
+    return user ? flattenInfiniteData(tripsQuery.data) : [];
+  }, [user, tripsQuery.data]);
 
-  const clearHistory = useCallback(async () => {
-    setHistory([]);
-    await AsyncStorage.removeItem(HISTORY_KEY);
-  }, []);
-
-  const toggleFilters = useCallback(() => {
-    Haptic.select();
-    const toValue = showFilters ? 0 : 1;
-    setShowFilters(!showFilters);
-    Animated.spring(filtersHeight, {
-      toValue,
-      useNativeDriver: false,
-      tension: 200,
-      friction: 22,
-    }).start();
-  }, [showFilters, filtersHeight]);
-
-  const trips: Trip[] = useMemo(() => (user ? flattenInfiniteData(tripsQuery.data) : []), [user, tripsQuery.data]);
-  const parcels: Parcel[] = useMemo(() => (user ? flattenInfiniteData(parcelsQuery.data) : []), [user, parcelsQuery.data]);
-  const userRequests = requestsQuery.data || [];
-
-  const requestsByTripId = useMemo(() => {
-    const map = new Map<string, Request>();
-    userRequests.forEach((req) => {
-      if (req.tripId) {
-        const prev = map.get(req.tripId);
-        if (!prev || req.status === 'accepted' || (req.status === 'pending' && prev.status !== 'accepted')) {
-          map.set(req.tripId, req);
-        }
-      }
-    });
-    return map;
-  }, [userRequests]);
-
-  const requestsByParcelId = useMemo(() => {
-    const map = new Map<string, Request>();
-    userRequests.forEach((req) => {
-      if (req.parcelId) {
-        const prev = map.get(req.parcelId);
-        if (!prev || req.status === 'accepted' || (req.status === 'pending' && prev.status !== 'accepted')) {
-          map.set(req.parcelId, req);
-        }
-      }
-    });
-    return map;
-  }, [userRequests]);
-
-  const { matchedTrips, matchedParcels } = useMemo(() => {
-    return filterSearchResults(trips, parcels, {
+  // Filtered & Sorted Parcels matching traveler route, travel date, weight, and category
+  const filteredParcels: Parcel[] = useMemo(() => {
+    const filtered = filterTravelerParcels(allParcels, {
       fromCity,
       toCity,
-      vehicleType,
+      travelDate,
+      weightRange: selectedWeight,
+      category: selectedCategory,
       excludeUserId: user?.id,
     });
-  }, [trips, parcels, fromCity, toCity, vehicleType, user?.id]);
+    return sortTravelerParcels(filtered, selectedSort);
+  }, [allParcels, fromCity, toCity, travelDate, selectedWeight, selectedCategory, selectedSort, user?.id]);
 
-  const allResults: SearchItem[] = useMemo(() => {
-    return sortSearchResults(
-      [
-        ...matchedTrips.map((t: Trip) => ({ type: 'trip' as const, data: t })),
-        ...matchedParcels.map((p: Parcel) => ({ type: 'parcel' as const, data: p })),
-      ],
-      sortBy
-    );
-  }, [matchedTrips, matchedParcels, sortBy]);
+  // Filtered Trips (for secondary trips view)
+  const filteredTrips: Trip[] = useMemo(() => {
+    const { matchedTrips } = filterSearchResults(allTrips, [], {
+      fromCity,
+      toCity,
+      excludeUserId: user?.id,
+    });
+    return matchedTrips;
+  }, [allTrips, fromCity, toCity, user?.id]);
 
-  const displayResults: SearchItem[] = useMemo(() => {
-    if (tab === 'trips') {
-      return sortSearchResults(
-        matchedTrips.map((t: Trip) => ({ type: 'trip' as const, data: t })),
-        sortBy
-      );
-    }
-    if (tab === 'parcels') {
-      return sortSearchResults(
-        matchedParcels.map((p: Parcel) => ({ type: 'parcel' as const, data: p })),
-        sortBy
-      );
-    }
-    return allResults;
-  }, [allResults, matchedParcels, matchedTrips, sortBy, tab]);
+  const hasActiveFilters = Boolean(
+    fromCity ||
+    toCity ||
+    travelDate ||
+    selectedWeight !== 'all' ||
+    selectedCategory !== 'all' ||
+    selectedSort !== 'offer_high'
+  );
 
-  const fromSuggestions = useMemo(() => {
-    if (!fromCity || fromCity.length === 0) return [];
-    const lower = fromCity.toLowerCase();
-    return CITIES.filter(c =>
-      c.toLowerCase().includes(lower) && c !== toCity && fromCity !== c
-    ).slice(0, 6);
-  }, [fromCity, toCity]);
-
-  const toSuggestions = useMemo(() => {
-    if (!toCity || toCity.length === 0) return [];
-    const lower = toCity.toLowerCase();
-    return CITIES.filter(c =>
-      c.toLowerCase().includes(lower) && c !== fromCity && toCity !== c
-    ).slice(0, 6);
-  }, [toCity, fromCity]);
-
-  const handleSearch = () => {
-    setFocused(null);
-    fromInputRef.current?.blur();
-    toInputRef.current?.blur();
-    Haptic.confirm();
-    Animated.sequence([
-      Animated.timing(searchBtnScale, { toValue: 0.96, duration: 100, useNativeDriver: true }),
-      Animated.spring(searchBtnScale, { toValue: 1, tension: 300, useNativeDriver: true }),
-    ]).start();
-    saveHistory(fromCity, toCity);
-    setHasSearched(true);
-    resultsFade.setValue(0);
-    Animated.timing(resultsFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-  };
-
-  const handleApplyHistory = (entry: SearchHistoryEntry) => {
-    setFromCity(entry.fromCity);
-    setToCity(entry.toCity);
-    setHasSearched(true);
-    resultsFade.setValue(0);
-    Animated.timing(resultsFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-  };
-
-  const handleSwap = () => {
+  // Actions
+  const handleSwapRoute = useCallback(() => {
     Haptic.select();
-    setFromCity(toCity);
-    setToCity(fromCity);
-  };
+    Animated.sequence([
+      Animated.timing(swapRotation, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.timing(swapRotation, { toValue: 0, duration: 0, useNativeDriver: true }),
+    ]).start();
 
-  const handleSubscribe = async () => {
+    const currentFrom = fromCity;
+    setFromCity(toCity);
+    setToCity(currentFrom);
+  }, [fromCity, toCity, swapRotation]);
+
+  const handleSelectCorridor = useCallback((origin: string, dest: string) => {
+    Haptic.confirm();
+    setFromCity(origin);
+    setToCity(dest);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    Haptic.tap();
+    setFromCity('');
+    setToCity('');
+    setTravelDate('');
+    setSelectedWeight('all');
+    setSelectedCategory('all');
+    setSelectedSort('offer_high');
+  }, []);
+
+  const handleDetectGPS = useCallback(async () => {
+    Haptic.select();
+    setIsDetectingLocation(true);
+    try {
+      const { data, error } = await detectCurrentCity();
+      if (data) {
+        Haptic.success();
+        setFromCity(data);
+      } else if (error) {
+        showAlert('Location Notice', error);
+      }
+    } catch {
+      showAlert('Location Error', 'Unable to detect your current location.');
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  }, [showAlert]);
+
+  const handleSubscribeAlert = useCallback(async () => {
     if (!fromCity || !toCity) {
-      showAlert('Select Route', 'Please enter both cities first to subscribe.');
+      showAlert('Select Route', 'Please specify both Pick and Drop cities to set a route alert.');
       return;
     }
     if (!user) {
-      showAlert('Login Required', 'Please log in to subscribe to route alerts.');
+      showAlert('Sign In Required', 'Please sign in to subscribe to route alerts.');
       return;
     }
-    setSubscribing(true);
-    const { data } = await createSubscription(user.id, fromCity, toCity);
-    setSubscribing(false);
-    const msgs = formatRouteSubscriptionMessage(fromCity, toCity);
-    if (data) {
-      Haptic.success();
-      showAlert('Route Alert Created!', msgs.createdMessage);
-    } else {
-      showAlert('Already Subscribed', msgs.alreadySubscribedMessage);
+
+    Haptic.tap();
+    setIsSubscribing(true);
+    try {
+      const { data } = await createSubscription(user.id, fromCity, toCity);
+      if (data) {
+        Haptic.success();
+        showAlert(
+          'Route Alert Created! 🔔',
+          `You will be instantly notified when senders post parcels along ${fromCity} → ${toCity}.`
+        );
+      } else {
+        showAlert('Alert Exists', `You already have an active alert for ${fromCity} → ${toCity}.`);
+      }
+    } catch {
+      showAlert('Error', 'Failed to create route alert. Please try again.');
+    } finally {
+      setIsSubscribing(false);
     }
-  };
-
-  const handleTrackDelivery = useCallback((requestId: string) => {
-    Haptic.tap();
-    router.push({
-      pathname: '/delivery/[id]',
-      params: { id: requestId },
-    });
-  }, [router]);
-
-  const handleViewRequest = useCallback((_requestId: string) => {
-    Haptic.tap();
-    router.push('/(tabs)/requests');
-  }, [router]);
+  }, [fromCity, toCity, user, showAlert]);
 
   const handleRefresh = useCallback(() => {
-    tripsQuery.refetch();
+    Haptic.tap();
     parcelsQuery.refetch();
-    requestsQuery.refetch();
-  }, [tripsQuery, parcelsQuery, requestsQuery]);
+    tripsQuery.refetch();
+  }, [parcelsQuery, tripsQuery]);
 
-  const canSearch = fromCity.trim().length > 0 || toCity.trim().length > 0;
+  const handleParcelPress = useCallback(
+    (parcel: Parcel) => {
+      Haptic.select();
+      router.push({
+        pathname: '/parcel/[id]',
+        params: {
+          id: parcel.id,
+          travelerFlow: 'true',
+          fromCity: parcel.fromCity,
+          toCity: parcel.toCity,
+        },
+      });
+    },
+    [router]
+  );
 
-  const filtersAnimHeight = filtersHeight.interpolate({
+  const handleTripPress = useCallback(
+    (trip: Trip) => {
+      Haptic.select();
+      router.push({
+        pathname: '/trip/[id]',
+        params: { id: trip.id },
+      });
+    },
+    [router]
+  );
+
+  const spinInterpolate = swapRotation.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 50],
+    outputRange: ['0deg', '180deg'],
   });
 
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: C.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
-    >
-      <View style={[styles.container, { backgroundColor: C.background }]}>
-        <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
-          <LinearGradient colors={[C.primarySubtle, 'transparent']} style={StyleSheet.absoluteFillObject} />
-          <View style={[styles.headerRow, isTablet && styles.tabletContainer]}>
-            <Pressable
-              style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]}
-              onPress={() => { Haptic.tap(); router.back(); }}
-              hitSlop={TouchTarget.smallHitSlop}
-            >
-              <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
-            </Pressable>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Search Routes</Text>
-              <Text style={[styles.headerSub, { color: C.textMuted }]}>
-                {trips.length + parcels.length} listings available
-              </Text>
-            </View>
-            {/* View mode toggle */}
-            {hasSearched && (
-              <View style={[localStyles.viewToggle, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                <Pressable
-                  style={[localStyles.viewToggleBtn, viewMode === 'list' && { backgroundColor: C.primarySubtle }]}
-                  onPress={() => { Haptic.select(); setViewMode('list'); }}
-                >
-                  <MaterialIcons name="view-list" size={16} color={viewMode === 'list' ? C.primary : C.textMuted} />
-                </Pressable>
-                <Pressable
-                  style={[localStyles.viewToggleBtn, viewMode === 'map' && { backgroundColor: C.primarySubtle }]}
-                  onPress={() => { Haptic.select(); setViewMode('map'); }}
-                >
-                  <MaterialIcons name="map" size={16} color={viewMode === 'map' ? C.primary : C.textMuted} />
-                </Pressable>
-              </View>
-            )}
-            {hasSearched && (fromCity || toCity) ? (
-              <Pressable
-                style={[styles.clearBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
-                onPress={() => { Haptic.tap(); setFromCity(''); setToCity(''); setVehicleType(''); setHasSearched(false); }}
-              >
-                <MaterialIcons name="clear" size={15} color={C.textSecondary} />
-                <Text style={[styles.clearBtnText, { color: C.textSecondary }]}>Clear</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
-        <KeyboardAwareScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          extraScrollHeight={60}
-          scrollEventThrottle={16}
+  // Render Header Component inside FlashList
+  const renderListHeader = () => (
+    <View style={styles.headerComponentWrap}>
+      {/* Search & Route Card strictly matching index.styles.ts */}
+      <View
+        style={[
+          styles.routeCard,
+          S.card,
+          {
+            backgroundColor: C.card,
+            borderColor: C.surfaceBorder,
+          },
+        ]}
+      >
+        {/* Source (Pick) Input Row */}
+        <Pressable
+          style={styles.locationRow}
+          onPress={() => {
+            Haptic.select();
+            setShowPickModal(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Pickup city: ${fromCity || 'Select pickup city'}`}
         >
-          <View style={[styles.searchCard, { backgroundColor: C.surface, borderColor: focused ? C.primary + '66' : C.surfaceBorder }, isTablet && styles.tabletContainer]}>
-            <View style={[styles.fieldRow, { borderBottomColor: C.surfaceBorder }]}>
-              <View style={[styles.fieldDot, { backgroundColor: C.successSubtle }]}>
-                <View style={[styles.fieldDotInner, { backgroundColor: C.success }]} />
-              </View>
-              <View style={styles.fieldTextWrap}>
-                <Text style={[styles.fieldLabel, { color: C.textMuted }]}>From</Text>
-                <TextInput
-                  ref={fromInputRef}
-                  style={[styles.fieldInput, { color: C.textPrimary }]}
-                  placeholder="Origin city"
-                  placeholderTextColor={C.textMuted}
-                  value={fromCity}
-                  onChangeText={v => { setFromCity(v); setFocused('from'); setHasSearched(false); }}
-                  onFocus={() => setFocused('from')}
-                  onBlur={() => setTimeout(() => setFocused(f => f === 'from' ? null : f), 200)}
-                  returnKeyType="next"
-                  onSubmitEditing={() => toInputRef.current?.focus()}
-                  accessibilityLabel="From city"
-                />
-              </View>
-              {fromCity ? (
-                <Pressable onPress={() => { setFromCity(''); Haptic.tap(); }} hitSlop={TouchTarget.smallHitSlop}>
-                  <MaterialIcons name="close" size={17} color={C.textMuted} />
-                </Pressable>
-              ) : null}
-            </View>
-
-            <Pressable
-              style={[styles.swapBtn, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}
-              hitSlop={TouchTarget.smallHitSlop}
-              onPress={handleSwap}
+          <View style={[styles.locationIndicatorDot, { backgroundColor: '#10B981' }]} />
+          <View style={styles.locationContentWrap}>
+            <Text style={[styles.fieldSubLabel, { color: C.textMuted }]}>SOURCE / PICKUP</Text>
+            <Text
+              style={[
+                styles.cityDisplayInput,
+                { color: fromCity ? C.textPrimary : C.textMuted },
+              ]}
+              numberOfLines={1}
             >
-              <MaterialIcons name="swap-vert" size={18} color={C.primary} />
+              {fromCity || 'Select starting pickup city'}
+            </Text>
+          </View>
+
+          {fromCity ? (
+            <Pressable
+              style={styles.clearFieldBtn}
+              onPress={(e) => {
+                e.stopPropagation();
+                Haptic.tap();
+                setFromCity('');
+              }}
+              hitSlop={8}
+            >
+              <MaterialIcons name="close" size={16} color={C.textMuted} />
             </Pressable>
+          ) : (
+            <Pressable
+              style={[styles.gpsAutoDetectBtn, { backgroundColor: C.primarySubtle }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDetectGPS();
+              }}
+              hitSlop={6}
+            >
+              {isDetectingLocation ? (
+                <ActivityIndicator size="small" color="#10B981" />
+              ) : (
+                <>
+                  <MaterialIcons name="my-location" size={13} color="#10B981" />
+                  <Text style={[styles.gpsAutoDetectText, { color: '#064E3B' }]}>Current</Text>
+                </>
+              )}
+            </Pressable>
+          )}
+        </Pressable>
 
-            <View style={styles.fieldRow}>
-              <View style={[styles.fieldDot, { backgroundColor: C.errorSubtle }]}>
-                <View style={[styles.fieldDotInner, { backgroundColor: C.error }]} />
-              </View>
-              <View style={styles.fieldTextWrap}>
-                <Text style={[styles.fieldLabel, { color: C.textMuted }]}>To</Text>
-                <TextInput
-                  ref={toInputRef}
-                  style={[styles.fieldInput, { color: C.textPrimary }]}
-                  placeholder="Destination city"
-                  placeholderTextColor={C.textMuted}
-                  value={toCity}
-                  onChangeText={v => { setToCity(v); setFocused('to'); setHasSearched(false); }}
-                  onFocus={() => setFocused('to')}
-                  onBlur={() => setTimeout(() => setFocused(f => f === 'to' ? null : f), 200)}
-                  returnKeyType="search"
-                  onSubmitEditing={handleSearch}
-                  accessibilityLabel="To city"
-                />
-              </View>
-              {toCity ? (
-                <Pressable onPress={() => { setToCity(''); Haptic.tap(); }} hitSlop={TouchTarget.smallHitSlop}>
-                  <MaterialIcons name="close" size={17} color={C.textMuted} />
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
-
-          {focused === 'from' && fromSuggestions.length > 0 ? (
-            <CityDropdown suggestions={fromSuggestions} onSelect={c => { setFromCity(c); setFocused(null); }} accent={C.success} C={C} />
-          ) : null}
-          {focused === 'to' && toSuggestions.length > 0 ? (
-            <CityDropdown suggestions={toSuggestions} onSelect={c => { setToCity(c); setFocused(null); }} accent={C.error} C={C} />
-          ) : null}
-
-          <View style={[styles.vehicleSection, isTablet && styles.tabletContainer]}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.vehicleRow}>
-                <Pressable
-                  style={[
-                    styles.vehicleChip,
-                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                    !vehicleType && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
-                  ]}
-                  hitSlop={TouchTarget.smallHitSlop}
-                  onPress={() => { Haptic.select(); setVehicleType(''); }}
-                >
-                  <MaterialIcons name="all-inclusive" size={14} color={!vehicleType ? C.primary : C.textMuted} />
-                  <Text style={[styles.vehicleChipText, { color: !vehicleType ? C.primary : C.textMuted }]}>All</Text>
-                </Pressable>
-                {VEHICLE_TYPES.map(v => (
-                  <Pressable
-                    key={v.type}
-                    style={[
-                      styles.vehicleChip,
-                      { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                      vehicleType === v.type && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
-                    ]}
-                    hitSlop={TouchTarget.smallHitSlop}
-                    onPress={() => { Haptic.select(); setVehicleType(vehicleType === v.type ? '' : v.type); }}
-                  >
-                    <MaterialIcons name={v.icon as any} size={14} color={vehicleType === v.type ? C.primary : C.textMuted} />
-                    <Text style={[styles.vehicleChipText, { color: vehicleType === v.type ? C.primary : C.textMuted }]}>{v.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-
-          <View style={[styles.actionRow, isTablet && styles.tabletContainer]}>
-            <Animated.View style={[{ flex: 1 }, { transform: [{ scale: searchBtnScale }] }]}>
-              <Pressable
-                style={[
-                  styles.searchBtn,
-                  { backgroundColor: canSearch ? C.primary : C.surfaceElevated, borderColor: canSearch ? C.primary : C.surfaceBorder },
-                ]}
-                onPress={handleSearch}
-                disabled={!canSearch}
-              >
-                <Ionicons name="search" size={17} color={canSearch ? C.textInverse : C.textMuted} />
-                <Text style={[styles.searchBtnText, { color: canSearch ? C.textInverse : C.textMuted }]}>Search</Text>
-              </Pressable>
-            </Animated.View>
+        {/* Route Divider with Spring Swap Button */}
+        <View style={styles.dividerWrap}>
+          <View style={[styles.dividerDashedLine, { borderColor: C.surfaceBorder }]} />
+          <Animated.View style={{ transform: [{ rotate: spinInterpolate }] }}>
             <Pressable
               style={[
-                styles.subscribeBtn,
+                styles.swapRouteButton,
                 {
-                  backgroundColor: canSearch ? C.primarySubtle : C.surfaceElevated,
-                  borderColor: canSearch ? C.primary + '66' : C.surfaceBorder,
-                  opacity: subscribing ? 0.7 : 1,
+                  backgroundColor: C.card,
+                  borderColor: C.surfaceBorder,
                 },
               ]}
-              hitSlop={TouchTarget.smallHitSlop}
-              onPress={handleSubscribe}
-              disabled={subscribing}
+              onPress={handleSwapRoute}
+              accessibilityRole="button"
+              accessibilityLabel="Swap pickup and destination cities"
             >
-              <Ionicons name="notifications" size={17} color={canSearch ? C.primary : C.textMuted} />
-              <Text style={[styles.subscribeBtnText, { color: canSearch ? C.primary : C.textMuted }]}>
-                {subscribing ? 'Saving...' : 'Alert'}
-              </Text>
+              <MaterialIcons name="swap-vert" size={20} color="#10B981" />
             </Pressable>
+          </Animated.View>
+        </View>
+
+        {/* Destination (Drop) Input Row */}
+        <Pressable
+          style={styles.locationRow}
+          onPress={() => {
+            Haptic.select();
+            setShowDropModal(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Drop city: ${toCity || 'Select destination city'}`}
+        >
+          <View style={[styles.locationIndicatorDot, { backgroundColor: '#EF4444' }]} />
+          <View style={styles.locationContentWrap}>
+            <Text style={[styles.fieldSubLabel, { color: C.textMuted }]}>DESTINATION / DROP</Text>
+            <Text
+              style={[
+                styles.cityDisplayInput,
+                { color: toCity ? C.textPrimary : C.textMuted },
+              ]}
+              numberOfLines={1}
+            >
+              {toCity || 'Select final drop destination'}
+            </Text>
           </View>
 
-          {hasSearched ? (
-            <Animated.View style={{ opacity: resultsFade }}>
-              {/* Results count + sorting */}
-              <View style={localStyles.resultsHeader}>
-                <Text style={[localStyles.resultsCount, { color: C.textSecondary }]}>
-                  {displayResults.length} result{displayResults.length !== 1 ? 's' : ''}
-                </Text>
-                <Pressable
-                  style={[localStyles.sortBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
-                  onPress={toggleFilters}
-                >
-                  <MaterialIcons name="sort" size={14} color={C.textMuted} />
-                  <Text style={[localStyles.sortBtnText, { color: C.textMuted }]}>
-                    {SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}
-                  </Text>
-                  <MaterialIcons name={showFilters ? 'expand-less' : 'expand-more'} size={14} color={C.textMuted} />
-                </Pressable>
-              </View>
-
-              {/* Collapsible sort options */}
-              <Animated.View style={[localStyles.sortPanel, { height: filtersAnimHeight, overflow: 'hidden' }]}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={localStyles.sortRow}>
-                    {SORT_OPTIONS.map(opt => (
-                      <Pressable
-                        key={opt.value}
-                        style={[
-                          localStyles.sortChip,
-                          { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                          sortBy === opt.value && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
-                        ]}
-                        onPress={() => { Haptic.select(); setSortBy(opt.value); }}
-                      >
-                        <Text style={[localStyles.sortChipText, { color: sortBy === opt.value ? C.primary : C.textMuted }]}>
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </ScrollView>
-              </Animated.View>
-
-              <View style={[styles.resultTabsRow, isTablet && styles.tabletContainer]}>
-                {(['all', 'trips', 'parcels'] as ResultTab[]).map(t => {
-                  const count = t === 'all' ? allResults.length : t === 'trips' ? matchedTrips.length : matchedParcels.length;
-                  return (
-                    <Pressable
-                      key={t}
-                      style={[
-                        styles.resultTab,
-                        { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                        tab === t && { backgroundColor: C.primarySubtle, borderColor: C.primary + '66' },
-                      ]}
-                      hitSlop={TouchTarget.smallHitSlop}
-                      onPress={() => { Haptic.select(); setTab(t); }}
-                    >
-                      <MaterialIcons
-                        name={t === 'trips' ? 'directions-car' : t === 'parcels' ? 'inventory-2' : 'search'}
-                        size={13}
-                        color={tab === t ? C.primary : C.textMuted}
-                      />
-                      <Text style={[styles.resultTabText, { color: tab === t ? C.primary : C.textMuted }]}>
-                        {t.charAt(0).toUpperCase() + t.slice(1)} ({count})
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              {(fromCity && toCity && allResults.length > 0) ? (
-                <Pressable
-                  style={[styles.subscribeCta, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }, isTablet && styles.tabletContainer]}
-                  onPress={handleSubscribe}
-                >
-                  <Ionicons name="notifications-outline" size={14} color={C.primary} />
-                  <Text style={[styles.subscribeCtaText, { color: C.primary }]}>
-                    Alert me for new listings on {fromCity} → {toCity}
-                  </Text>
-                  <MaterialIcons name="arrow-forward-ios" size={11} color={C.primary} />
-                </Pressable>
-              ) : null}
-
-              {/* Map View */}
-              {viewMode === 'map' && displayResults.length > 0 && (
-                <View style={[localStyles.mapContainer, isTablet && styles.tabletContainer]}>
-                  <RouteMapView
-                    trips={tab === 'parcels' ? [] : matchedTrips}
-                    parcels={tab === 'trips' ? [] : matchedParcels}
-                    height={280}
-                    onMarkerPress={(marker) => {
-                      Haptic.tap();
-                    }}
-                  />
-                </View>
-              )}
-
-              {/* List View */}
-              {viewMode === 'list' && displayResults.length > 0 ? (
-                <View style={[styles.resultsList, isTablet && styles.tabletContainer]}>
-                  {displayResults.map((item: SearchItem, idx: number) => {
-                    const isItemOwner = Boolean(user?.id && item.data.userId === user.id);
-                    const existingReq = item.type === 'trip'
-                      ? requestsByTripId.get(item.data.id)
-                      : requestsByParcelId.get(item.data.id);
-                    return (
-                      <View key={`${item.type}-${item.data.id}-${idx}`} style={styles.resultItem}>
-                        {item.type === 'trip' ? (
-                          <TripCard
-                            trip={item.data as Trip}
-                            isOwner={isItemOwner}
-                            existingRequest={existingReq}
-                            showRequestButton={!isItemOwner && FeatureFlags.payments && !existingReq}
-                            onRequest={() => {
-                              Haptic.tap();
-                              router.push({ pathname: '/trip/[id]', params: { id: item.data.id } });
-                            }}
-                            onTrackDelivery={handleTrackDelivery}
-                            onViewRequest={handleViewRequest}
-                            onPress={() => { Haptic.tap(); router.push({ pathname: '/trip/[id]', params: { id: item.data.id } }); }}
-                          />
-                        ) : (
-                          <ParcelCard
-                            parcel={item.data as Parcel}
-                            isOwner={isItemOwner}
-                            existingRequest={existingReq}
-                            showCarryButton={!isItemOwner && !existingReq}
-                            onCarry={() => {
-                              Haptic.tap();
-                              router.push({ pathname: '/parcel/[id]', params: { id: item.data.id } });
-                            }}
-                            onTrackDelivery={handleTrackDelivery}
-                            onViewRequest={handleViewRequest}
-                            onPress={() => { Haptic.tap(); router.push({ pathname: '/parcel/[id]', params: { id: item.data.id } }); }}
-                          />
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              ) : viewMode === 'list' && displayResults.length === 0 ? (
-                <View style={[styles.emptyState, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
-                  <View style={[styles.emptyIcon, { backgroundColor: C.surfaceElevated }]}>
-                    <MaterialIcons name="search-off" size={36} color={C.textMuted} />
-                  </View>
-                  <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No results found</Text>
-                  <Text style={[styles.emptySub, { color: C.textMuted }]}>
-                    No listings on this route right now.
-                  </Text>
-                  {fromCity && toCity ? (
-                    <View style={localStyles.emptyActionsWrap}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.emptySubscribeBtn,
-                          { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1 },
-                        ]}
-                        onPress={handleSubscribe}
-                      >
-                        <Ionicons name="notifications" size={15} color="#fff" />
-                        <Text style={styles.emptySubscribeBtnText}>Get Notified When Available</Text>
-                      </Pressable>
-
-                      <View style={localStyles.emptyShortcutsRow}>
-                        <Pressable
-                          style={[localStyles.shortcutBtn, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}
-                          onPress={() => router.push({ pathname: '/create-parcel', params: { fromCity, toCity } })}
-                        >
-                          <MaterialIcons name="inventory-2" size={13} color={C.primary} />
-                          <Text style={[localStyles.shortcutBtnText, { color: C.primary }]}>List Parcel</Text>
-                        </Pressable>
-
-                        <Pressable
-                          style={[localStyles.shortcutBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
-                          onPress={() => router.push({ pathname: '/create-trip', params: { fromCity, toCity } })}
-                        >
-                          <MaterialIcons name="directions-car" size={13} color={C.textPrimary} />
-                          <Text style={[localStyles.shortcutBtnText, { color: C.textPrimary }]}>Offer Trip</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-
-              {/* Pull to refresh hint */}
-              {displayResults.length > 0 && (
-                <Pressable
-                  style={[localStyles.refreshBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}
-                  onPress={handleRefresh}
-                >
-                  <MaterialIcons name="refresh" size={14} color={C.textMuted} />
-                  <Text style={[localStyles.refreshText, { color: C.textMuted }]}>Refresh results</Text>
-                </Pressable>
-              )}
-            </Animated.View>
+          {toCity ? (
+            <Pressable
+              style={styles.clearFieldBtn}
+              onPress={(e) => {
+                e.stopPropagation();
+                Haptic.tap();
+                setToCity('');
+              }}
+              hitSlop={8}
+            >
+              <MaterialIcons name="close" size={16} color={C.textMuted} />
+            </Pressable>
           ) : (
-            <View style={[styles.preSearch, isTablet && styles.tabletContainer]}>
-              {history.length > 0 ? (
-                <View style={styles.historySection}>
-                  <View style={styles.historySectionHeader}>
-                    <MaterialIcons name="history" size={14} color={C.textMuted} />
-                    <Text style={[styles.historySectionTitle, { color: C.textMuted }]}>Recent Searches</Text>
-                    <Pressable onPress={clearHistory} hitSlop={8}>
-                      <Text style={[styles.clearHistoryText, { color: C.error }]}>Clear</Text>
-                    </Pressable>
-                  </View>
-                  <View style={styles.historyChips}>
-                    {history.map((entry, i) => (
-                      <HistoryChip
-                        key={`${entry.fromCity}-${entry.toCity}-${i}`}
-                        entry={entry}
-                        onPress={() => handleApplyHistory(entry)}
-                        onRemove={() => removeHistory(i)}
-                        C={C}
-                      />
-                    ))}
-                  </View>
-                </View>
-              ) : null}
+            <MaterialIcons name="chevron-right" size={20} color={C.textMuted} />
+          )}
+        </Pressable>
+      </View>
 
-              <View style={styles.popularSection}>
-                <View style={styles.historySectionHeader}>
-                  <MaterialIcons name="local-fire-department" size={14} color={C.warning} />
-                  <Text style={[styles.historySectionTitle, { color: C.textMuted }]}>Popular Routes</Text>
-                </View>
-                <View style={styles.popularGrid}>
-                  {POPULAR_ROUTES.map(([from, to]) => (
-                    <Pressable
-                      key={`${from}-${to}`}
-                      style={({ pressed }) => [
-                        styles.popularChip,
-                        { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-                        pressed && { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' },
-                      ]}
-                      onPress={() => {
-                        Haptic.tap();
-                        setFromCity(from);
-                        setToCity(to);
-                        setHasSearched(true);
-                        resultsFade.setValue(0);
-                        Animated.timing(resultsFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-                      }}
-                    >
-                      <View style={styles.popularChipInner}>
-                        <Text style={[styles.popularFrom, { color: C.textPrimary }]}>{from}</Text>
-                        <MaterialIcons name="arrow-forward" size={11} color={C.primary} />
-                        <Text style={[styles.popularTo, { color: C.textSecondary }]}>{to}</Text>
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
+      {/* Quick Haryana Corridor Chips for 1-Tap Route Prefill */}
+      <HaryanaCorridorChips
+        activeFromCity={fromCity}
+        activeToCity={toCity}
+        onSelectCorridor={handleSelectCorridor}
+        onClear={() => {
+          setFromCity('');
+          setToCity('');
+        }}
+        title="Popular Corridors (1-Tap Route)"
+        compactPadding
+      />
 
-              <View style={[styles.hintCard, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-                <Ionicons name="information-circle-outline" size={16} color={C.primary} />
-                <Text style={[styles.hintText, { color: C.primary }]}>
-                  Tap Alert to get notified when new trips or parcels appear on your route. Use the map view to visualize routes.
+      {/* Filter Chips Bar (Horizontal Scroll strictly matching index.styles.ts) */}
+      <View style={styles.filterSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterChipsScroll}
+        >
+          {/* 'Date of Travel' Filter Chip */}
+          <Pressable
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: travelDate ? '#ECFDF5' : C.card,
+                borderColor: travelDate ? '#10B981' : C.surfaceBorder,
+              },
+            ]}
+            onPress={() => {
+              Haptic.select();
+              setShowDatePicker(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Select date of travel"
+          >
+            <MaterialIcons
+              name="event"
+              size={15}
+              color={travelDate ? '#10B981' : C.textSecondary}
+            />
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color: travelDate ? '#064E3B' : C.textPrimary,
+                  fontWeight: travelDate ? FontWeight.bold : FontWeight.medium,
+                },
+              ]}
+            >
+              {travelDate ? formatScheduleDate(travelDate) : 'Date of Travel'}
+            </Text>
+            {travelDate ? (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  Haptic.tap();
+                  setTravelDate('');
+                }}
+                hitSlop={8}
+              >
+                <MaterialIcons name="close" size={14} color="#064E3B" />
+              </Pressable>
+            ) : null}
+          </Pressable>
+
+          {/* Weight Range Chips */}
+          {WEIGHT_OPTIONS.map((w) => {
+            const isSelected = selectedWeight === w.id;
+            return (
+              <Pressable
+                key={w.id}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected ? '#ECFDF5' : C.card,
+                    borderColor: isSelected ? '#10B981' : C.surfaceBorder,
+                  },
+                ]}
+                onPress={() => {
+                  Haptic.select();
+                  setSelectedWeight(w.id);
+                }}
+              >
+                <MaterialIcons
+                  name="fitness-center"
+                  size={13}
+                  color={isSelected ? '#10B981' : C.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: isSelected ? '#064E3B' : C.textPrimary,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.medium,
+                    },
+                  ]}
+                >
+                  {w.label}
                 </Text>
-              </View>
+              </Pressable>
+            );
+          })}
+
+          {/* Category Filter Chips */}
+          {CATEGORY_OPTIONS.map((cat) => {
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <Pressable
+                key={cat.id}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected ? '#ECFDF5' : C.card,
+                    borderColor: isSelected ? '#10B981' : C.surfaceBorder,
+                  },
+                ]}
+                onPress={() => {
+                  Haptic.select();
+                  setSelectedCategory(cat.id);
+                }}
+              >
+                <MaterialIcons
+                  name={cat.icon}
+                  size={13}
+                  color={isSelected ? '#10B981' : C.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: isSelected ? '#064E3B' : C.textPrimary,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.medium,
+                    },
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {/* Sort By Chips */}
+          {SORT_OPTIONS.map((sort) => {
+            const isSelected = selectedSort === sort.id;
+            return (
+              <Pressable
+                key={sort.id}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected ? '#F0FDF4' : C.card,
+                    borderColor: isSelected ? '#10B981' : C.surfaceBorder,
+                  },
+                ]}
+                onPress={() => {
+                  Haptic.select();
+                  setSelectedSort(sort.id);
+                }}
+              >
+                <MaterialIcons
+                  name={sort.icon}
+                  size={13}
+                  color={isSelected ? '#10B981' : C.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: isSelected ? '#064E3B' : C.textSecondary,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.medium,
+                    },
+                  ]}
+                >
+                  {sort.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {/* Clear Filters Button (if active) */}
+          {hasActiveFilters ? (
+            <Pressable
+              style={[styles.clearAllChip, { borderColor: '#EF4444' }]}
+              onPress={handleClearFilters}
+            >
+              <MaterialIcons name="refresh" size={14} color="#EF4444" />
+              <Text style={styles.clearAllChipText}>Reset</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      </View>
+
+      {/* Route Alert Subscription Banner (if route entered) */}
+      {fromCity && toCity ? (
+        <Pressable
+          style={[
+            styles.alertBanner,
+            {
+              backgroundColor: '#ECFDF5',
+              borderColor: '#A7F3D0',
+            },
+          ]}
+          onPress={handleSubscribeAlert}
+          disabled={isSubscribing}
+        >
+          <View style={styles.alertBannerIcon}>
+            <Ionicons name="notifications" size={16} color="#10B981" />
+          </View>
+          <View style={styles.alertBannerTextWrap}>
+            <Text style={[styles.alertBannerTitle, { color: '#064E3B' }]}>
+              Get Notified on {fromCity} → {toCity}
+            </Text>
+            <Text style={[styles.alertBannerSub, { color: '#047857' }]}>
+              Instant push alert whenever senders request parcel delivery
+            </Text>
+          </View>
+          {isSubscribing ? (
+            <ActivityIndicator size="small" color="#10B981" />
+          ) : (
+            <MaterialIcons name="arrow-forward-ios" size={12} color="#10B981" />
+          )}
+        </Pressable>
+      ) : null}
+
+      {/* Feed Sub-Header: Active Listings Counter & Mode Pill */}
+      <View style={styles.feedHeaderRow}>
+        <View style={styles.feedTabsWrap}>
+          <Pressable
+            style={[
+              styles.feedTab,
+              {
+                backgroundColor: activeTab === 'parcels' ? '#10B981' : C.card,
+                borderColor: activeTab === 'parcels' ? '#10B981' : C.surfaceBorder,
+              },
+            ]}
+            onPress={() => {
+              Haptic.select();
+              setActiveTab('parcels');
+            }}
+          >
+            <MaterialIcons
+              name="inventory-2"
+              size={14}
+              color={activeTab === 'parcels' ? '#FFFFFF' : C.textSecondary}
+            />
+            <Text
+              style={[
+                styles.feedTabText,
+                { color: activeTab === 'parcels' ? '#FFFFFF' : C.textPrimary },
+              ]}
+            >
+              Parcels ({filteredParcels.length})
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.feedTab,
+              {
+                backgroundColor: activeTab === 'trips' ? '#10B981' : C.card,
+                borderColor: activeTab === 'trips' ? '#10B981' : C.surfaceBorder,
+              },
+            ]}
+            onPress={() => {
+              Haptic.select();
+              setActiveTab('trips');
+            }}
+          >
+            <MaterialIcons
+              name="directions-car"
+              size={14}
+              color={activeTab === 'trips' ? '#FFFFFF' : C.textSecondary}
+            />
+            <Text
+              style={[
+                styles.feedTabText,
+                { color: activeTab === 'trips' ? '#FFFFFF' : C.textPrimary },
+              ]}
+            >
+              Trips ({filteredTrips.length})
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={[styles.feedCountLabel, { color: C.textMuted }]}>
+          {activeTab === 'parcels'
+            ? `${filteredParcels.length} requests`
+            : `${filteredTrips.length} available`}
+        </Text>
+      </View>
+    </View>
+  );
+
+  // Render Empty State strictly matching index.styles.ts emptyFeedCard
+  const renderListEmpty = () => {
+    if (parcelsQuery.isLoading) {
+      return (
+        <View
+          style={[
+            styles.emptyCard,
+            S.card,
+            {
+              backgroundColor: C.card,
+              borderColor: C.surfaceBorder,
+            },
+          ]}
+        >
+          <ActivityIndicator size="large" color="#10B981" />
+          <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
+            Searching Active Parcels...
+          </Text>
+          <Text style={[styles.emptySub, { color: C.textMuted }]}>
+            Scanning active sender requests along your corridor
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.emptyCard,
+          S.card,
+          {
+            backgroundColor: C.card,
+            borderColor: C.surfaceBorder,
+          },
+        ]}
+      >
+        <View style={[styles.emptyIconBg, { backgroundColor: C.surfaceElevated }]}>
+          <MaterialIcons name="search-off" size={40} color={C.textMuted} />
+        </View>
+        <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
+          No Active Parcels Found
+        </Text>
+        <Text style={[styles.emptySub, { color: C.textSecondary }]}>
+          {fromCity && toCity
+            ? `No open parcel requests on ${fromCity} → ${toCity} right now. Set a route alert or clear filters to see more.`
+            : 'No active parcel requests match the current filters. Try resetting your search parameters.'}
+        </Text>
+
+        {fromCity && toCity ? (
+          <Pressable
+            style={[styles.emptyGreenActionBtn, { backgroundColor: '#10B981' }]}
+            onPress={handleSubscribeAlert}
+          >
+            <Ionicons name="notifications" size={17} color="#FFFFFF" />
+            <Text style={styles.emptyGreenActionBtnText}>Set Route Alert</Text>
+          </Pressable>
+        ) : null}
+
+        {hasActiveFilters ? (
+          <Pressable
+            style={[
+              styles.emptyResetBtn,
+              {
+                backgroundColor: C.surfaceElevated,
+                borderColor: C.surfaceBorder,
+              },
+            ]}
+            onPress={handleClearFilters}
+          >
+            <MaterialIcons name="refresh" size={16} color={C.textPrimary} />
+            <Text style={[styles.emptyResetBtnText, { color: C.textPrimary }]}>
+              Clear All Filters
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      {/* Top Header strictly matching index.styles.ts */}
+      <View
+        style={[
+          styles.headerWrap,
+          {
+            paddingTop: insets.top + Spacing.sm,
+            backgroundColor: C.surface,
+            borderBottomColor: C.surfaceBorder,
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={[C.primarySubtle, 'transparent']}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={styles.headerRow}>
+          <Pressable
+            style={[
+              styles.headerBackBtn,
+              {
+                backgroundColor: C.card,
+                borderColor: C.surfaceBorder,
+              },
+            ]}
+            onPress={() => {
+              Haptic.tap();
+              router.back();
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+          </Pressable>
+
+          <View style={styles.headerTitleWrap}>
+            <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
+              Explore Parcels
+            </Text>
+            <Text style={[styles.headerSub, { color: C.textMuted }]}>
+              Find sender delivery requests along your travel route
+            </Text>
+          </View>
+
+          {hasActiveFilters ? (
+            <Pressable
+              style={[
+                styles.headerClearPill,
+                {
+                  backgroundColor: C.surfaceElevated,
+                  borderColor: C.surfaceBorder,
+                },
+              ]}
+              onPress={handleClearFilters}
+              hitSlop={8}
+            >
+              <MaterialIcons name="refresh" size={14} color={C.textSecondary} />
+              <Text style={[styles.headerClearPillText, { color: C.textSecondary }]}>Reset</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+
+      {/* Parcel Feed List using FlashList strictly matching index.styles.ts theme */}
+      {activeTab === 'parcels' ? (
+        <FlashList<Parcel>
+          data={filteredParcels}
+          renderItem={({ item }) => (
+            <TravelerParcelCard
+              parcel={item}
+              onPress={() => handleParcelPress(item)}
+              testID={`traveler-parcel-card-${item.id}`}
+            />
+          )}
+          estimatedItemSize={210}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderListEmpty}
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + Spacing.xxl,
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={parcelsQuery.isRefetching}
+              onRefresh={handleRefresh}
+              tintColor="#10B981"
+              colors={['#10B981']}
+            />
+          }
+        />
+      ) : (
+        <FlashList<Trip>
+          data={filteredTrips}
+          renderItem={({ item }) => (
+            <View style={styles.tripCardWrap}>
+              <TripCard
+                trip={item}
+                isOwner={Boolean(user?.id && item.userId === user.id)}
+                showRequestButton={false}
+                onPress={() => handleTripPress(item)}
+              />
             </View>
           )}
-        </KeyboardAwareScrollView>
-      </View>
-    </KeyboardAvoidingView>
+          estimatedItemSize={190}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderListEmpty}
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + Spacing.xxl,
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={tripsQuery.isRefetching}
+              onRefresh={handleRefresh}
+              tintColor="#10B981"
+              colors={['#10B981']}
+            />
+          }
+        />
+      )}
+
+      {/* City Select Modals for Source & Destination */}
+      <CitySelectModal
+        visible={showPickModal}
+        onClose={() => setShowPickModal(false)}
+        onSelect={(city) => {
+          setFromCity(city);
+          setShowPickModal(false);
+        }}
+        title="Select Pickup City (Source)"
+        subtitle="Where are you starting your travel journey?"
+        selectedCity={fromCity}
+        oppositeCity={toCity}
+        dotColor="#10B981"
+        onUseCurrentLocation={handleDetectGPS}
+        isDetectingLocation={isDetectingLocation}
+      />
+
+      <CitySelectModal
+        visible={showDropModal}
+        onClose={() => setShowDropModal(false)}
+        onSelect={(city) => {
+          setToCity(city);
+          setShowDropModal(false);
+        }}
+        title="Select Drop City (Destination)"
+        subtitle="Where is your final travel stop?"
+        selectedCity={toCity}
+        oppositeCity={fromCity}
+        dotColor="#EF4444"
+      />
+
+      {/* 7-Day Schedule Picker for Date of Travel */}
+      <SevenDaySchedulePicker
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        onSelect={(date) => {
+          setTravelDate(date);
+          setShowDatePicker(false);
+        }}
+        C={C}
+        initialDate={travelDate}
+        includeTime={false}
+        title="Select Date of Travel"
+        subtitle="Find parcel delivery requests for this travel date"
+        confirmLabel="Apply Travel Date"
+      />
+    </View>
   );
 }
 
-const localStyles = StyleSheet.create({
-  viewToggle: {
-    flexDirection: 'row',
-    borderRadius: 14,
-    borderWidth: 1.2,
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+
+  // Header strictly matching index.styles.ts
+  headerWrap: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
     overflow: 'hidden',
   },
-  viewToggleBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  resultsHeader: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginTop: 14,
-    marginBottom: 6,
+    gap: Spacing.md,
   },
-  resultsCount: {
-    fontSize: 13,
-    fontWeight: '600',
+  headerBackBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
-  sortBtn: {
+  headerTitleWrap: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.5,
+  },
+  headerSub: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  headerClearPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 24,
-    borderWidth: 1.2,
-  },
-  sortBtnText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  sortPanel: {
-    marginHorizontal: 16,
-    marginTop: 6,
-  },
-  sortRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  sortChip: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderRadius: 24,
-    borderWidth: 1.2,
-  },
-  sortChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  mapContainer: {
-    marginHorizontal: 16,
-    marginTop: 14,
-  },
-  refreshBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 12,
-    borderRadius: 18,
-    borderWidth: 1.2,
-  },
-  refreshText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  emptyActionsWrap: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 6,
-  },
-  emptyShortcutsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 2,
-  },
-  shortcutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  shortcutBtnText: {
+  headerClearPillText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
+  },
+
+  // List Header wrapper
+  headerComponentWrap: {
+    paddingTop: Spacing.md,
+    gap: Spacing.md,
+  },
+
+  // Route Selection White Card strictly matching index.styles.ts
+  routeCard: {
+    marginHorizontal: Spacing.md,
+    borderRadius: BorderRadius.xl, // 24
+    borderWidth: 1,
+    padding: Spacing.md,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: 10,
+  },
+  locationIndicatorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    flexShrink: 0,
+  },
+  locationContentWrap: {
+    flex: 1,
+  },
+  fieldSubLabel: {
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  cityDisplayInput: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  clearFieldBtn: {
+    padding: 6,
+  },
+  gpsAutoDetectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  gpsAutoDetectText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+
+  // Route divider with spring swap button
+  dividerWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 18,
+    position: 'relative',
+  },
+  dividerDashedLine: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
+    top: 9,
+    borderTopWidth: 1,
+    borderStyle: 'dashed',
+  },
+  swapRouteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  // Filter chips row
+  filterSection: {
+    marginVertical: 2,
+  },
+  filterChipsScroll: {
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+    alignItems: 'center',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    minHeight: 38,
+  },
+  filterChipText: {
+    fontSize: FontSize.xs,
+  },
+  clearAllChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    minHeight: 38,
+  },
+  clearAllChipText: {
+    color: '#EF4444',
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+
+  // Alert Banner
+  alertBanner: {
+    marginHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  alertBannerIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertBannerTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  alertBannerTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  alertBannerSub: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
+
+  // Feed Header Row
+  feedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.xs,
+  },
+  feedTabsWrap: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  feedTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  feedTabText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  feedCountLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+
+  // Empty state card strictly matching index.styles.ts emptyFeedCard
+  emptyCard: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
+    gap: Spacing.md,
+    borderRadius: 24, // index.styles.ts
+    borderWidth: 1,
+    paddingHorizontal: Spacing.xl,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  emptyIconBg: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  emptySub: {
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
+  // Green action button strictly matching index.styles.ts emptyCTA
+  emptyGreenActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.xl + 8,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.full,
+    marginTop: 8,
+  },
+  emptyGreenActionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: FontWeight.bold,
+    fontSize: FontSize.md,
+  },
+  emptyResetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: 12,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  emptyResetBtnText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+
+  // Trip item wrapper
+  tripCardWrap: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
   },
 });
