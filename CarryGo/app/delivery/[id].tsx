@@ -787,7 +787,7 @@ function DeliveryScreenInner() {
           {/* ========================================================================= */}
           {/* 2. PROGRESS TIMELINE (HORIZONTAL STEPPER)                                  */}
           {/* ========================================================================= */}
-          <DeliveryTimeline step={step} C={C} />
+          <DeliveryTimeline step={step} C={C} etaText={delivery?.etaText || undefined} />
 
           {/* ========================================================================= */}
           {/* 3. ACTIVE FOCUSED ACTION CARD (ROLE-BASED)                                 */}
@@ -803,6 +803,9 @@ function DeliveryScreenInner() {
                   onRefresh={handleRefreshPickupOtp}
                   loading={pickupOtpLoading}
                   C={C}
+                  travellerName={request.travellerName}
+                  fromCity={request.fromCity}
+                  toCity={request.toCity}
                 />
               )}
 
@@ -838,6 +841,9 @@ function DeliveryScreenInner() {
                     onGenerate={handleIssueDeliveryOtp}
                     loading={loading}
                     C={C}
+                    travellerName={request.travellerName}
+                    fromCity={request.fromCity}
+                    toCity={request.toCity}
                   />
                 </>
               )}

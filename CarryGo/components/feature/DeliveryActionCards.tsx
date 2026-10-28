@@ -9,15 +9,70 @@ import { DELIVERY_OTP_LENGTH } from '@/constants/security';
 import { Haptic } from '@/services/haptics.service';
 import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
 
+function buildOtpShareMessage(opts: {
+  code: string;
+  kind: 'pickup' | 'delivery';
+  travellerName?: string;
+  fromCity?: string;
+  toCity?: string;
+}) {
+  const { code, kind, travellerName, fromCity, toCity } = opts;
+  const routeLine = fromCity && toCity ? ` for the ${fromCity} → ${toCity} parcel` : '';
+  const greeting = travellerName ? `Hi ${travellerName}` : 'Hi';
+  if (kind === 'pickup') {
+    return `${greeting}, here is my CarryGo pickup code${routeLine}: ${code}. Please share this with me only once you've collected the parcel.`;
+  }
+  return `${greeting}, here is my CarryGo delivery code${routeLine}: ${code}. Please share only after the parcel has been handed to the receiver.`;
+}
+
+async function shareViaWhatsapp(message: string, phone?: string) {
+  const body = encodeURIComponent(message);
+  const digits = (phone || '').replace(/[^0-9]/g, '');
+  const url = digits ? `whatsapp://send?phone=${digits}&text=${body}` : `whatsapp://send?text=${body}`;
+  const fallback = digits ? `https://wa.me/${digits}?text=${body}` : `https://wa.me/?text=${body}`;
+  try {
+    const can = await Linking.canOpenURL(url);
+    if (can) {
+      await Linking.openURL(url);
+      return;
+    }
+  } catch {}
+  try {
+    await Linking.openURL(fallback);
+  } catch {}
+}
+
+async function shareViaSms(message: string, phone?: string) {
+  const body = encodeURIComponent(message);
+  const target = phone ? phone.replace(/\s+/g, '') : '';
+  const url = `sms:${target}?body=${body}`;
+  try {
+    await Linking.openURL(url);
+  } catch {}
+}
+
 // --- 1. SENDER: Pickup OTP Display Card ---
 type SenderPickupOtpCardProps = {
   code: string | null;
   onRefresh: () => void;
   loading: boolean;
   C: ThemeColors;
+  travellerName?: string;
+  travellerPhone?: string;
+  fromCity?: string;
+  toCity?: string;
 };
 
-export function SenderPickupOtpCard({ code, onRefresh, loading, C }: SenderPickupOtpCardProps) {
+export function SenderPickupOtpCard({
+  code,
+  onRefresh,
+  loading,
+  C,
+  travellerName,
+  travellerPhone,
+  fromCity,
+  toCity,
+}: SenderPickupOtpCardProps) {
   const [copied, setCopied] = useState(false);
   const digits = (code || '••••').slice(0, 4).split('');
 
@@ -27,6 +82,24 @@ export function SenderPickupOtpCard({ code, onRefresh, loading, C }: SenderPicku
     await Clipboard.setStringAsync(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShareWhatsapp = async () => {
+    if (!code) return;
+    Haptic.tap();
+    await shareViaWhatsapp(
+      buildOtpShareMessage({ code, kind: 'pickup', travellerName, fromCity, toCity }),
+      travellerPhone,
+    );
+  };
+
+  const handleShareSms = async () => {
+    if (!code) return;
+    Haptic.tap();
+    await shareViaSms(
+      buildOtpShareMessage({ code, kind: 'pickup', travellerName, fromCity, toCity }),
+      travellerPhone,
+    );
   };
 
   return (
@@ -63,8 +136,43 @@ export function SenderPickupOtpCard({ code, onRefresh, loading, C }: SenderPicku
         ))}
       </View>
 
-      {/* Action Buttons Row */}
+      {/* Primary Share Row — WhatsApp (prominent) */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Share pickup code via WhatsApp"
+        style={({ pressed }) => [
+          styles.primaryActionBtn,
+          {
+            backgroundColor: code ? '#25D366' : C.surfaceElevated,
+            opacity: pressed && code ? 0.9 : 1,
+            transform: [{ scale: pressed && code ? Motion.pressScale : 1 }],
+          },
+        ]}
+        onPress={handleShareWhatsapp}
+        disabled={!code}
+      >
+        <Ionicons name="logo-whatsapp" size={16} color={code ? '#fff' : C.textMuted} />
+        <Text style={[styles.primaryActionBtnText, { color: code ? '#fff' : C.textMuted }]}>
+          Share via WhatsApp
+        </Text>
+      </Pressable>
+
+      {/* Secondary Actions Row — SMS, Copy, Refresh */}
       <View style={styles.btnRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Share pickup code via SMS"
+          style={({ pressed }) => [
+            styles.secondaryBtn,
+            { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: pressed ? 0.8 : 1 },
+          ]}
+          onPress={handleShareSms}
+          disabled={!code}
+        >
+          <Feather name="message-square" size={14} color={C.textPrimary} />
+          <Text style={[styles.secondaryBtnText, { color: C.textPrimary }]}>SMS</Text>
+        </Pressable>
+
         <Pressable
           accessibilityRole="button"
           style={({ pressed }) => [
@@ -76,7 +184,7 @@ export function SenderPickupOtpCard({ code, onRefresh, loading, C }: SenderPicku
         >
           <Feather name={copied ? 'check' : 'copy'} size={14} color={copied ? C.success : C.textPrimary} />
           <Text style={[styles.secondaryBtnText, { color: copied ? C.success : C.textPrimary }]}>
-            {copied ? 'Copied' : 'Copy Code'}
+            {copied ? 'Copied' : 'Copy'}
           </Text>
         </Pressable>
 
@@ -95,10 +203,7 @@ export function SenderPickupOtpCard({ code, onRefresh, loading, C }: SenderPicku
           {loading ? (
             <ActivityIndicator color={C.primary} size="small" />
           ) : (
-            <>
-              <Feather name="refresh-cw" size={14} color={C.textPrimary} />
-              <Text style={[styles.secondaryBtnText, { color: C.textPrimary }]}>Refresh</Text>
-            </>
+            <Feather name="refresh-cw" size={14} color={C.textPrimary} />
           )}
         </Pressable>
       </View>
@@ -488,9 +593,22 @@ type SenderOtpCardProps = {
   onGenerate: () => void;
   loading: boolean;
   C: ThemeColors;
+  travellerName?: string;
+  travellerPhone?: string;
+  fromCity?: string;
+  toCity?: string;
 };
 
-export function SenderOtpCard({ code, onGenerate, loading, C }: SenderOtpCardProps) {
+export function SenderOtpCard({
+  code,
+  onGenerate,
+  loading,
+  C,
+  travellerName,
+  travellerPhone,
+  fromCity,
+  toCity,
+}: SenderOtpCardProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -499,6 +617,24 @@ export function SenderOtpCard({ code, onGenerate, loading, C }: SenderOtpCardPro
     await Clipboard.setStringAsync(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShareWhatsapp = async () => {
+    if (!code) return;
+    Haptic.tap();
+    await shareViaWhatsapp(
+      buildOtpShareMessage({ code, kind: 'delivery', travellerName, fromCity, toCity }),
+      travellerPhone,
+    );
+  };
+
+  const handleShareSms = async () => {
+    if (!code) return;
+    Haptic.tap();
+    await shareViaSms(
+      buildOtpShareMessage({ code, kind: 'delivery', travellerName, fromCity, toCity }),
+      travellerPhone,
+    );
   };
 
   return (
@@ -523,7 +659,40 @@ export function SenderOtpCard({ code, onGenerate, loading, C }: SenderOtpCardPro
         </View>
       ) : null}
 
+      {code ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Share delivery code via WhatsApp"
+          style={({ pressed }) => [
+            styles.primaryActionBtn,
+            {
+              backgroundColor: '#25D366',
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? Motion.pressScale : 1 }],
+            },
+          ]}
+          onPress={handleShareWhatsapp}
+        >
+          <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+          <Text style={[styles.primaryActionBtnText, { color: '#fff' }]}>Share via WhatsApp</Text>
+        </Pressable>
+      ) : null}
+
       <View style={styles.btnRow}>
+        {code ? (
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.secondaryBtn,
+              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: pressed ? 0.8 : 1 },
+            ]}
+            onPress={handleShareSms}
+          >
+            <Feather name="message-square" size={14} color={C.textPrimary} />
+            <Text style={[styles.secondaryBtnText, { color: C.textPrimary }]}>SMS</Text>
+          </Pressable>
+        ) : null}
+
         {code ? (
           <Pressable
             style={({ pressed }) => [
@@ -534,7 +703,7 @@ export function SenderOtpCard({ code, onGenerate, loading, C }: SenderOtpCardPro
           >
             <Feather name={copied ? 'check' : 'copy'} size={14} color={copied ? C.success : C.textPrimary} />
             <Text style={[styles.secondaryBtnText, { color: copied ? C.success : C.textPrimary }]}>
-              {copied ? 'Copied' : 'Copy Code'}
+              {copied ? 'Copied' : 'Copy'}
             </Text>
           </Pressable>
         ) : null}

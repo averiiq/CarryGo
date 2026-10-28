@@ -53,9 +53,10 @@ export const STEPS: {
 type DeliveryTimelineProps = {
   step: DeliveryStep;
   C?: ThemeColors;
+  etaText?: string;
 };
 
-export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
+export function DeliveryTimeline({ step, etaText }: DeliveryTimelineProps) {
   const { C, S } = useThemeColors();
   const currentIdx = stepIndex(step);
   const [selectedIdx, setSelectedIdx] = useState<number>(currentIdx);
@@ -117,24 +118,40 @@ export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
           </Text>
         </View>
 
-        <View
-          style={[
-            styles.statusPill,
-            {
-              backgroundColor: step === 'delivered' ? C.successSubtle : C.primarySubtle,
-              borderColor: step === 'delivered' ? C.success + '33' : C.primary + '33',
-            },
-          ]}
-        >
-          <View style={[styles.liveDot, { backgroundColor: step === 'delivered' ? C.success : C.primary }]} />
-          <Text
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {etaText && step !== 'delivered' ? (
+            <View
+              style={[
+                styles.statusPill,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              ]}
+            >
+              <Feather name="clock" size={10} color={C.textSecondary} />
+              <Text style={[styles.statusPillText, { color: C.textPrimary }]} numberOfLines={1}>
+                {etaText}
+              </Text>
+            </View>
+          ) : null}
+
+          <View
             style={[
-              styles.statusPillText,
-              { color: step === 'delivered' ? C.success : C.primary },
+              styles.statusPill,
+              {
+                backgroundColor: step === 'delivered' ? C.successSubtle : C.primarySubtle,
+                borderColor: step === 'delivered' ? C.success + '33' : C.primary + '33',
+              },
             ]}
           >
-            {step === 'delivered' ? 'Completed' : 'Active'}
-          </Text>
+            <View style={[styles.liveDot, { backgroundColor: step === 'delivered' ? C.success : C.primary }]} />
+            <Text
+              style={[
+                styles.statusPillText,
+                { color: step === 'delivered' ? C.success : C.primary },
+              ]}
+            >
+              {step === 'delivered' ? 'Completed' : 'Active'}
+            </Text>
+          </View>
         </View>
       </View>
 

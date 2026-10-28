@@ -592,6 +592,14 @@ export default function ProfileScreen() {
                 subtitle={FeatureFlags.payments ? 'Escrow payment history and invoices' : 'Unavailable'}
                 onPress={() => router.push('/transactions')}
               />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="monetization-on" size={18} color="#F59E0B" />}
+                label="Coins & Rewards"
+                subtitle="Earn coins on deliveries • Redeem for credit"
+                onPress={() => router.push('/rewards' as any)}
+              />
             </View>
           </View>
 

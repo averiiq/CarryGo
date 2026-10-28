@@ -23,7 +23,7 @@ function mapRow(row: PaymentRow): Payment {
   };
 }
 
-const RAZORPAY_TEST_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RuhXVSCs94jL0c';
+const RAZORPAY_TEST_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '';
 
 async function extractFunctionErrorMessage(error: any, fallback: string): Promise<string> {
   if (!error) return fallback;

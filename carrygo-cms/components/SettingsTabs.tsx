@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { motion } from 'framer-motion'
 import {
   User, Shield, Percent, CreditCard, Smartphone, Globe, Bell,
-  Save, ToggleLeft, ToggleRight, Info
+  Save, ToggleLeft, ToggleRight, Info, Coins
 } from 'lucide-react'
 import { saveSettings } from '@/app/dashboard/settings/actions'
 
@@ -36,6 +36,7 @@ interface AppConfig {
   pushNotifications: boolean
   emailNotifications: boolean
   smsNotifications: boolean
+  coinAwardPerDelivery: number
 }
 
 interface SettingsTabsProps {
@@ -89,6 +90,7 @@ export default function SettingsTabs({ profile, config: initialConfig }: Setting
         push_notifications: config.pushNotifications,
         email_notifications: config.emailNotifications,
         sms_notifications: config.smsNotifications,
+        coin_award_per_delivery: config.coinAwardPerDelivery,
       }
 
       const result = await saveSettings(dbConfig)
@@ -302,6 +304,25 @@ function CommissionTab({ config, updateConfig }: { config: AppConfig; updateConf
               ₹{(500 - Math.max(config.minCommissionAmount, Math.min(config.maxCommissionAmount, 500 * config.platformCommissionPercent / 100)) * (1 + config.gstPercent / 100)).toFixed(2)}
             </span>
           </div>
+        </div>
+      </div>
+
+      <div className="glass-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Coins className="h-5 w-5 text-amber-500" />
+          <h3 className="text-base font-heading font-semibold text-foreground">Coins & Rewards Configuration</h3>
+        </div>
+        <InfoBanner text="Coins awarded automatically to both Traveler and Sender upon confirmed successful parcel delivery (10 coins = ₹1 parcel credit)." />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <SettingsNumberField
+            label="Coin Award per Successful Delivery"
+            value={config.coinAwardPerDelivery}
+            onChange={v => updateConfig('coinAwardPerDelivery', v)}
+            min={0}
+            max={10000}
+            step={10}
+            suffix="coins"
+          />
         </div>
       </div>
     </div>

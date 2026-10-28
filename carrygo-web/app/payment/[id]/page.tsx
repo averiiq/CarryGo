@@ -196,7 +196,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
 
       // 2. Launch Razorpay modal with official order ID
       const options = {
-        key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RuhXVSCs94jL0c',
+        key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
         amount: orderData.amount, // paise
         currency: orderData.currency || 'INR',
         name: 'CarryGo Logistics',
@@ -523,17 +523,6 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                         Pay ₹{totalAmount} with Razorpay
                       </>
                     )}
-                  </button>
-
-                  {/* Surveyor One-Click Test Checkout */}
-                  <button
-                    type="button"
-                    disabled={processing}
-                    onClick={() => handlePayment('simulated')}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition active:scale-98 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                    Reviewer Demo: Instant Escrow Test
                   </button>
                 </div>
 

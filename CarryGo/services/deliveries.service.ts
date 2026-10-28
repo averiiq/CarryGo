@@ -64,9 +64,13 @@ export async function createDelivery(requestId: string) {
 
 export async function fetchDelivery(requestId: string, isSender?: boolean) {
   const sb = getSupabaseClient();
+  const selectColumns = isSender
+    ? 'id, request_id, pickup_confirmed, pickup_confirmed_at, delivery_confirmed, delivery_confirmed_at, status, pickup_otp, delivery_otp, trip_status, trip_note, eta_text, created_at'
+    : 'id, request_id, pickup_confirmed, pickup_confirmed_at, delivery_confirmed, delivery_confirmed_at, status, trip_status, trip_note, eta_text, created_at';
+
   let queryResult = await sb
     .from('deliveries')
-    .select('id, request_id, pickup_confirmed, pickup_confirmed_at, delivery_confirmed, delivery_confirmed_at, status, pickup_otp, delivery_otp, trip_status, trip_note, eta_text, created_at')
+    .select(selectColumns)
     .or(`id.eq.${requestId},request_id.eq.${requestId}`)
     .maybeSingle();
 
@@ -84,8 +88,8 @@ export async function fetchDelivery(requestId: string, isSender?: boolean) {
   const rawData = queryResult.data as unknown as ExtendedDeliveryRow;
   const row: ExtendedDeliveryRow = {
     ...rawData,
-    delivery_otp: isSender === false ? null : rawData.delivery_otp,
-    pickup_otp: isSender === false ? null : rawData.pickup_otp,
+    delivery_otp: isSender ? rawData.delivery_otp : null,
+    pickup_otp: isSender ? rawData.pickup_otp : null,
   };
   return { data: mapRow(row), error: null };
 }

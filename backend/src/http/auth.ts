@@ -76,15 +76,16 @@ export const getAuthenticatedUserId = (
 export const hasAdminRole = (event: APIGatewayProxyEventV2): boolean => {
   const claims = getClaims(event);
 
+  const allowedAdminRoles = new Set(['admin', 'super_admin', 'ops', 'support', 'support_agent']);
+
   const systemRole = claims['custom:system_role'];
   if (typeof systemRole === 'string') {
     const normalized = systemRole.trim().toLowerCase();
-    if (normalized && normalized !== 'user') {
+    if (allowedAdminRoles.has(normalized)) {
       return true;
     }
   }
 
   const groups = parseGroups(claims['cognito:groups']);
-  const allowedAdminGroups = new Set(['admin', 'super_admin', 'ops', 'support']);
-  return groups.some((group) => allowedAdminGroups.has(group.toLowerCase()));
+  return groups.some((group) => allowedAdminRoles.has(group.toLowerCase()));
 };

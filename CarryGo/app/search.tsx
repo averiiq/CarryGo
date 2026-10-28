@@ -60,7 +60,7 @@ type ResultTab = 'all' | 'trips' | 'parcels';
 type ViewMode = 'list' | 'map';
 type FocusedField = 'from' | 'to' | null;
 
-export default function SearchScreen() {
+export default function SearchScreen({ hideBackBtn = false }: { hideBackBtn?: boolean } = {}) {
   const { user } = useAuth();
   const { isSmallDevice, isTablet } = useResponsive();
   const tripsQuery = useTripsQuery(Boolean(user));
@@ -293,13 +293,22 @@ export default function SearchScreen() {
         <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
           <LinearGradient colors={[C.primarySubtle, 'transparent']} style={StyleSheet.absoluteFillObject} />
           <View style={[styles.headerRow, isTablet && styles.tabletContainer]}>
-            <Pressable
-              style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]}
-              onPress={() => { Haptic.tap(); router.back(); }}
-              hitSlop={TouchTarget.smallHitSlop}
-            >
-              <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
-            </Pressable>
+            {!hideBackBtn && (
+              <Pressable
+                style={[styles.backBtn, { backgroundColor: C.surfaceElevated }]}
+                onPress={() => {
+                  Haptic.tap();
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.push('/(tabs)');
+                  }
+                }}
+                hitSlop={TouchTarget.smallHitSlop}
+              >
+                <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+              </Pressable>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Search Routes</Text>
               <Text style={[styles.headerSub, { color: C.textMuted }]}>

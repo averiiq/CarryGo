@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Mail, MessageSquareHeart, Phone, Sparkles } from 'lucide-react'
+import { Mail, MessageSquareHeart, Phone, Sparkles, ShieldCheck, MapPin } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
@@ -62,6 +62,37 @@ export default function ContactPage() {
               </Link>
             </article>
           ))}
+        </div>
+
+        {/* Statutory Compliance & Grievance Redressal */}
+        <div className='mx-auto mt-8 grid w-full max-w-6xl gap-5 sm:grid-cols-2'>
+          <article className='glass-card p-6 md:p-7'>
+            <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
+              <ShieldCheck className='h-5 w-5' />
+            </div>
+            <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>Grievance Redressal Officer</h3>
+            <p className='mt-1 text-sm font-medium text-foreground/80'>grievance@carrygo.in</p>
+            <p className='mt-2 text-sm leading-relaxed text-muted'>
+              Under the Consumer Protection (E-Commerce) Rules, 2020 and Information Technology Rules, 2021, consumer grievances are acknowledged within 24 hours and redressed within 15 days.
+            </p>
+            <Link href='mailto:grievance@carrygo.in' className='inline-link mt-4'>
+              File a Grievance
+            </Link>
+          </article>
+
+          <article className='glass-card p-6 md:p-7'>
+            <div className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary'>
+              <MapPin className='h-5 w-5' />
+            </div>
+            <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>Registered Corporate Office</h3>
+            <p className='mt-1 text-sm font-medium text-foreground/80'>CarryGo Technologies Private Limited</p>
+            <p className='mt-2 text-sm leading-relaxed text-muted'>
+              Plot No. 44, Institutional Area, Sector 44, Gurugram, Haryana - 122003, India. CIN: U63090HR2026PTC109842.
+            </p>
+            <Link href='https://maps.google.com/?q=Sector+44+Gurugram+Haryana' target='_blank' rel='noopener noreferrer' className='inline-link mt-4'>
+              View on Map
+            </Link>
+          </article>
         </div>
 
         <article className='glass-card mx-auto mt-8 w-full max-w-6xl p-5 sm:p-6 md:p-8'>

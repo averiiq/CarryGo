@@ -158,6 +158,7 @@ function AppStack() {
         <Stack.Screen name="legal/privacy" options={{ headerShown: false }} />
         <Stack.Screen name="legal/refund-policy" options={{ headerShown: false }} />
         <Stack.Screen name="legal/shipping-policy" options={{ headerShown: false }} />
+        <Stack.Screen name="rewards" options={{ headerShown: false }} />
       </Stack>
     </>
   );

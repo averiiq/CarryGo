@@ -128,15 +128,43 @@ export default function TripDetailScreen() {
     };
   }, [draftCategory, draftWeight, draftPrice, draftFromCity, draftToCity, draftDesc, user, trip]);
 
+  // Find open user parcels that match this trip's route and fit in available capacity
+  const matchingRouteParcel = useMemo(() => {
+    if (!trip) return null;
+    const normTripFrom = trip.fromCity.trim().toLowerCase();
+    const normTripTo = trip.toCity.trim().toLowerCase();
+    return userParcels.find(
+      p => p.status === 'open' &&
+           p.fromCity.trim().toLowerCase() === normTripFrom &&
+           p.toCity.trim().toLowerCase() === normTripTo &&
+           p.weight <= (trip.availableCapacity || 999)
+    ) || null;
+  }, [trip, userParcels]);
+
   const activeParcel = useMemo(() => {
-    if (draftParcel) return draftParcel;
-    if (singleParcelQuery.data) return singleParcelQuery.data;
+    if (!trip) return null;
+    const normTripFrom = trip.fromCity.trim().toLowerCase();
+    const normTripTo = trip.toCity.trim().toLowerCase();
+
+    if (draftParcel) {
+      if (draftParcel.fromCity.trim().toLowerCase() === normTripFrom && draftParcel.toCity.trim().toLowerCase() === normTripTo) {
+        return draftParcel;
+      }
+    }
+    if (singleParcelQuery.data) {
+      const p = singleParcelQuery.data;
+      if (p.fromCity.trim().toLowerCase() === normTripFrom && p.toCity.trim().toLowerCase() === normTripTo) {
+        return p;
+      }
+    }
     if (parcelId) {
       const found = userParcels.find(p => p.id === parcelId);
-      if (found) return found;
+      if (found && found.fromCity.trim().toLowerCase() === normTripFrom && found.toCity.trim().toLowerCase() === normTripTo) {
+        return found;
+      }
     }
-    return userParcels.length > 0 ? userParcels[0] : null;
-  }, [draftParcel, singleParcelQuery.data, parcelId, userParcels]);
+    return matchingRouteParcel;
+  }, [draftParcel, singleParcelQuery.data, parcelId, userParcels, trip, matchingRouteParcel]);
 
   const timeline = useMemo(() => (trip ? getRouteTimelineMeta(trip) : null), [trip]);
 
@@ -236,18 +264,30 @@ export default function TripDetailScreen() {
       return;
     }
 
+    if (user.id === trip.userId) {
+      Haptic.warning();
+      showAlert('Not Allowed', 'You cannot send a counter-offer on your own trip.');
+      return;
+    }
+
+    const priceToOffer = Math.max(50, Math.round(Number(params.offeredPrice) || calculatedPrice || 100));
+
     try {
       let parcelToUse = activeParcel;
-      if (!parcelToUse || parcelToUse.id === 'draft-parcel') {
+      const isRouteMatch = parcelToUse &&
+        parcelToUse.fromCity.trim().toLowerCase() === trip.fromCity.trim().toLowerCase() &&
+        parcelToUse.toCity.trim().toLowerCase() === trip.toCity.trim().toLowerCase();
+
+      if (!parcelToUse || parcelToUse.id === 'draft-parcel' || !isRouteMatch) {
         parcelToUse = await createParcelMutation.mutateAsync({
           userId: user.id,
           userName: user.fullName || user.name || 'Sender',
           fromCity: trip.fromCity,
           toCity: trip.toCity,
           category: activeParcel?.category || 'documents',
-          weight: activeParcel?.weight || 1,
+          weight: Math.min(activeParcel?.weight || 1, trip.availableCapacity || 10),
           description: activeParcel?.description || `Negotiated delivery on trip ${trip.fromCity} → ${trip.toCity}`,
-          priceOffer: params.offeredPrice,
+          priceOffer: priceToOffer,
           status: 'open',
         });
       }
@@ -260,7 +300,7 @@ export default function TripDetailScreen() {
         travellerId: trip.userId,
         travellerName: trip.userName,
         status: 'pending',
-        price: params.offeredPrice,
+        price: priceToOffer,
         message: params.message,
       });
 
@@ -292,18 +332,30 @@ export default function TripDetailScreen() {
       return;
     }
 
+    if (user.id === trip.userId) {
+      Haptic.warning();
+      showAlert('Not Allowed', 'You cannot message yourself.');
+      return;
+    }
+
+    const priceToOffer = Math.max(50, Math.round(Number(params.offeredPrice) || calculatedPrice || 100));
+
     try {
       let parcelToUse = activeParcel;
-      if (!parcelToUse || parcelToUse.id === 'draft-parcel') {
+      const isRouteMatch = parcelToUse &&
+        parcelToUse.fromCity.trim().toLowerCase() === trip.fromCity.trim().toLowerCase() &&
+        parcelToUse.toCity.trim().toLowerCase() === trip.toCity.trim().toLowerCase();
+
+      if (!parcelToUse || parcelToUse.id === 'draft-parcel' || !isRouteMatch) {
         parcelToUse = await createParcelMutation.mutateAsync({
           userId: user.id,
           userName: user.fullName || user.name || 'Sender',
           fromCity: trip.fromCity,
           toCity: trip.toCity,
           category: activeParcel?.category || 'documents',
-          weight: activeParcel?.weight || 1,
+          weight: Math.min(activeParcel?.weight || 1, trip.availableCapacity || 10),
           description: activeParcel?.description || `Delivery inquiry on trip ${trip.fromCity} → ${trip.toCity}`,
-          priceOffer: params.offeredPrice,
+          priceOffer: priceToOffer,
           status: 'open',
         });
       }
@@ -318,7 +370,7 @@ export default function TripDetailScreen() {
           travellerId: trip.userId,
           travellerName: trip.userName,
           status: 'pending',
-          price: params.offeredPrice,
+          price: priceToOffer,
           message: params.message,
         });
         targetRequestId = newReq?.id;
@@ -1228,7 +1280,7 @@ export default function TripDetailScreen() {
         initialPrice={calculatedPrice}
         onSendCounterOffer={handleNegotiateSubmit}
         onStartChat={handleStartNegotiateChat}
-        isSubmitting={isCreatingRequest}
+        isSubmitting={isCreatingRequest || createParcelMutation.isPending}
       />
     </View>
   );

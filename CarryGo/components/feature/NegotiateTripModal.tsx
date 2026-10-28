@@ -57,15 +57,16 @@ export function NegotiateTripModal({
   const [offeredPrice, setOfferedPrice] = useState(baseListedPrice);
   const [customNote, setCustomNote] = useState('');
   const [isChatStarting, setIsChatStarting] = useState(false);
+  const [isOfferSending, setIsOfferSending] = useState(false);
 
   useEffect(() => {
     if (visible && trip) {
-      setPickupLandmark(parcel?.fromCity || trip.fromCity || '');
-      setDropLandmark(parcel?.toCity || trip.toCity || '');
+      setPickupLandmark(trip.fromCity || '');
+      setDropLandmark(trip.toCity || '');
       setOfferedPrice(baseListedPrice);
       setCustomNote('');
     }
-  }, [visible, trip, parcel, baseListedPrice]);
+  }, [visible, trip, baseListedPrice]);
 
   if (!trip) return null;
 
@@ -77,23 +78,30 @@ export function NegotiateTripModal({
   };
 
   const handleSendOffer = async () => {
+    if (isOfferSending || isSubmitting) return;
     Haptic.confirm();
-    const formattedMessage = [
-      `🤝 Delivery Negotiation Proposed:`,
-      `• Offered Fare: ₹${offeredPrice} (Listed: ₹${baseListedPrice})`,
-      `• Pickup Spot: ${pickupLandmark || trip.fromCity}`,
-      `• Drop-off Spot: ${dropLandmark || trip.toCity}`,
-      customNote ? `• Note: "${customNote.trim()}"` : null,
-    ]
-      .filter(Boolean)
-      .join('\n');
+    setIsOfferSending(true);
+    try {
+      const priceToSend = Math.max(50, Math.round(Number(offeredPrice) || baseListedPrice || 100));
+      const formattedMessage = [
+        `🤝 Delivery Negotiation Proposed:`,
+        `• Offered Fare: ₹${priceToSend} (Listed: ₹${baseListedPrice})`,
+        `• Pickup Spot: ${pickupLandmark || trip.fromCity}`,
+        `• Drop-off Spot: ${dropLandmark || trip.toCity}`,
+        customNote ? `• Note: "${customNote.trim()}"` : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
 
-    await onSendCounterOffer({
-      pickupLandmark: pickupLandmark.trim() || trip.fromCity,
-      dropLandmark: dropLandmark.trim() || trip.toCity,
-      offeredPrice,
-      message: formattedMessage,
-    });
+      await onSendCounterOffer({
+        pickupLandmark: pickupLandmark.trim() || trip.fromCity,
+        dropLandmark: dropLandmark.trim() || trip.toCity,
+        offeredPrice: priceToSend,
+        message: formattedMessage,
+      });
+    } finally {
+      setIsOfferSending(false);
+    }
   };
 
   const handleChat = async () => {
@@ -436,20 +444,21 @@ export function NegotiateTripModal({
 
           {/* Submit Counter-Offer */}
           <Pressable
-            disabled={isSubmitting || isChatStarting}
+            disabled={isSubmitting || isOfferSending || isChatStarting}
             onPress={handleSendOffer}
             style={({ pressed }) => [
               styles.submitBtn,
               { backgroundColor: C.primary },
+              (isSubmitting || isOfferSending) && { opacity: 0.7 },
               pressed && { opacity: 0.9 },
             ]}
           >
-            {isSubmitting ? (
+            {isSubmitting || isOfferSending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
                 <MaterialIcons name="check" size={18} color="#FFFFFF" />
-                <Text style={styles.submitBtnText}>Send Counter-Offer (₹{offeredPrice})</Text>
+                <Text style={styles.submitBtnText}>Send Counter-Offer (₹{offeredPrice || baseListedPrice})</Text>
               </>
             )}
           </Pressable>

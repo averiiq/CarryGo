@@ -11,6 +11,7 @@ import { Haptic } from '@/services/haptics.service';
 import { useConversationsQuery } from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { ThemeColors, TouchTarget } from '@/constants/theme';
+import { isRequestIncoming } from '@/services/requests.service';
 
 import { AnimatedIcon, type AnimatedIconName } from '@/components';
 
@@ -83,16 +84,28 @@ function FloatingCapsuleTabBar({
     setMeasuredBarWidth(targetBarWidth);
   }, [targetBarWidth]);
 
-  useEffect(() => {
-    Animated.timing(indexAnim, {
-      toValue: state.index,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [indexAnim, state.index]);
+  // Filter visible tabs (excluding hidden routes like requests and profile where href: null)
+  const visibleRoutes = useMemo(
+    () => state.routes.filter((route) => (descriptors[route.key]?.options as any)?.href !== null),
+    [state.routes, descriptors]
+  );
 
-  const tabCount = state.routes.length;
+  const activeVisibleIndex = visibleRoutes.findIndex(
+    (route) => route.key === state.routes[state.index]?.key
+  );
+
+  useEffect(() => {
+    if (activeVisibleIndex >= 0) {
+      Animated.timing(indexAnim, {
+        toValue: activeVisibleIndex,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [indexAnim, activeVisibleIndex]);
+
+  const tabCount = visibleRoutes.length;
   const H_PAD = 6;
   const usableWidth = Math.max(0, barWidth - 2 * H_PAD);
   const slotWidth = tabCount > 0 ? usableWidth / tabCount : 0;
@@ -103,16 +116,16 @@ function FloatingCapsuleTabBar({
   // Exact pixel-perfect horizontal translation range for each tab
   const outputRange = useMemo(
     () =>
-      state.routes.map((_, i) =>
+      visibleRoutes.map((_, i) =>
         Math.round(H_PAD + i * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2))
       ),
-    [sliderWidth, slotWidth, state.routes]
+    [sliderWidth, slotWidth, visibleRoutes]
   );
 
   const sliderTranslateX =
-    outputRange.length > 1
+    outputRange.length > 1 && activeVisibleIndex >= 0
       ? indexAnim.interpolate({
-          inputRange: state.routes.map((_, i) => i),
+          inputRange: visibleRoutes.map((_, i) => i),
           outputRange,
           extrapolate: 'clamp',
         })
@@ -162,14 +175,15 @@ function FloatingCapsuleTabBar({
             width: sliderWidth,
             transform: [{ translateX: sliderTranslateX }],
             backgroundColor: C.primary,
+            opacity: activeVisibleIndex >= 0 ? 1 : 0,
           },
         ]}
       />
 
       <View style={styles.tabRow}>
-        {state.routes.map((route, index) => {
+        {visibleRoutes.map((route, index) => {
           const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
+          const isFocused = activeVisibleIndex === index;
           const tintColor = isFocused ? '#FFFFFF' : C.textSecondary;
           const meta = getTabMeta(route.name, pendingRequests, unreadMessages, kycPending);
 
@@ -262,7 +276,7 @@ export default function TabLayout() {
   const requests = requestsQuery.data ?? [];
   const conversations = conversationsQuery.data ?? [];
   const pendingRequests = requests.filter(
-    (request) => request.travellerId === user.id && request.status === 'pending',
+    (request) => isRequestIncoming(request, user.id) && request.status === 'pending',
   ).length;
   const unreadMessages = conversations.filter(
     (conversation) => conversation.lastMessage && !conversation.lastMessage.read && conversation.lastMessage.senderId !== user.id,

@@ -700,10 +700,18 @@ export default function ParcelDetailScreen() {
               onPress={() => {
                 if (!user) {
                   Haptic.warning();
-                  showAlert('Sign In Required', 'Please sign in to carry parcels.');
+                  showAlert('Sign In Required', 'Please sign in to post a trip.');
                   return;
                 }
-                setShowCarryModal(true);
+                Haptic.confirm();
+                router.push({
+                  pathname: '/create-trip',
+                  params: {
+                    fromCity: parcel.fromCity,
+                    toCity: parcel.toCity,
+                    capacity: String(Math.max(1, parcel.weight)),
+                  },
+                });
               }}
             >
               <LinearGradient
@@ -713,12 +721,12 @@ export default function ParcelDetailScreen() {
                 end={{ x: 1, y: 0.5 }}
               />
               <View style={styles.matchingIconCircle}>
-                <MaterialIcons name="local-shipping" size={24} color="#fff" />
+                <MaterialIcons name="directions-car" size={24} color="#fff" />
               </View>
               <View style={styles.matchingTextCol}>
-                <Text style={styles.matchingTitle}>Offer to Carry This Parcel</Text>
+                <Text style={styles.matchingTitle}>Post a Trip on This Route</Text>
                 <Text style={styles.matchingSub}>
-                  Earn ₹{parcel.priceOffer} delivering this parcel along your route
+                  Traveling from {parcel.fromCity} to {parcel.toCity}? Post your trip so senders can request delivery.
                 </Text>
               </View>
               <MaterialIcons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />

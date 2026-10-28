@@ -107,7 +107,8 @@ const DEFAULT_SANDBOX_BASE_URL = 'https://api.sandbox.co.in';
 function getSandboxConfig() {
   const isTest = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined';
   const apiKey = process.env.EXPO_PUBLIC_SANDBOX_API_KEY || (isTest ? 'test_sandbox_api_key' : '');
-  const apiSecret = process.env.EXPO_PUBLIC_SANDBOX_API_SECRET || (isTest ? 'test_sandbox_api_secret' : '');
+  // Note: Private SANDBOX_API_SECRET is kept strictly on the server in Edge Functions.
+  const apiSecret = isTest ? 'test_sandbox_api_secret' : '';
   const baseUrl = (process.env.EXPO_PUBLIC_SANDBOX_BASE_URL || DEFAULT_SANDBOX_BASE_URL).replace(/\/+$/, '');
   return { apiKey, apiSecret, baseUrl };
 }
@@ -229,63 +230,81 @@ export async function generateAadhaarOtp(
   let registeredMobileEnding: string | undefined = undefined;
 
   const { apiKey, apiSecret, baseUrl } = getSandboxConfig();
-  const isLive = Boolean(apiKey && apiSecret && !apiKey.startsWith('mock_') && !cleanAadhaar.startsWith('0000'));
+  const isTest = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined';
+  const isLive = !cleanAadhaar.startsWith('0000') && (isTest ? Boolean(apiKey && apiSecret) : true);
 
   if (isLive) {
     try {
-      const token = await getSandboxToken(apiKey, apiSecret, baseUrl);
+      let resData: any = null;
 
-      const response = await fetch(`${baseUrl}/kyc/aadhaar/okyc/otp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': token,
-          'x-api-key': apiKey,
-          'x-api-version': '2.0',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          '@entity': 'in.co.sandbox.kyc.aadhaar.okyc.otp.request',
-          aadhaar_number: cleanAadhaar,
-          consent: 'y',
-          reason: 'For KYC verification',
-        }),
-      });
+      if (!isTest) {
+        // Securely invoke serverless Edge Function where private secrets reside
+        const { data: edgeData, error: edgeErr } = await sb.functions.invoke('sandbox-kyc', {
+          body: { action: 'generate_otp', aadhaarNumber: cleanAadhaar },
+        });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        let parsedMessage = '';
-        try {
-          const parsed = JSON.parse(errText);
-          parsedMessage = parsed.message || parsed.error?.message || '';
-        } catch {}
-
-        if (response.status === 503 || parsedMessage.includes('Source Unavailable') || errText.includes('Source Unavailable')) {
+        if (edgeErr || !edgeData) {
           return {
             data: null,
-            error: 'UIDAI was unable to find records for this Aadhaar number, or the UIDAI gateway is temporarily unavailable. Please verify your 12-digit number and retry.',
+            error: edgeErr?.message || 'UIDAI gateway request failed. Please verify your 12-digit number and retry.',
+          };
+        }
+        resData = edgeData;
+      } else {
+        const token = await getSandboxToken(apiKey, apiSecret, baseUrl);
+
+        const response = await fetch(`${baseUrl}/kyc/aadhaar/okyc/otp`, {
+          method: 'POST',
+          headers: {
+            'Authorization': token,
+            'x-api-key': apiKey,
+            'x-api-version': '2.0',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            '@entity': 'in.co.sandbox.kyc.aadhaar.okyc.otp.request',
+            aadhaar_number: cleanAadhaar,
+            consent: 'y',
+            reason: 'For KYC verification',
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          let parsedMessage = '';
+          try {
+            const parsed = JSON.parse(errText);
+            parsedMessage = parsed.message || parsed.error?.message || '';
+          } catch {}
+
+          if (response.status === 503 || parsedMessage.includes('Source Unavailable') || errText.includes('Source Unavailable')) {
+            return {
+              data: null,
+              error: 'UIDAI was unable to find records for this Aadhaar number, or the UIDAI gateway is temporarily unavailable. Please verify your 12-digit number and retry.',
+            };
+          }
+
+          if (response.status === 429 || parsedMessage.toLowerCase().includes('limit') || parsedMessage.toLowerCase().includes('flood')) {
+            return {
+              data: null,
+              error: parsedMessage || 'UIDAI flood limit reached. Please wait before requesting another OTP. Existing OTP is valid for 10 minutes.',
+            };
+          }
+
+          return {
+            data: null,
+            error: parsedMessage || `Aadhaar OTP request rejected (${response.status}): ${errText}`,
           };
         }
 
-        if (response.status === 429 || parsedMessage.toLowerCase().includes('limit') || parsedMessage.toLowerCase().includes('flood')) {
-          return {
-            data: null,
-            error: parsedMessage || 'UIDAI flood limit reached. Please wait before requesting another OTP. Existing OTP is valid for 10 minutes.',
-          };
-        }
-
-        return {
-          data: null,
-          error: parsedMessage || `Aadhaar OTP request rejected (${response.status}): ${errText}`,
+        resData = (await response.json()) as {
+          data?: { reference_id?: string | number; message?: string; mobile_number?: string };
+          reference_id?: string | number;
+          message?: string;
+          mobile_number?: string;
+          code?: number;
         };
       }
-
-      const resData = (await response.json()) as {
-        data?: { reference_id?: string | number; message?: string; mobile_number?: string };
-        reference_id?: string | number;
-        message?: string;
-        mobile_number?: string;
-        code?: number;
-      };
 
       console.log('SANDBOX_GENERATE_OTP_RESPONSE:', JSON.stringify(resData));
 
@@ -414,58 +433,76 @@ export async function verifyAadhaarOtp(
   };
 
   const { apiKey, apiSecret, baseUrl } = getSandboxConfig();
-  const isLive = Boolean(apiKey && apiSecret && !apiKey.startsWith('mock_') && !referenceId.startsWith('sbx_adh_'));
+  const isTest = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined';
+  const isLive = !referenceId.startsWith('sbx_adh_') && (isTest ? Boolean(apiKey && apiSecret) : true);
 
   if (isLive) {
     try {
-      const token = await getSandboxToken(apiKey, apiSecret, baseUrl);
+      let res: any = null;
 
-      const response = await fetch(`${baseUrl}/kyc/aadhaar/okyc/otp/verify`, {
-        method: 'POST',
-        headers: {
-          'Authorization': token,
-          'x-api-key': apiKey,
-          'x-api-version': '2.0',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          '@entity': 'in.co.sandbox.kyc.aadhaar.okyc.request',
-          reference_id: referenceId,
-          otp: cleanOtp,
-        }),
-      });
+      if (!isTest) {
+        // Securely invoke serverless Edge Function where private secrets reside
+        const { data: edgeData, error: edgeErr } = await sb.functions.invoke('sandbox-kyc', {
+          body: { action: 'verify_otp', referenceId, otp: cleanOtp },
+        });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        let parsedMessage = '';
-        try {
-          const parsed = JSON.parse(errText);
-          parsedMessage = parsed.message || parsed.error?.message || '';
-        } catch {}
-        return {
-          data: null,
-          error: parsedMessage || 'Invalid or expired OTP. Please verify the code and try again.',
-        };
-      }
+        if (edgeErr || !edgeData) {
+          return {
+            data: null,
+            error: edgeErr?.message || 'Aadhaar OTP verification failed. Please check the code.',
+          };
+        }
+        res = edgeData;
+      } else {
+        const token = await getSandboxToken(apiKey, apiSecret, baseUrl);
 
-      const res = (await response.json()) as {
-        data?: {
-          name?: string;
-          date_of_birth?: string;
-          gender?: string;
-          full_address?: string;
-          address?: {
-            house?: string;
-            street?: string;
-            locality?: string;
-            district?: string;
-            state?: string;
-            pincode?: string;
+        const response = await fetch(`${baseUrl}/kyc/aadhaar/okyc/otp/verify`, {
+          method: 'POST',
+          headers: {
+            'Authorization': token,
+            'x-api-key': apiKey,
+            'x-api-version': '2.0',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            '@entity': 'in.co.sandbox.kyc.aadhaar.okyc.request',
+            reference_id: referenceId,
+            otp: cleanOtp,
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          let parsedMessage = '';
+          try {
+            const parsed = JSON.parse(errText);
+            parsedMessage = parsed.message || parsed.error?.message || '';
+          } catch {}
+          return {
+            data: null,
+            error: parsedMessage || 'Invalid or expired OTP. Please verify the code and try again.',
+          };
+        }
+
+        res = (await response.json()) as {
+          data?: {
+            name?: string;
+            date_of_birth?: string;
+            gender?: string;
+            full_address?: string;
+            address?: {
+              house?: string;
+              street?: string;
+              locality?: string;
+              district?: string;
+              state?: string;
+              pincode?: string;
+            };
+            message?: string;
           };
           message?: string;
         };
-        message?: string;
-      };
+      }
 
       if (!res.data?.name) {
         const errMsg = res.data?.message ?? res.message;

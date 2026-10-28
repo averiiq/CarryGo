@@ -473,6 +473,18 @@ export default function MatchingScreen() {
                 cta={isParcelMode ? 'Set Route Alert' : 'Subscribe to Route'}
                 onCta={() => router.push({ pathname: '/subscriptions', params: { fromCity, toCity } })}
                 C={C}
+                secondaryCtas={isParcelMode && id ? [
+                  {
+                    label: 'Adjust Parcel',
+                    icon: 'create-outline' as const,
+                    onPress: () => router.push({ pathname: '/parcel/[id]', params: { id } }),
+                  },
+                  {
+                    label: 'Try a Different Date',
+                    icon: 'calendar-outline' as const,
+                    onPress: () => router.push({ pathname: '/parcel/[id]', params: { id } }),
+                  },
+                ] : undefined}
               />
             )
           ) : (
@@ -587,9 +599,16 @@ function MatchBreakdownSheet({ visible, details, onClose, C }: {
   );
 }
 
-function EmptyMatches({ icon, title, sub, cta, onCta, C }: {
+type EmptySecondaryCta = {
+  label: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+};
+
+function EmptyMatches({ icon, title, sub, cta, onCta, C, secondaryCtas }: {
   icon: keyof typeof MaterialIcons.glyphMap;
   title: string; sub: string; cta: string; onCta: () => void; C: ThemeColors;
+  secondaryCtas?: EmptySecondaryCta[];
 }) {
   const bounceAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -617,6 +636,25 @@ function EmptyMatches({ icon, title, sub, cta, onCta, C }: {
         <Ionicons name="notifications-outline" size={15} color={C.primary} />
         <Text style={[styles.emptyCtaText, { color: C.primary }]}>{cta}</Text>
       </Pressable>
+
+      {secondaryCtas && secondaryCtas.length > 0 ? (
+        <View style={{ flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap', justifyContent: 'center', marginTop: Spacing.sm }}>
+          {secondaryCtas.map((s, i) => (
+            <Pressable
+              key={i}
+              style={({ pressed }) => [
+                styles.emptyCta,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, paddingHorizontal: 14 },
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={() => { Haptic.tap(); s.onPress(); }}
+            >
+              {s.icon ? <Ionicons name={s.icon} size={14} color={C.textSecondary} /> : null}
+              <Text style={[styles.emptyCtaText, { color: C.textSecondary }]}>{s.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }

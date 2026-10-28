@@ -166,7 +166,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const sendOTP = useCallback(async (email: string): Promise<{ error: string | null }> => {
     try {
-      if (FeatureFlags.reviewerLogin && email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com') {
+      const reviewerEmail = (process.env.EXPO_PUBLIC_REVIEWER_EMAIL || '').trim().toLowerCase();
+      if (FeatureFlags.reviewerLogin && reviewerEmail && email.trim().toLowerCase() === reviewerEmail) {
         return { error: null };
       }
 
@@ -198,10 +199,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let authUser: any = null;
       let authError: any = null;
 
-      if (FeatureFlags.reviewerLogin && email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com' && otp === '202611') {
+      const reviewerEmail = (process.env.EXPO_PUBLIC_REVIEWER_EMAIL || '').trim().toLowerCase();
+      const reviewerPassword = process.env.EXPO_PUBLIC_REVIEWER_PASSWORD || '';
+      const reviewerOtp = process.env.EXPO_PUBLIC_REVIEWER_OTP || '';
+
+      const isReviewerLogin =
+        FeatureFlags.reviewerLogin &&
+        Boolean(reviewerEmail && reviewerPassword && reviewerOtp) &&
+        email.trim().toLowerCase() === reviewerEmail &&
+        otp === reviewerOtp;
+
+      if (isReviewerLogin) {
         const { data, error } = await sb.auth.signInWithPassword({
-          email: 'carrygo.reviewer@gmail.com',
-          password: 'CarryGo@Review2026!',
+          email: reviewerEmail,
+          password: reviewerPassword,
         });
         authUser = data.user;
         authError = error;

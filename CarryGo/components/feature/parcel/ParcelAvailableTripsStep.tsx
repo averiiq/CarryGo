@@ -194,7 +194,7 @@ export function ParcelAvailableTripsStep({
             No trips on this route yet
           </Text>
           <Text style={[styles.emptySubtitle, { color: C.textMuted }]}>
-            Post your parcel request so travelers can send you offers.
+            List your parcel on the marketplace — travellers heading this way will send you offers.
           </Text>
 
           <Pressable
@@ -213,8 +213,8 @@ export function ParcelAvailableTripsStep({
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
-                <MaterialIcons name="send" size={16} color="#FFFFFF" />
-                <Text style={styles.postRequestBtnText}>Post Parcel Request</Text>
+                <MaterialIcons name="campaign" size={16} color="#FFFFFF" />
+                <Text style={styles.postRequestBtnText}>List on Marketplace</Text>
               </>
             )}
           </Pressable>
@@ -237,23 +237,64 @@ export function ParcelAvailableTripsStep({
           </Pressable>
         </View>
       ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        >
-          {sortedTrips.map((trip) => {
-            const calculatedPrice = calculateMatchPrice(trip.pricePerKg, parcelWeightNum);
-            return (
-              <View key={trip.id} style={styles.tripCardWrap}>
-                <BlaBlaTripCard
-                  trip={trip}
-                  price={calculatedPrice}
-                  onPress={() => onSelectTrip(trip)}
-                />
-              </View>
-            );
-          })}
-        </ScrollView>
+        <>
+          {/* Helper strip — clarifies the primary action */}
+          <View style={[styles.helperStrip, { backgroundColor: C.primarySubtle, borderColor: C.primary + '22' }]}>
+            <MaterialIcons name="touch-app" size={14} color={C.primary} />
+            <Text style={[styles.helperStripText, { color: C.textSecondary }]}>
+              Tap a trip to send your parcel request to that traveller.
+            </Text>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+          >
+            {sortedTrips.map((trip) => {
+              const calculatedPrice = calculateMatchPrice(trip.pricePerKg, parcelWeightNum);
+              return (
+                <View key={trip.id} style={styles.tripCardWrap}>
+                  <BlaBlaTripCard
+                    trip={trip}
+                    price={calculatedPrice}
+                    onPress={() => onSelectTrip(trip)}
+                  />
+                </View>
+              );
+            })}
+
+            {/* Fallback — list on marketplace instead of picking a trip */}
+            <View style={[styles.fallbackCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <Text style={[styles.fallbackTitle, { color: C.textPrimary }]}>
+                None of these fit?
+              </Text>
+              <Text style={[styles.fallbackSubtitle, { color: C.textMuted }]}>
+                List your parcel on the marketplace — other travellers can discover it and send you offers.
+              </Text>
+              <Pressable
+                disabled={isPostingOpenRequest}
+                onPress={() => {
+                  Haptic.confirm();
+                  onPostOpenRequest();
+                }}
+                style={({ pressed }) => [
+                  styles.fallbackBtn,
+                  { borderColor: C.primary },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                {isPostingOpenRequest ? (
+                  <ActivityIndicator size="small" color={C.primary} />
+                ) : (
+                  <>
+                    <MaterialIcons name="campaign" size={14} color={C.primary} />
+                    <Text style={[styles.fallbackBtnText, { color: C.primary }]}>List on Marketplace</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </ScrollView>
+        </>
       )}
     </View>
   );
@@ -435,5 +476,53 @@ const styles = StyleSheet.create({
   editDetailsBtnText: {
     fontSize: 12,
     fontWeight: FontWeight.semibold,
+  },
+  helperStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.sm,
+  },
+  helperStripText: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+    flex: 1,
+  },
+  fallbackCard: {
+    marginTop: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    gap: 6,
+    alignItems: 'center',
+  },
+  fallbackTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  fallbackSubtitle: {
+    fontSize: FontSize.xs,
+    textAlign: 'center',
+    lineHeight: 16,
+    maxWidth: 280,
+    marginBottom: 4,
+  },
+  fallbackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+  },
+  fallbackBtnText: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
   },
 });

@@ -750,12 +750,12 @@ export async function notifyRequestAccepted(params: {
 }) {
   return dispatchNotification({
     userId: params.senderId,
-    title: '✅ Request Accepted!',
-    body: `${params.travellerName} accepted your delivery request. Open chat to coordinate pickup.`,
+    title: '✅ Request Accepted — Pay to Lock Escrow',
+    body: `${params.travellerName} accepted your delivery request. Tap to deposit escrow and unlock your pickup OTP.`,
     type: 'request_accepted',
     priority: 'high',
     relatedId: params.requestId,
-    deepLink: '/(tabs)/requests',
+    deepLink: `/payment/${params.requestId}`,
   });
 }
 

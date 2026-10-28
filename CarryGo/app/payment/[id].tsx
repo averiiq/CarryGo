@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -295,6 +296,30 @@ export default function PaymentScreen() {
             </View>
           </View>
 
+          {/* Traveller Strip — trust signal before payment */}
+          {request && isSender && request.travellerName ? (
+            <View style={[styles.travellerStrip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              {request.travellerAvatar ? (
+                <Image source={{ uri: request.travellerAvatar }} style={styles.travellerAvatar} contentFit="cover" />
+              ) : (
+                <View style={[styles.travellerAvatar, styles.travellerAvatarFallback, { backgroundColor: C.primarySubtle }]}>
+                  <Text style={[styles.travellerAvatarInitial, { color: C.primary }]}>
+                    {(request.travellerName || 'T').slice(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.travellerInfo}>
+                <Text style={[styles.travellerLabel, { color: C.textMuted }]}>PAYING</Text>
+                <View style={styles.travellerNameRow}>
+                  <Text style={[styles.travellerName, { color: C.textPrimary }]} numberOfLines={1}>
+                    {request.travellerName}
+                  </Text>
+                  <Ionicons name="shield-checkmark" size={12} color={C.primary} />
+                </View>
+              </View>
+            </View>
+          ) : null}
+
           {/* Amount Spotlight */}
           <View style={styles.amountSection}>
             <Text style={[styles.amountLabel, { color: C.textMuted }]}>ESCROW AMOUNT</Text>
@@ -418,6 +443,13 @@ export default function PaymentScreen() {
                     {isCreatingOrder ? 'Generating Razorpay Gateway...' : 'Verifying Payment...'}
                   </Text>
                 </>
+              ) : error ? (
+                <>
+                  <Feather name="refresh-cw" size={17} color="#FFFFFF" />
+                  <Text style={styles.payButtonText}>
+                    Retry Payment • {formatAmount(effectivePrice)}
+                  </Text>
+                </>
               ) : (
                 <>
                   <Feather name="lock" size={17} color="#FFFFFF" />
@@ -428,7 +460,12 @@ export default function PaymentScreen() {
               )}
             </Pressable>
 
-            {error ? <Text style={[styles.errorText, { color: C.error }]}>{error}</Text> : null}
+            {error ? (
+              <View style={[styles.errorBanner, { backgroundColor: C.errorSubtle || C.error + '15', borderColor: C.error + '55' }]}>
+                <Feather name="alert-circle" size={14} color={C.error} />
+                <Text style={[styles.errorText, { color: C.error, flex: 1 }]}>{error}</Text>
+              </View>
+            ) : null}
 
             <View style={styles.securityNote}>
               <Feather name="shield" size={13} color={C.primary} />
@@ -537,6 +574,48 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
   },
+  travellerStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginTop: Spacing.xs,
+  },
+  travellerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  travellerAvatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  travellerAvatarInitial: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  travellerInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  travellerLabel: {
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.6,
+  },
+  travellerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  travellerName: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    flexShrink: 1,
+  },
   amountSection: {
     alignItems: 'center',
     marginVertical: Spacing.sm + 2,
@@ -615,8 +694,18 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: FontSize.xs,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
+    textAlign: 'left',
+    fontWeight: FontWeight.medium,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginTop: Spacing.sm,
   },
   securityNote: {
     flexDirection: 'row',

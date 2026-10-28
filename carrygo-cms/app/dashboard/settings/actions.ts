@@ -27,6 +27,7 @@ const ALLOWED_KEYS = new Set([
   'push_notifications',
   'email_notifications',
   'sms_notifications',
+  'coin_award_per_delivery',
 ])
 
 const NUMBER_RANGES: Record<string, [number, number]> = {
@@ -42,6 +43,7 @@ const NUMBER_RANGES: Record<string, [number, number]> = {
   max_otp_attempts: [1, 20],
   rating_threshold: [0, 5],
   auto_suspend_disputes: [0, 100],
+  coin_award_per_delivery: [0, 100000],
 }
 
 const BOOLEAN_KEYS = new Set(['maintenance_mode', 'new_user_signups', 'kyc_required', 'push_notifications', 'email_notifications', 'sms_notifications'])

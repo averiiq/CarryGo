@@ -5,76 +5,68 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
-
-const SECTIONS = [
-  [
-    'Cancellation Before Pickup',
-    'If a sender cancels before parcel pickup is confirmed by the traveler, CarryGo initiates a full refund of the locked escrow amount back to the original payment method. Payment processing times depend on payment gateway and bank clearing cycles (typically 3-7 business days).'
-  ],
-  [
-    'Cancellation by Traveler',
-    'If an accepted traveler cancels the journey before collecting the parcel, the sender is immediately notified and the full escrow deposit is automatically unreserved and refunded without cancellation penalties.'
-  ],
-  [
-    'After Pickup and In-Transit Disputes',
-    'Once a parcel is picked up, cancellations cannot be performed automatically. Any cancellations or issues must be escalated through Support Desk or Dispute Resolution. CarryGo reviews digital handover signatures, chat logs, and delivery evidence to determine refund allocation.'
-  ],
-  [
-    'Completed Deliveries and Final Release',
-    'Once the recipient confirms delivery via secure PIN handover and escrow funds are released to the traveler, refunds cannot be automatically reversed. Any allegations of policy violation or damaged goods must be submitted to Support for investigation.'
-  ],
-  [
-    'Platform Fees and Chargebacks',
-    'Valid cancellations processed before parcel pickup receive a full refund of platform and escrow fees. Fraudulent chargebacks or payment disputes filed in bad faith will lead to permanent account suspension and potential legal recovery.'
-  ],
-  [
-    'How to Request Cancellation or Refund',
-    'You can cancel pending requests directly in the CarryGo app from your Active Requests screen. For payment disputes or manual assistance, email support@carrygo.in with your request ID, tracking reference, and incident details.'
-  ],
-] as const;
+import {
+  REFUND_CONTENT,
+  BACK_BUTTON_LABEL,
+} from '@/constants/legal-bilingual-content';
+import {
+  LanguageToggle,
+  DraftLegalBanner,
+  useLegalLanguage,
+} from '@/components/ui/LanguageToggle';
 
 export default function RefundPolicyScreen() {
   const { C } = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { language, setLanguage } = useLegalLanguage();
+
+  const content = REFUND_CONTENT[language];
 
   return (
     <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: C.surfaceBorder }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={BACK_BUTTON_LABEL[language]}
           onPress={() => router.back()}
           style={[styles.backButton, { backgroundColor: C.surfaceElevated }]}
           hitSlop={12}
         >
           <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Refund & Cancellation</Text>
-        <View style={styles.headerSpacer} />
+        <Text style={[styles.headerTitle, { color: C.textPrimary }]} numberOfLines={1}>
+          {content.headerTitle}
+        </Text>
+        <LanguageToggle currentLanguage={language} onLanguageChange={setLanguage} />
       </View>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xxl }]}
         showsVerticalScrollIndicator={false}
       >
+        <DraftLegalBanner language={language} />
+
         <View style={[styles.badge, { backgroundColor: C.primarySubtle }]}>
           <MaterialIcons name="replay" size={16} color={C.primary} />
-          <Text style={[styles.badgeText, { color: C.primary }]}>Updated: August 2026</Text>
+          <Text style={[styles.badgeText, { color: C.primary }]}>{content.badgeText}</Text>
         </View>
+
         <Text style={[styles.intro, { color: C.textSecondary }]}>
-          This policy outlines cancellation eligibility, escrow refunds, and dispute resolution guidelines for peer-to-peer parcel carriage on CarryGo.
+          {content.intro}
         </Text>
-        {SECTIONS.map(([title, body], index) => (
-          <View key={title} style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+
+        {content.sections.map((section, index) => (
+          <View key={index} style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <Text style={[styles.number, { color: C.primary }]}>{String(index + 1).padStart(2, '0')}</Text>
             <View style={styles.cardContent}>
-              <Text style={[styles.title, { color: C.textPrimary }]}>{title}</Text>
-              <Text style={[styles.body, { color: C.textSecondary }]}>{body}</Text>
+              <Text style={[styles.title, { color: C.textPrimary }]}>{section.title}</Text>
+              <Text style={[styles.body, { color: C.textSecondary }]}>{section.body}</Text>
             </View>
           </View>
         ))}
+
         <Text style={[styles.contact, { color: C.textMuted }]}>
-          For refund questions or dispute assistance, contact us anytime at support@carrygo.in.
+          {content.contact}
         </Text>
       </ScrollView>
     </View>
@@ -83,10 +75,17 @@ export default function RefundPolicyScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderBottomWidth: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    gap: Spacing.sm,
+  },
   backButton: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  headerSpacer: { width: 40 },
+  headerTitle: { flex: 1, fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   content: { padding: Spacing.lg, gap: Spacing.md },
   badge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: Spacing.xs, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full },
   badgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },

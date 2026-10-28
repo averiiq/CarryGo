@@ -268,22 +268,46 @@ export function ParcelImagePicker({ images, onImagesChange, error, category }: P
 
           if (imageUri) {
             return (
-              <View key={slotIndex} style={[styles.slot, styles.filledSlot, { borderColor: C.surfaceBorder }]}>
+              <Pressable
+                key={slotIndex}
+                style={({ pressed }) => [
+                  styles.slot,
+                  styles.filledSlot,
+                  { borderColor: C.surfaceBorder, opacity: pressed ? 0.9 : 1 },
+                ]}
+                onPress={() => !isProcessing && captureFromCamera(slotIndex)}
+                disabled={isProcessing}
+                accessibilityRole="button"
+                accessibilityLabel={`Retake ${slotConfig.shortLabel} photo`}
+              >
                 <Image source={{ uri: imageUri }} style={styles.image} contentFit="cover" transition={200} />
+                {isProcessing ? (
+                  <View style={[styles.image, styles.processingOverlay]}>
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                ) : null}
                 <Pressable
                   style={[styles.removeBtn, { backgroundColor: C.error }]}
                   onPress={() => removeImage(slotIndex)}
                   hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete photo"
                 >
                   <MaterialIcons name="close" size={12} color="#fff" />
                 </Pressable>
+
+                {/* Retake affordance */}
+                <View style={[styles.retakeBadge, { backgroundColor: 'rgba(15, 23, 42, 0.82)' }]}>
+                  <MaterialIcons name="refresh" size={10} color="#fff" />
+                  <Text style={styles.slotBadgeText}>Retake</Text>
+                </View>
 
                 {/* Angle Badge */}
                 <View style={[styles.slotBadge, { backgroundColor: 'rgba(15, 23, 42, 0.82)' }]}>
                   <MaterialIcons name="check" size={10} color="#10B981" />
                   <Text style={styles.slotBadgeText}>{slotConfig.shortLabel}</Text>
                 </View>
-              </View>
+              </Pressable>
             );
           }
 
@@ -385,6 +409,27 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   slotBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: '700' },
+  retakeBadge: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  processingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   addIconWrap: {
     width: 32,
     height: 32,

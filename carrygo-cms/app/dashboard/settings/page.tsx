@@ -46,6 +46,7 @@ export default async function SettingsPage() {
     pushNotifications: configMap['push_notifications'] !== 'false',
     emailNotifications: configMap['email_notifications'] !== 'false',
     smsNotifications: configMap['sms_notifications'] !== 'false',
+    coinAwardPerDelivery: Number(configMap['coin_award_per_delivery'] || '50'),
   }
 
   return (

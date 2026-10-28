@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
-import { useAlert } from '@/template';
+import { useAlert, getSupabaseClient } from '@/template';
+import { fetchUserPayments } from '@/services/payments.service';
 import { AsyncStateCard, OfflineBanner, RequestCard, RequestDetailModal, LottieAnimation } from '@/components';
 import { RatingModal } from '@/components/feature/RatingModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -24,8 +25,8 @@ import { getUserErrorMessage } from '@/lib/error-handler';
 import { Request } from '@/types';
 import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
 
-type ActionTab = 'needs_action' | 'active' | 'history';
-type HistoryFilterKey = 'all' | 'waiting' | 'completed' | 'closed';
+type MainTab = 'requests' | 'active';
+type RequestFilter = 'all' | 'received' | 'sent';
 
 const RequestListItem = React.memo(function RequestListItem({
   item,
@@ -110,14 +111,13 @@ export default function RequestsScreen() {
   const updateRequestStatusMutation = useUpdateRequestStatusMutation(user?.id);
   const createConversationMutation = useCreateConversationMutation(user?.id);
 
-  const [tab, setTab] = useState<ActionTab>('needs_action');
-  const [historyFilter, setHistoryFilter] = useState<HistoryFilterKey>('all');
+  const [tab, setTab] = useState<MainTab>('requests');
+  const [requestFilter, setRequestFilter] = useState<RequestFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<Request | null>(null);
   const [detailRequest, setDetailRequest] = useState<Request | null>(null);
   const [openingChatRequestId, setOpeningChatRequestId] = useState<string | null>(null);
   const slideAnim = React.useRef(new Animated.Value(0)).current;
-  const pendingPulse = React.useRef(new Animated.Value(1)).current;
 
   const requestsRefetchRef = React.useRef(requestsQuery.refetch);
   requestsRefetchRef.current = requestsQuery.refetch;
@@ -133,6 +133,48 @@ export default function RequestsScreen() {
       }
     }, [user?.id])
   );
+
+  // Realtime subscription — refetch requests when a related row changes
+  useEffect(() => {
+    if (!user?.id) return;
+    const sb = getSupabaseClient();
+    const channel = sb
+      .channel(`requests:realtime:${user.id}:${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'requests' },
+        (payload) => {
+          const row: any = payload.new || payload.old;
+          if (!row) return;
+          const touchesUser = row.sender_id === user.id || row.traveller_id === user.id;
+          if (touchesUser) {
+            void requestsRefetchRef.current();
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      try { void sb.removeChannel(channel); } catch {}
+    };
+  }, [user?.id]);
+
+  // Track which accepted requests are already paid (locked in escrow)
+  const [paidRequestIds, setPaidRequestIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!user?.id) return;
+    let mounted = true;
+    void (async () => {
+      const { data } = await fetchUserPayments(user.id);
+      if (!mounted || !data) return;
+      const locked = new Set(
+        data
+          .filter((p: any) => p && (p.status === 'locked' || p.status === 'released') && p.requestId)
+          .map((p: any) => p.requestId as string),
+      );
+      setPaidRequestIds(locked);
+    })();
+    return () => { mounted = false; };
+  }, [user?.id]);
 
   const rawRequests = user ? requestsQuery.data ?? [] : [];
   const conversations = user ? conversationsQuery.data ?? [] : [];
@@ -176,49 +218,49 @@ export default function RequestsScreen() {
       });
   }, [rawRequests, ratedRequestIds, parcelMap]);
 
-  // 1. Needs Action:
-  // - Incoming pending requests (someone asked you to carry, or offered to carry your parcel)
-  // - Accepted requests where current user is sender (needs to pay escrow!)
-  const needsActionList = useMemo(() => {
-    return requests.filter(r => {
-      const incomingPending = isRequestIncoming(r, user?.id) && r.status === 'pending';
-      const senderNeedsEscrow = r.senderId === user?.id && r.status === 'accepted';
-      return incomingPending || senderNeedsEscrow;
-    });
+  // Received pending requests (action needed: Accept / Reject / Chat)
+  const receivedRequests = useMemo(() => {
+    return requests.filter(r => isRequestIncoming(r, user?.id) && r.status === 'pending');
   }, [requests, user?.id]);
 
-  // 2. Active Deliveries:
-  // - Matched & in-transit deliveries
+  // Sent pending requests (awaiting counterparty: Status / Cancel / Chat)
+  const sentRequests = useMemo(() => {
+    return requests.filter(r => isRequestOutgoing(r, user?.id) && r.status === 'pending');
+  }, [requests, user?.id]);
+
+  // All pending requests (received first for immediate action visibility, then sent)
+  const allPendingRequests = useMemo(() => {
+    return [...receivedRequests, ...sentRequests];
+  }, [receivedRequests, sentRequests]);
+
+  // Active in-progress deliveries (accepted)
   const activeList = useMemo(() => {
     return requests.filter(r => r.status === 'accepted');
   }, [requests]);
 
-  // 3. Outgoing & History:
-  // - Outgoing pending requests (waiting for counterparty to accept)
-  // - Completed, rejected, cancelled
-  const historyList = useMemo(() => {
-    return requests.filter(r => {
-      const outgoingPending = isRequestOutgoing(r, user?.id) && r.status === 'pending';
-      const isPast = r.status === 'completed' || r.status === 'rejected' || r.status === 'cancelled' || r.status === 'failed';
-      return outgoingPending || isPast;
-    });
-  }, [requests, user?.id]);
+  // First accepted-but-unpaid request where current user is the sender (needs escrow)
+  const unpaidAcceptedForSender = useMemo(() => {
+    if (!user?.id) return null;
+    return requests.find(r =>
+      r.status === 'accepted' &&
+      r.senderId === user.id &&
+      !paidRequestIds.has(r.id),
+    ) || null;
+  }, [requests, user?.id, paidRequestIds]);
 
   const displayed = useMemo(() => {
-    if (tab === 'needs_action') return needsActionList;
     if (tab === 'active') return activeList;
-    if (historyFilter === 'waiting') return historyList.filter(r => r.status === 'pending');
-    if (historyFilter === 'completed') return historyList.filter(r => r.status === 'completed');
-    if (historyFilter === 'closed') return historyList.filter(r => r.status === 'rejected' || r.status === 'cancelled');
-    return historyList;
-  }, [tab, needsActionList, activeList, historyList, historyFilter]);
+    if (requestFilter === 'received') return receivedRequests;
+    if (requestFilter === 'sent') return sentRequests;
+    return allPendingRequests;
+  }, [tab, requestFilter, activeList, receivedRequests, sentRequests, allPendingRequests]);
 
   const cardAnims = useStaggeredList(Math.max(displayed.length, 14), 70);
 
-  const switchTab = (nextTab: ActionTab) => {
+  const switchTab = (nextTab: MainTab) => {
     if (nextTab === tab) return;
     Haptic.select();
-    const direction = nextTab === 'history' ? -1 : 1;
+    const direction = nextTab === 'active' ? 1 : -1;
     Animated.sequence([
       Animated.timing(slideAnim, {
         toValue: direction * 16,
@@ -234,21 +276,6 @@ export default function RequestsScreen() {
     ]).start();
     setTab(nextTab);
   };
-
-  useEffect(() => {
-    if (needsActionList.length <= 0) {
-      pendingPulse.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pendingPulse, { toValue: 1.08, duration: 620, useNativeDriver: true }),
-        Animated.timing(pendingPulse, { toValue: 1, duration: 620, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [needsActionList.length, pendingPulse]);
 
   const handleRefresh = useCallback(async () => {
     if (!user) return;
@@ -317,17 +344,9 @@ export default function RequestsScreen() {
             Haptic.success();
 
             if (isSender) {
-              showAlert(
-                'Offer Accepted! 💳',
-                `You matched with ${otherUserName}. Deposit ₹${req.price} in secure escrow to unlock your handover OTP.`,
-                [
-                  { text: 'Later', style: 'cancel' },
-                  {
-                    text: 'Pay Escrow Now',
-                    onPress: () => router.push({ pathname: '/payment/[id]', params: { id: requestId } }),
-                  },
-                ]
-              );
+              // Auto-route to payment screen — the Pay Now banner on this tab will
+              // keep the sender nudged if they back out without paying.
+              router.push({ pathname: '/payment/[id]', params: { id: requestId } });
             } else {
               showAlert(
                 'Request Accepted! 📦',
@@ -530,42 +549,32 @@ export default function RequestsScreen() {
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <View style={[styles.headerTop, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}>
         <View style={styles.titleWrap}>
-          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Deliveries & Requests</Text>
+          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Requests</Text>
           <Text style={[styles.pageSubtitle, { color: C.textMuted }]}>
-            {needsActionList.length > 0
-              ? `${needsActionList.length} request${needsActionList.length > 1 ? 's' : ''} awaiting your action`
+            {tab === 'requests'
+              ? receivedRequests.length > 0
+                ? `${receivedRequests.length} incoming request${receivedRequests.length > 1 ? 's' : ''} awaiting action`
+                : sentRequests.length > 0
+                ? `${sentRequests.length} sent request${sentRequests.length > 1 ? 's' : ''} awaiting response`
+                : 'Manage incoming and sent delivery requests'
               : activeList.length > 0
-              ? `${activeList.length} active delivery in progress`
-              : 'Track and manage your community deliveries'}
+              ? `${activeList.length} active deliver${activeList.length > 1 ? 'ies' : 'y'} in progress`
+              : 'Track ongoing deliveries and handover OTPs'}
           </Text>
         </View>
 
-        <View style={styles.headerActionRow}>
-          {needsActionList.length > 0 ? (
-            <Animated.View style={[styles.pulsePill, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', transform: [{ scale: pendingPulse }] }]}>
-              <View style={[styles.liveDot, { backgroundColor: '#EF4444' }]} />
-              <Text style={[styles.pulsePillText, { color: '#B91C1C' }]}>{needsActionList.length} Action{needsActionList.length > 1 ? 's' : ''}</Text>
-            </Animated.View>
-          ) : (
-            <View style={[styles.pulsePill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-              <MaterialIcons name="check-circle" size={13} color={C.primary} />
-              <Text style={[styles.pulsePillText, { color: C.primary }]}>Synced</Text>
-            </View>
-          )}
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.refreshBtn,
-              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
-            ]}
-            onPress={handleRefresh}
-            hitSlop={TouchTarget.smallHitSlop}
-            accessibilityLabel="Refresh requests"
-          >
-            <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
-          </Pressable>
-        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.refreshBtn,
+            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+          ]}
+          onPress={handleRefresh}
+          hitSlop={TouchTarget.smallHitSlop}
+          accessibilityLabel="Refresh requests"
+        >
+          <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
+        </Pressable>
       </View>
 
       {!isOnline ? (
@@ -574,12 +583,11 @@ export default function RequestsScreen() {
         </View>
       ) : null}
 
-      {/* Minimal 3-Action Tab Switcher: Needs Action vs Active vs History */}
+      {/* 2 Main Tabs: Requests vs Active Deliveries */}
       <View style={[styles.segmentedWrap, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
         {[
-          { key: 'needs_action' as const, label: 'Action Needed', icon: 'bolt', count: needsActionList.length, alert: needsActionList.length > 0 },
+          { key: 'requests' as const, label: 'Requests', icon: 'swap-horizontal-circle', count: allPendingRequests.length, alert: receivedRequests.length > 0 },
           { key: 'active' as const, label: 'Active', icon: 'local-shipping', count: activeList.length, alert: false },
-          { key: 'history' as const, label: 'History', icon: 'history', count: historyList.length, alert: false },
         ].map((t) => {
           const active = tab === t.key;
           return (
@@ -595,7 +603,7 @@ export default function RequestsScreen() {
             >
               <MaterialIcons
                 name={t.icon as any}
-                size={14}
+                size={15}
                 color={active ? '#FFFFFF' : C.textSecondary}
               />
               <Text
@@ -641,21 +649,16 @@ export default function RequestsScreen() {
         })}
       </View>
 
-      {/* History Sub-Filter Bar */}
-      {tab === 'history' && historyList.length > 0 ? (
+      {/* Requests Direction Filter: All | Received | Sent */}
+      {tab === 'requests' && allPendingRequests.length > 0 ? (
         <View style={[styles.filtersContainer, isTablet && styles.tabletContainer]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterChipRow}
-          >
+          <View style={styles.filterChipRow}>
             {[
-              { key: 'all' as const, label: 'All', icon: 'apps' as const, count: historyList.length },
-              { key: 'waiting' as const, label: 'Awaiting Response', icon: 'hourglass-empty' as const, count: historyList.filter(r => r.status === 'pending').length },
-              { key: 'completed' as const, label: 'Delivered', icon: 'task-alt' as const, count: historyList.filter(r => r.status === 'completed').length },
-              { key: 'closed' as const, label: 'Closed', icon: 'cancel' as const, count: historyList.filter(r => r.status === 'rejected' || r.status === 'cancelled').length },
+              { key: 'all' as const, label: 'All', count: allPendingRequests.length, alert: false },
+              { key: 'received' as const, label: 'Received', count: receivedRequests.length, alert: receivedRequests.length > 0 },
+              { key: 'sent' as const, label: 'Sent', count: sentRequests.length, alert: false },
             ].map((st) => {
-              const active = historyFilter === st.key;
+              const active = requestFilter === st.key;
               return (
                 <Pressable
                   key={st.key}
@@ -670,11 +673,10 @@ export default function RequestsScreen() {
                   hitSlop={TouchTarget.smallHitSlop}
                   onPress={() => {
                     Haptic.select();
-                    setHistoryFilter(st.key);
+                    setRequestFilter(st.key);
                   }}
                   disabled={st.count === 0 && st.key !== 'all'}
                 >
-                  <MaterialIcons name={st.icon} size={13} color={active ? C.primary : C.textSecondary} />
                   <Text
                     style={[
                       styles.statusChipText,
@@ -683,14 +685,67 @@ export default function RequestsScreen() {
                   >
                     {st.label}
                   </Text>
-                  <View style={[styles.statusChipBadge, { backgroundColor: active ? C.primary : C.surfaceBorder }]}>
-                    <Text style={[styles.statusChipCount, { color: active ? '#fff' : C.textSecondary }]}>{st.count}</Text>
+                  <View
+                    style={[
+                      styles.statusChipBadge,
+                      {
+                        backgroundColor: active
+                          ? C.primary
+                          : st.alert
+                          ? '#EF4444'
+                          : C.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusChipCount,
+                        { color: active || st.alert ? '#fff' : C.textSecondary },
+                      ]}
+                    >
+                      {st.count}
+                    </Text>
                   </View>
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
+      ) : null}
+
+      {unpaidAcceptedForSender ? (
+        <Pressable
+          onPress={() => {
+            Haptic.confirm();
+            router.push({ pathname: '/payment/[id]', params: { id: unpaidAcceptedForSender.id } });
+          }}
+          style={({ pressed }) => [
+            styles.payNowBanner,
+            {
+              backgroundColor: C.primarySubtle,
+              borderColor: C.primary + '55',
+              opacity: pressed ? 0.9 : 1,
+            },
+            isTablet && styles.tabletContainer,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Pay escrow now to lock the delivery"
+        >
+          <View style={[styles.payNowIconWrap, { backgroundColor: C.primary }]}>
+            <MaterialIcons name="lock" size={16} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.payNowTitle, { color: C.textPrimary }]} numberOfLines={1}>
+              Pay escrow to unlock your pickup OTP
+            </Text>
+            <Text style={[styles.payNowSub, { color: C.textSecondary }]} numberOfLines={1}>
+              {unpaidAcceptedForSender.travellerName
+                ? `${unpaidAcceptedForSender.travellerName} is waiting · ₹${unpaidAcceptedForSender.price}`
+                : `Deposit ₹${unpaidAcceptedForSender.price} in escrow`}
+            </Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={22} color={C.primary} />
+        </Pressable>
       ) : null}
 
       <Animated.View style={[{ flex: 1 }, { transform: [{ translateX: slideAnim }] }]}>
@@ -736,29 +791,29 @@ export default function RequestsScreen() {
               <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
                 <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
                   <LottieAnimation
-                    name={tab === 'needs_action' ? 'successCheck' : tab === 'active' ? 'deliveryCar' : 'packageBox'}
+                    name={tab === 'requests' ? 'packageBox' : 'deliveryCar'}
                     style={{ width: 140, height: 110 }}
                   />
                 </View>
 
                 <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-                  {tab === 'needs_action'
-                    ? 'All Caught Up! 🎉'
-                    : tab === 'active'
-                    ? 'No Active Deliveries 🚚'
-                    : historyFilter !== 'all'
-                    ? `No ${historyFilter} requests`
-                    : 'No Requests in History'}
+                  {tab === 'requests'
+                    ? requestFilter === 'received'
+                      ? 'No Received Requests'
+                      : requestFilter === 'sent'
+                      ? 'No Sent Requests'
+                      : 'No Pending Requests'
+                    : 'No Active Deliveries'}
                 </Text>
 
                 <Text style={[styles.emptySubtext, { color: C.textMuted }]}> 
-                  {tab === 'needs_action'
-                    ? 'No pending carry offers or delivery requests require your action right now.'
-                    : tab === 'active'
-                    ? 'Matched and funded deliveries will appear here with live tracking & OTP handover.'
-                    : historyFilter !== 'all'
-                    ? 'Try selecting "All" to view all requests in your history.'
-                    : 'Requests you sent awaiting response, or past delivered packages will be listed here.'}
+                  {tab === 'requests'
+                    ? requestFilter === 'received'
+                      ? 'You have no incoming delivery requests or carry offers waiting for your action.'
+                      : requestFilter === 'sent'
+                      ? 'You have no outgoing requests awaiting response from travelers.'
+                      : 'When you send a request or someone requests your trip, it will appear here.'
+                    : 'Matched deliveries in transit will appear here with live tracking, escrow funding, and handover OTP.'}
                 </Text>
 
                 <View style={styles.emptyActionRow}>
@@ -772,8 +827,8 @@ export default function RequestsScreen() {
                       router.push('/(tabs)');
                     }}
                   >
-                    <MaterialIcons name="explore" size={15} color="#fff" />
-                    <Text style={styles.emptyCTAText}>Explore Marketplace</Text>
+                    <MaterialIcons name="search" size={15} color="#fff" />
+                    <Text style={styles.emptyCTAText}>Browse Listings</Text>
                   </Pressable>
 
                   <Pressable
@@ -904,29 +959,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
-  headerActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs + 2,
-  },
-  pulsePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  pulsePillText: {
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
   refreshBtn: {
     width: 38,
     height: 38,
@@ -944,6 +976,33 @@ const styles = StyleSheet.create({
     maxWidth: 620,
     width: '100%',
     alignSelf: 'center',
+  },
+
+  payNowBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  payNowIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payNowTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  payNowSub: {
+    fontSize: FontSize.xs,
+    marginTop: 1,
   },
 
   segmentedWrap: {
@@ -982,26 +1041,12 @@ const styles = StyleSheet.create({
   },
 
   filtersContainer: {
-    marginVertical: 4,
+    marginVertical: 6,
   },
   filterChipRow: {
     flexDirection: 'row',
-    gap: 6,
-    paddingRight: Spacing.sm,
-  },
-  roleChip: {
-    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
-    minHeight: 32,
-    gap: 5,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  roleChipText: {
-    fontSize: 11,
-    letterSpacing: -0.1,
   },
   statusChip: {
     flexDirection: 'row',
