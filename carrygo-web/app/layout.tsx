@@ -18,24 +18,24 @@ const headingFont = Outfit({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://carrygo.in'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://carygoo.in'),
   title: {
-    default: "CarryGo — Intercity Parcel Delivery at the Speed of Real Travel",
-    template: "%s — CarryGo",
+    default: "CaryGoo — Intercity Parcel Delivery at the Speed of Real Travel",
+    template: "%s — CaryGoo",
   },
   description:
-    "CarryGo connects verified intercity travelers with senders for secure, same-day, and 60% cheaper parcel deliveries across India.",
+    "CaryGoo connects verified intercity travelers with senders for secure, same-day, and 60% cheaper parcel deliveries across India.",
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
-    siteName: 'CarryGo',
-    title: 'CarryGo — Intercity Parcel Delivery at the Speed of Real Travel',
+    siteName: 'CaryGoo',
+    title: 'CaryGoo — Intercity Parcel Delivery at the Speed of Real Travel',
     description: 'Send urgent parcels in hours or monetize empty luggage space with verified travelers across India.',
     url: '/',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CarryGo — Intercity Parcel Delivery at the Speed of Real Travel',
+    title: 'CaryGoo — Intercity Parcel Delivery at the Speed of Real Travel',
     description: 'Send urgent parcels in hours or monetize empty luggage space with verified travelers across India.',
   },
 };

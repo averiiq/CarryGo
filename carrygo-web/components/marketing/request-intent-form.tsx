@@ -187,7 +187,7 @@ export function RequestIntentForm(props: Props) {
 
       setNotice({
         type: 'success',
-        message: 'Delivery request submitted successfully! SafeVault™ escrow will hold funds upon acceptance.',
+        message: 'Delivery request submitted successfully! SafeVault™ booking protection will hold funds upon acceptance.',
       })
       setMessage('')
     } catch (error) {
@@ -213,7 +213,7 @@ export function RequestIntentForm(props: Props) {
         </button>
 
         <span className="text-[11px] font-semibold text-slate-500">
-          Escrow Protected
+          Booking Protected
         </span>
       </div>
 

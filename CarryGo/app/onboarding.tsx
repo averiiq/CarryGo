@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { Haptic } from '@/services/haptics.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
@@ -45,7 +46,7 @@ const SLIDES = [
     key: 'trust',
     eyebrow: 'Verified community',
     title: 'Every delivery is identity checked and trackable.',
-    body: 'CarryGo combines profile verification, delivery proof, and clear ratings.',
+    body: 'CaryGoo combines profile verification, delivery proof, and clear ratings.',
     icon: 'verified-user' as const,
     illustration: 'profile' as ProductIllustrationVariant,
     details: ['Identity checks', 'Photo confirmation', 'Real ratings'],
@@ -92,7 +93,11 @@ export default function OnboardingScreen() {
   return (
     <LinearGradient colors={G.hero} style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}> 
-        <Text style={[styles.logo, { color: C.textPrimary }]}>CarryGo</Text>
+        <Image
+          source={require('@/assets/images/logo-horizontal.png')}
+          style={{ width: 120, height: 38 }}
+          contentFit="contain"
+        />
         {!isLast ? (
           <Pressable onPress={() => void handleFinish()} style={[styles.skipBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]} hitSlop={14}>
             <Text style={[styles.skipText, { color: C.textSecondary }]}>Skip</Text>

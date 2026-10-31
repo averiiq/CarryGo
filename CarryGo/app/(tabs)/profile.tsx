@@ -536,7 +536,7 @@ export default function ProfileScreen() {
                 C={C}
                 icon={<MaterialIcons name="receipt-long" size={18} color={C.warning} />}
                 label="Transactions & Receipts"
-                subtitle="Escrow payments, transfers & invoices"
+                subtitle="Booking payments, transfers & invoices"
                 onPress={() => router.push('/my-activity?tab=transactions')}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
@@ -601,7 +601,7 @@ export default function ProfileScreen() {
                 animatedIconName="shield"
                 animatedIconColor={C.info}
                 label="Terms of Service"
-                subtitle="Platform rules, escrow protocols & policies"
+                subtitle="Platform rules, booking terms & policies"
                 onPress={() => router.push('/legal/terms')}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
@@ -619,7 +619,7 @@ export default function ProfileScreen() {
                 animatedIconName="activity"
                 animatedIconColor={C.warning}
                 label="Refund & Cancellation"
-                subtitle="Escrow refunds & cancellation terms"
+                subtitle="Booking refunds & cancellation terms"
                 onPress={() => router.push('/legal/refund-policy' as any)}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />

@@ -88,7 +88,7 @@ export const quickStats = [
 export const testimonials: Testimonial[] = [
   {
     quote:
-      'I needed to send an urgent signed agreement from Gurugram to Faridabad within 2 hours. Traditional couriers quoted next-day delivery. Found a commuter heading across the expressway on CarryGo who delivered it directly by 1 PM. Absolute lifesaver!',
+      'I needed to send an urgent signed agreement from Gurugram to Faridabad within 2 hours. Traditional couriers quoted next-day delivery. Found a commuter heading across the expressway on CaryGoo who delivered it directly by 1 PM. Absolute lifesaver!',
     name: 'Arjun Mehta',
     role: 'Founder, Apex Media (Gurugram)',
   },
@@ -100,7 +100,7 @@ export const testimonials: Testimonial[] = [
   },
   {
     quote:
-      'We run a textile and craft boutique in Panipat and use CarryGo for urgent customer orders to Karnal, Ambala, and Gurugram. Customers are thrilled when packages arrive the very same evening. Much faster than standard courier services!',
+      'We run a textile and craft boutique in Panipat and use CaryGoo for urgent customer orders to Karnal, Ambala, and Gurugram. Customers are thrilled when packages arrive the very same evening. Much faster than standard courier services!',
     name: 'Rohan Deshmukh',
     role: 'Co-founder, Panipat Handloom Collective',
   },
@@ -108,12 +108,12 @@ export const testimonials: Testimonial[] = [
 
 export const frequentlyAskedQuestions: FaqItem[] = [
   {
-    question: 'How does CarryGo keep deliveries secure?',
+    question: 'How does CaryGoo keep deliveries secure?',
     answer:
-      'CarryGo enforces KYC checks, risk flags, OTP-based handovers, and route-level monitoring to protect both sender and traveler journeys.',
+      'CaryGoo enforces KYC checks, risk flags, OTP-based handovers, and route-level monitoring to protect both sender and traveler journeys.',
   },
   {
-    question: 'Can businesses use CarryGo at scale?',
+    question: 'Can businesses use CaryGoo at scale?',
     answer:
       'Yes. We support recurring route operations, API-friendly workflows, and operational insights for growing fulfillment teams.',
   },

@@ -101,9 +101,9 @@ export function RequestSuccessModal({
               <MaterialIcons name="security" size={12} color={C.textMuted} />
             </View>
             <View style={styles.stepContent}>
-              <Text style={[styles.stepHeading, { color: C.textSecondary }]}>Escrow & OTP Handover</Text>
+              <Text style={[styles.stepHeading, { color: C.textSecondary }]}>Booking & OTP Handover</Text>
               <Text style={[styles.stepDesc, { color: C.textMuted }]}>
-                Funds are secured in escrow and payout is unlocked upon delivery OTP.
+                Funds are secured upon booking and payout is unlocked upon delivery OTP.
               </Text>
             </View>
           </View>

@@ -77,10 +77,10 @@ export function getContextBanner(
       } else {
         return {
           title: 'Action Needed: Carry Offer Received',
-          message: `${otherName} offered to deliver your parcel for ₹${request.price}! Chat to coordinate or accept to proceed to escrow.`,
+          message: `${otherName} offered to deliver your parcel for ₹${request.price}! Chat to coordinate or accept to proceed to book.`,
           bg: '#ECFDF5',
           border: '#A7F3D0',
-          iconBg: '#059669',
+          iconBg: '#008B48',
           iconColor: '#FFFFFF',
           titleColor: '#065F46',
           textColor: '#047857',
@@ -119,8 +119,8 @@ export function getContextBanner(
   if (request.status === 'accepted') {
     if (isSender) {
       return {
-        title: 'Step 2: Deposit Escrow Payment',
-        message: `Traveler accepted! Deposit ₹${request.price} in secure escrow to generate your pickup & handover OTP.`,
+        title: 'Step 2: Confirm & Book Delivery',
+        message: `Traveler accepted! Pay ₹${request.price} to book and generate your pickup & handover OTP.`,
         bg: '#FEF3C7',
         border: '#FDE68A',
         iconBg: '#D97706',
@@ -131,8 +131,8 @@ export function getContextBanner(
       };
     } else {
       return {
-        title: 'Step 2: Waiting for Sender Escrow',
-        message: `Delivery accepted! Coordinate pickup in chat. Handover OTP will unlock once the sender deposits escrow.`,
+        title: 'Step 2: Waiting for Sender Booking',
+        message: `Delivery accepted! Coordinate pickup in chat. Handover OTP will unlock once the sender confirms booking.`,
         bg: '#EFF6FF',
         border: '#BFDBFE',
         iconBg: '#2563EB',
@@ -146,11 +146,11 @@ export function getContextBanner(
 
   if (request.status === 'completed') {
     return {
-      title: 'Delivery Complete & Escrow Released',
+      title: 'Delivery Complete & Payout Released',
       message: `Parcel safely delivered and verified via OTP. Thank you for building trusted community logistics!`,
       bg: '#ECFDF5',
       border: '#A7F3D0',
-      iconBg: '#059669',
+      iconBg: '#008B48',
       iconColor: '#FFFFFF',
       titleColor: '#065F46',
       textColor: '#047857',
@@ -280,8 +280,8 @@ export function getRequestCardViewModel({
     done: isCompleted,
     active: isAccepted,
     label: isCompleted
-      ? 'Escrow Safe'
-      : (isAccepted ? (isSender ? 'Escrow Due' : 'Escrow Pending') : 'Escrow'),
+      ? 'Booked'
+      : (isAccepted ? (isSender ? 'Booking Due' : 'Booking Pending') : 'Book'),
     icon: (isCompleted
       ? 'shield-checkmark'
       : (isAccepted ? (isSender ? 'lock-closed' : 'shield-outline') : 'lock-closed-outline')) as keyof typeof Ionicons.glyphMap,
@@ -475,7 +475,7 @@ export const RequestCard = React.memo(function RequestCard({
               <Text style={[styles.priceSub, { color: C.primary }]}>
                 {request.status === 'completed'
                   ? (vm.isTraveller ? 'Earned' : 'Paid')
-                  : (vm.isTraveller ? 'You Earn' : 'Escrow')}
+                  : (vm.isTraveller ? 'You Earn' : 'Book')}
               </Text>
             </View>
           </View>
@@ -633,10 +633,10 @@ export const RequestCard = React.memo(function RequestCard({
                   hitSlop={TouchTarget.smallHitSlop}
                   accessible={true}
                   accessibilityRole="button"
-                  accessibilityLabel="Pay Escrow"
+                  accessibilityLabel="Pay & Book"
                 >
                   <MaterialIcons name="lock" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.payBtnText}>Pay Escrow (₹{request.price})</Text>
+                  <Text style={styles.payBtnText}>Pay & Book (₹{request.price})</Text>
                 </Pressable>
               ) : null}
 

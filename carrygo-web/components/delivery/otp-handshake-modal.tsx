@@ -164,7 +164,7 @@ export function OtpHandshakeModal({
             <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
             <h4 className="text-base font-bold text-emerald-950">Delivery Confirmed &amp; Completed!</h4>
             <p className="text-xs text-emerald-800">
-              Handover verified via complete_delivery_command. Escrow funds have been released to the traveler.
+              Handover verified via complete_delivery_command. Booking funds have been released to the traveler.
             </p>
           </div>
         ) : isTraveler ? (
@@ -199,7 +199,7 @@ export function OtpHandshakeModal({
                   <Loader2 className="w-4 h-4 animate-spin" /> Verifying with Backend...
                 </>
               ) : (
-                'Confirm Delivery & Release Escrow'
+                'Confirm Delivery & Release Booking'
               )}
             </button>
           </form>
@@ -243,7 +243,7 @@ export function OtpHandshakeModal({
 
             <div className="flex items-center gap-2 text-xs text-slate-500 justify-center">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>SafeVault™ Escrow releases payment only after this code is entered</span>
+              <span>SafeVault™ Booking Protection releases payment only after this code is entered</span>
             </div>
           </div>
         )}

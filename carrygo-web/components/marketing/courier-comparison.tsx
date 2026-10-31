@@ -35,7 +35,7 @@ const COMPARISON_ROWS = [
   },
   {
     feature: 'Payment Security',
-    carrygo: 'SafeVault™ Escrow Custody',
+    carrygo: 'SafeVault™ Booking Custody',
     carrygoSub: 'Traveler gets paid only after recipient enters delivery OTP',
     traditional: '100% Upfront & Non-refundable',
     traditionalSub: 'Paid before dispatch with complicated claims processes for loss',
@@ -55,11 +55,11 @@ export function CourierComparison() {
       <div className="text-center space-y-3 max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs">
           <Zap className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Why India is Switching to CarryGo</span>
+          <span>Why India is Switching to CaryGoo</span>
         </div>
         <h2 className="text-2xl sm:text-4xl font-heading font-extrabold text-slate-900 tracking-tight">
           Old Courier Networks vs.{' '}
-          <span className="text-emerald-700">The CarryGo Way</span>
+          <span className="text-emerald-700">The CaryGoo Way</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
           See why over 10,000+ senders choose verified travelers over legacy courier companies for same-day speed and 60% lower costs.
@@ -79,7 +79,7 @@ export function CourierComparison() {
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="font-heading font-bold text-sm sm:text-base text-emerald-950">
-                CarryGo Peer-to-Peer
+                CaryGoo Peer-to-Peer
               </span>
             </div>
             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-900">
@@ -107,7 +107,7 @@ export function CourierComparison() {
                 </span>
               </div>
 
-              {/* CarryGo Column with Gradient */}
+              {/* CaryGoo Column with Gradient */}
               <div className="md:col-span-4 p-4 sm:p-5 bg-gradient-to-b from-emerald-50/40 to-emerald-50/20 border-x border-emerald-100 flex items-start gap-3">
                 <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                   <Check className="w-3 h-3 stroke-[3]" />
@@ -145,7 +145,7 @@ export function CourierComparison() {
           <div className="flex items-center gap-2.5">
             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
             <span>
-              <strong className="text-emerald-800 font-bold">100% Guaranteed:</strong> All deliveries are backed by our ₹10,000 transit guarantee and automated SafeVault™ escrow protection.
+              <strong className="text-emerald-800 font-bold">100% Guaranteed:</strong> All deliveries are backed by our ₹10,000 transit guarantee and automated SafeVault™ booking protection protection.
             </span>
           </div>
           <a

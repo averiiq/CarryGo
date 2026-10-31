@@ -3,7 +3,7 @@ import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
 export const metadata = createMarketingMetadata(
   'Account & Data Deletion',
-  'Learn how to permanently delete your CarryGo account and personal data.',
+  'Learn how to permanently delete your CaryGoo account and personal data.',
   '/delete-account'
 )
 
@@ -11,16 +11,16 @@ const sections = [
   {
     title: 'How to Delete Your Account In-App',
     paragraphs: [
-      'You can permanently delete your CarryGo account at any time directly from within the mobile app.',
-      'To delete your account in the app: Open CarryGo > Tap the Profile tab at the bottom > Scroll down to the Account section > Tap "Delete Account" > Confirm your deletion.',
+      'You can permanently delete your CaryGoo account at any time directly from within the mobile app.',
+      'To delete your account in the app: Open CaryGoo > Tap the Profile tab at the bottom > Scroll down to the Account section > Tap "Delete Account" > Confirm your deletion.',
       'Once confirmed, your authentication session will end immediately, and your profile, active listings, and personal credentials will be permanently erased.',
     ],
   },
   {
     title: 'How to Request Deletion via Web / Email',
     paragraphs: [
-      'If you cannot access the mobile application, you can submit an account and data deletion request by emailing us at support@carrygo.in with the subject line "Account Deletion Request".',
-      'Please include the registered email address or phone number associated with your CarryGo account. Our security team will verify your identity and process the deletion within 48 to 72 hours.',
+      'If you cannot access the mobile application, you can submit an account and data deletion request by emailing us at support@carygoo.in with the subject line "Account Deletion Request".',
+      'Please include the registered email address or phone number associated with your CaryGoo account. Our security team will verify your identity and process the deletion within 48 to 72 hours.',
     ],
   },
   {
@@ -42,7 +42,7 @@ export default function DeleteAccountPage() {
   return (
     <LegalPage
       title="Account & Data Deletion"
-      summary="CarryGo respects your right to privacy and provides full control over your personal account and data."
+      summary="CaryGoo respects your right to privacy and provides full control over your personal account and data."
       lastUpdated="September 14, 2026"
       sections={sections}
       relatedLinks={[

@@ -274,7 +274,7 @@ export function HeroRouteSimulator() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Dual-OTP Escrow Trust Guarantee */}
+        {/* Dual-OTP Booking Trust Guarantee */}
         <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">

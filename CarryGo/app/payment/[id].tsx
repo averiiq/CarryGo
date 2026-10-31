@@ -174,14 +174,14 @@ export default function PaymentScreen() {
 
     try {
       await Share.share({
-        title: `CarryGo Escrow Receipt • ${receiptNumber}`,
+        title: `CaryGoo Booking Receipt • ${receiptNumber}`,
         message:
-          `📦 CarryGo Escrow Payment Receipt\n` +
+          `📦 CaryGoo Booking Payment Receipt\n` +
           `Ref ID: ${receiptNumber}\n` +
           `Route: ${fromCity} ➔ ${toCity}\n` +
           `Amount: ${amountStr}\n` +
-          `Status: ${isPaid ? (isCompleted ? 'COMPLETED & RELEASED' : 'SECURED IN ESCROW') : 'PENDING PAYMENT'}\n` +
-          `Protected by CarryGo 100% Escrow Guarantee.`,
+          `Status: ${isPaid ? (isCompleted ? 'COMPLETED & RELEASED' : 'PAID & BOOKED') : 'PENDING PAYMENT'}\n` +
+          `Protected by CaryGoo 100% Booking Guarantee.`,
       });
     } catch {}
   };
@@ -257,7 +257,7 @@ export default function PaymentScreen() {
 
         <View style={styles.navTitleCol}>
           <Text style={[styles.navTitle, { color: C.textPrimary }]}>
-            {isPaid ? 'Escrow Receipt' : 'Payment Status'}
+            {isPaid ? 'Booking Receipt' : 'Payment Status'}
           </Text>
           <Text style={[styles.navSubtitle, { color: C.textMuted }]}>
             {receiptNumber}
@@ -345,7 +345,7 @@ export default function PaymentScreen() {
                 {isPaid
                   ? isCompleted
                     ? 'COMPLETED & RELEASED'
-                    : 'PAID & SECURED IN ESCROW'
+                    : 'PAID & BOOKED'
                   : canPay
                   ? 'PAYMENT REQUIRED'
                   : isAccepted
@@ -358,7 +358,7 @@ export default function PaymentScreen() {
           {/* Amount Spotlight */}
           <View style={styles.amountWrap}>
             <Text style={[styles.amountLabel, { color: C.textMuted }]}>
-              {isPaid ? 'AMOUNT SECURED IN ESCROW' : 'AMOUNT PAYABLE'}
+              {isPaid ? 'AMOUNT PAID & BOOKED' : 'AMOUNT PAYABLE'}
             </Text>
             <Text style={[styles.amountValue, { color: C.textPrimary }]}>
               {formatAmount(effectivePrice)}
@@ -370,19 +370,19 @@ export default function PaymentScreen() {
             {isPaid
               ? isCompleted
                 ? 'Delivery confirmed. Funds were successfully paid to the traveler.'
-                : 'Held safely by CarryGo. Funds are released only after delivery PIN confirmation.'
+                : 'Held safely by CaryGoo. Funds are released only after delivery PIN confirmation.'
               : canPay
-              ? 'Lock funds securely in escrow to confirm your parcel delivery.'
+              ? 'Complete payment to confirm and book your parcel delivery.'
               : isAccepted
-              ? 'The sender must deposit the escrow payment before transit begins.'
+              ? 'The sender must complete the booking payment before transit begins.'
               : 'Payment will unlock as soon as both parties accept the delivery request.'}
           </Text>
         </View>
 
-        {/* ── Visual Escrow Timeline Stepper ─────────────────────────── */}
+        {/* ── Visual Booking Timeline Stepper ─────────────────────────── */}
         <View style={[styles.stepperCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
-            Escrow Protection Lifecycle
+            Booking Protection Lifecycle
           </Text>
 
           <View style={styles.stepperContainer}>
@@ -507,7 +507,7 @@ export default function PaymentScreen() {
           </View>
         </View>
 
-        {/* ── Official Escrow Receipt Card ───────────────────────────── */}
+        {/* ── Official Booking Receipt Card ───────────────────────────── */}
         <View style={[styles.receiptCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           {/* Route Overview */}
           {request ? (
@@ -588,7 +588,7 @@ export default function PaymentScreen() {
 
             <View style={styles.breakdownRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={[styles.breakdownLabel, { color: C.textSecondary }]}>Escrow Protection Guarantee</Text>
+                <Text style={[styles.breakdownLabel, { color: C.textSecondary }]}>Booking Protection Guarantee</Text>
                 <Ionicons name="shield-checkmark" size={13} color={C.success} />
               </View>
               <Text style={[styles.breakdownFree, { color: C.success }]}>Included (₹0)</Text>
@@ -597,7 +597,7 @@ export default function PaymentScreen() {
             <View style={[styles.breakdownDivider, { backgroundColor: C.surfaceBorder }]} />
 
             <View style={styles.breakdownRow}>
-              <Text style={[styles.totalLabel, { color: C.textPrimary }]}>Total Escrow Amount</Text>
+              <Text style={[styles.totalLabel, { color: C.textPrimary }]}>Total Booking Amount</Text>
               <Text style={[styles.totalValue, { color: C.primary }]}>
                 {formatAmount(effectivePrice)}
               </Text>
@@ -646,7 +646,7 @@ export default function PaymentScreen() {
             <View style={styles.metaRow}>
               <Text style={[styles.metaLabel, { color: C.textMuted }]}>Protection</Text>
               <Text style={[styles.metaValue, { color: C.success }]}>
-                100% Escrow Insured
+                100% Booking Insured
               </Text>
             </View>
           </View>
@@ -718,7 +718,7 @@ export default function PaymentScreen() {
                 <>
                   <Feather name="lock" size={17} color="#FFFFFF" />
                   <Text style={styles.primaryActionText}>
-                    Pay & Lock {formatAmount(effectivePrice)} in Escrow
+                    Pay & Book {formatAmount(effectivePrice)}
                   </Text>
                   <Feather name="arrow-right" size={17} color="#FFFFFF" style={{ marginLeft: 'auto' }} />
                 </>

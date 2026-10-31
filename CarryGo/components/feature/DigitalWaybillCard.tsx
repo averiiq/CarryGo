@@ -341,7 +341,7 @@ export function DigitalWaybillCard({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.trustTitle, { color: C.textPrimary }]}>
-                Automated Escrow Vault
+                Automated Booking Vault
               </Text>
               <Text style={[styles.trustSub, { color: C.textMuted }]}>
                 Funds held securely and released instantly upon successful dropoff.
@@ -356,7 +356,7 @@ export function DigitalWaybillCard({
         <View style={[styles.kycBanner, { backgroundColor: C.warningSubtle, borderColor: C.warningBorder }]}>
           <MaterialIcons name="fingerprint" size={18} color={C.warning} />
           <Text style={[styles.kycText, { color: C.textPrimary }]}>
-            UIDAI Aadhaar verification ensures full trust across the CarryGo network. You will be prompted to verify before your listing goes live.
+            UIDAI Aadhaar verification ensures full trust across the CaryGoo network. You will be prompted to verify before your listing goes live.
           </Text>
         </View>
       ) : null}

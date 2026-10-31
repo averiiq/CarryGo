@@ -298,7 +298,7 @@ function StepAllowedItems({ C }: { C: any }) {
         What You Can Send
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        These items are allowed on CarryGo. Make sure they’re properly packed and clearly described.
+        These items are allowed on CaryGoo. Make sure they’re properly packed and clearly described.
       </Text>
 
       <View style={styles.itemGrid}>
@@ -496,13 +496,13 @@ function StepLiability({ C }: { C: any }) {
       <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
         <BulletPoint icon="person" text="Sender: responsible for contents & packaging" C={C} />
         <BulletPoint icon="flight" text="Traveler: responsible for safe transit & timely delivery" C={C} />
-        <BulletPoint icon="store" text="CarryGo: facilitates connection, holds escrow payments" C={C} />
+        <BulletPoint icon="store" text="CaryGoo: facilitates connection, holds booking payments" C={C} />
       </View>
 
       <View style={[styles.warningBox, { backgroundColor: C.warningSubtle, borderColor: C.warning + '55' }]}>
         <MaterialIcons name="info-outline" size={20} color={C.warning} />
         <Text style={[styles.warningText, { color: C.textSecondary }]}>
-          CarryGo is a marketplace platform. We are not a courier service and do not assume carrier liability. Disputes are resolved through our mediation process.
+          CaryGoo is a marketplace platform. We are not a courier service and do not assume carrier liability. Disputes are resolved through our mediation process.
         </Text>
       </View>
 
@@ -534,7 +534,7 @@ function StepTrustVerification({ C }: { C: any }) {
         Trust & Verification
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        CarryGo uses multiple layers of verification to keep the community safe.
+        CaryGoo uses multiple layers of verification to keep the community safe.
       </Text>
 
       <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -542,7 +542,7 @@ function StepTrustVerification({ C }: { C: any }) {
         <BulletPoint icon="phone-android" text="Phone number verified via OTP" C={C} />
         <BulletPoint icon="photo-camera" text="Photo proof at pickup and delivery" C={C} />
         <BulletPoint icon="pin" text="OTP-based delivery confirmation" C={C} />
-        <BulletPoint icon="account-balance-wallet" text="Escrow payment protection" C={C} />
+        <BulletPoint icon="account-balance-wallet" text="Booking payment protection" C={C} />
         <BulletPoint icon="star-rate" text="Community ratings and reviews" C={C} />
         <BulletPoint icon="support-agent" text="24/7 dispute resolution support" C={C} />
       </View>
@@ -559,7 +559,7 @@ function StepFinalAgreement({ C, checks, onToggle, onViewTerms }: {
   const checkItems = [
     'I will only send items that are legal and not prohibited',
     'I will package my items securely and describe them accurately',
-    'I understand CarryGo is a marketplace, not a courier service',
+    'I understand CaryGoo is a marketplace, not a courier service',
     'I accept the liability terms and dispute resolution process',
   ];
 

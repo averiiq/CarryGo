@@ -46,8 +46,8 @@ const travelerBenefits = [
     tone: 'text-accent bg-accent-subtle border-accent/20',
   },
   {
-    title: 'Guaranteed Escrow Payouts',
-    description: 'Sender funds are pre-locked in CarryGo escrow. Once the recipient shares their delivery OTP, funds hit your wallet immediately.',
+    title: 'Guaranteed Booking Payouts',
+    description: 'Sender funds are pre-locked in CaryGoo booking. Once the recipient shares their delivery OTP, funds hit your wallet immediately.',
     icon: Wallet,
     tone: 'text-success bg-success-subtle border-success/20',
   },
@@ -89,11 +89,11 @@ const EARNING_EXAMPLES = [
 const TRAVELER_FAQS = [
   {
     q: 'How do I know the parcel is safe and legal to carry?',
-    a: 'CarryGo has a strict prohibited items policy. Furthermore, every traveler is empowered with the Right of Inspection: you personally check and inspect package contents before entering the pickup OTP. Senders must keep packages unsealed until verified by you.',
+    a: 'CaryGoo has a strict prohibited items policy. Furthermore, every traveler is empowered with the Right of Inspection: you personally check and inspect package contents before entering the pickup OTP. Senders must keep packages unsealed until verified by you.',
   },
   {
     q: 'When and how do I receive my payout?',
-    a: 'Fares are held securely in CarryGo escrow from the moment a request is matched. As soon as the recipient gives you their delivery OTP and you confirm the dropoff in your app, the funds are instantly credited to your CarryGo wallet and can be withdrawn via UPI or bank account.',
+    a: 'Fares are held securely in CaryGoo booking from the moment a request is matched. As soon as the recipient gives you their delivery OTP and you confirm the dropoff in your app, the funds are instantly credited to your CaryGoo wallet and can be withdrawn via UPI or bank account.',
   },
   {
     q: 'What if the recipient does not show up at the destination?',
@@ -109,7 +109,7 @@ export default function ForTravelersPage() {
         <PageHero
           badge="For Verified Travelers"
           title="Turn Empty Luggage Space into Travel Income"
-          description="Whether you commute weekly by train, drive between cities, or fly for business, CarryGo lets you earn by carrying verified packages on routes you are already taking."
+          description="Whether you commute weekly by train, drive between cities, or fly for business, CaryGoo lets you earn by carrying verified packages on routes you are already taking."
           illustrationSrc="/images/abstract/traveler-journey.jpg"
           illustrationAlt="Abstract 3D traveler mobility sculpture"
           illustrationLabel="Monetize your journey"
@@ -125,7 +125,7 @@ export default function ForTravelersPage() {
         <SectionHeading
           label="Traveler Advantages"
           title="Earn Safely on Your Terms"
-          description="CarryGo protects travelers with mandatory sender ID checks, pre-funded escrow vaults, and complete package inspection authority."
+          description="CaryGoo protects travelers with mandatory sender ID checks, pre-funded booking vaults, and complete package inspection authority."
         />
 
         <div className="mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -210,7 +210,7 @@ export default function ForTravelersPage() {
               </span>
 
               <h2 className="text-3xl sm:text-4xl font-heading font-bold text-slate-900 tracking-tight">
-                Get Verified as a CarryGo Trusted Traveler in 3 Minutes
+                Get Verified as a CaryGoo Trusted Traveler in 3 Minutes
               </h2>
 
               <p className="text-sm text-slate-600 font-normal leading-relaxed">

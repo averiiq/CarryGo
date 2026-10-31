@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
   liveStatusPillText: {
     fontSize: 9,
     fontWeight: FontWeight.bold,
-    color: '#1A4CA2',
+    color: '#004AAD',
     letterSpacing: 0.5,
   },
   sectionSubtitle: {
@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
     width: '50%',
     borderRadius: BorderRadius.md - 2,
     zIndex: 1,
-    shadowColor: '#1A4CA2',
+    shadowColor: '#004AAD',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.22,
     shadowRadius: 6,

@@ -128,7 +128,7 @@ export function RequestDetailModal({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {/* Status & Escrow Pill */}
+            {/* Status & Booking Pill */}
             <View style={styles.statusRow}>
               <View style={[styles.statusChip, { backgroundColor: sc.bg, borderColor: sc.border }]}>
                 <Ionicons name={sc.icon} size={13} color={sc.color} />
@@ -205,7 +205,7 @@ export function RequestDetailModal({
             <View style={[styles.fareBox, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
               <View>
                 <Text style={[styles.fareLabel, { color: C.textMuted }]}>
-                  {vm.isTraveller ? 'Your Total Payout' : 'Escrow Deposit Amount'}
+                  {vm.isTraveller ? 'Your Total Payout' : 'Booking Amount'}
                 </Text>
                 <Text style={[styles.fareAmount, { color: C.primary }]}>
                   ₹{request.price}
@@ -214,7 +214,7 @@ export function RequestDetailModal({
 
               <View style={[styles.escrowBadge, { backgroundColor: C.surface, borderColor: C.primaryBorder }]}>
                 <MaterialIcons name="shield" size={14} color={C.primary} />
-                <Text style={[styles.escrowBadgeText, { color: C.primary }]}>100% Escrow Safe</Text>
+                <Text style={[styles.escrowBadgeText, { color: C.primary }]}>100% Booking Protected</Text>
               </View>
             </View>
 
@@ -326,7 +326,7 @@ export function RequestDetailModal({
                 style={[styles.footerPayBtn, { backgroundColor: C.primary }]}
               >
                 <MaterialIcons name="lock" size={16} color="#FFFFFF" />
-                <Text style={styles.footerPayText}>Pay Escrow (₹{request.price})</Text>
+                <Text style={styles.footerPayText}>Pay & Book (₹{request.price})</Text>
               </Pressable>
             ) : vm.showDeliveryButton ? (
               <Pressable

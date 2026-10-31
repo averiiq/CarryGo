@@ -20,9 +20,9 @@ function buildOtpShareMessage(opts: {
   const routeLine = fromCity && toCity ? ` for the ${fromCity} → ${toCity} parcel` : '';
   const greeting = travellerName ? `Hi ${travellerName}` : 'Hi';
   if (kind === 'pickup') {
-    return `${greeting}, here is my CarryGo pickup code${routeLine}: ${code}. Please share this with me only once you've collected the parcel.`;
+    return `${greeting}, here is my CaryGoo pickup code${routeLine}: ${code}. Please share this with me only once you've collected the parcel.`;
   }
-  return `${greeting}, here is my CarryGo delivery code${routeLine}: ${code}. Please share only after the parcel has been handed to the receiver.`;
+  return `${greeting}, here is my CaryGoo delivery code${routeLine}: ${code}. Please share only after the parcel has been handed to the receiver.`;
 }
 
 async function shareViaWhatsapp(message: string, phone?: string) {

@@ -115,7 +115,7 @@ export function useRazorpayCheckout({
       key: order.keyId,
       amount: order.amount,
       currency: order.currency,
-      name: 'CarryGo',
+      name: 'CaryGoo',
       description: 'Delivery Payment',
       order_id: order.orderId,
       prefill: {
@@ -159,7 +159,7 @@ export function useRazorpayCheckout({
           key: order.keyId,
           amount: order.amount,
           currency: order.currency,
-          name: 'CarryGo',
+          name: 'CaryGoo',
           description: 'Delivery Payment',
           order_id: order.orderId,
           prefill: {
@@ -167,7 +167,7 @@ export function useRazorpayCheckout({
             email: senderEmail ?? '',
             contact: senderPhone ?? '',
           },
-          theme: { color: '#059669' },
+          theme: { color: '#004AAD' },
         };
 
         const result = await RazorpayCheckout.open(options);
@@ -189,7 +189,7 @@ export function useRazorpayCheckout({
       const linkRes = await createRazorpayPaymentLink({
         requestId,
         amount: amountInRupees,
-        description: `CarryGo Delivery Escrow - ₹${amountInRupees}`,
+        description: `CaryGoo Delivery Booking - ₹${amountInRupees}`,
         customerName: senderName,
         customerEmail: senderEmail,
         customerPhone: senderPhone,
@@ -232,7 +232,7 @@ export function useRazorpayCheckout({
       try {
         await WebBrowser.openBrowserAsync(shortUrl, {
           presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-          toolbarColor: '#059669',
+          toolbarColor: '#004AAD',
           controlsColor: '#FFFFFF',
           showTitle: true,
         });
@@ -257,7 +257,7 @@ export function useRazorpayCheckout({
           setState(s => ({ ...s, isProcessing: false, isVerifying: false, error: 'Payment was not completed.' }));
           showAlert(
             'Payment Incomplete',
-            'No payment was captured by Razorpay. If you closed the browser or cancelled, tap "Pay & Lock in Escrow" anytime to retry.'
+            'No payment was captured by Razorpay. If you closed the browser or cancelled, tap "Pay & Book" anytime to retry.'
           );
           onFailure?.('Payment not completed');
         }

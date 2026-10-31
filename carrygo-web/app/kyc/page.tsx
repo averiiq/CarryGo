@@ -397,7 +397,7 @@ export default function CustomerKycPage() {
                   <IdCard className="w-4 h-4 text-emerald-600" />
                   Tax &amp; Regulatory Verification
                 </p>
-                <p>Required by payment settlement regulations for escrow payouts.</p>
+                <p>Required by payment settlement regulations for booking payouts.</p>
               </div>
 
               <div className="space-y-1.5">

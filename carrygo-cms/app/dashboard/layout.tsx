@@ -4,8 +4,8 @@ import Header from '@/components/Header'
 export const revalidate = 60
 
 export const metadata = {
-  title: 'CarryGo Admin CMS',
-  description: 'Internal CMS and dashboard for CarryGo',
+  title: 'CaryGoo Admin CMS',
+  description: 'Internal CMS and dashboard for CaryGoo',
   robots: { index: false, follow: false },
 }
 

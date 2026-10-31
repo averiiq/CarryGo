@@ -18,7 +18,7 @@ import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-sectio
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
-export const metadata = createMarketingMetadata('Features', 'Explore CarryGo route matching, secure handovers, communication, and payment features.', '/features')
+export const metadata = createMarketingMetadata('Features', 'Explore CaryGoo route matching, secure handovers, communication, and payment features.', '/features')
 
 const featureCategories = [
   {
@@ -104,7 +104,7 @@ export default function FeaturesPage() {
         <PageHero
           badge='Product Features'
           title='Mobile App Capabilities, Now Mirrored on Website'
-          description='CarryGo web adopts the same core product experience as your app: creation flows, matching, request management, trust controls, and delivery visibility.'
+          description='CaryGoo web adopts the same core product experience as your app: creation flows, matching, request management, trust controls, and delivery visibility.'
           illustrationSrc='/images/custom/warehouse-ops.svg'
           illustrationAlt='Warehouse operations illustration'
           illustrationLabel='Live operational intelligence'

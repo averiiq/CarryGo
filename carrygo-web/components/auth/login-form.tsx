@@ -309,7 +309,7 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
 
             <div className="pt-2 text-center">
               <p className="text-[11px] text-muted leading-normal">
-                By continuing, you agree to CarryGo&apos;s{' '}
+                By continuing, you agree to CaryGoo&apos;s{' '}
                 <a href="/terms-and-conditions" className="text-primary hover:underline">
                   Terms of Service
                 </a>{' '}

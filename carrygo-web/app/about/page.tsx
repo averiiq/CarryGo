@@ -6,7 +6,7 @@ import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-sectio
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
-export const metadata = createMarketingMetadata('About', 'Learn how CarryGo makes intercity parcel delivery more direct and dependable.', '/about')
+export const metadata = createMarketingMetadata('About', 'Learn how CaryGoo makes intercity parcel delivery more direct and dependable.', '/about')
 
 const values = [
   {
@@ -38,9 +38,9 @@ export default function AboutPage() {
     <MarketingShell>
       <ScrollLinkedSection className='px-6 py-16 md:py-24'>
         <PageHero
-          badge='About CarryGo'
+          badge='About CaryGoo'
           title='Building the Most Trusted Peer Logistics Experience'
-          description='CarryGo is focused on making parcel movement faster, safer, and more transparent through verified traveler networks.'
+          description='CaryGoo is focused on making parcel movement faster, safer, and more transparent through verified traveler networks.'
           illustrationSrc="/images/abstract/hero-routes.jpg"
           illustrationAlt="Abstract 3D interconnected network artwork"
           illustrationLabel="Human-first logistics platform"

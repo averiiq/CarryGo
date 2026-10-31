@@ -115,7 +115,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       available_capacity: safeNumber(row.available_capacity),
       price_per_kg: safeNumber(row.price_per_kg),
       status: row.status ?? 'active',
-      user_name: row.user_name ?? 'CarryGo traveler',
+      user_name: row.user_name ?? 'CaryGoo traveler',
     }
   })
 
@@ -130,7 +130,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       weight: safeNumber(row.weight),
       price_offer: safeNumber(row.price_offer),
       status: row.status ?? 'open',
-      user_name: row.user_name ?? 'CarryGo sender',
+      user_name: row.user_name ?? 'CaryGoo sender',
     }
   })
 
@@ -365,7 +365,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         <section className='mx-auto mt-7 flex w-full max-w-6xl flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border bg-surface-elevated/70 px-4 py-3'>
           <div className='inline-flex items-center gap-2 text-sm text-muted'>
             <SearchIcon className='h-4 w-4 text-primary' />
-            <span>Verified Travel Guarantee: Dual-OTP handover at pickup & dropoff with SafeVault™ escrow protection.</span>
+            <span>Verified Travel Guarantee: Dual-OTP handover at pickup & dropoff with SafeVault™ booking protection protection.</span>
           </div>
           <Link href='/safety' className='inline-link'>
             Read safety policy

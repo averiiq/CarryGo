@@ -12,20 +12,20 @@
   --muted: #64748B;
   --muted-foreground: #94A3B8;
 
-  --primary: #059669;
-  --primary-hover: #047857;
+  --primary: #004AAD;
+  --primary-hover: #003580;
   --primary-foreground: #FFFFFF;
-  --primary-subtle: rgba(5, 150, 105, 0.08);
-  --primary-glow: rgba(5, 150, 105, 0.2);
+  --primary-subtle: rgba(0, 74, 173, 0.08);
+  --primary-glow: rgba(0, 74, 173, 0.2);
 
-  --accent: #0284C7;
-  --accent-hover: #0369A1;
+  --accent: #008B48;
+  --accent-hover: #006836;
   --accent-foreground: #FFFFFF;
-  --accent-subtle: rgba(2, 132, 199, 0.08);
+  --accent-subtle: rgba(0, 139, 72, 0.08);
 
-  --success: #059669;
-  --success-hover: #047857;
-  --success-subtle: rgba(5, 150, 105, 0.1);
+  --success: #008B48;
+  --success-hover: #006836;
+  --success-subtle: rgba(0, 139, 72, 0.1);
   --warning: #D97706;
   --warning-hover: #B45309;
   --warning-subtle: rgba(217, 119, 6, 0.1);

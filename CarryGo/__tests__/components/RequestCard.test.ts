@@ -44,7 +44,7 @@ describe('RequestCard - View Model & Pre-Acceptance Communication', () => {
       expect(banner?.icon).toBe('flash-outline');
     });
 
-    it('prompts sender receiving carry offer that they can chat or accept to escrow', () => {
+    it('prompts sender receiving carry offer that they can chat or accept to book', () => {
       const req = makeMockRequest({ status: 'pending' });
       const banner = getContextBanner(
         req,
@@ -56,7 +56,7 @@ describe('RequestCard - View Model & Pre-Acceptance Communication', () => {
       );
 
       expect(banner?.title).toBe('Action Needed: Carry Offer Received');
-      expect(banner?.message).toContain('Chat to coordinate or accept to proceed to escrow');
+      expect(banner?.message).toContain('Chat to coordinate or accept to proceed to book');
     });
 
     it('informs requester waiting for counterparty that they can chat anytime', () => {
@@ -87,7 +87,7 @@ describe('RequestCard - View Model & Pre-Acceptance Communication', () => {
       expect(bannerTraveler?.message).toContain('Chat anytime to coordinate package details before acceptance');
     });
 
-    it('returns escrow deposit prompt when request is accepted and user is sender', () => {
+    it('returns booking prompt when request is accepted and user is sender', () => {
       const req = makeMockRequest({ status: 'accepted' });
       const banner = getContextBanner(
         req,
@@ -98,8 +98,8 @@ describe('RequestCard - View Model & Pre-Acceptance Communication', () => {
         mockColors
       );
 
-      expect(banner?.title).toBe('Step 2: Deposit Escrow Payment');
-      expect(banner?.message).toContain('Deposit ₹350 in secure escrow');
+      expect(banner?.title).toBe('Step 2: Confirm & Book Delivery');
+      expect(banner?.message).toContain('Pay ₹350 to book');
     });
   });
 

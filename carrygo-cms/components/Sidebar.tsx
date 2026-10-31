@@ -47,10 +47,11 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-border-subtle">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center flex-shrink-0">
-          <Package className="w-4 h-4 text-white" />
-        </div>
-        <span className="font-heading font-bold text-foreground text-lg tracking-tight">CarryGo</span>
+        <img
+          src="/logo-horizontal.png"
+          alt="CaryGoo"
+          className="h-8 w-auto object-contain"
+        />
       </div>
 
       {/* Navigation */}

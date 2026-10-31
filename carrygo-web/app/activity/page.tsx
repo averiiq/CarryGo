@@ -256,7 +256,7 @@ export default function CustomerActivityPage() {
               </span>
             </div>
             <p className="text-sm text-slate-600">
-              Manage requests with real-time transition locks, dual-OTP handovers, and escrow payouts.
+              Manage requests with real-time transition locks, dual-OTP handovers, and booking payouts.
             </p>
           </div>
 
@@ -342,7 +342,7 @@ export default function CustomerActivityPage() {
             }`}
           >
             <CreditCard className="w-4 h-4 text-indigo-600" />
-            <span>Escrow &amp; Payments</span>
+            <span>Bookings &amp; Payments</span>
             <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-slate-200 font-bold text-slate-700">
               {payments.length}
             </span>
@@ -469,14 +469,14 @@ export default function CustomerActivityPage() {
                                     href={`/payment/${req.id}`}
                                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-xs"
                                   >
-                                    <Lock className="w-3.5 h-3.5" /> Pay &amp; Lock Escrow
+                                    <Lock className="w-3.5 h-3.5" /> Pay &amp; Book
                                   </Link>
                                 )}
 
                                 {payment && (
                                   <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                                     <ShieldCheck className="w-3.5 h-3.5" />
-                                    {payment.status === 'released' ? 'Escrow Released' : 'Escrow Locked'}
+                                    {payment.status === 'released' ? 'Payout Released' : 'Booked & Secured'}
                                   </span>
                                 )}
 
@@ -734,17 +734,17 @@ export default function CustomerActivityPage() {
           </div>
         )}
 
-        {/* Tab 3: Escrow & Payments */}
+        {/* Tab 3: Bookings & Payments */}
         {activeTab === 'payments' && (
           <div className="mt-6 space-y-4">
             <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">
-                  Safe-Transit Escrow Guarantee
+                  Safe-Transit Booking Guarantee
                 </h4>
                 <p className="text-xs text-emerald-800 leading-relaxed">
-                  Every payment is locked safely in RBI-compliant escrow. Funds are automatically released to the traveler upon delivery code confirmation.
+                  Every payment is locked safely in RBI-compliant booking. Funds are automatically released to the traveler upon delivery code confirmation.
                 </p>
               </div>
             </div>
@@ -754,7 +754,7 @@ export default function CustomerActivityPage() {
                 <CreditCard className="w-10 h-10 text-slate-400 mx-auto" />
                 <h3 className="text-base font-bold text-slate-800">No Transactions Found</h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  When you send a package or deliver one, all escrow receipts and tax invoices appear here.
+                  When you send a package or deliver one, all booking receipts and tax invoices appear here.
                 </p>
               </div>
             ) : (
@@ -775,7 +775,7 @@ export default function CustomerActivityPage() {
                             : 'bg-rose-100 text-rose-800'
                         }`}
                       >
-                        {p.status === 'locked' ? 'Locked in Escrow' : p.status}
+                        {p.status === 'locked' ? 'Booked & Secured' : p.status}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500">

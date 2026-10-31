@@ -288,8 +288,8 @@ export default function ParcelDetailScreen() {
   }, [isSender, requests, user?.id]);
 
   const catGradient: [string, string] = parcel
-    ? (categoryGradients[parcel.category] || ['#1A4CA2', '#123777'])
-    : ['#1A4CA2', '#123777'];
+    ? (categoryGradients[parcel.category] || ['#004AAD', '#003580'])
+    : ['#004AAD', '#003580'];
 
   const handleRefresh = async () => {
     setRefreshing(true);

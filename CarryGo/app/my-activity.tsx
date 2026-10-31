@@ -139,7 +139,7 @@ function TxSummaryCard({ payments, userId, C }: { payments: Payment[]; userId: s
             <Ionicons name="shield-checkmark" size={16} color="#fff" />
           </View>
           <View>
-            <Text style={[styles.walletTitle, { color: C.textPrimary }]}>Escrow Wallet</Text>
+            <Text style={[styles.walletTitle, { color: C.textPrimary }]}>Booking Wallet</Text>
             <Text style={[styles.walletSubtitle, { color: C.textMuted }]}>Protected Transactions</Text>
           </View>
         </View>
@@ -161,7 +161,7 @@ function TxSummaryCard({ payments, userId, C }: { payments: Payment[]; userId: s
           <View style={[styles.lockedPill, { backgroundColor: C.warningSubtle, borderColor: C.warning + '44' }]}>
             <Feather name="lock" size={12} color={C.warning} />
             <Text style={[styles.lockedPillText, { color: C.warning }]}>
-              ₹{locked.toLocaleString('en-IN')} In Escrow
+              ₹{locked.toLocaleString('en-IN')} Booked
             </Text>
           </View>
         ) : null}
@@ -171,7 +171,7 @@ function TxSummaryCard({ payments, userId, C }: { payments: Payment[]; userId: s
         {[
           { label: 'Earned', amount: totalEarned, icon: 'arrow-down-left' as const, color: C.success, bg: C.successSubtle },
           { label: 'Paid Out', amount: totalSpent, icon: 'arrow-up-right' as const, color: C.error, bg: C.errorSubtle },
-          { label: 'In Escrow', amount: locked, icon: 'shield' as const, color: C.warning, bg: C.warningSubtle },
+          { label: 'Booked', amount: locked, icon: 'shield' as const, color: C.warning, bg: C.warningSubtle },
           { label: 'Refunded', amount: refunded, icon: 'rotate-ccw' as const, color: C.info, bg: C.infoSubtle },
         ].map((s, i) => (
           <View key={i} style={[styles.statBox, { backgroundColor: s.bg }]}>
@@ -189,7 +189,7 @@ function TxSummaryCard({ payments, userId, C }: { payments: Payment[]; userId: s
 
 function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; onPress: () => void; C: ThemeColors }) {
   const statusConfig = {
-    locked:   { color: C.warning, bg: C.warningSubtle, icon: 'lock' as const,         label: 'Locked',   desc: 'Held securely in CaryGoo Escrow' },
+    locked:   { color: C.warning, bg: C.warningSubtle, icon: 'lock' as const,         label: 'Locked',   desc: 'Held securely in CaryGoo Booking' },
     released: { color: C.success, bg: C.successSubtle, icon: 'check-circle' as const, label: 'Settled',  desc: 'Funds released to traveler' },
     refunded: { color: C.error,   bg: C.errorSubtle,   icon: 'rotate-ccw' as const,   label: 'Refunded', desc: 'Returned to sender account' },
   };
@@ -235,7 +235,7 @@ function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; on
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.txTitle, { color: C.textPrimary }]} numberOfLines={1}>
-                {isEarning ? 'Traveler Delivery Remuneration' : 'Sender Escrow Payment'}
+                {isEarning ? 'Traveler Delivery Remuneration' : 'Sender Booking Payment'}
               </Text>
               <Text style={[styles.txDate, { color: C.textMuted }]}>
                 {txDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -842,7 +842,7 @@ export default function MyActivityScreen() {
                     const count = f === 'all' ? payments.length : payments.filter(p => p.status === f).length;
                     const sc = f !== 'all' ? TX_STATUS_CONFIG[f] : null;
                     const isSelected = txFilterStatus === f;
-                    const labelMap = { all: 'All', locked: 'In Escrow', released: 'Settled', refunded: 'Refunded' };
+                    const labelMap = { all: 'All', locked: 'Booked', released: 'Settled', refunded: 'Refunded' };
                     return (
                       <Pressable
                         key={f}
@@ -911,7 +911,7 @@ export default function MyActivityScreen() {
                   </View>
                 ) : null}
 
-                {/* Escrow Summary Card */}
+                {/* Booking Summary Card */}
                 {payments.length > 0 && <TxSummaryCard payments={payments} userId={user?.id || ''} C={C} />}
               </View>
             }
@@ -924,7 +924,7 @@ export default function MyActivityScreen() {
                 <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
                   {txFilterStatus !== 'all'
                     ? `There are no transactions with ${txFilterStatus} status.`
-                    : 'Complete or carry a delivery to generate digital escrow receipts.'}
+                    : 'Complete or carry a delivery to generate digital booking receipts.'}
                 </Text>
                 {txFilterStatus !== 'all' ? (
                   <Pressable

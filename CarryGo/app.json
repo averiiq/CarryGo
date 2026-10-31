@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "CarryGo",
+    "name": "CaryGoo",
     "slug": "carrygo",
     "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "carrygo",
+    "scheme": "carygoo",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -15,9 +15,9 @@
       "bundleIdentifier": "in.averiq.carrygo",
       "newArchEnabled": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "CarryGo uses the camera to capture parcel photos, delivery proof, and KYC verification documents.",
-        "NSPhotoLibraryUsageDescription": "CarryGo lets you upload parcel and verification images from your photo library.",
-        "NSLocationWhenInUseUsageDescription": "CarryGo uses your location to match routes and support live trip and parcel tracking when enabled."
+        "NSCameraUsageDescription": "CaryGoo uses the camera to capture parcel photos, delivery proof, and KYC verification documents.",
+        "NSPhotoLibraryUsageDescription": "CaryGoo lets you upload parcel and verification images from your photo library.",
+        "NSLocationWhenInUseUsageDescription": "CaryGoo uses your location to match routes and support live trip and parcel tracking when enabled."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -66,8 +66,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "CarryGo needs access to your photo library to select profile photos and parcel pictures.",
-          "cameraPermission": "CarryGo needs camera access to capture profile photos and parcel verification images."
+          "photosPermission": "CaryGoo needs access to your photo library to select profile photos and parcel pictures.",
+          "cameraPermission": "CaryGoo needs camera access to capture profile photos and parcel verification images."
         }
       ],
       [
@@ -76,10 +76,10 @@
           "image": "./assets/images/splash-logo.png",
           "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#F3F7EF",
+          "backgroundColor": "#ffffff",
           "dark": {
             "image": "./assets/images/splash-logo.png",
-            "backgroundColor": "#0F141B"
+            "backgroundColor": "#ffffff"
           }
         }
       ],
@@ -100,7 +100,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "CarryGo uses your location to detect your city and match nearby trips and parcels."
+          "locationAlwaysAndWhenInUsePermission": "CaryGoo uses your location to detect your city and match nearby trips and parcels."
         }
       ],
       [
@@ -130,10 +130,10 @@
     "splash": {
       "image": "./assets/images/splash-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F3F7EF",
+      "backgroundColor": "#ffffff",
       "dark": {
         "image": "./assets/images/splash-logo.png",
-        "backgroundColor": "#0F141B"
+        "backgroundColor": "#ffffff"
       }
     },
     "owner": "averiq-software-company"

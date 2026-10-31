@@ -496,12 +496,12 @@ export function SendRequestModal({
             </View>
           )}
 
-          {/* Pricing & Escrow Trust Guarantee */}
+          {/* Pricing & Booking Trust Guarantee */}
           <View style={[styles.pricingCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
             <View style={styles.pricingLeft}>
               <View style={styles.escrowHeaderRow}>
-                <MaterialIcons name="verified-user" size={16} color="#059669" />
-                <Text style={styles.escrowTitle}>100% Escrow Protected</Text>
+                <MaterialIcons name="verified-user" size={16} color="#008B48" />
+                <Text style={styles.escrowTitle}>100% Booking Protected</Text>
               </View>
               <Text style={styles.escrowSub}>
                 Funds are held safely and only released after delivery OTP is verified.

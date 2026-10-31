@@ -33,7 +33,7 @@ export function getUpdateDialogMeta(params: {
   const chipLabel = params.isUpdateReady ? 'UPDATE READY TO INSTALL' : 'STREAMING UPDATE (OTA)';
   const primaryActionText = params.isUpdateReady ? 'Restart & Apply Update' : 'Continue in Background';
   const subtitle = params.isUpdateReady
-    ? 'CarryGo has downloaded a fresh performance & feature bundle. Restart now to experience the latest improvements.'
+    ? 'CaryGoo has downloaded a fresh performance & feature bundle. Restart now to experience the latest improvements.'
     : 'Streaming new enhancements silently in the background. You can continue using the app while this completes.';
 
   return {
@@ -204,8 +204,8 @@ export function UpdateBanner({ testID, forceVisible }: UpdateBannerProps) {
           <LinearGradient
             colors={
               isUpdateReady
-                ? ['#059669', '#10B981', '#34D399']
-                : ['#1D4ED8', '#2563EB', '#60A5FA']
+                ? ['#008B48', '#10A85B', '#34D399']
+                : ['#003580', '#004AAD', '#60A5FA']
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -251,8 +251,8 @@ export function UpdateBanner({ testID, forceVisible }: UpdateBannerProps) {
             <LinearGradient
               colors={
                 isUpdateReady
-                  ? ['#10B981', '#059669']
-                  : ['#3B82F6', '#1D4ED8']
+                  ? ['#10A85B', '#008B48']
+                  : ['#1E65D6', '#004AAD']
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -312,7 +312,7 @@ export function UpdateBanner({ testID, forceVisible }: UpdateBannerProps) {
             <Text
               style={[
                 styles.statusChipText,
-                { color: isUpdateReady ? '#059669' : '#2563EB' },
+                { color: isUpdateReady ? '#008B48' : '#004AAD' },
               ]}
             >
               {isUpdateReady ? 'UPDATE READY TO INSTALL' : 'STREAMING UPDATE (OTA)'}
@@ -326,7 +326,7 @@ export function UpdateBanner({ testID, forceVisible }: UpdateBannerProps) {
 
           <Text style={[styles.dialogDescription, { color: C.textSecondary }]}>
             {isUpdateReady
-              ? 'CarryGo has downloaded a fresh performance & feature bundle. Restart now to experience the latest improvements.'
+              ? 'CaryGoo has downloaded a fresh performance & feature bundle. Restart now to experience the latest improvements.'
               : 'Streaming new enhancements silently in the background. You can continue using the app while this completes.'}
           </Text>
 
@@ -466,7 +466,7 @@ export function UpdateBanner({ testID, forceVisible }: UpdateBannerProps) {
                   accessibilityLabel="Restart and apply update"
                 >
                   <LinearGradient
-                    colors={['#10B981', '#059669']}
+                    colors={['#10A85B', '#008B48']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.primaryGradient}
@@ -477,7 +477,7 @@ export function UpdateBanner({ testID, forceVisible }: UpdateBannerProps) {
                       <Ionicons name="refresh" size={19} color="#FFFFFF" />
                     )}
                     <Text style={styles.primaryButtonText}>
-                      {isApplying ? 'Restarting CarryGo...' : 'Restart & Apply Update'}
+                      {isApplying ? 'Restarting CaryGoo...' : 'Restart & Apply Update'}
                     </Text>
                   </LinearGradient>
                 </Pressable>

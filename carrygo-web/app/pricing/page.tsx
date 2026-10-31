@@ -13,7 +13,7 @@ import {
   InteractiveIconBadge,
 } from '@/components/ui/animated-icons'
 
-export const metadata = createMarketingMetadata('Pricing', 'Understand CarryGo pricing principles and available delivery options.', '/pricing')
+export const metadata = createMarketingMetadata('Pricing', 'Understand CaryGoo pricing principles and available delivery options.', '/pricing')
 
 const plans = [
   {

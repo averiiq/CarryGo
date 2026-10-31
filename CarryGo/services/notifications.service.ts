@@ -91,7 +91,7 @@ export async function setupNotificationChannels(): Promise<void> {
       showBadge: true,
     });
     await Notifications.setNotificationChannelAsync('payments', {
-      name: 'Payments & Escrow',
+      name: 'Payments & Bookings',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 300, 200, 300],
       lightColor: '#F59E0B',
@@ -750,8 +750,8 @@ export async function notifyRequestAccepted(params: {
 }) {
   return dispatchNotification({
     userId: params.senderId,
-    title: '✅ Request Accepted — Pay to Lock Escrow',
-    body: `${params.travellerName} accepted your delivery request. Tap to deposit escrow and unlock your pickup OTP.`,
+    title: '✅ Request Accepted — Pay to Book',
+    body: `${params.travellerName} accepted your delivery request. Tap to book and unlock your pickup OTP.`,
     type: 'request_accepted',
     priority: 'high',
     relatedId: params.requestId,
@@ -916,10 +916,10 @@ export async function notifyPaymentEscrowLocked(params: {
   deliveryOrRequestId: string;
   isTraveller?: boolean;
 }) {
-  const title = params.isTraveller ? '🔒 Payment Secured in Escrow' : '🔒 Payment Reserved';
+  const title = params.isTraveller ? '🔒 Payment Booked & Secured' : '🔒 Payment Reserved';
   const body = params.isTraveller
-    ? `Sender payment of ₹${params.amount} has been secured in CarryGo Escrow. Safe to proceed with pickup!`
-    : `Your payment of ₹${params.amount} is securely held in escrow until you confirm delivery.`;
+    ? `Sender payment of ₹${params.amount} has been secured in CaryGoo Booking. Safe to proceed with pickup!`
+    : `Your payment of ₹${params.amount} is securely booked until you confirm delivery.`;
 
   return dispatchNotification({
     userId: params.userId,

@@ -31,12 +31,11 @@ export function SiteFooter() {
         {/* Brand Column */}
         <div className="space-y-4 sm:col-span-2 lg:col-span-4">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-600">
-              <Navigation className="h-4 w-4" />
-            </div>
-            <div className="text-2xl font-heading font-extrabold tracking-tight text-slate-900">
-              CarryGo<span className="text-emerald-600">.</span>
-            </div>
+            <img
+              src="/logo-horizontal.png"
+              alt="CaryGoo"
+              className="h-9 w-auto object-contain"
+            />
           </Link>
 
           <p className="max-w-sm text-xs sm:text-sm leading-relaxed text-slate-600">
@@ -45,8 +44,8 @@ export function SiteFooter() {
 
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
             <Mail className="w-3.5 h-3.5 text-emerald-600" />
-            <a href="mailto:support@carrygo.in" className="hover:text-emerald-700 transition">
-              support@carrygo.in
+            <a href="mailto:support@carygoo.in" className="hover:text-emerald-700 transition">
+              support@carygoo.in
             </a>
           </div>
 
@@ -110,7 +109,7 @@ export function SiteFooter() {
         </div>
         <div className="flex items-center justify-center sm:justify-start gap-2">
           <Lock className="w-4 h-4 text-sky-600 shrink-0" />
-          <span>Dual-OTP Handover &amp; Escrow Protection</span>
+          <span>Dual-OTP Handover &amp; Booking Protection</span>
         </div>
         <div className="flex items-center justify-center sm:justify-start gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -120,7 +119,7 @@ export function SiteFooter() {
 
       {/* Copyright Bar */}
       <div className="site-footer-bottom mx-auto mt-8 flex w-full max-w-7xl flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 pt-6 text-[11px] text-slate-500 text-center sm:text-left">
-        <p>&copy; 2026 CarryGo Technologies Pvt. Ltd. All rights reserved.</p>
+        <p>&copy; 2026 CaryGoo Technologies Pvt. Ltd. All rights reserved.</p>
         <p className="flex items-center gap-2">
           <span>Peer-to-Peer Intercity Mobility Architecture</span>
         </p>

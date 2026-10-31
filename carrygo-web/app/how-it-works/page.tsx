@@ -14,7 +14,7 @@ import {
   InteractiveIconBadge,
 } from '@/components/ui/animated-icons'
 
-export const metadata = createMarketingMetadata('How It Works', 'See how CarryGo matches routes and coordinates secure parcel handovers.', '/how-it-works')
+export const metadata = createMarketingMetadata('How It Works', 'See how CaryGoo matches routes and coordinates secure parcel handovers.', '/how-it-works')
 
 const senderFlow = [
   {
@@ -65,7 +65,7 @@ export default function HowItWorksPage() {
         <PageHero
           badge='Workflow'
           title='A Clear Delivery Journey for Everyone Involved'
-          description='CarryGo removes ambiguity with structured pickup, transit, and delivery operations designed around trust and speed.'
+          description='CaryGoo removes ambiguity with structured pickup, transit, and delivery operations designed around trust and speed.'
           illustrationSrc="/images/abstract/how-it-works-journey.jpg"
           illustrationAlt="Minimalist 3D travel ribbon connecting two location pins"
           illustrationLabel="Real-Time Journey Intelligence"

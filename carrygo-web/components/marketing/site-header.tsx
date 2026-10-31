@@ -132,17 +132,14 @@ export function SiteHeader() {
           {/* Brand Logo */}
           <div className="flex items-center gap-6">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white transition-transform group-hover:scale-105 shadow-xs">
-                <Navigation className="h-4 w-4" />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-heading font-extrabold tracking-tight text-slate-900">
-                  CarryGo<span className="text-emerald-600">.</span>
-                </span>
-                <span className="hidden min-[420px]:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200/70">
-                  Peer-to-Peer
-                </span>
-              </div>
+              <img
+                src="/logo-horizontal.png"
+                alt="CaryGoo"
+                className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+              />
+              <span className="hidden min-[420px]:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200/70">
+                Peer-to-Peer
+              </span>
             </Link>
 
             {/* Desktop Navigation Links */}

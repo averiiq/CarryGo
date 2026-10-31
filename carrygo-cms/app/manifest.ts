@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'CarryGo',
-    short_name: 'CarryGo',
+    name: 'CaryGoo',
+    short_name: 'CaryGoo',
     description: 'Trusted peer-to-peer parcel delivery network.',
     start_url: '/',
     display: 'standalone',

@@ -50,7 +50,7 @@ export default function CustomerProfilePage() {
 
   const handleCopyEmail = () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText('support@carrygo.in')
+      navigator.clipboard.writeText('support@carygoo.in')
       setCopiedEmail(true)
       setTimeout(() => setCopiedEmail(false), 2000)
     }
@@ -81,10 +81,10 @@ export default function CustomerProfilePage() {
       const userProfile: ProfileData = {
         id: user.id,
         email: user.email || '',
-        full_name: pData?.full_name || (user.user_metadata?.full_name as string) || 'CarryGo Member',
+        full_name: pData?.full_name || (user.user_metadata?.full_name as string) || 'CaryGoo Member',
         phone: pData?.phone || '',
         city: pData?.city || 'India',
-        bio: pData?.bio || 'Verified CarryGo community member.',
+        bio: pData?.bio || 'Verified CaryGoo community member.',
         is_verified: pData?.is_verified || pData?.kyc_status === 'approved',
         kyc_status: pData?.kyc_status || 'unverified',
         rating: pData?.rating || 5.0,
@@ -202,7 +202,7 @@ export default function CustomerProfilePage() {
                       Official Email
                     </span>
                     <span className="text-xs font-bold text-slate-800 truncate block">
-                      support@carrygo.in
+                      support@carygoo.in
                     </span>
                   </div>
                   <span
@@ -218,7 +218,7 @@ export default function CustomerProfilePage() {
                 </button>
 
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Have questions about OTP handovers, luggage limits, or escrow refunds?
+                  Have questions about OTP handovers, luggage limits, or booking refunds?
                 </p>
 
                 <div className="grid grid-cols-2 gap-2 pt-0.5">

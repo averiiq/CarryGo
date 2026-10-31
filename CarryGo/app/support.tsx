@@ -78,15 +78,15 @@ const FAQ_ARTICLES: FaqArticle[] = [
     ticketCategory: 'delivery_issue',
     question: 'How does OTP verification secure parcel handover?',
     answer:
-      'CarryGo uses a dual-verification process. When a traveler picks up your parcel, pickup is confirmed in the app. At the destination, the sender/recipient receives a secret 6-digit delivery OTP. The traveler enters this OTP to unlock and confirm delivery, ensuring goods are never marked delivered prematurely.',
+      'CaryGoo uses a dual-verification process. When a traveler picks up your parcel, pickup is confirmed in the app. At the destination, the sender/recipient receives a secret 6-digit delivery OTP. The traveler enters this OTP to unlock and confirm delivery, ensuring goods are never marked delivered prematurely.',
   },
   {
     id: 'f2',
     category: 'payment',
     ticketCategory: 'payment_refund',
-    question: 'When is escrow payment released to the traveler?',
+    question: 'When is booking payment released to the traveler?',
     answer:
-      'When you accept a delivery request, payment is held safely in escrow via Razorpay. The traveler is only paid after the destination OTP is verified and delivery is confirmed. This guarantees senders are protected from no-shows and travelers receive immediate payment upon completion.',
+      'When you accept a delivery request, payment is held safely until delivery via Razorpay. The traveler is only paid after the destination OTP is verified and delivery is confirmed. This guarantees senders are protected from no-shows and travelers receive immediate payment upon completion.',
   },
   {
     id: 'f3',
@@ -94,7 +94,7 @@ const FAQ_ARTICLES: FaqArticle[] = [
     ticketCategory: 'delivery_issue',
     question: 'What if the traveler is delayed or unreachable?',
     answer:
-      'You can monitor real-time tracking in the app and coordinate via chat. If a traveler is over 3 hours delayed or stops responding, you can raise an escalation ticket or cancel the request. Escrow funds will be refunded according to our cancellation policies.',
+      'You can monitor real-time tracking in the app and coordinate via chat. If a traveler is over 3 hours delayed or stops responding, you can raise an escalation ticket or cancel the request. Booking funds will be refunded according to our cancellation policies.',
   },
   {
     id: 'f4',
@@ -116,7 +116,7 @@ const FAQ_ARTICLES: FaqArticle[] = [
     id: 'f6',
     category: 'safety',
     ticketCategory: 'safety_conduct',
-    question: 'What items are strictly prohibited on CarryGo?',
+    question: 'What items are strictly prohibited on CaryGoo?',
     answer:
       'Illegal narcotics, firearms, ammunition, flammable liquids, hazardous chemicals, cash/currency notes above legal limits, and perishable contraband are strictly prohibited. Travelers have the legal right to inspect parcels at pickup before accepting.',
   },
@@ -134,7 +134,7 @@ const FAQ_ARTICLES: FaqArticle[] = [
     ticketCategory: 'delivery_issue',
     question: 'What should I do if a parcel arrives damaged?',
     answer:
-      'Do not share the delivery OTP. Take clear photos of the damaged packaging immediately and submit a support ticket under "Delivery Issue". Our trust and safety team will freeze escrow payment and investigate.',
+      'Do not share the delivery OTP. Take clear photos of the damaged packaging immediately and submit a support ticket under "Delivery Issue". Our trust and safety team will hold booking payment and investigate.',
   },
 ];
 
@@ -161,7 +161,7 @@ interface ChatMessage {
 const CHATBOT_PROMPTS = [
   'How does delivery OTP work?',
   'What items are prohibited?',
-  'How do escrow refunds work?',
+  'How do booking refunds work?',
   'Where can I track my parcel?',
   'Speak with human ops team',
 ];
@@ -170,7 +170,7 @@ const BOT_KNOWLEDGE_BASE = [
   {
     keywords: ['otp', 'pin', 'code', 'handover', 'secret', 'release', 'verification'],
     answer:
-      'CarryGo protects transactions with a dual-OTP protocol. At pickup, a handover OTP is confirmed. At final delivery, the recipient shares a secret 6-digit OTP with the traveler. Escrow payment is only released once this delivery OTP is successfully validated in the app.',
+      'CaryGoo protects transactions with a dual-OTP protocol. At pickup, a handover OTP is confirmed. At final delivery, the recipient shares a secret 6-digit OTP with the traveler. Booking payment is only released once this delivery OTP is successfully validated in the app.',
     actionLabel: 'Report an OTP Dispute',
   },
   {
@@ -180,9 +180,9 @@ const BOT_KNOWLEDGE_BASE = [
     actionLabel: 'View Safety Policies',
   },
   {
-    keywords: ['refund', 'money', 'cancel', 'escrow', 'charge', 'cost', 'fee', 'payout', 'bank'],
+    keywords: ['refund', 'money', 'cancel', 'booking', 'charge', 'cost', 'fee', 'payout', 'bank'],
     answer:
-      'All payments are held securely in CarryGo Escrow. If a delivery is cancelled before the physical parcel handover takes place, 100% of your escrow payment is automatically refunded to your original payment method within 24 to 48 hours.',
+      'All payments are held securely in CaryGoo Bookings. If a delivery is cancelled before the physical parcel handover takes place, 100% of your booking payment is automatically refunded to your original payment method within 24 to 48 hours.',
     actionLabel: 'Report Payment Issue',
   },
   {
@@ -274,7 +274,7 @@ export default function SupportScreen() {
     {
       id: 'm-init',
       sender: 'bot',
-      text: 'Hi there! 👋 I am your CarryGo Support Assistant. How can I assist you with your shipments, OTP verification, escrow payments, or platform rules today?',
+      text: 'Hi there! 👋 I am your CaryGoo Support Assistant. How can I assist you with your shipments, OTP verification, booking payments, or platform rules today?',
       timestamp: 'Just now',
     },
   ]);
@@ -417,12 +417,12 @@ export default function SupportScreen() {
     const body = encodeURIComponent(
       `\n\n--- Device Diagnostics ---\nApp Version: ${appVer}\nPlatform: ${osVer}\n${userRef}`
     );
-    const url = `mailto:support@carrygo.in?subject=CarryGo%20Support%20Request&body=${body}`;
+    const url = `mailto:support@carygoo.in?subject=CaryGoo%20Support%20Request&body=${body}`;
     const canOpen = await Linking.canOpenURL(url);
     if (canOpen) {
       await Linking.openURL(url);
     } else {
-      showAlert('Contact Support', 'You can reach us directly at support@carrygo.in', [
+      showAlert('Contact Support', 'You can reach us directly at support@carygoo.in', [
         { text: 'OK' },
       ]);
     }
@@ -430,7 +430,7 @@ export default function SupportScreen() {
 
   const handleCopyEmail = async () => {
     Haptic.select();
-    await Clipboard.setStringAsync('support@carrygo.in');
+    await Clipboard.setStringAsync('support@carygoo.in');
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2500);
   };
@@ -710,7 +710,7 @@ export default function SupportScreen() {
                     Official Support Email
                   </Text>
                   <Text style={[styles.modularEmailAddress, { color: C.textPrimary }]}>
-                    support@carrygo.in
+                    support@carygoo.in
                   </Text>
                 </View>
                 <View
@@ -751,7 +751,7 @@ export default function SupportScreen() {
                     setShowChatBotModal(true);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Ask CarryGo AI Assistant"
+                  accessibilityLabel="Ask CaryGoo AI Assistant"
                 >
                   <MaterialIcons name="smart-toy" size={17} color="#FFFFFF" />
                   <Text style={styles.modularActionBtnTextWhite}>Ask AI Assistant</Text>
@@ -810,7 +810,7 @@ export default function SupportScreen() {
               {[
                 { key: 'all', label: 'All Questions', icon: 'apps' as const },
                 { key: 'delivery', label: 'Delivery & OTP', icon: 'local-shipping' as const },
-                { key: 'payment', label: 'Escrow & Payouts', icon: 'account-balance-wallet' as const },
+                { key: 'payment', label: 'Bookings & Payouts', icon: 'account-balance-wallet' as const },
                 { key: 'safety', label: 'Safety & ID Rules', icon: 'shield' as const },
               ].map((chip) => {
                 const isSelected = selectedFaqCategory === chip.key;
@@ -1366,7 +1366,7 @@ export default function SupportScreen() {
                 </Text>
                 <Text style={[styles.emptyBoxDesc, { color: C.textMuted }]}>
                   {ticketFilter === 'all'
-                    ? 'All your reported inquiries, escrow disputes, and delivery tickets will appear here.'
+                    ? 'All your reported inquiries, booking disputes, and delivery tickets will appear here.'
                     : 'No tickets match the selected status filter.'}
                 </Text>
                 <Pressable
@@ -1484,7 +1484,7 @@ export default function SupportScreen() {
         )}
       </KeyboardAwareScrollView>
 
-      {/* CarryGo AI Support Assistant Modal */}
+      {/* CaryGoo AI Support Assistant Modal */}
       <Modal
         visible={showChatBotModal}
         animationType="slide"
@@ -1504,7 +1504,7 @@ export default function SupportScreen() {
               </View>
               <View>
                 <Text style={[styles.chatBotHeaderTitle, { color: C.textPrimary }]}>
-                  CarryGo Assistant
+                  CaryGoo Assistant
                 </Text>
                 <Text style={[styles.chatBotHeaderSub, { color: C.textMuted }]}>
                   Instant 24/7 Automated Guide
@@ -1633,7 +1633,7 @@ export default function SupportScreen() {
               >
                 <ActivityIndicator size="small" color={C.primary} />
                 <Text style={[styles.typingIndicatorText, { color: C.textMuted }]}>
-                  CarryGo Assistant is replying...
+                  CaryGoo Assistant is replying...
                 </Text>
               </View>
             )}
@@ -1703,7 +1703,7 @@ export default function SupportScreen() {
             setShowChatBotModal(true);
           }}
           accessibilityRole="button"
-          accessibilityLabel="Open CarryGo AI Assistant"
+          accessibilityLabel="Open CaryGoo AI Assistant"
         >
           <MaterialIcons name="smart-toy" size={26} color="#FFFFFF" />
           <View style={[styles.floatingActiveBadge, { borderColor: '#FFFFFF' }]} />

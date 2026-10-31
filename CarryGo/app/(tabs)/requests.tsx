@@ -128,7 +128,7 @@ export default function RequestsScreen() {
   const parcelsRefetchRef = React.useRef(parcelsQuery.refetch);
   parcelsRefetchRef.current = parcelsQuery.refetch;
 
-  // Track which accepted requests are already paid (locked in escrow)
+  // Track which accepted requests are already paid (booked)
   const [paidRequestIds, setPaidRequestIds] = useState<Set<string>>(new Set());
   const refreshPaidRequests = useCallback(async () => {
     if (!user?.id) return;
@@ -784,7 +784,7 @@ export default function RequestsScreen() {
                       : requestFilter === 'sent'
                       ? 'You have no outgoing requests awaiting response from travelers.'
                       : 'When you send a request or someone requests your trip, it will appear here.'
-                    : 'Matched deliveries in transit will appear here with live tracking, escrow funding, and handover OTP.'}
+                    : 'Matched deliveries in transit will appear here with live tracking, confirmed booking, and handover OTP.'}
                 </Text>
 
                 <View style={styles.emptyActionRow}>

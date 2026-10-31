@@ -232,7 +232,7 @@ export function RequestItem({
               onPress={onPayment}
             >
               <MaterialIcons name="account-balance-wallet" size={15} color={C.warning} />
-              <Text style={[styles.secondaryActionText, { color: C.warning }]}>Escrow</Text>
+              <Text style={[styles.secondaryActionText, { color: C.warning }]}>Book</Text>
             </Pressable>
           ) : null}
 

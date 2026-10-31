@@ -229,7 +229,7 @@ export default function RewardsScreen() {
               <MaterialIcons name="receipt-long" size={32} color={C.textMuted} />
               <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Coin Activity Yet</Text>
               <Text style={[styles.emptySubtitle, { color: C.textMuted }]}>
-                Complete successful parcel handovers to start earning CarryGo coins!
+                Complete successful parcel handovers to start earning CaryGoo coins!
               </Text>
             </View>
           ) : (

@@ -538,16 +538,16 @@ export default function HomeScreen() {
   const handleShareTrip = useCallback((trip: Trip) => {
     Haptic.confirm();
     Share.share({
-      title: `CarryGo Trip: ${trip.fromCity} to ${trip.toCity}`,
-      message: `Traveler going from ${trip.fromCity} to ${trip.toCity} on ${trip.date}. Capacity: ${trip.availableCapacity}kg available (₹${trip.pricePerKg}/kg). Check it out on CarryGo!`,
+      title: `CaryGoo Trip: ${trip.fromCity} to ${trip.toCity}`,
+      message: `Traveler going from ${trip.fromCity} to ${trip.toCity} on ${trip.date}. Capacity: ${trip.availableCapacity}kg available (₹${trip.pricePerKg}/kg). Check it out on CaryGoo!`,
     }).catch(() => {});
   }, []);
 
   const handleShareParcel = useCallback((parcel: Parcel) => {
     Haptic.confirm();
     Share.share({
-      title: `CarryGo Parcel: ${parcel.fromCity} to ${parcel.toCity}`,
-      message: `Parcel delivery request from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ${parcel.category}). Earn ₹${parcel.priceOffer} carrying this package on CarryGo!`,
+      title: `CaryGoo Parcel: ${parcel.fromCity} to ${parcel.toCity}`,
+      message: `Parcel delivery request from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ${parcel.category}). Earn ₹${parcel.priceOffer} carrying this package on CaryGoo!`,
     }).catch(() => {});
   }, []);
 
@@ -1169,13 +1169,12 @@ export default function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Scroll to top"
         >
-          <View style={[styles.miniAvatar, { backgroundColor: C.primarySubtle }]}>
-            <Text style={[styles.miniAvatarText, { color: C.primary }]}>
-              {(user?.fullName || user?.name || 'C').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Image
+            source={require('@/assets/images/logo-horizontal.png')}
+            style={{ width: 90, height: 28 }}
+            contentFit="contain"
+          />
           <View>
-            <Text style={[styles.miniHeaderTitle, { color: C.textPrimary }]} numberOfLines={1} maxFontSizeMultiplier={1.15}>CarryGo</Text>
             <Text style={[styles.miniHeaderSub, { color: C.textMuted }]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
               {activeTab === 'trips' ? `Trips (${filteredTrips.length})` : `Parcels (${filteredParcels.length})`}
             </Text>

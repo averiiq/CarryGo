@@ -195,7 +195,7 @@ export function ChatThread({ conversationId }: Props) {
         </div>
 
         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-          <ShieldCheck className="w-3.5 h-3.5" /> End-to-End Escrow
+          <ShieldCheck className="w-3.5 h-3.5" /> End-to-End Booking
         </span>
       </div>
 

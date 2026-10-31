@@ -86,7 +86,7 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="admin@carrygo.com"
+                placeholder="admin@carygoo.com"
                 className="block w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-surface text-foreground placeholder:text-muted-foreground text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
               />
             </div>
@@ -159,7 +159,7 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
           <div className="text-[10px] text-muted font-mono">
             Need Access Recovery or Account Provisioning? Contact{' '}
             <span className="text-primary hover:underline cursor-pointer">
-              devsecops@carrygo.in
+              devsecops@carygoo.in
             </span>
           </div>
         </div>

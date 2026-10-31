@@ -19,8 +19,8 @@ export function getChatHeaderMeta(
   if (isDeliveryCompleted || requestStatus === 'completed') {
     return {
       icon: 'verified',
-      iconBg: isDark ? '#05966933' : '#ECFDF5',
-      iconColor: '#059669',
+      iconBg: isDark ? '#008B4833' : '#E8F8F0',
+      iconColor: '#008B48',
       subtitle: 'Delivery completed & verified',
       actionText: 'View',
       actionRoute: {
@@ -47,8 +47,8 @@ export function getChatHeaderMeta(
 
   return {
     icon: 'local-shipping',
-    iconBg: isDark ? '#05966933' : '#ECFDF5',
-    iconColor: '#059669',
+    iconBg: isDark ? '#008B4833' : '#E8F8F0',
+    iconColor: '#008B48',
     subtitle: 'Tap to track live parcel progress',
     actionText: 'Track',
     actionRoute: {

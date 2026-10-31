@@ -167,7 +167,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
   const gst = Math.round(platformFee * 0.18) // 18% GST on convenience fee
   const totalAmount = baseFare + platformFee + gst
 
-  // Process Secure Escrow Payment via Razorpay
+  // Process Secure Booking Payment via Razorpay
   const handlePayment = async () => {
     setProcessing(true)
     setError(null)
@@ -199,13 +199,13 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
         key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
         amount: orderData.amount, // paise
         currency: orderData.currency || 'INR',
-        name: 'CarryGo Logistics',
-        description: `Escrow Delivery Guarantee for Parcel #${(requestId || '').slice(0, 8) || 'PENDING'}`,
+        name: 'CaryGoo Logistics',
+        description: `Booking Delivery Guarantee for Parcel #${(requestId || '').slice(0, 8) || 'PENDING'}`,
         image: '/favicon.ico',
         order_id: orderData.orderId,
         prefill: {
-          name: user.user_metadata?.full_name || 'CarryGo Customer',
-          email: user.email || 'customer@carrygo.in',
+          name: user.user_metadata?.full_name || 'CaryGoo Customer',
+          email: user.email || 'customer@carygoo.in',
         },
         theme: {
           color: '#059669',
@@ -246,7 +246,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
             if (recordedPay) {
               setPayment(recordedPay as PaymentRecord)
             }
-            setSuccessNotice('Payment successfully verified by gateway and locked in RBI-compliant escrow!')
+            setSuccessNotice('Payment successfully verified by gateway and locked in RBI-compliant booking!')
           } catch (verErr) {
             setError(verErr instanceof Error ? verErr.message : 'Verification failed.')
           } finally {
@@ -314,10 +314,10 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                 <ShieldCheck className="w-9 h-9" />
               </div>
               <span className="inline-block text-[11px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
-                Escrow Protected &amp; Verified
+                Booking Protected &amp; Verified
               </span>
               <h1 className="text-2xl sm:text-3xl font-heading font-extrabold text-slate-900">
-                Funds Safely Held in Escrow
+                Funds Safely Held in Booking
               </h1>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
                 Payment of ₹{payment.amount} is secured. The traveler will receive payout only after you verify arrival and confirm delivery OTP.
@@ -328,7 +328,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
-                  <span className="text-xs font-extrabold text-slate-900">CARRYGO LOGISTICS TAX INVOICE</span>
+                  <span className="text-xs font-extrabold text-slate-900">CARYGOO LOGISTICS TAX INVOICE</span>
                   <p className="text-[11px] text-slate-500">Invoice #{payment.id.slice(0, 10).toUpperCase()}</p>
                 </div>
                 <button
@@ -409,7 +409,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                     <Lock className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-heading font-bold text-slate-900">Delivery Escrow Checkout</h2>
+                    <h2 className="text-lg font-heading font-bold text-slate-900">Delivery Booking Checkout</h2>
                     <p className="text-xs text-slate-500">Review package itinerary and lock funds securely.</p>
                   </div>
                 </div>
@@ -437,14 +437,14 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                   </div>
                 </div>
 
-                {/* Escrow Guarantee Callout */}
+                {/* Booking Guarantee Callout */}
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-1.5">
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-950">
                     <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                    <span>How CarryGo Escrow Protects You</span>
+                    <span>How CaryGoo Booking Protects You</span>
                   </div>
                   <ul className="text-[11px] text-emerald-800 space-y-1 list-disc pl-5 leading-relaxed">
-                    <li>Payment is locked in escrow — traveler cannot withdraw until delivery.</li>
+                    <li>Payment is booked & secured — traveler cannot withdraw until delivery.</li>
                     <li>Funds release only after you provide the verified Delivery OTP at arrival.</li>
                     <li>Full refund guarantee in case of traveler cancellation or route delay.</li>
                   </ul>
@@ -457,7 +457,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                   RBI Compliance &amp; Regulatory Disclosures
                 </span>
                 <p>
-                  CarryGo facilitates peer-to-peer peer delivery pursuant to applicable intermediary guidelines. All payment transactions are processed through RBI-authorized payment aggregators (Razorpay / Cashfree) under nodal escrow accounts.
+                  CaryGoo facilitates peer-to-peer peer delivery pursuant to applicable intermediary guidelines. All payment transactions are processed through RBI-authorized payment aggregators (Razorpay / Cashfree) under nodal booking accounts.
                 </p>
                 <div className="flex flex-wrap gap-3 pt-1 text-slate-600 font-medium">
                   <a href="/terms-and-conditions" className="hover:underline text-emerald-700">Terms &amp; Conditions</a>

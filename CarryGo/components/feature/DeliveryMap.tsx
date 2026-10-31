@@ -320,7 +320,7 @@ export default function DeliveryMap({
 
   const handleOpenExternalMap = () => {
     Haptic.tap();
-    const label = encodeURIComponent(`CarryGo - ${travellerName || 'Carrier'}`);
+    const label = encodeURIComponent(`CaryGoo - ${travellerName || 'Carrier'}`);
     const url = Platform.select({
       ios: `maps:0,0?q=${label}@${safeLat},${safeLng}`,
       android: `geo:${safeLat},${safeLng}?q=${safeLat},${safeLng}(${label})`,

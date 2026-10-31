@@ -50,7 +50,7 @@ const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 
 const vehicleGradients: Record<string, [string, string]> = {
   bike: ['#D97706', '#92400E'],
-  car: ['#1A4CA2', '#123777'],
+  car: ['#004AAD', '#003580'],
   bus: ['#7C3AED', '#5B21B6'],
   train: ['#0F766E', '#115E59'],
   flight: ['#0284C7', '#075985'],
@@ -190,8 +190,8 @@ export default function TripDetailScreen() {
   const loading = tripQuery.isLoading || requestsQuery.isLoading || parcelsQuery.isLoading;
 
   const vGradient: [string, string] = trip
-    ? (vehicleGradients[trip.vehicleType?.toLowerCase() || 'car'] || ['#1A4CA2', '#123777'])
-    : ['#1A4CA2', '#123777'];
+    ? (vehicleGradients[trip.vehicleType?.toLowerCase() || 'car'] || ['#004AAD', '#003580'])
+    : ['#004AAD', '#003580'];
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -625,7 +625,7 @@ export default function TripDetailScreen() {
     if (!trip) return;
     try {
       await Share.share({
-        message: `CarryGo Trip: Travelling from ${trip.fromCity} to ${trip.toCity} on ${trip.date} at ${trip.time}. Space available: ${remainingWeight.toFixed(1)}kg!`,
+        message: `CaryGoo Trip: Travelling from ${trip.fromCity} to ${trip.toCity} on ${trip.date} at ${trip.time}. Space available: ${remainingWeight.toFixed(1)}kg!`,
       });
     } catch {
       // Ignored

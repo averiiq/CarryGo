@@ -257,7 +257,7 @@ export function AnimatedPackageDelivery({
 
 /**
  * AnimatedWalletVault:
- * Smart Escrow Vault lock with opening shackle, glowing biometric key, and UPI release beam.
+ * Smart Booking Vault lock with opening shackle, glowing biometric key, and UPI release beam.
  */
 export function AnimatedWalletVault({
   size = 40,

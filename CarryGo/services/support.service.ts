@@ -9,7 +9,7 @@ export const SUPPORT_CATEGORIES: Record<SupportTicketCategory, { label: string; 
   },
   payment_refund: {
     label: 'Payment & Refund',
-    description: 'Escrow release delay, refund query, or pricing dispute',
+    description: 'Booking payout delay, refund query, or pricing dispute',
   },
   kyc_account: {
     label: 'KYC & Account',

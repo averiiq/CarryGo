@@ -26,7 +26,7 @@ export function PageHero({
   description,
   actions,
   illustrationSrc,
-  illustrationAlt = 'CarryGo visual',
+  illustrationAlt = 'CaryGoo visual',
   illustrationLabel,
 }: PageHeroProps) {
   const isSvg = illustrationSrc?.endsWith('.svg')

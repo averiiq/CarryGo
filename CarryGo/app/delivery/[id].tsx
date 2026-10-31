@@ -941,7 +941,7 @@ function DeliveryScreenInner() {
               </View>
 
               <View style={[styles.specItem, { borderBottomColor: C.surfaceBorder }]}>
-                <Text style={[styles.specKey, { color: C.textMuted }]}>Security Escrow</Text>
+                <Text style={[styles.specKey, { color: C.textMuted }]}>Booking Protection</Text>
                 <Text style={[styles.specVal, { color: C.success }]}>Active & Protected</Text>
               </View>
 
@@ -958,7 +958,7 @@ function DeliveryScreenInner() {
           <View style={styles.supportFooter}>
             <Feather name="lock" size={12} color={C.textMuted} />
             <Text style={[styles.supportFooterText, { color: C.textMuted }]}>
-              CarryGo 2-Factor OTP verification guarantees safe handoff and payout release.
+              CaryGoo 2-Factor OTP verification guarantees safe handoff and payout release.
             </Text>
           </View>
         </Animated.ScrollView>

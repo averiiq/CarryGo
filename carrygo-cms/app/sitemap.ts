@@ -7,7 +7,7 @@ const routes = [
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://carrygo.in'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://carygoo.in'
   return routes.map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date(),

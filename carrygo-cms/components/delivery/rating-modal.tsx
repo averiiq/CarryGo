@@ -89,7 +89,7 @@ export function RatingModal({
             <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
             <h4 className="text-base font-bold text-emerald-950">Review Submitted!</h4>
             <p className="text-xs text-emerald-800">
-              Thank you for contributing to CarryGo&apos;s verified peer network.
+              Thank you for contributing to CaryGoo&apos;s verified peer network.
             </p>
           </div>
         ) : (

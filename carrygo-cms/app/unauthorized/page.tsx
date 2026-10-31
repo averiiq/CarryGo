@@ -9,7 +9,7 @@ export default function UnauthorizedPage() {
       <div className="text-center max-w-md">
         <h1 className="text-4xl font-bold text-danger mb-4">Unauthorized</h1>
         <p className="text-muted mb-8">
-          You do not have the required permissions to access the CarryGo CMS dashboard.
+          You do not have the required permissions to access the CaryGoo CMS dashboard.
           Please contact an administrator if you believe this is an error.
         </p>
         <Link

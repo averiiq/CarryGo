@@ -3,8 +3,8 @@ import { Package, ShieldCheck, Sparkles, Truck } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Sign In | CarryGo Web',
-  description: 'Sign in to CarryGo to send parcels, offer trips, and track deliveries across India.',
+  title: 'Sign In | CaryGoo Web',
+  description: 'Sign in to CaryGoo to send parcels, offer trips, and track deliveries across India.',
 }
 
 export default async function LoginPage({
@@ -29,7 +29,7 @@ export default async function LoginPage({
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center shadow-lg shadow-primary/25 group-hover:scale-105 transition-transform">
               <Package className="w-6 h-6 text-white" />
             </div>
-            <span className="text-3xl font-heading font-bold text-foreground tracking-tight">CarryGo</span>
+            <span className="text-3xl font-heading font-bold text-foreground tracking-tight">CaryGoo</span>
           </a>
 
           <div className="space-y-3">
@@ -37,7 +37,7 @@ export default async function LoginPage({
               Peer-to-Peer Logistics Powered by Verified Travelers
             </h1>
             <p className="text-base text-muted leading-relaxed">
-              Send documents, electronics, and essentials interstate in hours instead of days, backed by OTP verification and safe escrow protection.
+              Send documents, electronics, and essentials interstate in hours instead of days, backed by OTP verification and safe booking protection.
             </p>
           </div>
 
@@ -46,7 +46,7 @@ export default async function LoginPage({
               <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                 <ShieldCheck className="w-4 h-4" />
               </div>
-              <p className="text-sm font-semibold text-foreground">Escrow Protected</p>
+              <p className="text-sm font-semibold text-foreground">Booking Protected</p>
               <p className="text-xs text-muted">Travelers receive payout only upon verified OTP confirmation.</p>
             </div>
 

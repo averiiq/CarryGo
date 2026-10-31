@@ -14,11 +14,11 @@ export default function PaymentSuccessPage() {
         </div>
 
         <h1 className="text-3xl font-heading font-extrabold text-slate-900 tracking-tight mb-3">
-          Payment Secured in Escrow
+          Payment Secured in Booking
         </h1>
 
         <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-8 max-w-md mx-auto">
-          Thank you. Your funds have been successfully verified and locked in CarryGo RBI-compliant escrow. Payout will be released to the traveler only after destination OTP verification.
+          Thank you. Your funds have been successfully verified and locked in CaryGoo RBI-compliant booking. Payout will be released to the traveler only after destination OTP verification.
         </p>
 
         <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 text-left mb-8 shadow-sm">

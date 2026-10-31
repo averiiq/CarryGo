@@ -590,7 +590,7 @@ export default function ChatScreen() {
                   <MaterialIcons name="verified" size={14} color={C.success} />
                 </View>
                 <Text style={{ fontSize: 11, color: C.textMuted }} numberOfLines={1}>
-                  {conversation?.route || 'Verified CarryGo Delivery'}
+                  {conversation?.route || 'Verified CaryGoo Delivery'}
                 </Text>
               </View>
             </View>
@@ -694,7 +694,7 @@ export default function ChatScreen() {
         >
           <MaterialIcons name="shield" size={14} color={C.primary} />
           <Text style={[styles.preAcceptTrustText, { color: C.textSecondary }]}>
-            Pre-acceptance inquiry • Coordinate details safely. Payments and handover OTP remain protected in CarryGo escrow.
+            Pre-acceptance inquiry • Coordinate details safely. Payments and handover OTP remain protected in CaryGoo booking.
           </Text>
         </View>
       ) : null}

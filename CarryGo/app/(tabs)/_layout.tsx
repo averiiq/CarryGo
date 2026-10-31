@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   activeSlider: {
     position: 'absolute',
     borderRadius: 999,
-    shadowColor: '#1A4CA2',
+    shadowColor: '#004AAD',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.28,
     shadowRadius: 8,

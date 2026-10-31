@@ -271,7 +271,7 @@ export function InteractiveRouteFlow() {
           <div className="relative z-10 grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/80 text-xs">
             <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200/90">
               <div className="flex items-center justify-between text-emerald-800 text-[11px] mb-1 font-semibold">
-                <span>CarryGo Commuter</span>
+                <span>CaryGoo Commuter</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-200/70 text-emerald-900 font-bold text-[10px]">
                   Same-Day
                 </span>
