@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { useAlert } from '@/template';
 import { Image } from 'expo-image';
@@ -20,8 +21,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
-import { AadhaarVerifiedData } from '@/types';
-import { updateProfile } from '@/services/profile.service';
+import { AadhaarVerifiedData, UserRole } from '@/types';
+import {
+  updateProfile,
+  completeProfile,
+  normalizeIndianMobile,
+  normalizeUsername,
+  validateUsername,
+  isUsernameTaken,
+  isProfileComplete,
+} from '@/services/profile.service';
 import {
   generateAadhaarOtp,
   verifyAadhaarOtp,
@@ -33,24 +42,100 @@ import { verifyHumanFace, FaceVerificationResult } from '@/services/face-verific
 import KycStepIndicator from '@/components/feature/kyc/KycStepIndicator';
 import { Haptic } from '@/services/haptics.service';
 import { KeyboardAwareScrollView } from '@/components';
+import { getCityNames } from '@/constants/indian-cities';
+import { detectCurrentCity } from '@/services/location.service';
 
-type KycStep =
+type AccountStep = 'account_username' | 'account_name' | 'account_phone' | 'account_city' | 'account_role';
+type KycInnerStep =
   | 'aadhaar_number'
   | 'aadhaar_otp'
   | 'aadhaar_verified'
   | 'selfie'
   | 'completed';
+type KycStep = AccountStep | KycInnerStep;
+
+const ACCOUNT_STEPS: AccountStep[] = ['account_username', 'account_name', 'account_phone', 'account_city', 'account_role'];
+
+const ALL_CITIES = getCityNames();
+
+const ROLE_OPTIONS: { id: UserRole; icon: keyof typeof MaterialIcons.glyphMap; title: string; sub: string }[] = [
+  {
+    id: 'sender',
+    icon: 'inventory-2',
+    title: 'I want to send parcels',
+    sub: 'Find travellers to carry my packages.',
+  },
+  {
+    id: 'traveller',
+    icon: 'directions-car',
+    title: 'I travel and earn',
+    sub: 'Carry parcels on my route and earn.',
+  },
+  {
+    id: 'both',
+    icon: 'swap-horiz',
+    title: 'Both send and earn',
+    sub: 'Use the full CaryGoo experience.',
+  },
+];
+
+function formatMobileInput(value?: string) {
+  const digits = (value || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').slice(-10);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)} ${digits.slice(5)}`;
+}
 
 export default function KycScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser, logout, isLoading: isAuthLoading } = useAuth();
   const { C, S } = useThemeColors();
   const { showAlert } = useAlert();
 
-  const [step, setStep] = useState<KycStep>('aadhaar_number');
+  // Determine where the user should start. If the profile is incomplete, show
+  // Account Details first; otherwise go directly to Aadhaar.
+  const profileAlreadyComplete = isProfileComplete(user);
+  const [step, setStep] = useState<KycStep>(() => (
+    isProfileComplete(user) ? 'aadhaar_number' : 'account_username'
+  ));
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [referenceId, setReferenceId] = useState<string | null>(null);
+
+  // --- Account Details (profile-setup) state ---
+  const [accountUsername, setAccountUsername] = useState('');
+  const [accountFullName, setAccountFullName] = useState('');
+  const [accountPhone, setAccountPhone] = useState('');
+  const [accountCity, setAccountCity] = useState('');
+  const [accountCitySearch, setAccountCitySearch] = useState('');
+  const [accountRole, setAccountRole] = useState<UserRole | null>(null);
+  const [isAccountSaving, setIsAccountSaving] = useState(false);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [detectingCity, setDetectingCity] = useState(false);
+  const [detectedLiveCity, setDetectedLiveCity] = useState<string | null>(null);
+  const [detectionError, setDetectionError] = useState<string | null>(null);
+
+  // Prefill account fields from the user profile and keep the starting step
+  // in sync whenever auth finishes loading.
+  useEffect(() => {
+    if (!user) return;
+    setAccountUsername(user.username || '');
+    setAccountFullName(user.fullName || '');
+    setAccountPhone(formatMobileInput(user.phone));
+    setAccountCity(user.city || '');
+    setAccountRole((user.role as UserRole) || null);
+  }, [user]);
+
+  // If auth stops loading and we somehow have no user, bounce to login.
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!user) {
+      const t = setTimeout(() => {
+        if (!user) router.replace('/login');
+      }, 500);
+      return () => clearTimeout(t);
+    }
+  }, [isAuthLoading, user, router]);
 
   // Aadhaar Form State
   const [aadhaarRaw, setAadhaarRaw] = useState('');
@@ -90,9 +175,12 @@ export default function KycScreen() {
     };
   }, [step, resendCountdown]);
 
-  // Check if user is already verified or has submission under review on mount
+  // Check if user is already verified or has submission under review on mount.
+  // Only do this once the profile is complete — otherwise we're still in the
+  // Account Details phase and should not jump to the completed KYC screen.
   useEffect(() => {
     if (!user) return;
+    if (!isProfileComplete(user)) return;
     if (user.kycStatus === 'approved') {
       setStep('completed');
       return;
@@ -133,6 +221,193 @@ export default function KycScreen() {
       }
     });
   }, [user]);
+
+  // ---------------------------------------------------------------------------
+  // ACCOUNT DETAILS HANDLERS
+  // ---------------------------------------------------------------------------
+  const isAccountStep = ACCOUNT_STEPS.includes(step as AccountStep);
+
+  const accountUsernameValue = normalizeUsername(accountUsername);
+  const accountUsernameReady =
+    accountUsernameValue.length > 0 && !validateUsername(accountUsernameValue);
+  const accountNameReady = accountFullName.trim().split(/\s+/).filter(Boolean).length >= 2;
+  const accountPhoneReady = Boolean(normalizeIndianMobile(accountPhone));
+  const activeAccountCity = (accountCity || accountCitySearch).trim();
+
+  const trimmedCitySearch = accountCitySearch.trim();
+  const filteredCities = useMemo(() => (
+    trimmedCitySearch.length >= 2
+      ? ALL_CITIES.filter((c) => c.toLowerCase().includes(trimmedCitySearch.toLowerCase())).slice(0, 5)
+      : []
+  ), [trimmedCitySearch]);
+  const hasExactCityMatch = useMemo(
+    () => ALL_CITIES.some((c) => c.toLowerCase() === trimmedCitySearch.toLowerCase()),
+    [trimmedCitySearch],
+  );
+  const showCustomCityOption =
+    trimmedCitySearch.length >= 2 &&
+    !hasExactCityMatch &&
+    trimmedCitySearch.toLowerCase() !== accountCity.toLowerCase();
+
+  const handleAccountUsernameNext = useCallback(async () => {
+    const normalized = normalizeUsername(accountUsername);
+    const err = validateUsername(normalized);
+    if (err) {
+      Haptic.error();
+      setAccountError(err);
+      return;
+    }
+    setIsCheckingUsername(true);
+    const check = await isUsernameTaken(normalized, user?.id);
+    setIsCheckingUsername(false);
+    if (check.error) {
+      Haptic.error();
+      setAccountError('Could not check username availability. Please try again.');
+      return;
+    }
+    if (check.taken) {
+      Haptic.error();
+      setAccountError('This username is already taken. Please choose another.');
+      return;
+    }
+    setAccountUsername(normalized);
+    setAccountError(null);
+    Haptic.confirm();
+    setStep('account_name');
+  }, [accountUsername, user?.id]);
+
+  const handleAccountNameNext = useCallback(() => {
+    const normalizedName = accountFullName.trim().replace(/\s+/g, ' ');
+    if (normalizedName.length < 2) {
+      Haptic.error();
+      setAccountError('Please enter your full name.');
+      return;
+    }
+    if (normalizedName.split(' ').length < 2) {
+      Haptic.error();
+      setAccountError('Please enter both your first and last name.');
+      return;
+    }
+    setAccountFullName(normalizedName);
+    setAccountError(null);
+    Haptic.confirm();
+    setStep('account_phone');
+  }, [accountFullName]);
+
+  const handleAccountPhoneNext = useCallback(() => {
+    if (!normalizeIndianMobile(accountPhone)) {
+      Haptic.error();
+      setAccountError('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    setAccountError(null);
+    Haptic.confirm();
+    setStep('account_city');
+  }, [accountPhone]);
+
+  const fetchLiveCity = useCallback(async (silent = false) => {
+    setDetectingCity(true);
+    setDetectionError(null);
+    if (!silent) Haptic.tap();
+    try {
+      const { data, error } = await detectCurrentCity();
+      if (data) {
+        setAccountCity(data);
+        setAccountCitySearch(data);
+        setDetectedLiveCity(data);
+        Haptic.success();
+      } else {
+        const errorMsg = error || 'Could not detect live location.';
+        setDetectionError(errorMsg);
+        if (!silent) {
+          Haptic.error();
+          if (errorMsg.includes('settings') || errorMsg.includes('denied')) {
+            showAlert(
+              'Location Access Required',
+              'CaryGoo uses your location to automatically detect your city. Please grant location access in device settings.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => { void Linking.openSettings(); } },
+              ],
+            );
+          } else {
+            showAlert('Location Detection', errorMsg);
+          }
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Location detection failed.';
+      setDetectionError(msg);
+      if (!silent) {
+        Haptic.error();
+        showAlert('Location Detection', msg);
+      }
+    } finally {
+      setDetectingCity(false);
+    }
+  }, [showAlert]);
+
+  // Auto-detect once the user lands on the city step with nothing set yet.
+  useEffect(() => {
+    if (step === 'account_city' && !accountCity && !detectedLiveCity) {
+      void fetchLiveCity(true);
+    }
+  }, [step, accountCity, detectedLiveCity, fetchLiveCity]);
+
+  const handleAccountCityNext = useCallback(() => {
+    const finalCity = (accountCity || accountCitySearch).trim();
+    if (!finalCity) {
+      Haptic.error();
+      setAccountError('Please enter or detect your current city.');
+      return;
+    }
+    setAccountCity(finalCity);
+    setAccountError(null);
+    Haptic.confirm();
+    setStep('account_role');
+  }, [accountCity, accountCitySearch]);
+
+  const handleAccountFinish = useCallback(async () => {
+    if (!user?.id) return;
+    if (!accountRole) {
+      Haptic.error();
+      setAccountError('Please choose how you plan to use CaryGoo.');
+      return;
+    }
+    setIsAccountSaving(true);
+    Haptic.confirm();
+    const { data, error } = await completeProfile(user.id, {
+      username: accountUsernameValue,
+      fullName: accountFullName,
+      phone: accountPhone,
+      city: (accountCity || accountCitySearch).trim(),
+      role: accountRole,
+    });
+    setIsAccountSaving(false);
+    if (error) {
+      Haptic.error();
+      setAccountError(error);
+      return;
+    }
+    if (data) updateUser(data);
+    await refreshUser();
+    Haptic.success();
+    setAccountError(null);
+    setStep('aadhaar_number');
+  }, [user?.id, accountRole, accountUsernameValue, accountFullName, accountPhone, accountCity, accountCitySearch, updateUser, refreshUser]);
+
+  const handleAccountBack = useCallback(() => {
+    const idx = ACCOUNT_STEPS.indexOf(step as AccountStep);
+    if (idx <= 0) {
+      // First account step: log out (mirrors previous profile-setup behaviour).
+      Haptic.tap();
+      void logout().then(() => router.replace('/login'));
+      return;
+    }
+    Haptic.tap();
+    setAccountError(null);
+    setStep(ACCOUNT_STEPS[idx - 1]);
+  }, [step, logout, router]);
 
   // Format 12-digit Aadhaar input into 4-digit groups (e.g. 5544 3322 1100)
   const formatAadhaarDisplay = (raw: string) => {
@@ -411,8 +686,13 @@ export default function KycScreen() {
     }
   }, [user, sessionId, selfieUri, faceVerification, updateUser]);
 
-  // Stepper Indicator Mapping (4 steps: Aadhaar ID, UIDAI OTP, Verified Profile, Live Selfie)
-  const stepNumber =
+  // Stepper Indicator Mapping. When the profile still needs completion the
+  // wizard runs for 9 steps (5 account + 4 KYC); otherwise just the 4 KYC steps.
+  const includeAccountPhase = !profileAlreadyComplete;
+  const accountStepsCount = includeAccountPhase ? ACCOUNT_STEPS.length : 0;
+  const totalSteps = accountStepsCount + 4;
+
+  const kycStepIndex =
     step === 'aadhaar_number'
       ? 0
       : step === 'aadhaar_otp'
@@ -423,8 +703,22 @@ export default function KycScreen() {
             ? 3
             : 4;
 
-  const stepLabel =
-    step === 'aadhaar_number'
+  const accountIdx = ACCOUNT_STEPS.indexOf(step as AccountStep);
+  const stepNumber = isAccountStep
+    ? accountIdx
+    : accountStepsCount + kycStepIndex;
+
+  const stepLabel = isAccountStep
+    ? step === 'account_username'
+      ? 'Username'
+      : step === 'account_name'
+        ? 'Your Name'
+        : step === 'account_phone'
+          ? 'Mobile Number'
+          : step === 'account_city'
+            ? 'Your City'
+            : 'How You Use It'
+    : step === 'aadhaar_number'
       ? 'Aadhaar ID'
       : step === 'aadhaar_otp'
         ? 'UIDAI OTP'
@@ -435,6 +729,447 @@ export default function KycScreen() {
             : user?.kycStatus === 'approved'
               ? 'Verified'
               : 'In Review';
+
+  // ---------------------------------------------------------------------------
+  // ACCOUNT DETAILS RENDERERS (shown only when profile is incomplete)
+  // ---------------------------------------------------------------------------
+  const renderAccountError = () => (
+    accountError ? (
+      <Animated.View entering={FadeIn.duration(200)} style={[styles.errorBox, { backgroundColor: C.errorSubtle }]}>
+        <MaterialIcons name="error-outline" size={18} color={C.error} />
+        <Text style={[styles.errorText, { color: C.error }]}>{accountError}</Text>
+      </Animated.View>
+    ) : null
+  );
+
+  const renderAccountUsernameStep = () => (
+    <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
+      <View style={[styles.iconCircle, { backgroundColor: C.primarySubtle }]}>
+        <MaterialIcons name="alternate-email" size={44} color={C.primary} />
+      </View>
+      <Text style={[styles.title, { color: C.textPrimary }]}>Choose your username</Text>
+      <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+        This is your public CaryGoo handle. Travellers and senders will see this.
+      </Text>
+
+      <View style={styles.inputContainer}>
+        <Text style={[styles.inputLabel, { color: C.textPrimary }]}>Username</Text>
+        <View style={[styles.aadhaarInputContainer, { borderColor: accountUsernameReady ? C.success : C.surfaceBorder, backgroundColor: C.surfaceElevated, marginTop: Spacing.xs }]}>
+          <Text style={[{ color: C.textMuted, fontSize: FontSize.md, fontWeight: FontWeight.bold, marginRight: 4 }]}>@</Text>
+          <TextInput
+            style={[styles.aadhaarTextInput, { color: C.textPrimary, letterSpacing: 0 }]}
+            placeholder="rahul_sharma"
+            placeholderTextColor={C.textMuted}
+            value={accountUsername}
+            onChangeText={(text) => {
+              setAccountUsername(normalizeUsername(text).replace(/[^a-z0-9_]/g, ''));
+              if (accountError) setAccountError(null);
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="username"
+            maxLength={24}
+            returnKeyType="next"
+            onSubmitEditing={handleAccountUsernameNext}
+            autoFocus
+          />
+          {accountUsernameReady ? <MaterialIcons name="check-circle" size={18} color={C.success} /> : null}
+        </View>
+        <Text style={[{ color: C.textMuted, fontSize: FontSize.xs, marginTop: Spacing.xs }]}>3–24 lowercase letters, numbers, or underscores</Text>
+      </View>
+
+      {renderAccountError()}
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={handleAccountUsernameNext}
+        disabled={!accountUsernameReady || isCheckingUsername}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          { backgroundColor: C.primary, opacity: !accountUsernameReady || isCheckingUsername ? 0.5 : pressed ? 0.88 : 1 },
+        ]}
+      >
+        {isCheckingUsername ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <View style={styles.buttonInner}>
+            <Text style={styles.primaryButtonText}>Continue</Text>
+            <MaterialIcons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 6 }} />
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+
+  const renderAccountNameStep = () => (
+    <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
+      <View style={[styles.iconCircle, { backgroundColor: C.primarySubtle }]}>
+        <MaterialIcons name="person" size={44} color={C.primary} />
+      </View>
+      <Text style={[styles.title, { color: C.textPrimary }]}>What&apos;s your name?</Text>
+      <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+        Use your real name — it builds trust with people who send or carry parcels.
+      </Text>
+
+      <View style={styles.inputContainer}>
+        <Text style={[styles.inputLabel, { color: C.textPrimary }]}>Full Name</Text>
+        <View style={[styles.aadhaarInputContainer, { borderColor: accountNameReady ? C.success : C.surfaceBorder, backgroundColor: C.surfaceElevated, marginTop: Spacing.xs }]}>
+          <MaterialIcons name="badge" size={20} color={accountNameReady ? C.success : C.textMuted} style={{ marginRight: Spacing.sm }} />
+          <TextInput
+            style={[styles.aadhaarTextInput, { color: C.textPrimary, letterSpacing: 0, fontWeight: FontWeight.medium }]}
+            placeholder="e.g. Rahul Sharma"
+            placeholderTextColor={C.textMuted}
+            value={accountFullName}
+            onChangeText={(text) => {
+              setAccountFullName(text);
+              if (accountError) setAccountError(null);
+            }}
+            autoCapitalize="words"
+            autoComplete="name"
+            maxLength={60}
+            returnKeyType="next"
+            onSubmitEditing={handleAccountNameNext}
+            autoFocus
+          />
+        </View>
+        <Text style={[{ color: C.textMuted, fontSize: FontSize.xs, marginTop: Spacing.xs }]}>Enter your first and last name</Text>
+      </View>
+
+      {renderAccountError()}
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={handleAccountNameNext}
+        disabled={!accountNameReady}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          { backgroundColor: C.primary, opacity: !accountNameReady ? 0.5 : pressed ? 0.88 : 1 },
+        ]}
+      >
+        <View style={styles.buttonInner}>
+          <Text style={styles.primaryButtonText}>Continue</Text>
+          <MaterialIcons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 6 }} />
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+
+  const renderAccountPhoneStep = () => (
+    <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
+      <View style={[styles.iconCircle, { backgroundColor: C.primarySubtle }]}>
+        <MaterialIcons name="phone-android" size={44} color={C.primary} />
+      </View>
+      <Text style={[styles.title, { color: C.textPrimary }]}>Your mobile number</Text>
+      <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+        Used for delivery coordination and account recovery after a confirmed match.
+      </Text>
+
+      <View style={styles.inputContainer}>
+        <Text style={[styles.inputLabel, { color: C.textPrimary }]}>Mobile Number</Text>
+        <View style={[styles.aadhaarInputContainer, { borderColor: accountPhoneReady ? C.success : C.surfaceBorder, backgroundColor: C.surfaceElevated, marginTop: Spacing.xs }]}>
+          <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: C.surfaceBorder, backgroundColor: C.surface, marginRight: Spacing.sm }}>
+            <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: C.textPrimary }}>+91</Text>
+          </View>
+          <TextInput
+            style={[styles.aadhaarTextInput, { color: C.textPrimary, letterSpacing: 1 }]}
+            placeholder="98765 43210"
+            placeholderTextColor={C.textMuted}
+            value={accountPhone}
+            onChangeText={(text) => {
+              setAccountPhone(formatMobileInput(text));
+              if (accountError) setAccountError(null);
+            }}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            maxLength={11}
+            returnKeyType="next"
+            onSubmitEditing={handleAccountPhoneNext}
+            autoFocus
+          />
+          {accountPhoneReady ? <MaterialIcons name="check-circle" size={18} color={C.success} /> : null}
+        </View>
+        <Text style={[{ color: C.textMuted, fontSize: FontSize.xs, marginTop: Spacing.xs }]}>10-digit Indian mobile number</Text>
+      </View>
+
+      <View style={[styles.guaranteeBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+        <MaterialIcons name="lock-outline" size={18} color={C.primary} />
+        <Text style={[styles.guaranteeText, { color: C.textSecondary }]}>
+          Your number is only shared with a matched delivery partner after both sides confirm the request.
+        </Text>
+      </View>
+
+      {renderAccountError()}
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={handleAccountPhoneNext}
+        disabled={!accountPhoneReady}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          { backgroundColor: C.primary, opacity: !accountPhoneReady ? 0.5 : pressed ? 0.88 : 1 },
+        ]}
+      >
+        <View style={styles.buttonInner}>
+          <Text style={styles.primaryButtonText}>Continue</Text>
+          <MaterialIcons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 6 }} />
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+
+  const renderAccountCityStep = () => (
+    <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
+      <View style={[styles.iconCircle, { backgroundColor: C.primarySubtle }]}>
+        <MaterialIcons name="my-location" size={44} color={C.primary} />
+      </View>
+      <Text style={[styles.title, { color: C.textPrimary }]}>Where are you based?</Text>
+      <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+        We use your city to show relevant trips, parcels, and nearby matches.
+      </Text>
+
+      {/* Live Location Card */}
+      {detectingCity ? (
+        <View style={[styles.guaranteeBox, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
+          <ActivityIndicator size="small" color={C.primary} />
+          <Text style={[styles.guaranteeText, { color: C.textPrimary }]}>
+            Detecting your live city via GPS...
+          </Text>
+        </View>
+      ) : (accountCity || detectedLiveCity) ? (
+        <View style={[styles.verifiedCard, { borderColor: C.success + '44', backgroundColor: C.surfaceElevated }]}>
+          <View style={styles.verifiedCardHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={[styles.liveDot, { backgroundColor: C.success }]} />
+              <Text style={[styles.verifiedCardTitle, { color: C.success, letterSpacing: 0.5 }]}>LIVE LOCATION</Text>
+            </View>
+            <Pressable
+              onPress={() => void fetchLiveCity(false)}
+              hitSlop={8}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            >
+              <MaterialIcons name="refresh" size={14} color={C.primary} />
+              <Text style={[styles.changeLinkText, { color: C.primary }]}>Refresh</Text>
+            </Pressable>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 }}>
+            <MaterialIcons name="location-on" size={22} color={C.primary} />
+            <Text style={[styles.verifiedName, { color: C.textPrimary }]}>{accountCity || detectedLiveCity}</Text>
+          </View>
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => void fetchLiveCity(false)}
+          style={({ pressed }) => [
+            styles.guaranteeBox,
+            { backgroundColor: C.primarySubtle, borderColor: C.primary + '55', opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <MaterialIcons name="gps-fixed" size={20} color={C.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.guaranteeText, { color: C.primary, fontWeight: FontWeight.bold }]}>
+              Detect my city automatically
+            </Text>
+            <Text style={[styles.guaranteeText, { color: C.textMuted }]}>
+              {detectionError ? detectionError : 'Tap to use your device location'}
+            </Text>
+          </View>
+          <MaterialIcons name="arrow-forward" size={18} color={C.primary} />
+        </Pressable>
+      )}
+
+      <View style={styles.inputContainer}>
+        <Text style={[styles.inputLabel, { color: C.textPrimary }]}>Or Type Any City</Text>
+        <View style={[styles.aadhaarInputContainer, { borderColor: activeAccountCity ? C.success : C.surfaceBorder, backgroundColor: C.surfaceElevated, marginTop: Spacing.xs }]}>
+          <MaterialIcons name="search" size={18} color={activeAccountCity ? C.success : C.textMuted} style={{ marginRight: Spacing.sm }} />
+          <TextInput
+            style={[styles.aadhaarTextInput, { color: C.textPrimary, letterSpacing: 0, fontWeight: FontWeight.medium }]}
+            placeholder="Enter your town or city..."
+            placeholderTextColor={C.textMuted}
+            value={accountCitySearch}
+            onChangeText={(text) => {
+              setAccountCitySearch(text);
+              setAccountCity(text.trim());
+              if (accountError) setAccountError(null);
+            }}
+            autoCapitalize="words"
+            autoCorrect={false}
+            returnKeyType="done"
+            onSubmitEditing={handleAccountCityNext}
+          />
+          {activeAccountCity ? <MaterialIcons name="check-circle" size={18} color={C.success} /> : null}
+        </View>
+      </View>
+
+      {showCustomCityOption ? (
+        <Pressable
+          onPress={() => {
+            Haptic.select();
+            setAccountCity(trimmedCitySearch);
+          }}
+          style={({ pressed }) => [
+            styles.guaranteeBox,
+            { backgroundColor: C.primarySubtle, borderColor: C.primary + '55', opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <MaterialIcons name="add-location-alt" size={18} color={C.primary} />
+          <Text style={[styles.guaranteeText, { color: C.primary, fontWeight: FontWeight.semibold }]}>
+            {`Set city to "${trimmedCitySearch}"`}
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {filteredCities.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, width: '100%', marginBottom: Spacing.md }}>
+          {filteredCities.map((cityName) => {
+            const selected = accountCity.toLowerCase() === cityName.toLowerCase();
+            return (
+              <Pressable
+                key={cityName}
+                onPress={() => {
+                  Haptic.select();
+                  setAccountCity(cityName);
+                  setAccountCitySearch(cityName);
+                }}
+                style={({ pressed }) => [
+                  {
+                    paddingHorizontal: Spacing.md,
+                    paddingVertical: 8,
+                    borderRadius: BorderRadius.full,
+                    borderWidth: 1,
+                    backgroundColor: selected ? C.primary : C.surfaceElevated,
+                    borderColor: selected ? C.primary : C.surfaceBorder,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.medium, color: selected ? '#fff' : C.textPrimary }}>
+                  {cityName}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {renderAccountError()}
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={handleAccountCityNext}
+        disabled={!activeAccountCity}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          { backgroundColor: C.primary, opacity: !activeAccountCity ? 0.5 : pressed ? 0.88 : 1 },
+        ]}
+      >
+        <View style={styles.buttonInner}>
+          <Text style={styles.primaryButtonText}>
+            {activeAccountCity ? `Continue with ${activeAccountCity}` : 'Continue'}
+          </Text>
+          <MaterialIcons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 6 }} />
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+
+  const renderAccountRoleStep = () => (
+    <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
+      <View style={[styles.iconCircle, { backgroundColor: C.primarySubtle }]}>
+        <MaterialIcons name="swap-horiz" size={44} color={C.primary} />
+      </View>
+      <Text style={[styles.title, { color: C.textPrimary }]}>How will you use CaryGoo?</Text>
+      <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+        This personalises your home screen. You can change it later from your profile.
+      </Text>
+
+      <View style={{ width: '100%', gap: Spacing.sm, marginBottom: Spacing.md }}>
+        {ROLE_OPTIONS.map((item) => {
+          const selected = accountRole === item.id;
+          return (
+            <Pressable
+              key={item.id}
+              onPress={() => {
+                Haptic.select();
+                setAccountRole(item.id);
+                if (accountError) setAccountError(null);
+              }}
+              style={({ pressed }) => [
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: Spacing.sm,
+                  borderRadius: BorderRadius.md,
+                  padding: Spacing.md,
+                  borderWidth: selected ? 2 : 1,
+                  borderColor: selected ? C.primary : C.surfaceBorder,
+                  backgroundColor: selected ? C.primarySubtle : C.surfaceElevated,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <View style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: selected ? C.primary : C.surface,
+              }}>
+                <MaterialIcons name={item.icon} size={22} color={selected ? '#fff' : C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: FontSize.md, fontWeight: FontWeight.bold, color: C.textPrimary }}>{item.title}</Text>
+                <Text style={{ fontSize: FontSize.xs, color: C.textMuted, marginTop: 2, lineHeight: 17 }}>{item.sub}</Text>
+              </View>
+              <View style={{
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: selected ? C.primary : C.surfaceBorder,
+                backgroundColor: selected ? C.primary : 'transparent',
+              }} />
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {accountUsernameValue && accountFullName && (accountCity || accountCitySearch) ? (
+        <View style={[styles.guaranteeBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+          <MaterialIcons name="person-pin" size={20} color={C.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: C.textPrimary }}>
+              @{accountUsernameValue} · {accountFullName}
+            </Text>
+            <Text style={{ fontSize: FontSize.xs, color: C.textMuted, marginTop: 2 }}>
+              Based in {(accountCity || accountCitySearch).trim()} · +91 {accountPhone}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {renderAccountError()}
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={handleAccountFinish}
+        disabled={!accountRole || isAccountSaving}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          { backgroundColor: C.primary, opacity: !accountRole || isAccountSaving ? 0.5 : pressed ? 0.88 : 1 },
+        ]}
+      >
+        {isAccountSaving ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <View style={styles.buttonInner}>
+            <Text style={styles.primaryButtonText}>Save & Continue to KYC</Text>
+            <MaterialIcons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 6 }} />
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
 
   // ---------------------------------------------------------------------------
   // STEP 1: 12-DIGIT AADHAAR NUMBER INPUT
@@ -936,7 +1671,7 @@ export default function KycScreen() {
         </Text>
         <Text style={[styles.subtitle, { color: C.textSecondary }]}>
           {isApproved
-            ? 'Your identity has been authenticated. You now have full access to accept deliveries, create trips, and earn on CarryGo.'
+            ? 'Your identity has been authenticated. You now have full access to accept deliveries, create trips, and earn on CaryGoo.'
             : 'Your Aadhaar identity and live selfie with face verification have been submitted. Our compliance team will review and approve your profile shortly.'}
         </Text>
 
@@ -1038,16 +1773,20 @@ export default function KycScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          onPress={() => router.back()}
+          onPress={isAccountStep ? handleAccountBack : () => router.back()}
           style={[styles.backButton, { backgroundColor: C.surfaceElevated }]}
         >
           <MaterialIcons name="arrow-back" size={22} color={C.textPrimary} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Identity Verification</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
+            {isAccountStep ? 'Account Details' : 'Identity Verification'}
+          </Text>
           <View style={styles.lockBadge}>
             <MaterialIcons name="lock" size={11} color={C.success} />
-            <Text style={[styles.lockBadgeText, { color: C.success }]}>UIDAI Encrypted</Text>
+            <Text style={[styles.lockBadgeText, { color: C.success }]}>
+              {isAccountStep ? 'Secure Setup' : 'UIDAI Encrypted'}
+            </Text>
           </View>
         </View>
         <View style={styles.headerSpacer} />
@@ -1055,7 +1794,7 @@ export default function KycScreen() {
 
       {/* Progress Indicator */}
       {step !== 'completed' ? (
-        <KycStepIndicator currentStep={stepNumber} totalSteps={4} stepLabel={stepLabel} />
+        <KycStepIndicator currentStep={stepNumber} totalSteps={totalSteps} stepLabel={stepLabel} />
       ) : null}
 
       <KeyboardAwareScrollView
@@ -1064,6 +1803,11 @@ export default function KycScreen() {
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         extraScrollHeight={80}
       >
+        {step === 'account_username' && renderAccountUsernameStep()}
+        {step === 'account_name' && renderAccountNameStep()}
+        {step === 'account_phone' && renderAccountPhoneStep()}
+        {step === 'account_city' && renderAccountCityStep()}
+        {step === 'account_role' && renderAccountRoleStep()}
         {step === 'aadhaar_number' && renderAadhaarNumberStep()}
         {step === 'aadhaar_otp' && renderAadhaarOtpStep()}
         {step === 'aadhaar_verified' && renderAadhaarVerifiedStep()}

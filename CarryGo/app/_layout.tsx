@@ -30,7 +30,7 @@ LogBox.ignoreLogs([
   '[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.',
 ]);
 
-const PUBLIC_ROUTE_ROOTS = new Set(['index', 'login', 'onboarding', 'profile-setup', 'legal']);
+const PUBLIC_ROUTE_ROOTS = new Set(['index', 'login', 'onboarding', 'kyc', 'legal']);
 
 function AppShell() {
   const insets = useSafeAreaInsets();
@@ -50,12 +50,12 @@ function AppShell() {
         />
         <View style={[styles.loadingCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
           <Image
-            source={require('../assets/images/splash-logo.png')}
+            source={require('../assets/images/logo-horizontal.png')}
             style={styles.loadingLogo}
             contentFit="contain"
             transition={220}
           />
-          <Text style={[styles.loadingTitle, { color: C.textPrimary }]}>Preparing CarryGo</Text>
+          <Text style={[styles.loadingTitle, { color: C.textPrimary }]}>Preparing CaryGoo</Text>
           <Text style={[styles.loadingSub, { color: C.textMuted }]}>Smart matching and secure messaging</Text>
           <ActivityIndicator color={C.primary} size="small" />
         </View>
@@ -85,7 +85,7 @@ function AppShell() {
   }
 
   if (!user && !isPublicRoute) return <Redirect href="/login" />;
-  if (user && requiresProfileSetup && routeRoot !== 'profile-setup') return <Redirect href="/profile-setup" />;
+  if (user && requiresProfileSetup && routeRoot !== 'kyc') return <Redirect href="/kyc" />;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -147,7 +147,6 @@ function AppStack() {
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="onboarding" />
-        <Stack.Screen name="profile-setup" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="create-trip" options={{ headerShown: false }} />
         <Stack.Screen name="create-parcel" options={{ headerShown: false }} />
@@ -239,8 +238,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   loadingLogo: {
-    width: 76,
-    height: 76,
+    width: 140,
+    height: 48,
   },
   loadingTitle: {
     fontSize: FontSize.lg,

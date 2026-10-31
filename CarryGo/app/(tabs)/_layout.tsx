@@ -319,7 +319,7 @@ export default function TabLayout() {
 
   if (isLoading) return null;
   if (!user) return <Redirect href={'/login'} />;
-  if (requiresProfileSetup) return <Redirect href={'/profile-setup'} />;
+  if (requiresProfileSetup) return <Redirect href={'/kyc'} />;
 
   const requests = requestsQuery.data ?? [];
   const conversations = conversationsQuery.data ?? [];

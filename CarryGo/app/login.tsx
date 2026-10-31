@@ -13,6 +13,7 @@ import { FontSize, FontWeight, Spacing, Gradients } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { Haptic } from '@/services/haptics.service';
 import { StatusBar } from 'expo-status-bar';
 import { AUTH_OTP_LENGTH } from '@/constants/security';
@@ -163,7 +164,7 @@ export default function LoginScreen() {
     }
     Haptic.success(); pulseSuccess();
     const pendingRoute = consumePendingNotificationRoute();
-    const destination = (requiresProfileSetup ? '/profile-setup' : (pendingRoute || '/(tabs)')) as Href;
+    const destination = (requiresProfileSetup ? '/kyc' : (pendingRoute || '/(tabs)')) as Href;
     router.replace(destination);
   }, [email, operationLoading, otpStr, pulseSuccess, router, shake, showAlert, verifyOTP]);
 
@@ -239,17 +240,16 @@ export default function LoginScreen() {
               style={StyleSheet.absoluteFillObject}
             />
             <View style={styles.brandRow}>
-              <Animated.View style={[styles.logoBox, { overflow: 'hidden', transform: [{ scale: logoBreathing }] }]}>
-                <LinearGradient colors={Gradients.primaryVibrant} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-                <MaterialIcons name="local-shipping" size={26} color="#fff" />
+              <Animated.View style={{ transform: [{ scale: logoBreathing }] }}>
+                <Image
+                  source={require('@/assets/images/logo-horizontal.png')}
+                  style={{ width: 180, height: 56 }}
+                  contentFit="contain"
+                />
               </Animated.View>
-              <View>
-                <Text style={[styles.brandName, { color: C.textPrimary }]}>CarryGo</Text>
-                <Text style={[styles.brandTag, { color: C.textMuted }]}>Trusted community logistics</Text>
-              </View>
             </View>
             <View style={styles.heroText}>
-              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Welcome to CarryGo</Text>
+              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Welcome to CaryGoo</Text>
               <Text style={[styles.heroSub, { color: C.textSecondary }]}>Route-matched deliveries with verified travelers. Fast, secure, and fully tracked.</Text>
             </View>
           </Animated.View>
@@ -291,7 +291,7 @@ export default function LoginScreen() {
           </Animated.View>
 
           <View style={[styles.terms, { marginTop: Spacing.md }]}>
-            <Text style={{ color: C.textMuted, fontSize: FontSize.xs }}>By continuing you agree to CarryGo&apos;s</Text>
+            <Text style={{ color: C.textMuted, fontSize: FontSize.xs }}>By continuing you agree to CaryGoo&apos;s</Text>
             <View style={styles.legalLinks}>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/terms')}>
                 <Text style={[styles.legalLink, { color: C.primary }]}>Terms of Service</Text>
