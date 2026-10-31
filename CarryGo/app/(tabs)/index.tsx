@@ -57,8 +57,6 @@ function HomeHeader({
   }, [avatarUri]);
 
   const initial = (userName || 'U').charAt(0).toUpperCase();
-  const currentHour = new Date().getHours();
-  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
   const bellRef = useRef<AnimatedIconRef>(null);
 
   return (
@@ -89,7 +87,6 @@ function HomeHeader({
           <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card, borderWidth: 1.5 }]} />
         </View>
         <View style={styles.greetingWrap}>
-          <Text style={[styles.greetingSub, { color: C.textMuted }]}>{greeting} 👋</Text>
           <Text style={[styles.greetingName, { color: C.textPrimary }]} numberOfLines={1}>
             {userName}
           </Text>
@@ -111,11 +108,11 @@ function HomeHeader({
               pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
             ]}
           >
-            <MaterialIcons name="place" size={13} color={C.primary} />
+            <MaterialIcons name="place" size={16} color={C.primary} />
             <Text style={[styles.hubSelectorText, { color: C.textPrimary }]} numberOfLines={1}>
               {locationCity || 'India'}
             </Text>
-            <MaterialIcons name="expand-more" size={14} color={C.textMuted} />
+            <MaterialIcons name="expand-more" size={16} color={C.textMuted} />
           </Pressable>
         ) : null}
 
@@ -178,8 +175,7 @@ function SearchBarTrigger({
         <AnimatedIcon ref={searchRef} name="searchToX" size={20} color={C.primary} />
       </View>
       <View style={styles.searchCopyWrap}>
-        <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Where are you traveling or sending?</Text>
-        <Text style={[styles.searchSubPlaceholder, { color: C.textMuted }]}>Search routes, cities or dates</Text>
+        <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Search routes or cities</Text>
       </View>
       <Pressable
         onPress={(e) => {
@@ -201,7 +197,7 @@ function SearchBarTrigger({
           pressed && { opacity: 0.75, transform: [{ scale: 0.94 }] },
         ]}
       >
-        <AnimatedIcon ref={filterRef} name="filter" size={17} color={hasFilter ? C.primary : C.textSecondary} />
+        <AnimatedIcon ref={filterRef} name="filter" size={18} color={hasFilter ? C.primary : C.textSecondary} />
         {hasFilter ? <View style={[styles.activeFilterDotOnTrigger, { backgroundColor: C.primary }]} /> : null}
       </Pressable>
     </Pressable>
@@ -232,7 +228,7 @@ function QuickActions() {
             <MaterialIcons name="inventory-2" size={18} color="#FFFFFF" />
           </View>
           <View style={[styles.quickActionMiniArrow, { backgroundColor: '#FFFFFF' }]}>
-            <MaterialIcons name="arrow-outward" size={13} color={C.primary} />
+            <MaterialIcons name="arrow-outward" size={16} color={C.primary} />
           </View>
         </View>
         <View style={styles.quickActionCopy}>
@@ -259,7 +255,7 @@ function QuickActions() {
             <MaterialIcons name="flight-takeoff" size={18} color={C.primary} />
           </View>
           <View style={[styles.quickActionMiniArrow, { backgroundColor: C.surfaceElevated }]}>
-            <MaterialIcons name="arrow-outward" size={13} color={C.textMuted} />
+            <MaterialIcons name="arrow-outward" size={16} color={C.textMuted} />
           </View>
         </View>
         <View style={styles.quickActionCopy}>
@@ -1226,7 +1222,7 @@ export default function HomeScreen() {
             accessibilityLabel="Filter listings"
             style={[styles.miniIconBtn, { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface }]}
           >
-            <AnimatedIcon ref={stickyFilterRef} name="filter" size={17} color={hasFilter ? C.primary : C.textPrimary} />
+            <AnimatedIcon ref={stickyFilterRef} name="filter" size={18} color={hasFilter ? C.primary : C.textPrimary} />
           </Pressable>
           <Pressable
             onPress={() => {
@@ -1356,7 +1352,7 @@ export default function HomeScreen() {
             <View style={styles.feedFooterEnd}>
               <View style={[styles.feedFooterLine, { backgroundColor: C.surfaceBorder }]} />
               <View style={[styles.feedFooterPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                <MaterialIcons name="check-circle" size={13} color={C.primary} />
+                <MaterialIcons name="check-circle" size={16} color={C.primary} />
                 <Text style={[styles.feedFooterText, { color: C.textSecondary }]}>
                   All {feedData.length} {activeTab === 'trips' ? 'trips' : 'parcels'} shown
                 </Text>
@@ -1445,7 +1441,7 @@ const styles = StyleSheet.create({
   userProfileWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm + 2,
+    gap: Spacing.sm,
     flex: 1,
   },
   avatarCircle: {
@@ -1469,34 +1465,28 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.semibold,
   },
   greetingWrap: {
     flex: 1,
   },
-  greetingSub: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    lineHeight: 16,
-  },
   greetingName: {
     fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
+    fontWeight: FontWeight.semibold,
   },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs + 2,
+    gap: Spacing.xs,
   },
   hubSelectorPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 7,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    gap: 3,
+    gap: 4,
     maxWidth: 135,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
@@ -1533,7 +1523,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  notifyBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: FontWeight.bold },
+  notifyBadgeText: { color: '#fff', fontSize: 11, fontWeight: FontWeight.semibold },
 
   searchBar: {
     flexDirection: 'row',
@@ -1542,7 +1532,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm + 2,
+    gap: Spacing.sm,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -1560,13 +1550,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchPlaceholder: {
-    fontSize: FontSize.sm + 0.5,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    letterSpacing: -0.2,
-  },
-  searchSubPlaceholder: {
-    fontSize: FontSize.xs,
-    marginTop: 1,
   },
   filterIconBadge: {
     width: 38,
@@ -1587,12 +1572,12 @@ const styles = StyleSheet.create({
 
   quickActionsRow: {
     flexDirection: 'row',
-    gap: Spacing.sm + 2,
+    gap: Spacing.sm,
   },
   quickActionTile: {
     flex: 1,
     borderRadius: BorderRadius.xl,
-    borderWidth: 1.2,
+    borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.sm,
     shadowColor: '#0F172A',
@@ -1625,8 +1610,7 @@ const styles = StyleSheet.create({
   },
   quickActionTitle: {
     fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.3,
+    fontWeight: FontWeight.semibold,
   },
   quickActionSub: {
     fontSize: 11.5,
@@ -1634,7 +1618,7 @@ const styles = StyleSheet.create({
   },
 
   marketplaceSection: {
-    gap: Spacing.xs + 2,
+    gap: Spacing.xs,
     marginTop: Spacing.xs,
   },
   marketplaceHead: {
@@ -1666,14 +1650,14 @@ const styles = StyleSheet.create({
   locationPillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs + 2,
+    gap: Spacing.xs,
     marginTop: 2,
   },
   locationFilterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.sm + 4,
-    paddingVertical: 7,
+    paddingHorizontal: Spacing.smd,
+    paddingVertical: 8,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
     gap: 4,
@@ -1684,8 +1668,8 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   allIndiaBtn: {
-    paddingHorizontal: Spacing.sm + 4,
-    paddingVertical: 7,
+    paddingHorizontal: Spacing.smd,
+    paddingVertical: 8,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -1693,7 +1677,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
-  sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
+  sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold},
   sectionSub: { fontSize: FontSize.xs, marginTop: 2 },
   filterBtn: {
     width: 44,
@@ -1729,7 +1713,6 @@ const styles = StyleSheet.create({
   },
   segmentText: {
     fontSize: FontSize.sm - 0.5,
-    letterSpacing: -0.1,
   },
   miniHeader: {
     position: 'absolute',
@@ -1752,7 +1735,7 @@ const styles = StyleSheet.create({
   miniHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs + 2,
+    gap: Spacing.xs,
   },
   miniAvatar: {
     width: 32,
@@ -1763,12 +1746,11 @@ const styles = StyleSheet.create({
   },
   miniAvatarText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.semibold,
   },
   miniHeaderTitle: {
     fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
+    fontWeight: FontWeight.semibold,
   },
   miniHeaderSub: {
     fontSize: 10,
@@ -1782,7 +1764,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   miniTabBtn: {
-    paddingHorizontal: Spacing.sm + 2,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 6,
     minHeight: 32,
     justifyContent: 'center',
@@ -1791,7 +1773,7 @@ const styles = StyleSheet.create({
   },
   miniTabText: {
     fontSize: 11,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.semibold,
   },
   miniHeaderRight: {
     flexDirection: 'row',
@@ -1828,16 +1810,15 @@ const styles = StyleSheet.create({
   fabBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs + 2,
-    paddingHorizontal: Spacing.md + 2,
-    paddingVertical: Spacing.sm + 4,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.smd,
     borderRadius: BorderRadius.full,
   },
   fabBtnText: {
     color: '#FFFFFF',
     fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.1,
+    fontWeight: FontWeight.semibold,
   },
   tabletContainer: {
     maxWidth: 620,
@@ -1862,7 +1843,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterSummaryText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  clearText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  clearText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   emptyCard: {
     marginHorizontal: Spacing.md,
@@ -1880,7 +1861,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
-  emptyTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, textAlign: 'center', letterSpacing: -0.2 },
+  emptyTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.semibold, textAlign: 'center'},
   emptySub: { fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.xs, lineHeight: 20 },
   emptyCta: {
     marginTop: Spacing.lg,
@@ -1890,7 +1871,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyCtaText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  emptyCtaText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 
   emptyActionRow: {
     flexDirection: 'row',
@@ -1909,7 +1890,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyOutlineBtnText: {
-    fontSize: FontSize.xs + 0.5,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
 
@@ -1931,7 +1912,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: Spacing.sm + 4,
+    paddingHorizontal: Spacing.smd,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
