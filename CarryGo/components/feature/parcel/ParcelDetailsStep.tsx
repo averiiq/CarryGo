@@ -7,13 +7,11 @@ import { Input } from '@/components/ui/Input';
 import { ParcelImagePicker } from '@/components/feature/ParcelImagePicker';
 import { Haptic } from '@/services/haptics.service';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
-import { PriceEstimate } from '@/services/price-estimator.service';
 import {
   ParcelDraft,
   PARCEL_CATEGORIES,
   PARCEL_CATEGORY_IMAGES,
   PARCEL_WEIGHT_PRESETS,
-  PARCEL_OFFER_PRESETS,
 } from './types';
 
 interface ParcelDetailsStepProps {
@@ -21,8 +19,6 @@ interface ParcelDetailsStepProps {
   updateField: <K extends keyof ParcelDraft>(key: K, value: ParcelDraft[K]) => void;
   fieldErrors: Record<string, string>;
   C: any;
-  priceRecommendation?: PriceEstimate | null;
-  isEstimatingPrice?: boolean;
 }
 
 export function ParcelDetailsStep({
@@ -30,19 +26,7 @@ export function ParcelDetailsStep({
   updateField,
   fieldErrors,
   C,
-  priceRecommendation,
-  isEstimatingPrice,
 }: ParcelDetailsStepProps) {
-  const activeOfferPresets = priceRecommendation
-    ? Array.from(
-        new Set([
-          String(priceRecommendation.minPrice),
-          String(priceRecommendation.suggestedPrice),
-          String(priceRecommendation.maxPrice),
-        ])
-      )
-    : PARCEL_OFFER_PRESETS;
-
   const charCount = form.description.length;
   const isNearLimit = charCount >= 280;
 
@@ -167,54 +151,6 @@ export function ParcelDetailsStep({
         </Text>
       </View>
 
-      {/* Dynamic Negotiation & Reference Guidance Card */}
-      <View
-        style={[
-          styles.smartPriceCard,
-          { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-        ]}
-      >
-        <View style={styles.smartPriceTop}>
-          <View style={[styles.smartPriceBadge, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons name="handshake" size={14} color={C.primary} />
-            <Text style={[styles.smartPriceBadgeText, { color: C.primary }]}>
-              Negotiable Pricing
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <MaterialIcons name="lock-clock" size={13} color={C.textMuted} />
-            <Text style={[styles.smartPriceRange, { color: C.textMuted }]}>
-              Agreed with Traveller
-            </Text>
-          </View>
-        </View>
-
-        <Text style={[{ fontSize: FontSize.xs, lineHeight: 18, color: C.textSecondary, marginTop: 6 }]}>
-          Senders do not set a fixed price. When a traveller offers to carry your parcel or you request a trip, you negotiate the delivery reward directly.
-        </Text>
-
-        {priceRecommendation ? (
-          <View style={[styles.smartPriceBody, { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.surfaceBorder }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 10, fontWeight: FontWeight.semibold, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Estimated Corridor Benchmark
-              </Text>
-              <Text style={[styles.smartPriceAmount, { color: C.primary, marginTop: 2 }]}>
-                ~₹{priceRecommendation.suggestedPrice}
-              </Text>
-            </View>
-            <Text style={{ fontSize: 11, color: C.textMuted, maxWidth: '48%', textAlign: 'right' }}>
-              Reference only (₹{priceRecommendation.minPrice} – ₹{priceRecommendation.maxPrice})
-            </Text>
-          </View>
-        ) : isEstimatingPrice ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.xs }}>
-            <MaterialIcons name="hourglass-empty" size={13} color={C.primary} />
-            <Text style={{ fontSize: FontSize.xs, color: C.textMuted }}>Calculating corridor benchmark...</Text>
-          </View>
-        ) : null}
-      </View>
-
       {/* Weight Input & Presets */}
       <View style={styles.fieldGroup}>
         <Input
@@ -318,50 +254,6 @@ const styles = StyleSheet.create({
   },
 
   charCount: { fontSize: FontSize.xs, textAlign: 'right', marginTop: -2, marginRight: 4, fontWeight: FontWeight.medium },
-  smartPriceCard: {
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1.2,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-  smartPriceTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  smartPriceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.full,
-  },
-  smartPriceBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  smartPriceDemandText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  smartPriceBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  smartPriceAmount: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
-  smartPriceRange: { fontSize: FontSize.xs, marginTop: 1 },
-  smartPriceApplyBtn: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 9,
-    borderRadius: BorderRadius.full,
-  },
-  smartPriceApplyText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold, color: '#FFFFFF' },
-  smartPriceLoadingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-  },
-  smartPriceLoadingText: { fontSize: FontSize.sm },
   presetSection: { gap: 6, marginTop: 4 },
   presetSectionLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginLeft: 2 },
   presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },

@@ -18,7 +18,6 @@ import { uploadParcelImage } from '@/services/storage.service';
 import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
-import { estimatePrice, PriceEstimate } from '@/services/price-estimator.service';
 import { useCreateParcelMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,48 +73,7 @@ export default function CreateParcelScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
   const [locationHint, setLocationHint] = useState<string | null>(null);
-  const [priceRecommendation, setPriceRecommendation] = useState<PriceEstimate | null>(null);
-  const [isEstimatingPrice, setIsEstimatingPrice] = useState(false);
   const { footerOffset } = useKeyboardPadding();
-
-  // Auto-calculate smart pricing recommendation when route, weight or category are specified
-  useEffect(() => {
-    if (!form.fromCity || !form.toCity) {
-      setPriceRecommendation(null);
-      return;
-    }
-
-    let isMounted = true;
-    const weightNum = Number(form.weight) || 1;
-    setIsEstimatingPrice(true);
-
-    const timer = setTimeout(() => {
-      estimatePrice({
-        fromCity: form.fromCity,
-        toCity: form.toCity,
-        weight: weightNum,
-        category: form.category,
-        deliveryDate: form.deliveryDate,
-      })
-        .then((est) => {
-          if (isMounted) {
-            setPriceRecommendation(est);
-            setIsEstimatingPrice(false);
-            if (est?.suggestedPrice) {
-              setForm((prev) => ({ ...prev, priceOffer: String(est.suggestedPrice) }));
-            }
-          }
-        })
-        .catch(() => {
-          if (isMounted) setIsEstimatingPrice(false);
-        });
-    }, 200);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [form.fromCity, form.toCity, form.weight, form.category, form.deliveryDate]);
 
   const { hasAgreed: hasSafetyAgreed, markAgreed: markSafetyAgreed } = useSafetyAgreement(user?.id);
 
@@ -386,7 +344,7 @@ export default function CreateParcelScreen() {
         description: parcelDescription,
         deliveryDate: prepared.deliveryDate,
         weight: Number(prepared.weight),
-        priceOffer: Number(prepared.priceOffer) || priceRecommendation?.suggestedPrice || 0,
+        priceOffer: Number(prepared.priceOffer) || 0,
         status: 'open',
         imageUris: uploadedUrls,
       });
@@ -484,8 +442,6 @@ export default function CreateParcelScreen() {
             updateField={updateField}
             fieldErrors={fieldErrors}
             C={C}
-            priceRecommendation={priceRecommendation}
-            isEstimatingPrice={isEstimatingPrice}
           />
         )}
         {step === 2 && (
