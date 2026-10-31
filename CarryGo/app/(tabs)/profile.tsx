@@ -258,7 +258,7 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Haptic.warning();
-    showAlert('Sign Out', 'Are you sure you want to sign out of CarryGo?', [
+    showAlert('Sign Out', 'Are you sure you want to sign out of CaryGoo?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
@@ -287,7 +287,7 @@ export default function ProfileScreen() {
               showAlert('Deletion Failed', result.error);
               return;
             }
-            showAlert('Account Deleted', 'Your CarryGo account has been deleted.');
+            showAlert('Account Deleted', 'Your CaryGoo account has been deleted.');
             router.replace('/login');
           },
         },
@@ -537,7 +537,7 @@ export default function ProfileScreen() {
                 icon={<MaterialIcons name="receipt-long" size={18} color={C.warning} />}
                 label="Transactions & Receipts"
                 subtitle="Escrow payments, transfers & invoices"
-                onPress={() => router.push('/transactions')}
+                onPress={() => router.push('/my-activity?tab=transactions')}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
               <MenuItem
@@ -667,7 +667,7 @@ export default function ProfileScreen() {
                 C={C}
                 icon={<Ionicons name="log-out-outline" size={18} color={C.error} />}
                 label="Sign Out"
-                subtitle="Sign out of your CarryGo session"
+                subtitle="Sign out of your CaryGoo session"
                 onPress={handleLogout}
                 danger
               />
@@ -686,8 +686,12 @@ export default function ProfileScreen() {
           {/* Clean Footer Branding */}
           <View style={styles.footer}>
             <View style={styles.footerContent}>
-              <MaterialIcons name="local-shipping" size={13} color={C.textMuted} style={{ opacity: 0.6 }} />
-              <Text style={[styles.footerText, { color: C.textMuted }]}>CarryGo v1.2.2 • Peer-to-Peer Logistics</Text>
+              <Image
+                source={require('@/assets/images/logo-horizontal.png')}
+                style={{ width: 110, height: 34, opacity: 0.85 }}
+                contentFit="contain"
+              />
+              <Text style={[styles.footerText, { color: C.textMuted }]}>CaryGoo v1.2.2 • Move . Connect . Deliver</Text>
             </View>
           </View>
         </Animated.View>

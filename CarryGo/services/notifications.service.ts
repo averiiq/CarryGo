@@ -928,7 +928,7 @@ export async function notifyPaymentEscrowLocked(params: {
     type: 'payment_locked',
     priority: 'high',
     relatedId: params.deliveryOrRequestId,
-    deepLink: '/transactions',
+    deepLink: '/my-activity?tab=transactions',
   });
 }
 
@@ -944,7 +944,7 @@ export async function notifyPayoutReleased(params: {
     type: 'payment_released',
     priority: 'high',
     relatedId: params.deliveryId,
-    deepLink: '/transactions',
+    deepLink: '/my-activity?tab=transactions',
   });
 }
 
@@ -1007,6 +1007,8 @@ export async function getUnreadCount(userId: string): Promise<number> {
 export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: string | null): string | null {
   // If the notification payload has an explicit deep_link, use it directly
   if (deepLink && typeof deepLink === 'string' && deepLink.startsWith('/')) {
+    // Legacy transactions route → consolidated into My Activity tab
+    if (deepLink === '/transactions') return '/my-activity?tab=transactions';
     return deepLink;
   }
 
@@ -1046,7 +1048,7 @@ export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: st
     case 'payment_locked':
     case 'payment_released':
     case 'payment_refunded':
-      return '/transactions';
+      return '/my-activity?tab=transactions';
     case 'rating':
       return '/(tabs)/profile';
     case 'broadcast':
