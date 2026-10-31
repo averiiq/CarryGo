@@ -400,7 +400,7 @@ export default function CreateParcelScreen() {
       });
       clearDraft();
       Haptic.success();
-      router.replace({ pathname: '/matching', params: { mode: 'parcel', id: result.id } });
+      router.replace({ pathname: '/search', params: { mode: 'parcel', id: result.id } });
     } catch (error) {
       Haptic.error();
       showAlert(

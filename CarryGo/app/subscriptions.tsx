@@ -417,7 +417,7 @@ export default function SubscriptionsScreen() {
 
   const handleView = useCallback((sub: RouteSubscription) => {
     router.push({
-      pathname: '/matching',
+      pathname: '/search',
       params: { mode: 'browse_trips', fromCity: sub.fromCity, toCity: sub.toCity },
     });
   }, [router]);

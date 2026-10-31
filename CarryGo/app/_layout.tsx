@@ -150,7 +150,6 @@ function AppStack() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="create-trip" options={{ headerShown: false }} />
         <Stack.Screen name="create-parcel" options={{ headerShown: false }} />
-        <Stack.Screen name="matching" options={{ headerShown: true, headerTitle: 'Matching Results', ...headerOpts }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: true, headerTitle: 'Chat', ...headerOpts }} />
         <Stack.Screen name="delivery/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />

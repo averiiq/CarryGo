@@ -472,7 +472,7 @@ export default function ParcelDetailScreen() {
     if (!parcel) return;
     try {
       await Share.share({
-        message: `CarryGo Parcel: ${parcel.description} from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ₹${parcel.priceOffer}).`,
+        message: `CaryGoo Parcel: ${parcel.description} from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ₹${parcel.priceOffer}).`,
       });
     } catch {
       // Ignored
@@ -726,7 +726,7 @@ export default function ParcelDetailScreen() {
                       { backgroundColor: C.primary },
                       pressed && { opacity: 0.9 }
                     ]}
-                    onPress={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcel.id } })}
+                    onPress={() => router.push({ pathname: '/search', params: { mode: 'parcel', id: parcel.id } })}
                   >
                     <MaterialIcons name="search" size={16} color="#fff" />
                     <Text style={styles.findTravelersText}>Find Matching Travelers</Text>
