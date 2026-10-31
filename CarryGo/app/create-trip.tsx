@@ -239,6 +239,20 @@ export default function CreateTripScreen() {
     }
     if (!draft.time) {
       errors.time = 'Select departure time';
+    } else if (draft.date === todayKey) {
+      const match = draft.time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (match) {
+        let hour = Number(match[1]);
+        const minute = Number(match[2]);
+        const period = match[3].toUpperCase();
+        if (period === 'PM' && hour !== 12) hour += 12;
+        if (period === 'AM' && hour === 12) hour = 0;
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        if (hour * 60 + minute <= nowMinutes) {
+          errors.time = 'Departure time has already passed';
+        }
+      }
     }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);

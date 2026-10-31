@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, Pressable, Animated, StyleSheet, Easing } from 'react-native';
+import { View, Text, Pressable, Animated, StyleSheet, Easing, Platform } from 'react-native';
 import { useRef, useEffect, useMemo, useState } from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,16 +10,44 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
 import { useConversationsQuery } from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
-import { ThemeColors, TouchTarget } from '@/constants/theme';
+import { ThemeColors, TouchTarget, TabBarGeometry } from '@/constants/theme';
 import { isRequestIncoming } from '@/services/requests.service';
 
 import { AnimatedIcon, type AnimatedIconName } from '@/components';
 
-function TabBadge({ count, C, isFocused }: { count: number; C: ThemeColors; isFocused?: boolean }) {
+function TabBadge({
+  count,
+  C,
+  isFocused,
+  isSmallDevice,
+}: {
+  count: number;
+  C: ThemeColors;
+  isFocused?: boolean;
+  isSmallDevice?: boolean;
+}) {
   if (count === 0) return null;
   return (
-    <View style={[styles.badge, { backgroundColor: C.error, borderColor: isFocused ? C.primary : C.card }]}>
-      <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
+    <View
+      style={[
+        styles.badge,
+        {
+          backgroundColor: C.error,
+          borderColor: isFocused ? C.primary : C.card,
+          minWidth: isSmallDevice ? 15 : 17,
+          height: isSmallDevice ? 15 : 17,
+          top: isSmallDevice ? -4 : -5,
+          right: isSmallDevice ? -7 : -9,
+        },
+      ]}
+      accessibilityLabel={`${count} unread`}
+    >
+      <Text
+        style={[styles.badgeText, { fontSize: isSmallDevice ? 8.5 : 9.5 }]}
+        maxFontSizeMultiplier={1.0}
+      >
+        {count > 9 ? '9+' : count}
+      </Text>
     </View>
   );
 }
@@ -67,13 +95,13 @@ function FloatingCapsuleTabBar({
   const { isSmallDevice, isTablet, isLandscape, width: screenWidth } = useResponsive();
   const indexAnim = useRef(new Animated.Value(state.index)).current;
 
-  // Responsive geometry calculations across device classes
+  // Responsive geometry calculations across device classes using standard TabBarGeometry
   const isConstrained = isTablet || isLandscape;
-  const barHeight = isSmallDevice ? 58 : isTablet ? 66 : 64;
-  const bottomOffset = insetsBottom > 0 ? insetsBottom + (isSmallDevice ? 2 : 4) : (isSmallDevice ? 10 : 14);
-  const horizontalMargin = isSmallDevice ? 12 : 16;
+  const barHeight = TabBarGeometry.getHeight(isSmallDevice, isTablet);
+  const bottomOffset = TabBarGeometry.getBottomOffset(insetsBottom, isSmallDevice);
+  const horizontalMargin = isSmallDevice ? 10 : 16;
   const targetBarWidth = isConstrained
-    ? Math.min(500, screenWidth - 48)
+    ? Math.min(520, screenWidth - 48)
     : screenWidth - horizontalMargin * 2;
 
   const [measuredBarWidth, setMeasuredBarWidth] = useState(targetBarWidth);
@@ -99,27 +127,30 @@ function FloatingCapsuleTabBar({
       Animated.timing(indexAnim, {
         toValue: activeVisibleIndex,
         duration: 220,
-        easing: Easing.out(Easing.cubic),
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         useNativeDriver: true,
       }).start();
     }
   }, [indexAnim, activeVisibleIndex]);
 
   const tabCount = visibleRoutes.length;
-  const H_PAD = 6;
+  const H_PAD = isSmallDevice ? 4 : 6;
   const usableWidth = Math.max(0, barWidth - 2 * H_PAD);
   const slotWidth = tabCount > 0 ? usableWidth / tabCount : 0;
-  const sliderWidth = Math.max(isSmallDevice ? 52 : 58, Math.min(slotWidth - 6, isTablet ? 96 : 76));
-  const sliderHeight = barHeight - (isSmallDevice ? 12 : 14);
+  const sliderWidth = Math.max(
+    isSmallDevice ? 48 : 54,
+    Math.min(slotWidth - (isSmallDevice ? 4 : 8), isTablet ? 96 : 74)
+  );
+  const sliderHeight = barHeight - (isSmallDevice ? 10 : 12);
   const sliderTop = Math.round((barHeight - sliderHeight) / 2);
 
-  // Exact pixel-perfect horizontal translation range for each tab
+  // Exact pixel-perfect horizontal translation range for each tab centered in its slot
   const outputRange = useMemo(
     () =>
       visibleRoutes.map((_, i) =>
         Math.round(H_PAD + i * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2))
       ),
-    [sliderWidth, slotWidth, visibleRoutes]
+    [H_PAD, sliderWidth, slotWidth, visibleRoutes]
   );
 
   const sliderTranslateX =
@@ -150,6 +181,7 @@ function FloatingCapsuleTabBar({
 
   return (
     <View
+      accessibilityRole="tablist"
       style={[
         styles.tabBarContainer,
         containerStyle,
@@ -180,7 +212,7 @@ function FloatingCapsuleTabBar({
         ]}
       />
 
-      <View style={styles.tabRow}>
+      <View style={[styles.tabRow, { paddingHorizontal: H_PAD }]}>
         {visibleRoutes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = activeVisibleIndex === index;
@@ -207,35 +239,50 @@ function FloatingCapsuleTabBar({
           return (
             <Pressable
               key={route.key}
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isFocused }}
+              accessibilityLabel={options.tabBarAccessibilityLabel || `${meta.label} tab`}
+              accessibilityHint={isFocused ? `Current screen: ${meta.label}` : `Navigates to ${meta.label}`}
               testID={options.tabBarButtonTestID}
               onPress={onPress}
               onLongPress={onLongPress}
               hitSlop={TouchTarget.smallHitSlop}
-              android_ripple={{ color: C.primarySubtle, borderless: true, radius: 28 }}
+              android_ripple={{
+                color: C.primarySubtle,
+                borderless: true,
+                radius: isSmallDevice ? 24 : 28,
+              }}
               style={({ pressed }) => [
                 styles.tabButton,
-                pressed && { opacity: 0.85, transform: [{ scale: 0.93 }] },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.94 }] },
               ]}
             >
               <View style={styles.tabItem}>
                 <View style={styles.iconContainer}>
                   <AnimatedIcon
                     name={meta.animatedIcon}
-                    size={isSmallDevice ? 20 : 22}
+                    size={isSmallDevice ? 19 : 22}
                     color={tintColor}
                     playOnTrigger={isFocused}
                   />
                   {(meta.badge ?? 0) > 0 ? (
-                    <TabBadge count={meta.badge ?? 0} C={C} isFocused={isFocused} />
+                    <TabBadge
+                      count={meta.badge ?? 0}
+                      C={C}
+                      isFocused={isFocused}
+                      isSmallDevice={isSmallDevice}
+                    />
                   ) : null}
                   {meta.dotAlert && (meta.badge ?? 0) === 0 ? (
                     <View
                       style={[
                         styles.alertDot,
-                        { backgroundColor: C.error, borderColor: isFocused ? C.primary : C.card },
+                        {
+                          backgroundColor: C.error,
+                          borderColor: isFocused ? C.primary : C.card,
+                          top: isSmallDevice ? -1 : -2,
+                          right: isSmallDevice ? -2 : -3,
+                        },
                       ]}
                     />
                   ) : null}
@@ -250,6 +297,7 @@ function FloatingCapsuleTabBar({
                     isFocused && styles.tabLabelActive,
                   ]}
                   numberOfLines={1}
+                  maxFontSizeMultiplier={1.15}
                 >
                   {meta.label}
                 </Text>

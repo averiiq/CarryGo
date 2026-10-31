@@ -17,39 +17,41 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingBottom: Spacing.md,
   },
   roundNavBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   navTitleContainer: {
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   navTitle: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
   },
-  navSubRow: {
+  statusCapsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
   },
-  navStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
-  navSubtitle: {
+  statusCapsuleText: {
     fontSize: 10,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
   },
   navRightRow: {
     flexDirection: 'row',
@@ -65,13 +67,12 @@ export const styles = StyleSheet.create({
 
   // Ticket / Journey Card
   ticketCard: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
   },
   ticketHeader: {
-    padding: Spacing.xl,
-    paddingBottom: Spacing.lg,
+    padding: Spacing.lg,
     gap: Spacing.md,
   },
   ticketTopRow: {
@@ -92,30 +93,10 @@ export const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.4,
-  },
-  statusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusChipText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
   },
 
-  // Ticket Route
-  ticketRouteRow: {
+  // Route in Ticket
+  routeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -128,108 +109,38 @@ export const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontSize: 10,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    letterSpacing: 0.6,
     marginBottom: 2,
-  },
-  routeTimeText: {
-    color: 'rgba(255,255,255,0.95)',
-    fontSize: 14,
-    fontWeight: FontWeight.extrabold,
-    marginBottom: 1,
   },
   routeCityText: {
     color: '#fff',
-    fontSize: 22,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.5,
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
   },
-  transportCapsuleWrap: {
-    alignItems: 'center',
-    gap: 3,
-    marginHorizontal: Spacing.xs,
-  },
-  transportCapsule: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+  routeArrowBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  transportDurationText: {
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 10,
-    fontWeight: FontWeight.bold,
+    marginHorizontal: Spacing.sm,
   },
 
-  // Departure Strip
-  departureStrip: {
+  // Schedule Ribbon
+  scheduleRibbon: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(0,0,0,0.22)',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.2)',
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
-  departureStripText: {
+  scheduleText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: FontWeight.semibold,
-  },
-  departureBadgePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(245, 158, 11, 0.28)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  departureConfirmedBadge: {
-    color: '#FEF3C7',
-    fontSize: 9,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.4,
-  },
-
-  // Fare Overview Banner (for Sender)
-  fareOverviewBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-  },
-  fareOverviewLabel: {
-    fontSize: 11,
     fontWeight: FontWeight.medium,
-  },
-  fareOverviewRupee: {
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
-  },
-  fareOverviewAmount: {
-    fontSize: 24,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.5,
-  },
-  fareOverviewRate: {
-    fontSize: 12,
-  },
-  instantBookPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  instantBookPillText: {
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
   },
 
   // Ticket Body
@@ -237,32 +148,25 @@ export const styles = StyleSheet.create({
     padding: Spacing.lg,
     gap: Spacing.md,
   },
-
-  // Capacity Widget
-  capacityWidget: {
-    borderRadius: 16,
-    padding: Spacing.md,
-    gap: 8,
-  },
-  capacityHeader: {
+  capacityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  capacityTitleRow: {
+  capacityLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  capacityTitle: {
+  capacityLabel: {
+    fontSize: 13,
+    fontWeight: FontWeight.semibold,
+  },
+  capacityVal: {
     fontSize: 13,
     fontWeight: FontWeight.bold,
   },
-  capacityRemaining: {
-    fontSize: 12,
-    fontWeight: FontWeight.extrabold,
-  },
-  capacityTrack: {
+  capacityProgressBar: {
     height: 6,
     borderRadius: 3,
     overflow: 'hidden',
@@ -271,84 +175,209 @@ export const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
-  capacityFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 2,
-  },
-  capacityFooterText: {
-    fontSize: 11,
-  },
-  rateHighlightPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  rateHighlightText: {
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-  },
-
-  // Highlights Row
-  highlightsRow: {
+  metricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: Spacing.xs,
   },
-  highlightItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
+  rateText: {
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
   },
-  highlightVal: {
-    fontSize: 16,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.2,
-  },
-  highlightLbl: {
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
-  },
-  highlightDiv: {
-    width: 1,
-    height: 24,
+  totalSpaceText: {
+    fontSize: 12,
   },
 
-  // Smart Matching Banner
-  matchingBanner: {
+  // Traveler Profile Card (for sender)
+  travelerProfileCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: Spacing.mdl,
+  },
+  travelerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    borderRadius: 20,
-    padding: Spacing.mdl,
-    overflow: 'hidden',
+    gap: 12,
   },
-  matchingIconWrap: {
+  travelerAvatarWrap: {
+    position: 'relative',
+  },
+  travelerAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  travelerAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  matchingTextWrap: {
+  travelerAvatarInitials: {
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+  },
+  travelerVerifiedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  travelerInfoCol: {
     flex: 1,
     gap: 2,
   },
-  matchingHeading: {
-    color: '#fff',
+  travelerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  travelerName: {
     fontSize: 15,
     fontWeight: FontWeight.bold,
   },
-  matchingSubheading: {
-    color: 'rgba(255,255,255,0.8)',
+  travelerRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingNumber: {
     fontSize: 12,
-    lineHeight: 16,
+    fontWeight: FontWeight.bold,
+  },
+  travelerSubtitle: {
+    fontSize: 12,
+  },
+
+  // "Can Carry" categories section
+  canCarryCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: Spacing.mdl,
+    gap: Spacing.md,
+  },
+  canCarryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  canCarryIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  canCarryTitle: {
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+  },
+  canCarrySub: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  canCarryPillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  canCarryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  canCarryPillText: {
+    fontSize: 11,
+    fontWeight: FontWeight.semibold,
+  },
+  canCarryMismatchBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  canCarryMismatchText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+
+  // Request Status Banner (for sender when request exists)
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: Spacing.mdl,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  statusBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBannerTitle: {
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+  },
+  statusBannerSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  statusBannerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+  },
+  statusBannerActionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
+
+  // Owner Summary Stats Strip
+  ownerStatsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  ownerStatItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  ownerStatVal: {
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+  },
+  ownerStatLbl: {
+    fontSize: 11,
+  },
+  ownerStatDiv: {
+    width: 1,
+    height: 24,
   },
 
   // Requests Section
@@ -360,15 +389,9 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  requestsTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   requestsTitle: {
-    fontSize: 18,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.3,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
   },
   requestsCountBadge: {
     paddingHorizontal: 8,
@@ -379,289 +402,46 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: FontWeight.bold,
   },
-  filterPillsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: FontWeight.semibold,
+  requestsList: {
+    gap: Spacing.sm,
   },
 
-  // Empty Requests
+  // Empty Requests Card
   emptyRequestsCard: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: 20,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: 16,
     borderWidth: 1,
-    gap: Spacing.sm,
-  },
-  emptyIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: FontWeight.bold,
     marginTop: 4,
   },
   emptySub: {
     fontSize: 12,
     textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 270,
+    maxWidth: 240,
   },
-  findParcelsEmptyBtn: {
+  browseParcelsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: BorderRadius.full,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
   },
-  findParcelsEmptyText: {
+  browseParcelsText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: FontWeight.bold,
   },
 
-  requestsList: {
-    gap: Spacing.md,
-  },
-
-  // Traveler Trust Profile Card
-  travelerProfileCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  },
-  travelerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  travelerAvatarWrap: {
-    position: 'relative',
-  },
-  travelerAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-  },
-  travelerAvatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  travelerAvatarInitials: {
-    fontSize: 20,
-    fontWeight: FontWeight.bold,
-  },
-  travelerVerifiedBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#2563EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  travelerInfoCol: {
-    flex: 1,
-  },
-  travelerNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  travelerName: {
-    fontSize: 17,
-    fontWeight: FontWeight.bold,
-  },
-  kycChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  kycChipText: {
-    fontSize: 10,
-    fontWeight: FontWeight.bold,
-    color: '#2563EB',
-  },
-  travelerRatingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  ratingNumber: {
-    fontSize: 13,
-    fontWeight: FontWeight.bold,
-  },
-  travelerTripsCount: {
-    fontSize: 12,
-  },
-  trustPointsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    borderTopWidth: 1,
-    paddingTop: Spacing.sm,
-  },
-  trustPointItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  trustPointText: {
-    fontSize: 12,
-    fontWeight: FontWeight.medium,
-  },
-  vehicleAmenitiesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingTop: 4,
-  },
-  amenityChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  amenityChipText: {
-    fontSize: 11,
-    fontWeight: FontWeight.semibold,
-  },
-
-  // What Traveler Allows To Carry Card
-  allowsToCarryCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  },
-  allowsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  allowsIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  allowsHeaderTitle: {
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
-  },
-  allowsHeaderSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  dimensionsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  dimensionsTitle: {
-    fontSize: 13,
-    fontWeight: FontWeight.bold,
-  },
-  dimensionsSub: {
-    fontSize: 11,
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  allowsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryCheckPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  categoryCheckText: {
-    fontSize: 12,
-    fontWeight: FontWeight.semibold,
-  },
-  prohibitedBox: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: Spacing.md,
-    gap: 4,
-  },
-  prohibitedTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  prohibitedTitle: {
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  prohibitedText: {
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  parcelCompatibilityBox: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: Spacing.md,
-    gap: 4,
-  },
-  parcelCompatTitle: {
-    fontSize: 13,
-    fontWeight: FontWeight.bold,
-  },
-  parcelCompatSub: {
-    fontSize: 12,
-  },
-
-  // Fixed Bottom Action Bar for Senders
+  // Fixed Bottom Bar (for sender)
   fixedBottomBar: {
     position: 'absolute',
     bottom: 0,
@@ -670,48 +450,57 @@ export const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 8,
   },
   bottomBarInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
-  negotiateBtn: {
-    flex: 1,
-    height: 50,
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+  bottomPriceCol: {
+    gap: 1,
   },
-  negotiateBtnText: {
-    fontSize: 15,
+  bottomPriceLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+  },
+  bottomPriceAmount: {
+    fontSize: 18,
     fontWeight: FontWeight.bold,
   },
-  bookTripBtn: {
-    flex: 1.3,
-    height: 50,
-    borderRadius: 14,
+  bottomRateSub: {
+    fontSize: 10,
+  },
+  bottomActionsRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    gap: 8,
+    justifyContent: 'flex-end',
   },
-  bookTripBtnText: {
+  negotiateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  negotiateBtnText: {
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+  },
+  requestDeliveryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: BorderRadius.full,
+  },
+  requestDeliveryBtnText: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: FontWeight.extrabold,
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
   },
 });

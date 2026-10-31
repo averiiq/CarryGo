@@ -1,16 +1,36 @@
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, RefreshControl } from 'react-native';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Animated,
+  RefreshControl,
+  TextInput,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
+import {
+  FontSize,
+  FontWeight,
+  Spacing,
+  BorderRadius,
+  TouchTarget,
+  TabBarGeometry,
+  StatusBarGeometry,
+} from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
-import { useConversationsQuery, useConversationsRealtime, useDeleteConversationMutation } from '@/features/conversations/queries';
+import {
+  useConversationsQuery,
+  useConversationsRealtime,
+  useDeleteConversationMutation,
+} from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { AsyncStateCard, OfflineBanner } from '@/components';
 import { useAlert } from '@/template';
@@ -19,22 +39,29 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn } from '@/hooks/useAnimations';
 import { formatRelative } from '@/lib/dateFormat';
 import { getUserErrorMessage } from '@/lib/error-handler';
-import { Conversation } from '@/types';
+import { Conversation, Request } from '@/types';
 import { ProductIllustration } from '@/components/illustrations';
-
-type ConversationFilter = 'all' | 'unread';
+import { resolveImageUrl } from '@/constants/images';
 
 interface ConversationRowModel {
   id: string;
+  requestId: string;
   displayName: string;
   displayInitial: string;
   avatarUri?: string;
   routeLabel: string;
+  fromCity?: string;
+  toCity?: string;
   previewText: string;
   previewTimeLabel: string;
   previewTimeValue: number;
+  lastMessageSenderId?: string;
+  isLastMessageFromMe: boolean;
   isUnread: boolean;
+  status: 'pending' | 'accepted' | 'completed' | 'rejected' | 'cancelled';
+  isActiveDelivery: boolean;
   isCompleted: boolean;
+  counterpartRole: 'traveller' | 'sender';
 }
 
 function safeText(value: unknown, fallback: string) {
@@ -57,7 +84,7 @@ function formatConversationTime(timestamp?: string) {
 function toConversationRowModel(
   conversation: Conversation,
   userId: string,
-  completedRequestIds: Set<string>
+  requestMap: Map<string, Request>
 ): ConversationRowModel | null {
   const participantNames =
     conversation.participantNames && typeof conversation.participantNames === 'object'
@@ -65,167 +92,227 @@ function toConversationRowModel(
       : {};
 
   const participantIds = Array.isArray(conversation.participants)
-    ? conversation.participants.filter(id => typeof id === 'string')
+    ? conversation.participants.filter((id) => typeof id === 'string')
     : [];
 
-  const isParticipant = participantIds.includes(userId) || Object.prototype.hasOwnProperty.call(participantNames, userId);
+  const isParticipant =
+    participantIds.includes(userId) || Object.prototype.hasOwnProperty.call(participantNames, userId);
   if (!isParticipant) return null;
 
   const namedOtherEntry = Object.entries(participantNames).find(
     ([participantId, participantName]) =>
       participantId !== userId && typeof participantName === 'string' && participantName.trim().length > 0
   );
-  const unnamedOtherId = participantIds.find(participantId => participantId !== userId);
+  const unnamedOtherId = participantIds.find((participantId) => participantId !== userId);
 
-  const displayName = safeText(namedOtherEntry?.[1], unnamedOtherId ? 'User' : 'Traveller');
+  const req = requestMap.get(conversation.requestId);
+  const isSender = req ? req.senderId === userId : false;
+  const counterpartRole: 'traveller' | 'sender' = isSender ? 'traveller' : 'sender';
+
+  let rawName = namedOtherEntry?.[1];
+  if (!rawName && req) {
+    rawName = isSender ? req.travellerName : req.senderName;
+  }
+  const displayName = safeText(rawName, unnamedOtherId ? 'Delivery Partner' : 'Traveler');
   const displayInitial = displayName.charAt(0)?.toUpperCase() || 'U';
-  const otherUserId = namedOtherEntry?.[0] || unnamedOtherId;
+
+  const otherUserId = namedOtherEntry?.[0] || unnamedOtherId || (isSender ? req?.travellerId : req?.senderId);
   const participantAvatars = (conversation as any).participantAvatars || {};
-  const avatarUri = otherUserId ? participantAvatars[otherUserId] : undefined;
-  const previewText = safeText(conversation.lastMessage?.text, 'Start the conversation');
-  const routeLabel = safeText(conversation.route, 'Delivery chat');
+  let avatarUri = otherUserId ? participantAvatars[otherUserId] : undefined;
+  if (!avatarUri && req) {
+    avatarUri = isSender
+      ? ((req as any).travellerSelfieUrl || req.travellerAvatar)
+      : ((req as any).senderSelfieUrl || req.senderAvatar);
+  }
+  avatarUri = resolveImageUrl(avatarUri);
+
+  const previewText = safeText(conversation.lastMessage?.text, 'Tap to open conversation');
+  const fromCity = req?.fromCity || '';
+  const toCity = req?.toCity || '';
+  const routeLabel = fromCity && toCity
+    ? `${fromCity} ➔ ${toCity}`
+    : safeText(conversation.route, '');
+
   const previewTimeValue = getLastTimestampValue(conversation.lastMessage?.timestamp);
+  const lastMessageSenderId = conversation.lastMessage?.senderId;
+  const isLastMessageFromMe = Boolean(lastMessageSenderId && lastMessageSenderId === userId);
+
+  const isUnread = Boolean(
+    conversation.lastMessage &&
+    !conversation.lastMessage.read &&
+    conversation.lastMessage.senderId !== userId
+  );
+
+  const status = req?.status || (conversation.lastMessage ? 'pending' : 'pending');
+  const isActiveDelivery = status === 'accepted';
+  const isCompleted = status === 'completed';
 
   return {
     id: conversation.id,
+    requestId: conversation.requestId,
     displayName,
     displayInitial,
     avatarUri,
     routeLabel,
+    fromCity,
+    toCity,
     previewText,
     previewTimeLabel: formatConversationTime(conversation.lastMessage?.timestamp),
     previewTimeValue,
-    isUnread: Boolean(
-      conversation.lastMessage &&
-      !conversation.lastMessage.read &&
-      conversation.lastMessage.senderId !== userId
-    ),
-    isCompleted: completedRequestIds.has(conversation.requestId),
+    lastMessageSenderId,
+    isLastMessageFromMe,
+    isUnread,
+    status: status as any,
+    isActiveDelivery,
+    isCompleted,
+    counterpartRole,
   };
 }
 
-const ItemSeparator = () => <View style={{ height: Spacing.sm }} />;
+const ItemSeparator = () => <View style={styles.itemSeparator} />;
 
 const ConversationRowItem = React.memo(function ConversationRowItem({
   item,
-  index,
   isTablet,
   C,
   onOpen,
   onDelete,
-  onActiveNotice,
 }: {
   item: ConversationRowModel;
-  index: number;
   isTablet: boolean;
   C: any;
   onOpen: (id: string) => void;
   onDelete: (item: ConversationRowModel) => void;
-  onActiveNotice: (item: ConversationRowModel) => void;
 }) {
-  const topMargin = index === 0 ? Spacing.sm : 0;
-
   const renderSwipeActions = useCallback(() => (
     <View style={styles.swipeActionsContainer}>
-      {item.isCompleted ? (
-        <Pressable
-          onPress={() => onDelete(item)}
-          style={({ pressed }) => [
-            styles.swipeDeleteBtn,
-            { backgroundColor: C.error },
-            pressed && { opacity: 0.82, transform: [{ scale: 0.96 }] },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={`Delete completed chat with ${item.displayName}`}
-        >
-          <MaterialIcons name="delete-outline" size={24} color="#FFFFFF" />
-          <Text style={styles.swipeDeleteText}>Delete</Text>
-        </Pressable>
-      ) : (
-        <Pressable
-          onPress={() => onActiveNotice(item)}
-          style={({ pressed }) => [
-            styles.swipeLockedBtn,
-            { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-            pressed && { opacity: 0.82 },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Active delivery - cannot delete yet"
-        >
-          <MaterialIcons name="lock-outline" size={20} color={C.textMuted} />
-          <Text style={[styles.swipeLockedText, { color: C.textMuted }]}>In Transit</Text>
-        </Pressable>
-      )}
+      <Pressable
+        onPress={() => onDelete(item)}
+        style={({ pressed }) => [
+          styles.swipeDeleteBtn,
+          { backgroundColor: C.error },
+          pressed && { opacity: 0.85 },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Delete conversation with ${item.displayName}`}
+      >
+        <MaterialIcons name="delete-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.swipeDeleteText}>Delete</Text>
+      </Pressable>
     </View>
-  ), [item, C.error, C.surfaceElevated, C.surfaceBorder, C.textMuted, onDelete, onActiveNotice]);
+  ), [item, C.error, onDelete]);
 
   return (
     <View style={isTablet ? styles.tabletContainer : undefined}>
       <Swipeable
         rightThreshold={36}
         renderRightActions={renderSwipeActions}
-        containerStyle={{ overflow: 'hidden', borderRadius: BorderRadius.xl }}
+        containerStyle={{ overflow: 'hidden', borderRadius: BorderRadius.lg }}
       >
         <Pressable
           style={({ pressed }) => [
-            styles.convItem,
-            { marginTop: topMargin, backgroundColor: C.card, borderColor: item.isUnread ? C.primary + '55' : C.surfaceBorder },
-            item.isUnread && { borderLeftWidth: 3, borderLeftColor: C.primary },
-            pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+            styles.convCard,
+            {
+              backgroundColor: C.surface,
+              borderColor: item.isUnread ? C.primary + '30' : C.surfaceBorder,
+            },
+            pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] },
           ]}
           onPress={() => onOpen(item.id)}
         >
-          <View
-            style={[
-              styles.avatar,
-              {
-                backgroundColor: item.isUnread ? C.primarySubtle : C.surfaceElevated,
-                borderColor: item.isUnread ? C.primary + '44' : C.surfaceBorder,
-              },
-            ]}
-          >
-            {item.avatarUri ? (
-              <Image
-                source={{ uri: item.avatarUri }}
-                style={{ width: '100%', height: '100%', borderRadius: 24 }}
-                contentFit="cover"
-                transition={200}
-              />
-            ) : (
-              <Text style={[styles.avatarInitial, { color: item.isUnread ? C.primary : C.textSecondary }]}>{item.displayInitial}</Text>
-            )}
+          {/* Avatar with subtle unread indicator */}
+          <View style={styles.avatarWrap}>
+            <View
+              style={[
+                styles.avatarCircle,
+                {
+                  backgroundColor: C.primarySubtle,
+                  borderColor: C.surfaceBorder,
+                },
+              ]}
+            >
+              {item.avatarUri ? (
+                <Image
+                  source={{ uri: item.avatarUri }}
+                  style={styles.avatarImg}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <Text style={[styles.avatarText, { color: C.primary }]}>
+                  {item.displayInitial}
+                </Text>
+              )}
+            </View>
             {item.isUnread ? (
-              <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card }]} />
+              <View
+                style={[
+                  styles.unreadDot,
+                  { backgroundColor: C.primary, borderColor: C.surface },
+                ]}
+              />
             ) : null}
           </View>
 
-          <View style={styles.convInfo}>
-            <View style={styles.convTop}>
-              <Text style={[styles.convName, { color: C.textPrimary }, item.isUnread && { fontWeight: FontWeight.bold }]} numberOfLines={1}>
+          {/* Details */}
+          <View style={styles.convDetails}>
+            {/* Top Row: Name and Time */}
+            <View style={styles.nameTimeRow}>
+              <Text
+                style={[
+                  styles.displayName,
+                  { color: C.textPrimary },
+                  item.isUnread && styles.displayNameUnread,
+                ]}
+                numberOfLines={1}
+              >
                 {item.displayName}
               </Text>
-              <Text style={[styles.convTime, { color: item.isUnread ? C.primary : C.textMuted }]}>{item.previewTimeLabel}</Text>
-            </View>
-
-            <View style={[styles.routePill, { backgroundColor: item.isCompleted ? C.successSubtle : C.primarySubtle }]}>
-              <MaterialIcons name={item.isCompleted ? 'verified' : 'route'} size={10} color={item.isCompleted ? C.success : C.primary} />
-              <Text style={[styles.routeText, { color: item.isCompleted ? C.success : C.primary }]} numberOfLines={1}>
-                {item.isCompleted ? `${item.routeLabel} · Completed` : item.routeLabel}
+              <Text
+                style={[
+                  styles.timeLabel,
+                  { color: item.isUnread ? C.primary : C.textMuted },
+                  item.isUnread && { fontWeight: FontWeight.semibold },
+                ]}
+              >
+                {item.previewTimeLabel}
               </Text>
             </View>
 
-            <Text style={[styles.lastMsg, { color: item.isUnread ? C.textPrimary : C.textMuted }]} numberOfLines={1}>
-              {item.previewText}
-            </Text>
+            {/* Context Subtitle: Route & Delivery Status */}
+            {item.routeLabel ? (
+              <Text style={[styles.routeSubtitle, { color: C.textMuted }]} numberOfLines={1}>
+                {item.routeLabel}
+                {item.isActiveDelivery ? ' • In Transit' : ''}
+              </Text>
+            ) : null}
+
+            {/* Message Preview */}
+            <View style={styles.previewRow}>
+              {item.isLastMessageFromMe ? (
+                <MaterialIcons
+                  name="done-all"
+                  size={14}
+                  color={item.isUnread ? C.textMuted : C.primary}
+                  style={styles.ticksIcon}
+                />
+              ) : null}
+              <Text
+                style={[
+                  styles.previewText,
+                  {
+                    color: item.isUnread ? C.textPrimary : C.textSecondary,
+                    fontWeight: item.isUnread ? FontWeight.semibold : FontWeight.regular,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {item.isLastMessageFromMe ? `You: ${item.previewText}` : item.previewText}
+              </Text>
+            </View>
           </View>
 
-          {item.isUnread ? (
-            <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
-              <Text style={styles.unreadText}>NEW</Text>
-            </View>
-          ) : (
-            <MaterialIcons name="chevron-right" size={17} color={C.surfaceBorderLight} />
-          )}
+          <Feather name="chevron-right" size={16} color={C.textMuted} style={styles.chevronIcon} />
         </Pressable>
       </Swipeable>
     </View>
@@ -235,33 +322,40 @@ const ConversationRowItem = React.memo(function ConversationRowItem({
 export default function MessagesScreen() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const conversationsQuery = useConversationsQuery(user?.id);
-  const { mutateAsync: deleteConversationAsync } = useDeleteConversationMutation(user?.id);
-  const requestsQuery = useRequestsQuery(user?.id);
-  const conversations = useMemo(() => (user ? conversationsQuery.data ?? [] : []), [conversationsQuery.data, user]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
   const { isOnline } = useNetworkStatus();
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<ConversationFilter>('all');
-  const headerEntrance = useFadeIn(0, 420);
-  const listEntrance = useFadeIn(120, 420);
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const { isSmallDevice, isTablet } = useResponsive();
 
-  const completedRequestIds = useMemo(() => {
-    const set = new Set<string>();
-    (requestsQuery.data || []).forEach(r => {
-      if (r.status === 'completed') set.add(r.id);
+  const conversationsQuery = useConversationsQuery(user?.id);
+  const { mutateAsync: deleteConversationAsync } = useDeleteConversationMutation(user?.id);
+  const requestsQuery = useRequestsQuery(user?.id);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const headerEntrance = useFadeIn(0, 300);
+  const listEntrance = useFadeIn(80, 300);
+
+  // Map requests by requestId for instant O(1) enrichment
+  const requestMap = useMemo(() => {
+    const map = new Map<string, Request>();
+    (requestsQuery.data || []).forEach((r) => {
+      if (r.id) map.set(r.id, r);
     });
-    return set;
+    return map;
   }, [requestsQuery.data]);
+
+  const rawConversations = useMemo(
+    () => (user ? conversationsQuery.data ?? [] : []),
+    [conversationsQuery.data, user]
+  );
 
   const conversationRows = useMemo(() => {
     if (!user?.id) return [];
 
-    return conversations
-      .map(conversation => toConversationRowModel(conversation, user.id, completedRequestIds))
+    return rawConversations
+      .map((conv) => toConversationRowModel(conv, user.id, requestMap))
       .filter((row): row is ConversationRowModel => Boolean(row))
       .sort((a, b) => {
         if (a.previewTimeValue === b.previewTimeValue) {
@@ -269,37 +363,40 @@ export default function MessagesScreen() {
         }
         return b.previewTimeValue - a.previewTimeValue;
       });
-  }, [conversations, user?.id, completedRequestIds]);
+  }, [rawConversations, user?.id, requestMap]);
 
-  const unreadCount = useMemo(() => conversationRows.filter(row => row.isUnread).length, [conversationRows]);
-  const visibleRows = useMemo(
-    () => (activeFilter === 'unread' ? conversationRows.filter(row => row.isUnread) : conversationRows),
-    [activeFilter, conversationRows]
+  const unreadCount = useMemo(
+    () => conversationRows.filter((r) => r.isUnread).length,
+    [conversationRows]
   );
-  const firstUnread = useMemo(() => conversationRows.find(row => row.isUnread), [conversationRows]);
 
-  const heroTranslateY = scrollY.interpolate({
-    inputRange: [0, 180],
-    outputRange: [0, -12],
-    extrapolate: 'clamp',
-  });
+  // Fast client search across names, routes, cities, and preview text
+  const filteredRows = useMemo(() => {
+    const cleanSearch = searchQuery.trim().toLowerCase();
+    if (!cleanSearch) return conversationRows;
 
-  useEffect(() => {
-    if (conversationRows.length === 0 && activeFilter !== 'all') {
-      setActiveFilter('all');
-    }
-  }, [conversationRows.length, activeFilter]);
+    return conversationRows.filter(
+      (r) =>
+        r.displayName.toLowerCase().includes(cleanSearch) ||
+        r.routeLabel.toLowerCase().includes(cleanSearch) ||
+        (r.fromCity && r.fromCity.toLowerCase().includes(cleanSearch)) ||
+        (r.toCity && r.toCity.toLowerCase().includes(cleanSearch)) ||
+        r.previewText.toLowerCase().includes(cleanSearch)
+    );
+  }, [conversationRows, searchQuery]);
+
+  useConversationsRealtime(user?.id);
 
   const handleRefresh = useCallback(async () => {
     if (!user?.id) return;
     setRefreshing(true);
     try {
-      await conversationsQuery.refetch();
+      await Promise.all([conversationsQuery.refetch(), requestsQuery.refetch()]);
       Haptic.success();
     } finally {
       setRefreshing(false);
     }
-  }, [conversationsQuery, user?.id]);
+  }, [conversationsQuery, requestsQuery, user?.id]);
 
   const openConversation = useCallback(
     (conversationId: string) => {
@@ -311,32 +408,20 @@ export default function MessagesScreen() {
     [router]
   );
 
-  const handleFilterPress = useCallback((filter: ConversationFilter) => {
-    if (filter === activeFilter) return;
-    Haptic.select();
-    setActiveFilter(filter);
-  }, [activeFilter]);
-
-  const handleHeroAction = useCallback(() => {
-    if (firstUnread) {
-      openConversation(firstUnread.id);
-      return;
-    }
-
-    Haptic.confirm();
-    router.push('/create-parcel');
-  }, [firstUnread, openConversation, router]);
-
-  useConversationsRealtime(user?.id);
-
-  const { isSmallDevice, isTablet } = useResponsive();
-
   const handleDeleteConversation = useCallback(
     (item: ConversationRowModel) => {
       Haptic.warning();
+      if (item.isActiveDelivery) {
+        showAlert(
+          'Active Delivery',
+          'Chats with active, in-transit deliveries cannot be deleted until custody is completed.'
+        );
+        return;
+      }
+
       showAlert(
         'Delete Conversation',
-        `Are you sure you want to delete the entire chat with ${item.displayName}? All message history with this person will be permanently removed.`,
+        `Delete your conversation with ${item.displayName}? This action cannot be undone.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -345,10 +430,9 @@ export default function MessagesScreen() {
             onPress: async () => {
               try {
                 await deleteConversationAsync(item.id);
-                Haptic.success();
-              } catch (err) {
-                Haptic.error();
-                showAlert('Could Not Delete', getUserErrorMessage(err, 'Failed to delete this conversation.'));
+                Haptic.confirm();
+              } catch (err: any) {
+                showAlert('Error', err?.message || 'Could not delete conversation.');
               }
             },
           },
@@ -358,123 +442,71 @@ export default function MessagesScreen() {
     [deleteConversationAsync, showAlert]
   );
 
-  const handleActiveChatNotice = useCallback(
-    (item: ConversationRowModel) => {
-      Haptic.warning();
-      showAlert(
-        'Delivery In Progress',
-        `This conversation is for an active delivery (${item.routeLabel}). Chats can only be deleted once the delivery has been completed and verified.`
-      );
-    },
-    [showAlert]
-  );
-
   const renderItem = useCallback(
-    ({ item, index }: { item: ConversationRowModel; index: number }) => (
+    ({ item }: { item: ConversationRowModel }) => (
       <ConversationRowItem
         item={item}
-        index={index}
         isTablet={isTablet}
         C={C}
         onOpen={openConversation}
         onDelete={handleDeleteConversation}
-        onActiveNotice={handleActiveChatNotice}
       />
     ),
-    [isTablet, C, openConversation, handleDeleteConversation, handleActiveChatNotice]
+    [isTablet, C, openConversation, handleDeleteConversation]
   );
 
   const keyExtractor = useCallback((item: ConversationRowModel) => item.id, []);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
+      {/* ── Minimal Header ──────────────────────────────────────────── */}
       <Animated.View
         style={[
           styles.header,
           isTablet && styles.tabletContainer,
           {
-            paddingTop: insets.top + Spacing.sm,
+            paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.sm),
             opacity: headerEntrance.opacity,
-            transform: [...headerEntrance.transform, { translateY: heroTranslateY }],
+            transform: headerEntrance.transform,
           },
         ]}
       >
         <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Messages</Text>
-            <Text style={[styles.pageSubtitle, { color: C.textMuted }]}> 
-              {unreadCount > 0
-                ? `${unreadCount} unread • ${conversationRows.length} total conversations`
-                : conversationRows.length > 0
-                  ? `${conversationRows.length} active delivery conversations`
-                  : 'Direct coordinate chat with delivery partners'}
-            </Text>
-          </View>
-
-          <View style={styles.headerActionRow}>
-            {unreadCount > 0 ? (
-              <View style={[styles.unreadPill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '44' }]}>
-                <View style={[styles.unreadDot, { backgroundColor: C.primary }]} />
-                <Text style={[styles.unreadPillText, { color: C.primaryDark }]}>{unreadCount} New</Text>
-              </View>
-            ) : (
-              <View style={[styles.unreadPill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-                <MaterialIcons name="done-all" size={13} color={C.primary} />
-                <Text style={[styles.unreadPillText, { color: C.primary }]}>All Read</Text>
-              </View>
-            )}
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.refreshBtn,
-                { backgroundColor: C.card, borderColor: C.surfaceBorder },
-                pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
-              ]}
-              onPress={handleRefresh}
-              hitSlop={TouchTarget.smallHitSlop}
-              accessibilityLabel="Refresh messages"
-            >
-              <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
-            </Pressable>
-          </View>
+          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Messages</Text>
+          {unreadCount > 0 ? (
+            <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
+              <Text style={styles.unreadBadgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount} new
+              </Text>
+            </View>
+          ) : null}
         </View>
 
+        {/* Clean, single search input */}
         {conversationRows.length > 0 ? (
-          <View style={[styles.filterSegment, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <Pressable
-              style={[
-                styles.segmentItem,
-                { backgroundColor: activeFilter === 'all' ? C.primary : 'transparent' },
-              ]}
-              hitSlop={TouchTarget.smallHitSlop}
-              onPress={() => handleFilterPress('all')}
-            >
-              <Text
-                style={[
-                  styles.segmentText,
-                  { color: activeFilter === 'all' ? '#FFFFFF' : C.textSecondary, fontWeight: activeFilter === 'all' ? FontWeight.bold : FontWeight.medium },
-                ]}
+          <View style={[styles.searchBar, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <Feather name="search" size={15} color={C.textMuted} style={styles.searchIcon} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search messages or routes..."
+              placeholderTextColor={C.textMuted}
+              style={[styles.searchInput, { color: C.textPrimary }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
+            {searchQuery ? (
+              <Pressable
+                onPress={() => setSearchQuery('')}
+                hitSlop={TouchTarget.smallHitSlop}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                style={styles.clearSearchBtn}
               >
-                All Chats ({conversationRows.length})
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.segmentItem,
-                { backgroundColor: activeFilter === 'unread' ? C.primary : 'transparent' },
-              ]}
-              hitSlop={TouchTarget.smallHitSlop}
-              onPress={() => handleFilterPress('unread')}
-            >
-              <Text
-                style={[
-                  styles.segmentText,
-                  { color: activeFilter === 'unread' ? '#FFFFFF' : C.textSecondary, fontWeight: activeFilter === 'unread' ? FontWeight.bold : FontWeight.medium },
-                ]}
-              >
-                Unread ({unreadCount})
-              </Text>
-            </Pressable>
+                <Ionicons name="close-circle" size={16} color={C.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
       </Animated.View>
@@ -485,23 +517,39 @@ export default function MessagesScreen() {
         </View>
       ) : null}
 
-      <Animated.View style={{ flex: 1, opacity: listEntrance.opacity, transform: listEntrance.transform }}>
+      {/* ── Main List Content ─────────────────────────────────────────── */}
+      <Animated.View
+        style={[
+          { flex: 1 },
+          { opacity: listEntrance.opacity, transform: listEntrance.transform },
+        ]}
+      >
         {!user ? (
-          <View style={[styles.stateWrap, { paddingBottom: insets.bottom + 90 }]}> 
+          <View
+            style={[
+              styles.stateWrap,
+              { paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) },
+            ]}
+          >
             <AsyncStateCard
               C={C}
               icon="person-outline"
               title="Sign in required"
-              message="Sign in to access your delivery conversations."
+              message="Sign in to access your direct delivery conversations."
             />
           </View>
         ) : conversationsQuery.error ? (
-          <View style={[styles.stateWrap, { paddingBottom: insets.bottom + 100 }]}>
+          <View
+            style={[
+              styles.stateWrap,
+              { paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) },
+            ]}
+          >
             <AsyncStateCard
               C={C}
               icon="cloud-off"
               title="Could not load messages"
-              message={getUserErrorMessage(conversationsQuery.error, 'Refresh and try again.')}
+              message={getUserErrorMessage(conversationsQuery.error, 'Please pull to refresh and try again.')}
               actionLabel="Retry"
               onAction={() => {
                 void conversationsQuery.refetch();
@@ -509,77 +557,51 @@ export default function MessagesScreen() {
             />
           </View>
         ) : conversationsQuery.isLoading ? (
-          <View style={[styles.stateWrap, { paddingBottom: insets.bottom + 100 }]}>
+          <View
+            style={[
+              styles.stateWrap,
+              { paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) },
+            ]}
+          >
             <AsyncStateCard
               C={C}
               icon="sync"
               title="Loading messages..."
-              message="Checking your delivery conversations."
+              message="Fetching your encrypted delivery conversations."
             />
           </View>
-        ) : visibleRows.length === 0 ? (
-          <View style={[styles.emptyWrap, { paddingBottom: insets.bottom + 100 }]}>
+        ) : filteredRows.length === 0 ? (
+          <View
+            style={[
+              styles.emptyWrap,
+              { paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) },
+            ]}
+          >
             <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <ProductIllustration variant="chat" size={184} />
-              <Text style={[styles.emptyTitle, { color: C.textSecondary }]}> 
-                {conversationRows.length > 0 && activeFilter === 'unread' ? 'No unread messages' : 'No conversations yet'}
-              </Text>
-              <Text style={[styles.emptySubtext, { color: C.textMuted }]}> 
-                {conversationRows.length > 0 && activeFilter === 'unread'
-                  ? 'You are all caught up. Switch to All to view conversation history.'
-                  : 'Accept a request or send a parcel to start chatting with travellers.'}
-              </Text>
-              {conversationRows.length > 0 && activeFilter === 'unread' ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.emptyCTA,
-                    {
-                      backgroundColor: C.primaryDark,
-                      opacity: pressed ? 0.88 : 1,
-                      transform: [{ scale: pressed ? 0.97 : 1 }],
-                    },
-                  ]}
-                  onPress={() => handleFilterPress('all')}
-                >
-                  <MaterialIcons name="forum" size={15} color="#fff" />
-                  <Text style={styles.emptyCTAText}>View All Conversations</Text>
-                </Pressable>
-              ) : (
+              {searchQuery ? (
                 <>
+                  <Feather name="search" size={28} color={C.textMuted} style={{ marginBottom: 4 }} />
+                  <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No matches</Text>
+                  <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
+                    No conversations matching "{searchQuery}"
+                  </Text>
                   <Pressable
                     style={({ pressed }) => [
                       styles.emptyCTA,
-                      {
-                        backgroundColor: C.primaryDark,
-                        opacity: pressed ? 0.88 : 1,
-                        transform: [{ scale: pressed ? 0.97 : 1 }],
-                      },
+                      { backgroundColor: C.primary, opacity: pressed ? 0.9 : 1 },
                     ]}
-                    onPress={() => {
-                      Haptic.confirm();
-                      router.push('/create-parcel');
-                    }}
+                    onPress={() => setSearchQuery('')}
                   >
-                    <MaterialIcons name="inventory-2" size={15} color="#fff" />
-                    <Text style={styles.emptyCTAText}>Send a Parcel</Text>
+                    <Text style={styles.emptyCTAText}>Clear Search</Text>
                   </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.emptySecBtn,
-                      {
-                        borderColor: C.surfaceBorder,
-                        backgroundColor: C.surfaceElevated,
-                        opacity: pressed ? 0.8 : 1,
-                      },
-                    ]}
-                    onPress={() => {
-                      Haptic.tap();
-                      router.push('/create-trip');
-                    }}
-                  >
-                    <MaterialIcons name="directions-car" size={15} color={C.textSecondary} />
-                    <Text style={[styles.emptySecBtnText, { color: C.textSecondary }]}>Post a Trip</Text>
-                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <ProductIllustration variant="chat" size={130} />
+                  <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Messages Yet</Text>
+                  <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
+                    When you request a parcel delivery or coordinate a trip, your chats will appear here.
+                  </Text>
                 </>
               )}
             </View>
@@ -587,23 +609,17 @@ export default function MessagesScreen() {
         ) : (
           <FlashList
             keyboardDismissMode="on-drag"
-            data={visibleRows}
-            extraData={activeFilter}
+            data={filteredRows}
             keyExtractor={keyExtractor}
             renderItem={renderItem}
-            estimatedItemSize={92}
+            estimatedItemSize={84}
             contentContainerStyle={{
               paddingHorizontal: Spacing.md,
-              paddingTop: Spacing.sm,
-              paddingBottom: insets.bottom + 110,
+              paddingTop: Spacing.xs,
+              paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet),
             }}
             showsVerticalScrollIndicator={false}
             ItemSeparatorComponent={ItemSeparator}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: false }
-            )}
-            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -623,136 +639,166 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
-    overflow: 'hidden',
+    paddingBottom: Spacing.xs,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.sm,
+    paddingVertical: 4,
   },
   pageTitle: {
     fontSize: FontSize.xxl,
     fontWeight: FontWeight.bold,
     letterSpacing: -0.4,
   },
-  pageSubtitle: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
-    fontWeight: FontWeight.medium,
-  },
-  headerActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs + 2,
-  },
-  unreadPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+  unreadBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
   },
-  unreadDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  unreadPillText: {
+  unreadBadgeText: {
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: FontWeight.bold,
   },
-  refreshBtn: {
-    width: 40,
+
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     height: 40,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingHorizontal: Spacing.sm + 2,
+    gap: Spacing.xs + 2,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
-
-  tabletContainer: {
-    maxWidth: 620,
-    width: '100%',
-    alignSelf: 'center',
+  searchIcon: {
+    marginLeft: 2,
   },
-
-  filterSegment: {
-    flexDirection: 'row',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    padding: 3,
-    gap: 3,
-    marginTop: Spacing.md,
-  },
-  segmentItem: {
+  searchInput: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: BorderRadius.md - 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentText: {
     fontSize: FontSize.sm - 0.5,
-    letterSpacing: -0.1,
+    paddingVertical: 0,
+  },
+  clearSearchBtn: {
+    padding: 2,
   },
 
-  list: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
-  stateWrap: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+  itemSeparator: {
+    height: Spacing.xs + 2,
+  },
 
-  convItem: {
+  convCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.mdl,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
+    gap: Spacing.sm + 2,
   },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  avatarWrap: {
+    position: 'relative',
+    width: 44,
+    height: 44,
+  },
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
     borderWidth: 1,
+    overflow: 'hidden',
   },
-  avatarInitial: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  onlineDot: {
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarText: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  unreadDot: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    borderWidth: 2,
+    top: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
   },
-  convInfo: { flex: 1, gap: 3 },
-  convTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
-  convName: { flex: 1, fontSize: FontSize.md, fontWeight: FontWeight.semibold, letterSpacing: -0.2 },
-  convTime: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  routePill: {
+
+  convDetails: {
+    flex: 1,
+    gap: 2,
+  },
+  nameTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.full,
+    justifyContent: 'space-between',
+    gap: Spacing.xs,
   },
-  routeText: { fontSize: 10, fontWeight: FontWeight.semibold, maxWidth: 170 },
-  lastMsg: { fontSize: FontSize.sm, lineHeight: 20 },
-  unreadBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  unreadText: { fontSize: 9, color: '#fff', fontWeight: '800', letterSpacing: 0.5 },
+  displayName: {
+    fontSize: FontSize.sm + 0.5,
+    fontWeight: FontWeight.medium,
+    flex: 1,
+  },
+  displayNameUnread: {
+    fontWeight: FontWeight.bold,
+  },
+  timeLabel: {
+    fontSize: 11,
+  },
 
+  routeSubtitle: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+  },
+
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ticksIcon: {
+    marginRight: 1,
+  },
+  previewText: {
+    flex: 1,
+    fontSize: FontSize.xs + 0.5,
+    lineHeight: 16,
+  },
+  chevronIcon: {
+    opacity: 0.5,
+    marginLeft: 2,
+  },
+
+  swipeActionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginVertical: 1,
+    marginLeft: 6,
+  },
+  swipeDeleteBtn: {
+    width: 72,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  swipeDeleteText: {
+    color: '#FFFFFF',
+    fontWeight: FontWeight.bold,
+    fontSize: 11,
+  },
+
+  stateWrap: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+  },
   emptyWrap: {
     flex: 1,
     paddingHorizontal: Spacing.md,
@@ -763,65 +809,35 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold },
-  emptySubtext: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 22, maxWidth: 260 },
+  emptyTitle: {
+    fontSize: FontSize.md + 1,
+    fontWeight: FontWeight.bold,
+  },
+  emptySubtext: {
+    fontSize: FontSize.xs + 0.5,
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 260,
+  },
   emptyCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm + 4,
+    paddingHorizontal: Spacing.md + 2,
+    paddingVertical: Spacing.xs + 3,
     borderRadius: BorderRadius.full,
-    marginTop: Spacing.sm,
-    width: '100%',
-    justifyContent: 'center',
+    marginTop: Spacing.xs,
   },
-  emptyCTAText: { color: '#fff', fontWeight: FontWeight.semibold, fontSize: FontSize.sm },
-  emptySecBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm + 4,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  emptySecBtnText: { fontWeight: FontWeight.semibold, fontSize: FontSize.sm },
-  swipeActionsContainer: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    marginVertical: 4,
-    marginLeft: 8,
-  },
-  swipeDeleteBtn: {
-    width: 80,
-    borderRadius: BorderRadius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  swipeDeleteText: {
-    color: '#FFFFFF',
+  emptyCTAText: {
+    color: '#fff',
     fontWeight: FontWeight.bold,
     fontSize: FontSize.xs,
   },
-  swipeLockedBtn: {
-    width: 80,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  swipeLockedText: {
-    fontWeight: FontWeight.medium,
-    fontSize: FontSize.xs,
+
+  tabletContainer: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
   },
 });
-

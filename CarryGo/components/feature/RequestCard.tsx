@@ -13,6 +13,7 @@ export interface RequestCardProps {
   request: Request;
   type: 'incoming' | 'outgoing';
   currentUserId?: string;
+  isPaid?: boolean;
   onPress?: () => void;
   onAccept?: () => void;
   onReject?: () => void;
@@ -192,11 +193,13 @@ export function getRequestCardViewModel({
   request,
   type,
   currentUserId,
+  isPaid,
   C,
 }: {
   request: Request;
   type: 'incoming' | 'outgoing';
   currentUserId?: string;
+  isPaid?: boolean;
   C: ThemeColors;
 }) {
   const isIncoming = type === 'incoming';
@@ -247,8 +250,8 @@ export function getRequestCardViewModel({
 
   const showAcceptDecline = !isRequester && request.status === 'pending';
   const showCancel = isRequester && request.status === 'pending';
-  const showPayButton = isSender && request.status === 'accepted';
-  const showDeliveryButton = request.status === 'accepted';
+  const showPayButton = isSender && request.status === 'accepted' && isPaid !== true;
+  const showDeliveryButton = request.status === 'accepted' && (!isSender || isPaid !== false);
   const showReceiptReview = request.status === 'completed';
 
   const contextBanner = getContextBanner(request, isSender, isTraveller, isRequester, personName, C);
@@ -323,6 +326,7 @@ export const RequestCard = React.memo(function RequestCard({
   request,
   type,
   currentUserId,
+  isPaid,
   onPress,
   onAccept,
   onReject,
@@ -343,6 +347,7 @@ export const RequestCard = React.memo(function RequestCard({
     request,
     type,
     currentUserId,
+    isPaid,
     C,
   });
 
@@ -532,7 +537,9 @@ export const RequestCard = React.memo(function RequestCard({
               hitSlop={TouchTarget.smallHitSlop}
               style={styles.detailsBtn}
             >
-              <Text style={[styles.detailsBtnText, { color: C.textMuted }]}>Details</Text>
+              <Text style={[styles.detailsBtnText, { color: C.textMuted }]}>
+                {request.status === 'accepted' ? 'Live Tracking' : (request.tripId ? 'Trip Details' : 'Parcel Details')}
+              </Text>
               <Ionicons name="chevron-forward" size={12} color={C.textMuted} />
             </Pressable>
 

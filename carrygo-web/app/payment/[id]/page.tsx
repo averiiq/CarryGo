@@ -200,7 +200,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
         amount: orderData.amount, // paise
         currency: orderData.currency || 'INR',
         name: 'CarryGo Logistics',
-        description: `Escrow Delivery Guarantee for Parcel #${requestId.slice(0, 8)}`,
+        description: `Escrow Delivery Guarantee for Parcel #${(requestId || '').slice(0, 8) || 'PENDING'}`,
         image: '/favicon.ico',
         order_id: orderData.orderId,
         prefill: {
@@ -255,7 +255,11 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
         },
       }
 
-      const rzp = new window.Razorpay(options)
+      if (typeof window === 'undefined' || typeof (window as any).Razorpay === 'undefined') {
+        throw new Error('Payment gateway failed to load. If you are using an ad-blocker (like Brave Shields or uBlock), please disable it for this page and try again.')
+      }
+
+      const rzp = new (window as any).Razorpay(options)
       rzp.open()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Payment initialization failed.')
@@ -381,7 +385,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <Link
-                href="/activity"
+                href={`/delivery/${requestId}`}
                 className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition text-center"
               >
                 Track Live Shipment Progress

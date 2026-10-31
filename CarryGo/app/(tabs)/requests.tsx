@@ -9,10 +9,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert, getSupabaseClient } from '@/template';
 import { fetchUserPayments } from '@/services/payments.service';
-import { AsyncStateCard, OfflineBanner, RequestCard, RequestDetailModal, LottieAnimation } from '@/components';
+import { AsyncStateCard, OfflineBanner, RequestCard, LottieAnimation } from '@/components';
 import { RatingModal } from '@/components/feature/RatingModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget, TabBarGeometry, StatusBarGeometry } from '@/constants/theme';
 import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
@@ -32,6 +32,7 @@ const RequestListItem = React.memo(function RequestListItem({
   item,
   isTablet,
   currentUserId,
+  isPaid,
   anim,
   onPress,
   onAccept,
@@ -45,6 +46,7 @@ const RequestListItem = React.memo(function RequestListItem({
   item: Request;
   isTablet: boolean;
   currentUserId?: string;
+  isPaid?: boolean;
   anim?: { opacity: Animated.Value; translateY: Animated.Value };
   onPress: (req: Request) => void;
   onAccept: (id: string, req: Request) => void;
@@ -72,6 +74,7 @@ const RequestListItem = React.memo(function RequestListItem({
         request={item}
         type={cardType}
         currentUserId={currentUserId}
+        isPaid={isPaid}
         onPress={handlePress}
         onAccept={handleAccept}
         onReject={handleReject}
@@ -115,7 +118,6 @@ export default function RequestsScreen() {
   const [requestFilter, setRequestFilter] = useState<RequestFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<Request | null>(null);
-  const [detailRequest, setDetailRequest] = useState<Request | null>(null);
   const [openingChatRequestId, setOpeningChatRequestId] = useState<string | null>(null);
   const slideAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -126,12 +128,30 @@ export default function RequestsScreen() {
   const parcelsRefetchRef = React.useRef(parcelsQuery.refetch);
   parcelsRefetchRef.current = parcelsQuery.refetch;
 
+  // Track which accepted requests are already paid (locked in escrow)
+  const [paidRequestIds, setPaidRequestIds] = useState<Set<string>>(new Set());
+  const refreshPaidRequests = useCallback(async () => {
+    if (!user?.id) return;
+    const { data } = await fetchUserPayments(user.id);
+    if (!data) return;
+    const locked = new Set(
+      data
+        .filter((p: any) => p && (p.status === 'locked' || p.status === 'released') && p.requestId)
+        .map((p: any) => p.requestId as string),
+    );
+    setPaidRequestIds(locked);
+  }, [user?.id]);
+  useEffect(() => {
+    void refreshPaidRequests();
+  }, [refreshPaidRequests]);
+
   useFocusEffect(
     useCallback(() => {
       if (user?.id) {
         void requestsRefetchRef.current();
+        void refreshPaidRequests();
       }
-    }, [user?.id])
+    }, [user?.id, refreshPaidRequests])
   );
 
   // Realtime subscription — refetch requests when a related row changes
@@ -156,24 +176,6 @@ export default function RequestsScreen() {
     return () => {
       try { void sb.removeChannel(channel); } catch {}
     };
-  }, [user?.id]);
-
-  // Track which accepted requests are already paid (locked in escrow)
-  const [paidRequestIds, setPaidRequestIds] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    if (!user?.id) return;
-    let mounted = true;
-    void (async () => {
-      const { data } = await fetchUserPayments(user.id);
-      if (!mounted || !data) return;
-      const locked = new Set(
-        data
-          .filter((p: any) => p && (p.status === 'locked' || p.status === 'released') && p.requestId)
-          .map((p: any) => p.requestId as string),
-      );
-      setPaidRequestIds(locked);
-    })();
-    return () => { mounted = false; };
   }, [user?.id]);
 
   const rawRequests = user ? requestsQuery.data ?? [] : [];
@@ -237,16 +239,6 @@ export default function RequestsScreen() {
   const activeList = useMemo(() => {
     return requests.filter(r => r.status === 'accepted');
   }, [requests]);
-
-  // First accepted-but-unpaid request where current user is the sender (needs escrow)
-  const unpaidAcceptedForSender = useMemo(() => {
-    if (!user?.id) return null;
-    return requests.find(r =>
-      r.status === 'accepted' &&
-      r.senderId === user.id &&
-      !paidRequestIds.has(r.id),
-    ) || null;
-  }, [requests, user?.id, paidRequestIds]);
 
   const displayed = useMemo(() => {
     if (tab === 'active') return activeList;
@@ -523,14 +515,28 @@ export default function RequestsScreen() {
 
   const handleOpenDetail = useCallback((req: Request) => {
     Haptic.tap();
-    setDetailRequest(req);
-  }, []);
+    if (req.status === 'accepted' || req.status === 'completed') {
+      const isSender = user?.id ? user.id === req.senderId : false;
+      if (req.status === 'accepted' && isSender && !paidRequestIds.has(req.id)) {
+        router.push({ pathname: '/payment/[id]', params: { id: req.id } });
+        return;
+      }
+      router.push({ pathname: '/delivery/[id]', params: { id: req.id } });
+      return;
+    }
+    if (req.tripId) {
+      router.push({ pathname: '/trip/[id]', params: { id: req.tripId } });
+    } else if (req.parcelId) {
+      router.push({ pathname: '/parcel/[id]', params: { id: req.parcelId } });
+    }
+  }, [router, user?.id, paidRequestIds]);
 
   const renderRequestItem = useCallback(({ item, index }: { item: Request; index: number }) => (
     <RequestListItem
       item={item}
       isTablet={isTablet}
       currentUserId={user?.id}
+      isPaid={paidRequestIds.has(item.id)}
       anim={cardAnims[index]}
       onPress={handleOpenDetail}
       onAccept={handleAccept}
@@ -541,13 +547,13 @@ export default function RequestsScreen() {
       onPayment={handlePayment}
       onReview={handleReview}
     />
-  ), [isTablet, user?.id, cardAnims, handleOpenDetail, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
+  ), [isTablet, user?.id, paidRequestIds, cardAnims, handleOpenDetail, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
 
   const renderItemSeparator = useCallback(() => <View style={{ height: Spacing.md }} />, []);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      <View style={[styles.headerTop, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}>
+      <View style={[styles.headerTop, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.sm) }, isTablet && styles.tabletContainer]}>
         <View style={styles.titleWrap}>
           <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Requests</Text>
           <Text style={[styles.pageSubtitle, { color: C.textMuted }]}>
@@ -713,41 +719,6 @@ export default function RequestsScreen() {
         </View>
       ) : null}
 
-      {unpaidAcceptedForSender ? (
-        <Pressable
-          onPress={() => {
-            Haptic.confirm();
-            router.push({ pathname: '/payment/[id]', params: { id: unpaidAcceptedForSender.id } });
-          }}
-          style={({ pressed }) => [
-            styles.payNowBanner,
-            {
-              backgroundColor: C.primarySubtle,
-              borderColor: C.primary + '55',
-              opacity: pressed ? 0.9 : 1,
-            },
-            isTablet && styles.tabletContainer,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Pay escrow now to lock the delivery"
-        >
-          <View style={[styles.payNowIconWrap, { backgroundColor: C.primary }]}>
-            <MaterialIcons name="lock" size={16} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.payNowTitle, { color: C.textPrimary }]} numberOfLines={1}>
-              Pay escrow to unlock your pickup OTP
-            </Text>
-            <Text style={[styles.payNowSub, { color: C.textSecondary }]} numberOfLines={1}>
-              {unpaidAcceptedForSender.travellerName
-                ? `${unpaidAcceptedForSender.travellerName} is waiting · ₹${unpaidAcceptedForSender.price}`
-                : `Deposit ₹${unpaidAcceptedForSender.price} in escrow`}
-            </Text>
-          </View>
-          <MaterialIcons name="chevron-right" size={22} color={C.primary} />
-        </Pressable>
-      ) : null}
-
       <Animated.View style={[{ flex: 1 }, { transform: [{ translateX: slideAnim }] }]}>
         <FlashList
           data={requestsQuery.error || requestsQuery.isLoading ? [] : displayed}
@@ -757,7 +728,7 @@ export default function RequestsScreen() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={renderItemSeparator}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 108 }}
+          contentContainerStyle={{ paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing || requestsQuery.isRefetching}
@@ -872,63 +843,6 @@ export default function RequestsScreen() {
           }}
         />
       ) : null}
-
-      <RequestDetailModal
-        visible={Boolean(detailRequest)}
-        onClose={() => setDetailRequest(null)}
-        request={detailRequest}
-        currentUserId={user?.id}
-        onAccept={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleAccept(req.id, req);
-          }
-        }}
-        onReject={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleReject(req.id, req);
-          }
-        }}
-        onCancel={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleCancel(req.id, req);
-          }
-        }}
-        onChat={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleChat(req);
-          }
-        }}
-        onPayment={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handlePayment(req);
-          }
-        }}
-        onDelivery={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleDelivery(req);
-          }
-        }}
-        onViewParcelListing={(parcelId) => {
-          setDetailRequest(null);
-          router.push({ pathname: '/parcel/[id]', params: { id: parcelId } });
-        }}
-        onViewTripListing={(tripId) => {
-          setDetailRequest(null);
-          router.push({ pathname: '/trip/[id]', params: { id: tripId } });
-        }}
-      />
     </View>
   );
 }

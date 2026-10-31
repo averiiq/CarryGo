@@ -26,6 +26,17 @@ const TIMES = [
   '10:00 PM',
 ];
 
+function parseTimeToMinutes(label: string): number {
+  const match = label.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return 0;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hour !== 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+  return hour * 60 + minute;
+}
+
 const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('en-IN', { weekday: 'short' });
 const MONTH_FORMATTER = new Intl.DateTimeFormat('en-IN', { month: 'short' });
 const FULL_DATE_FORMATTER = new Intl.DateTimeFormat('en-IN', {
@@ -113,22 +124,49 @@ export function SevenDaySchedulePicker({
   const [days, setDays] = useState(() => getNextSevenDays());
   const [selectedDate, setSelectedDate] = useState(days[0]?.key ?? '');
   const [selectedTime, setSelectedTime] = useState(initialTime || '10:00 AM');
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  });
+  const todayKey = toLocalDateKey(new Date());
 
   useEffect(() => {
-    if (visible) setDays(getNextSevenDays());
+    if (visible) {
+      setDays(getNextSevenDays());
+      const n = new Date();
+      setNowMinutes(n.getHours() * 60 + n.getMinutes());
+    }
   }, [visible]);
+
+  const isTodaySelected = selectedDate === todayKey;
+  const firstFutureTime = TIMES.find(t => parseTimeToMinutes(t) > nowMinutes);
 
   useEffect(() => {
     if (!visible || days.length === 0) return;
     const dateInRange = initialDate && days.some(day => day.key === initialDate);
-    setSelectedDate(dateInRange ? initialDate : days[0].key);
-    setSelectedTime(initialTime || '10:00 AM');
-  }, [days, initialDate, initialTime, visible]);
+    const nextDate = dateInRange ? initialDate : days[0].key;
+    setSelectedDate(nextDate);
+
+    const requestedTime = initialTime || '10:00 AM';
+    if (nextDate === todayKey && parseTimeToMinutes(requestedTime) <= nowMinutes) {
+      setSelectedTime(firstFutureTime || requestedTime);
+    } else {
+      setSelectedTime(requestedTime);
+    }
+  }, [days, initialDate, initialTime, visible, todayKey, nowMinutes, firstFutureTime]);
 
   const selectedDay = days.find(day => day.key === selectedDate) ?? days[0];
+  const noFutureTimeToday = includeTime && isTodaySelected && !firstFutureTime;
+
+  const selectedTimePast = isTodaySelected && includeTime && parseTimeToMinutes(selectedTime) <= nowMinutes;
+  const canConfirm = Boolean(selectedDay) && !selectedTimePast && !noFutureTimeToday;
 
   const handleApply = () => {
     if (!selectedDay) return;
+    if (selectedTimePast || noFutureTimeToday) {
+      Haptic.error();
+      return;
+    }
     onSelect(selectedDay.key, includeTime ? selectedTime : undefined);
     onClose();
     Haptic.confirm();
@@ -245,26 +283,42 @@ export function SevenDaySchedulePicker({
             >
               {TIMES.map(time => {
                 const selected = time === selectedTime;
+                const isPast = isTodaySelected && parseTimeToMinutes(time) <= nowMinutes;
 
                 return (
                   <Pressable
                     key={time}
                     accessibilityRole="button"
-                    accessibilityLabel={`Time ${time}`}
-                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Time ${time}${isPast ? ' (past)' : ''}`}
+                    accessibilityState={{ selected, disabled: isPast }}
+                    disabled={isPast}
                     style={({ pressed }) => [
                       styles.timeChip,
                       { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                      selected && { backgroundColor: C.primarySubtle, borderColor: C.primary },
-                      pressed && { transform: [{ scale: 0.96 }] },
+                      selected && !isPast && { backgroundColor: C.primarySubtle, borderColor: C.primary },
+                      isPast && { opacity: 0.4 },
+                      pressed && !isPast && { transform: [{ scale: 0.96 }] },
                     ]}
                     onPress={() => {
                       setSelectedTime(time);
                       Haptic.select();
                     }}
                   >
-                    <MaterialIcons name="schedule" size={13} color={selected ? C.primary : C.textMuted} />
-                    <Text style={[styles.timeText, { color: selected ? C.primary : C.textSecondary, fontWeight: selected ? FontWeight.bold : FontWeight.medium }]}>
+                    <MaterialIcons
+                      name={isPast ? 'block' : 'schedule'}
+                      size={13}
+                      color={selected && !isPast ? C.primary : C.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.timeText,
+                        {
+                          color: selected && !isPast ? C.primary : C.textSecondary,
+                          fontWeight: selected && !isPast ? FontWeight.bold : FontWeight.medium,
+                          textDecorationLine: isPast ? 'line-through' : 'none',
+                        },
+                      ]}
+                    >
                       {time}
                     </Text>
                   </Pressable>
@@ -287,22 +341,32 @@ export function SevenDaySchedulePicker({
           </View>
         </View>
 
+        {noFutureTimeToday ? (
+          <Text style={[styles.pastTimeHint, { color: C.error }]}>
+            No remaining time slots today. Please select another day.
+          </Text>
+        ) : null}
+
         {/* Confirm Action Button */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={confirmLabel}
+          accessibilityState={{ disabled: !canConfirm }}
+          disabled={!canConfirm}
           style={({ pressed }) => [
             styles.applyBtn,
-            { backgroundColor: C.primary, opacity: pressed ? 0.92 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] },
+            { backgroundColor: C.primary, opacity: !canConfirm ? 0.5 : pressed ? 0.92 : 1, transform: [{ scale: pressed && canConfirm ? 0.99 : 1 }] },
           ]}
           onPress={handleApply}
         >
-          <LinearGradient
-            colors={Gradients.primaryVibrant}
-            style={StyleSheet.absoluteFillObject}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0.5 }}
-          />
+          {canConfirm ? (
+            <LinearGradient
+              colors={Gradients.primaryVibrant}
+              style={StyleSheet.absoluteFillObject}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0.5 }}
+            />
+          ) : null}
           <MaterialIcons name="check-circle" size={19} color="#fff" />
           <Text style={styles.applyText}>{confirmLabel}</Text>
         </Pressable>
@@ -465,5 +529,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
+  },
+  pastTimeHint: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    textAlign: 'center',
+    marginTop: -4,
   },
 });

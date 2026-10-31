@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 // CarryGo design tokens for a trust-first, calm logistics UI
 
 // Light palette (Modern Royal Electric Blue brand palette)
@@ -249,4 +251,53 @@ export const TouchTarget = {
   largeHitSlop: { top: 12, bottom: 12, left: 12, right: 12 },
   smallHitSlop: { top: 6, bottom: 6, left: 6, right: 6 },
 } as const;
+
+/**
+ * Tab bar layout and geometry calculations.
+ * Ensures pixel-perfect alignment, safe area offsets, and content clearance
+ * across all screen sizes (small phones, Android 3-button nav, iPhones, foldables, tablets).
+ */
+export const TabBarGeometry = {
+  getHeight: (isSmallDevice = false, isTablet = false): number => {
+    return isSmallDevice ? 56 : isTablet ? 66 : 62;
+  },
+  getBottomOffset: (insetsBottom: number, isSmallDevice = false): number => {
+    if (insetsBottom > 36) {
+      // Android 3-button software navigation bar (typically ~48px inset)
+      return insetsBottom + 4;
+    }
+    if (insetsBottom > 0) {
+      // Modern iOS home indicator (~34px) or Android gesture navigation pill (~16-24px)
+      return insetsBottom + (isSmallDevice ? 2 : 4);
+    }
+    // Devices with no bottom inset (e.g. flat screens, hardware buttons)
+    return isSmallDevice ? 10 : 14;
+  },
+  getClearance: (insetsBottom: number, isSmallDevice = false, isTablet = false, extraBreathing = 16): number => {
+    const height = TabBarGeometry.getHeight(isSmallDevice, isTablet);
+    const bottomOffset = TabBarGeometry.getBottomOffset(insetsBottom, isSmallDevice);
+    return height + bottomOffset + extraBreathing;
+  },
+  getFabBottom: (insetsBottom: number, isSmallDevice = false, isTablet = false, marginAboveBar = 12): number => {
+    const height = TabBarGeometry.getHeight(isSmallDevice, isTablet);
+    const bottomOffset = TabBarGeometry.getBottomOffset(insetsBottom, isSmallDevice);
+    return height + bottomOffset + marginAboveBar;
+  },
+};
+
+/**
+ * Status bar layout and top inset calculations.
+ * Ensures notch, dynamic island, and punch-hole cameras never overlap headers,
+ * while preventing awkward excessive padding on flat/small devices.
+ */
+export const StatusBarGeometry = {
+  getTopInset: (insetsTop: number): number => {
+    // Guarantees safe top clearance on Android (status bar min 24px) or iOS / web
+    return Math.max(insetsTop, Platform.OS === 'android' ? 24 : 0);
+  },
+  getHeaderPaddingTop: (insetsTop: number, extra = 8): number => {
+    return StatusBarGeometry.getTopInset(insetsTop) + extra;
+  },
+};
+
 

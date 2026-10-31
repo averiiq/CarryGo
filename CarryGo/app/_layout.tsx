@@ -1,6 +1,6 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AlertProvider } from '@/template';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -33,6 +33,7 @@ LogBox.ignoreLogs([
 const PUBLIC_ROUTE_ROOTS = new Set(['index', 'login', 'onboarding', 'profile-setup', 'legal']);
 
 function AppShell() {
+  const insets = useSafeAreaInsets();
   const { user, isLoading, requiresProfileSetup, sessionError, refreshUser } = useAuth();
   const { C } = useThemeColors();
   const { isOnline } = useNetworkStatus();
@@ -87,12 +88,18 @@ function AppShell() {
   if (user && requiresProfileSetup && routeRoot !== 'profile-setup') return <Redirect href="/profile-setup" />;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
+      <StatusBar
+        style={C.statusBarStyle}
+        backgroundColor="transparent"
+        translucent
+        animated
+      />
       <NotificationRootListener />
       <InAppNotificationBanner />
       <UpdateBanner />
       {!isOnline ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 12, backgroundColor: C.background }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: insets.top > 0 ? insets.top + 4 : 12, backgroundColor: C.background }}>
           <OfflineBanner C={C} />
         </View>
       ) : null}
@@ -122,7 +129,12 @@ function AppStack() {
 
   return (
     <>
-      <StatusBar style={C.statusBarStyle} />
+      <StatusBar
+        style={C.statusBarStyle}
+        backgroundColor="transparent"
+        translucent
+        animated
+      />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -142,7 +154,7 @@ function AppStack() {
         <Stack.Screen name="matching" options={{ headerShown: true, headerTitle: 'Matching Results', ...headerOpts }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: true, headerTitle: 'Chat', ...headerOpts }} />
         <Stack.Screen name="delivery/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="payment/[id]" options={{ headerShown: true, headerTitle: 'Payment Status', ...headerOpts }} />
+        <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="transactions" options={{ headerShown: false }} />
         <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ headerShown: false }} />

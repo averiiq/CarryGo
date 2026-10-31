@@ -1438,7 +1438,7 @@ export default function SupportScreen() {
                           }}
                         >
                           <Text style={[styles.ticketIdCode, { color: C.textMuted }]}>
-                            #{t.id.slice(0, 8)}
+                            #{(t.id || '').slice(0, 8)}
                           </Text>
                           <MaterialIcons
                             name={copiedTicketId === t.id ? 'check' : 'content-copy'}

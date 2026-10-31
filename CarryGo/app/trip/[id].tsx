@@ -10,11 +10,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
-import { useParcelsByIdsQuery, useParcelQuery, useTripQuery, useUpdateTripStatusMutation, useParcelsQuery, useCreateParcelMutation, flattenInfiniteData } from '@/features/listings/queries';
-import { useRequestsByTripQuery, useUpdateRequestStatusMutation, useCreateRequestMutation } from '@/features/requests/queries';
+import {
+  useParcelsByIdsQuery,
+  useParcelQuery,
+  useTripQuery,
+  useUpdateTripStatusMutation,
+  useParcelsQuery,
+  useCreateParcelMutation,
+  flattenInfiniteData,
+} from '@/features/listings/queries';
+import {
+  useRequestsByTripQuery,
+  useUpdateRequestStatusMutation,
+  useCreateRequestMutation,
+} from '@/features/requests/queries';
 import { SendRequestModal, QuickCreateParcelParams } from '@/components/feature/SendRequestModal';
 import { NegotiateTripModal, NegotiationParams } from '@/components/feature/NegotiateTripModal';
-import { estimateTripDuration, formatDurationLabel, getRouteTimelineMeta } from '@/components/feature/matching/blaBlaHelpers';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Trip, Parcel, ParcelCategory } from '@/types';
@@ -23,7 +34,11 @@ import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { RequestItem } from '@/components/feature/RequestItem';
+import { StatusBarGeometry } from '@/constants/theme';
 import { styles } from '@/styles/trip/[id].styles';
+import { CARRY_CATEGORIES } from '@/components/feature/trip/TripDetailsStep';
+
+const ALL_PARCEL_CATEGORIES: ParcelCategory[] = ['documents', 'electronics', 'clothing', 'food', 'medicine', 'other'];
 
 const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   bike: 'two-wheeler',
@@ -35,13 +50,11 @@ const vehicleIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 
 const vehicleGradients: Record<string, [string, string]> = {
   bike: ['#D97706', '#92400E'],
-  car: ['#059669', '#064E3B'],
+  car: ['#1A4CA2', '#123777'],
   bus: ['#7C3AED', '#5B21B6'],
   train: ['#0F766E', '#115E59'],
   flight: ['#0284C7', '#075985'],
 };
-
-type TabFilter = 'all' | 'pending' | 'active' | 'done';
 
 export default function TripDetailScreen() {
   const {
@@ -63,11 +76,12 @@ export default function TripDetailScreen() {
     draftPrice?: string;
     draftDesc?: string;
   }>();
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { C, isDark } = useThemeColors();
+  const { C } = useThemeColors();
 
   const tripQuery = useTripQuery(id);
   const requestsQuery = useRequestsByTripQuery(id);
@@ -81,7 +95,6 @@ export default function TripDetailScreen() {
   const updateTripStatusMutation = useUpdateTripStatusMutation(user?.id);
 
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<TabFilter>('all');
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showNegotiateModal, setShowNegotiateModal] = useState(false);
   const [openingChatRequestId, setOpeningChatRequestId] = useState<string | null>(null);
@@ -128,45 +141,42 @@ export default function TripDetailScreen() {
     };
   }, [draftCategory, draftWeight, draftPrice, draftFromCity, draftToCity, draftDesc, user, trip]);
 
-  // Find open user parcels that match this trip's route and fit in available capacity
   const matchingRouteParcel = useMemo(() => {
     if (!trip) return null;
-    const normTripFrom = trip.fromCity.trim().toLowerCase();
-    const normTripTo = trip.toCity.trim().toLowerCase();
+    const normTripFrom = (trip.fromCity || '').trim().toLowerCase();
+    const normTripTo = (trip.toCity || '').trim().toLowerCase();
     return userParcels.find(
       p => p.status === 'open' &&
-           p.fromCity.trim().toLowerCase() === normTripFrom &&
-           p.toCity.trim().toLowerCase() === normTripTo &&
+           (p.fromCity || '').trim().toLowerCase() === normTripFrom &&
+           (p.toCity || '').trim().toLowerCase() === normTripTo &&
            p.weight <= (trip.availableCapacity || 999)
     ) || null;
   }, [trip, userParcels]);
 
   const activeParcel = useMemo(() => {
     if (!trip) return null;
-    const normTripFrom = trip.fromCity.trim().toLowerCase();
-    const normTripTo = trip.toCity.trim().toLowerCase();
+    const normTripFrom = (trip.fromCity || '').trim().toLowerCase();
+    const normTripTo = (trip.toCity || '').trim().toLowerCase();
 
     if (draftParcel) {
-      if (draftParcel.fromCity.trim().toLowerCase() === normTripFrom && draftParcel.toCity.trim().toLowerCase() === normTripTo) {
+      if ((draftParcel.fromCity || '').trim().toLowerCase() === normTripFrom && (draftParcel.toCity || '').trim().toLowerCase() === normTripTo) {
         return draftParcel;
       }
     }
     if (singleParcelQuery.data) {
       const p = singleParcelQuery.data;
-      if (p.fromCity.trim().toLowerCase() === normTripFrom && p.toCity.trim().toLowerCase() === normTripTo) {
+      if ((p.fromCity || '').trim().toLowerCase() === normTripFrom && (p.toCity || '').trim().toLowerCase() === normTripTo) {
         return p;
       }
     }
     if (parcelId) {
       const found = userParcels.find(p => p.id === parcelId);
-      if (found && found.fromCity.trim().toLowerCase() === normTripFrom && found.toCity.trim().toLowerCase() === normTripTo) {
+      if (found && (found.fromCity || '').trim().toLowerCase() === normTripFrom && (found.toCity || '').trim().toLowerCase() === normTripTo) {
         return found;
       }
     }
     return matchingRouteParcel;
   }, [draftParcel, singleParcelQuery.data, parcelId, userParcels, trip, matchingRouteParcel]);
-
-  const timeline = useMemo(() => (trip ? getRouteTimelineMeta(trip) : null), [trip]);
 
   const calculatedPrice = useMemo(() => {
     if (!trip) return 180;
@@ -180,8 +190,8 @@ export default function TripDetailScreen() {
   const loading = tripQuery.isLoading || requestsQuery.isLoading || parcelsQuery.isLoading;
 
   const vGradient: [string, string] = trip
-    ? (vehicleGradients[trip.vehicleType] || ['#059669', '#064E3B'])
-    : ['#059669', '#064E3B'];
+    ? (vehicleGradients[trip.vehicleType?.toLowerCase() || 'car'] || ['#1A4CA2', '#123777'])
+    : ['#1A4CA2', '#123777'];
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -233,14 +243,14 @@ export default function TripDetailScreen() {
         travellerName: targetTrip.userName,
         status: 'pending',
         price: priceToUse,
-        message: `Hi ${targetTrip.userName}! I booked your trip from ${targetTrip.fromCity} to ${targetTrip.toCity} on ${targetTrip.date} for my ${chosenParcel.category} package (${chosenParcel.weight}kg).`,
+        message: `Hi ${targetTrip.userName}! I would like you to deliver my ${chosenParcel.category} package (${chosenParcel.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity}.`,
       });
 
       if (result) {
         setShowRequestModal(false);
         Haptic.success();
         showAlert(
-          'Trip Booked! 🎉',
+          'Request Sent! 🎉',
           `Your delivery request was sent to ${targetTrip.userName}.`,
           [
             { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
@@ -286,7 +296,7 @@ export default function TripDetailScreen() {
           toCity: trip.toCity,
           category: activeParcel?.category || 'documents',
           weight: Math.min(activeParcel?.weight || 1, trip.availableCapacity || 10),
-          description: activeParcel?.description || `Negotiated delivery on trip ${trip.fromCity} → ${trip.toCity}`,
+          description: activeParcel?.description || `Delivery on trip ${trip.fromCity} → ${trip.toCity}`,
           priceOffer: priceToOffer,
           status: 'open',
         });
@@ -308,8 +318,8 @@ export default function TripDetailScreen() {
         setShowNegotiateModal(false);
         Haptic.success();
         showAlert(
-          'Counter-Offer Sent! 🤝',
-          `${trip.userName} has been notified of your proposed pickup/drop spots and price offer.`,
+          'Offer Sent! 🤝',
+          `${trip.userName} has been notified of your proposal.`,
           [
             { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
             { text: 'OK', style: 'cancel' },
@@ -317,18 +327,18 @@ export default function TripDetailScreen() {
         );
         await requestsQuery.refetch();
       } else {
-        showAlert('Error', 'Could not submit counter-offer.');
+        showAlert('Error', 'Could not submit proposal.');
       }
     } catch (err: any) {
       Haptic.error();
-      showAlert('Error', getUserErrorMessage(err, 'Could not submit counter-offer.'));
+      showAlert('Error', getUserErrorMessage(err, 'Could not submit proposal.'));
     }
   };
 
   const handleStartNegotiateChat = async (params: NegotiationParams) => {
     if (!user || !trip) {
       Haptic.warning();
-      showAlert('Sign In Required', 'Please sign in to chat with travelers.');
+      showAlert('Sign In Required', 'Please sign in to chat.');
       return;
     }
 
@@ -403,7 +413,7 @@ export default function TripDetailScreen() {
       }
     } catch (err: any) {
       Haptic.error();
-      showAlert('Chat Error', getUserErrorMessage(err, 'Could not initiate chat with traveler.'));
+      showAlert('Chat Error', getUserErrorMessage(err, 'Could not open chat.'));
     }
   };
 
@@ -414,7 +424,7 @@ export default function TripDetailScreen() {
   ) => {
     if (!user) {
       Haptic.warning();
-      showAlert('Sign In Required', 'Please sign in to send delivery requests.');
+      showAlert('Sign In Required', 'Please sign in to send requests.');
       return;
     }
 
@@ -440,15 +450,15 @@ export default function TripDetailScreen() {
         travellerName: targetTrip.userName,
         status: 'pending',
         price: calculatedPrice,
-        message: `Hi ${targetTrip.userName}! Could you please carry my ${quickParams.category} package (${quickParams.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity} on ${targetTrip.date}?`,
+        message: `Hi ${targetTrip.userName}! Could you please carry my ${quickParams.category} package (${quickParams.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity}?`,
       });
 
       if (result) {
         setShowRequestModal(false);
         Haptic.success();
         showAlert(
-          'Parcel Created & Request Sent! 🎉',
-          `Your ${quickParams.category} parcel was listed and your request was sent to ${targetTrip.userName}!`,
+          'Request Sent! 🎉',
+          `Your request was sent to ${targetTrip.userName}.`,
           [
             { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
             { text: 'OK', style: 'cancel' },
@@ -456,11 +466,11 @@ export default function TripDetailScreen() {
         );
         await Promise.all([requestsQuery.refetch(), allParcelsQuery.refetch()]);
       } else {
-        showAlert('Error', 'Could not send delivery request. Please try again.');
+        showAlert('Error', 'Could not send request. Please try again.');
       }
     } catch (err: any) {
       Haptic.error();
-      showAlert('Error', err?.message || 'Failed to create parcel and send request.');
+      showAlert('Error', err?.message || 'Failed to send request.');
     }
   };
 
@@ -473,11 +483,11 @@ export default function TripDetailScreen() {
 
   const handleAccept = (req: Request) => {
     if (!user || !isRequestIncoming(req, user.id)) {
-      showAlert('Not Allowed', 'Only the intended recipient can accept this request.');
+      showAlert('Not Allowed', 'Only the recipient can accept this request.');
       return;
     }
 
-    showAlert('Accept Request?', `Accept delivery for Rs ${req.price} from ${req.senderName}?`, [
+    showAlert('Accept Request?', `Accept delivery for ₹${req.price} from ${req.senderName}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Accept', onPress: async () => {
@@ -498,7 +508,7 @@ export default function TripDetailScreen() {
               }
               await createDelivery(req.id);
             } catch (auxError) {
-              console.warn('Post-accept auxiliary step error (non-fatal):', auxError);
+              console.warn('Post-accept step warning:', auxError);
             }
             await Promise.all([
               requestsQuery.refetch(),
@@ -507,7 +517,7 @@ export default function TripDetailScreen() {
             ]);
             showAlert('Accepted!', 'Chat opened to coordinate pickup details.');
           } catch (error) {
-            showAlert('Could Not Accept', getUserErrorMessage(error, 'Could not accept request. Please try again.'));
+            showAlert('Could Not Accept', getUserErrorMessage(error, 'Could not accept request.'));
           }
         },
       },
@@ -516,7 +526,7 @@ export default function TripDetailScreen() {
 
   const handleReject = (req: Request) => {
     if (!user || !isRequestIncoming(req, user.id)) {
-      showAlert('Not Allowed', 'Only the intended recipient can reject this request.');
+      showAlert('Not Allowed', 'Only the recipient can reject this request.');
       return;
     }
 
@@ -534,7 +544,7 @@ export default function TripDetailScreen() {
   const handleChat = async (req: Request) => {
     if (!user) {
       Haptic.warning();
-      showAlert('Sign In Required', 'Please sign in to view and send messages.');
+      showAlert('Sign In Required', 'Please sign in to chat.');
       return;
     }
 
@@ -572,11 +582,11 @@ export default function TripDetailScreen() {
         if (found?.id) {
           router.push(`/chat/${encodeURIComponent(String(found.id))}` as never);
         } else {
-          showAlert('Chat Error', 'Could not open conversation. Please try again.');
+          showAlert('Chat', 'Could not open conversation. Please try again.');
         }
       }
     } catch (err: any) {
-      showAlert('Chat Error', getUserErrorMessage(err, 'Could not open chat. Please try again.'));
+      showAlert('Chat', getUserErrorMessage(err, 'Could not open chat.'));
     } finally {
       setOpeningChatRequestId(null);
     }
@@ -592,8 +602,8 @@ export default function TripDetailScreen() {
 
   const handleCancelTrip = () => {
     if (!trip || !isOwner) return;
-    showAlert('Cancel Trip?', 'This will remove your trip from the marketplace. Any pending requests will be automatically rejected.', [
-      { text: 'Keep Trip', style: 'cancel' },
+    showAlert('Cancel Trip?', 'This will remove your trip from the marketplace.', [
+      { text: 'Keep', style: 'cancel' },
       {
         text: 'Cancel Trip',
         style: 'destructive',
@@ -601,10 +611,10 @@ export default function TripDetailScreen() {
           try {
             await updateTripStatusMutation.mutateAsync({ tripId: trip.id, status: 'cancelled' });
             Haptic.success();
-            showAlert('Trip Cancelled', 'Your trip has been removed from the marketplace.');
+            showAlert('Trip Cancelled', 'Your trip has been cancelled.');
           } catch (error) {
             Haptic.error();
-            showAlert('Trip Not Cancelled', getUserErrorMessage(error, 'Could not cancel trip. Please try again.'));
+            showAlert('Error', getUserErrorMessage(error, 'Could not cancel trip.'));
           }
         },
       },
@@ -615,17 +625,12 @@ export default function TripDetailScreen() {
     if (!trip) return;
     try {
       await Share.share({
-        message: `CarryGo Trip: Travelling from ${trip.fromCity} to ${trip.toCity} on ${trip.date} at ${trip.time}. Space available for parcels! Connect with me on CarryGo.`,
+        message: `CarryGo Trip: Travelling from ${trip.fromCity} to ${trip.toCity} on ${trip.date} at ${trip.time}. Space available: ${remainingWeight.toFixed(1)}kg!`,
       });
     } catch {
       // Ignored
     }
   };
-
-  const pending = visibleRequests.filter(r => r.status === 'pending');
-  const active = visibleRequests.filter(r => r.status === 'accepted');
-  const done = visibleRequests.filter(r => ['completed', 'rejected', 'cancelled', 'failed'].includes(r.status));
-  const totalEarnings = visibleRequests.filter(r => r.status === 'completed').reduce((s, r) => s + r.price, 0);
 
   // Compute booked weight
   const bookedWeight = useMemo(() => {
@@ -638,13 +643,7 @@ export default function TripDetailScreen() {
 
   const capacityRatio = trip?.availableCapacity ? Math.min(1, bookedWeight / trip.availableCapacity) : 0;
   const remainingWeight = trip?.availableCapacity ? Math.max(0, trip.availableCapacity - bookedWeight) : 0;
-
-  const displayedRequests = useMemo(() => {
-    if (selectedTab === 'pending') return pending;
-    if (selectedTab === 'active') return active;
-    if (selectedTab === 'done') return done;
-    return visibleRequests;
-  }, [selectedTab, visibleRequests, pending, active, done]);
+  const totalEarnings = visibleRequests.filter(r => r.status === 'completed').reduce((s, r) => s + r.price, 0);
 
   if (!trip) {
     return (
@@ -655,11 +654,19 @@ export default function TripDetailScreen() {
   }
 
   const isTripActive = trip.status === 'active';
+  const allowedSet = useMemo(() => {
+    const list = trip.allowedCategories && trip.allowedCategories.length > 0
+      ? trip.allowedCategories
+      : ALL_PARCEL_CATEGORIES;
+    return new Set(list);
+  }, [trip.allowedCategories]);
+  const parcelCategoryBlocked = Boolean(activeParcel && !allowedSet.has(activeParcel.category as ParcelCategory));
+  const showBottomBar = !isOwner && isTripActive && !myRequest;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      {/* Top Floating App Bar */}
-      <View style={[styles.topNavBar, { paddingTop: insets.top + 8 }]}>
+      {/* Top Header Bar */}
+      <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }]}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
@@ -676,12 +683,18 @@ export default function TripDetailScreen() {
           <Text style={[styles.navTitle, { color: C.textPrimary }]}>
             {isOwner ? 'Manage Trip' : 'Trip Details'}
           </Text>
-          <View style={styles.navSubRow}>
+          <View style={[
+            styles.statusCapsule,
+            { backgroundColor: isTripActive ? C.successSubtle : C.surfaceElevated }
+          ]}>
             <View style={[
-              styles.navStatusDot,
+              styles.statusDot,
               { backgroundColor: isTripActive ? C.success : C.textMuted }
             ]} />
-            <Text style={[styles.navSubtitle, { color: C.textMuted }]}>
+            <Text style={[
+              styles.statusCapsuleText,
+              { color: isTripActive ? C.success : C.textMuted }
+            ]}>
               {trip.status.toUpperCase()}
             </Text>
           </View>
@@ -705,7 +718,7 @@ export default function TripDetailScreen() {
               onPress={handleCancelTrip}
               style={({ pressed }) => [
                 styles.roundNavBtn,
-                { backgroundColor: C.errorSubtle, borderColor: C.error + '30' },
+                { backgroundColor: C.errorSubtle, borderColor: C.errorBorder },
                 pressed && { opacity: 0.75 }
               ]}
               hitSlop={6}
@@ -719,14 +732,13 @@ export default function TripDetailScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollBody,
-          { paddingBottom: !isOwner && isTripActive && !myRequest ? insets.bottom + 90 : insets.bottom + 36 }
+          { paddingBottom: showBottomBar ? insets.bottom + 90 : insets.bottom + 36 }
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
       >
-        {/* Travel Ticket Board Card */}
+        {/* Journey Card (Ticket) */}
         <View style={[styles.ticketCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          {/* Header Ticket Zone with Vehicle Gradient */}
           <View style={styles.ticketHeader}>
             <LinearGradient
               colors={vGradient}
@@ -737,381 +749,246 @@ export default function TripDetailScreen() {
 
             <View style={styles.ticketTopRow}>
               <View style={styles.vehicleChip}>
-                <MaterialIcons name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'directions-car'} size={14} color="#fff" />
-                <Text style={styles.vehicleChipText}>{(trip.vehicleType || 'CAR').toUpperCase()}</Text>
+                <MaterialIcons
+                  name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'directions-car'}
+                  size={14}
+                  color="#fff"
+                />
+                <Text style={styles.vehicleChipText}>
+                  {(trip.vehicleType || 'Car').toUpperCase()}
+                </Text>
               </View>
 
-              <View style={styles.statusChip}>
-                <View style={[styles.statusDot, { backgroundColor: isTripActive ? '#10B981' : '#E2E8F0' }]} />
-                <Text style={styles.statusChipText}>{(trip.status || 'ACTIVE').toUpperCase()}</Text>
-              </View>
-            </View>
-
-            {/* Ticket Route */}
-            <View style={styles.ticketRouteRow}>
-              <View style={styles.routeCityCol}>
-                <Text style={styles.routeLabel}>DEPARTURE</Text>
-                <Text style={styles.routeTimeText}>{timeline?.departureTime || trip.time}</Text>
-                <Text style={styles.routeCityText} numberOfLines={1}>{trip.fromCity}</Text>
-              </View>
-
-              <View style={styles.transportCapsuleWrap}>
-                <View style={styles.transportCapsule}>
-                  <MaterialIcons name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'arrow-forward'} size={20} color="#fff" />
-                </View>
-                <Text style={styles.transportDurationText}>{timeline?.durationLabel || 'Direct'}</Text>
-              </View>
-
-              <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
-                <Text style={styles.routeLabel}>DESTINATION</Text>
-                <Text style={styles.routeTimeText}>{timeline?.arrivalTime || 'Est. Arrival'}</Text>
-                <Text style={styles.routeCityText} numberOfLines={1}>{trip.toCity}</Text>
-              </View>
-            </View>
-
-            {/* Departure Time Ribbon */}
-            <View style={styles.departureStrip}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <MaterialIcons name="event" size={14} color="rgba(255,255,255,0.9)" />
-                <Text style={styles.departureStripText}>
+              <View style={styles.scheduleRibbon}>
+                <MaterialIcons name="event" size={13} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.scheduleText}>
                   {trip.date} • {trip.time}
                 </Text>
               </View>
-              <View style={styles.departureBadgePill}>
-                <MaterialIcons name="bolt" size={13} color="#FBBF24" />
-                <Text style={styles.departureConfirmedBadge}>CONFIRMED</Text>
+            </View>
+
+            {/* Route */}
+            <View style={styles.routeRow}>
+              <View style={styles.routeCityCol}>
+                <Text style={styles.routeLabel}>FROM</Text>
+                <Text style={styles.routeCityText} numberOfLines={1}>{trip.fromCity}</Text>
+              </View>
+
+              <View style={styles.routeArrowBox}>
+                <MaterialIcons
+                  name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'arrow-forward'}
+                  size={18}
+                  color="#fff"
+                />
+              </View>
+
+              <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
+                <Text style={styles.routeLabel}>TO</Text>
+                <Text style={styles.routeCityText} numberOfLines={1}>{trip.toCity}</Text>
               </View>
             </View>
           </View>
 
-          {/* Fare Overview Banner for Senders */}
-          {!isOwner ? (
-            <View style={[styles.fareOverviewBanner, { backgroundColor: C.surfaceElevated, borderBottomColor: C.surfaceBorder }]}>
-              <View>
-                <Text style={[styles.fareOverviewLabel, { color: C.textMuted }]}>
-                  {activeParcel ? `Fare for ${activeParcel.weight}kg ${activeParcel.category}` : 'Estimated Delivery Fare'}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Text style={[styles.fareOverviewRupee, { color: C.textPrimary }]}>₹</Text>
-                  <Text style={[styles.fareOverviewAmount, { color: C.textPrimary }]}>{calculatedPrice}</Text>
-                  <Text style={[styles.fareOverviewRate, { color: C.textMuted }]}>· ₹{trip.pricePerKg}/kg</Text>
-                </View>
-              </View>
-              <View style={[styles.instantBookPill, { backgroundColor: C.successSubtle }]}>
-                <MaterialIcons name="verified" size={13} color={C.success} />
-                <Text style={[styles.instantBookPillText, { color: C.success }]}>Space Guaranteed</Text>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Ticket Body with Luggage Trunk & Stats */}
+          {/* Ticket Body: Capacity & Pricing */}
           <View style={styles.ticketBody}>
-            {/* Capacity Trunk Meter */}
-            <View style={[styles.capacityWidget, { backgroundColor: C.surfaceElevated }]}>
-              <View style={styles.capacityHeader}>
-                <View style={styles.capacityTitleRow}>
-                  <MaterialIcons name="luggage" size={16} color={C.primary} />
-                  <Text style={[styles.capacityTitle, { color: C.textPrimary }]}>
-                    Luggage Capacity
-                  </Text>
-                </View>
-                <Text style={[styles.capacityRemaining, { color: C.textPrimary }]}>
-                  {remainingWeight > 0 ? `${remainingWeight.toFixed(1)} kg available` : 'Full'}
-                </Text>
+            <View style={styles.capacityRow}>
+              <View style={styles.capacityLabelRow}>
+                <MaterialIcons name="luggage" size={16} color={C.primary} />
+                <Text style={[styles.capacityLabel, { color: C.textPrimary }]}>Available Space</Text>
               </View>
-
-              <View style={[styles.capacityTrack, { backgroundColor: C.background }]}>
-                <View
-                  style={[
-                    styles.capacityFill,
-                    {
-                      width: `${Math.max(6, Math.min(100, capacityRatio * 100))}%`,
-                      backgroundColor: capacityRatio > 0.85 ? C.warning : C.primary,
-                    }
-                  ]}
-                />
-              </View>
-
-              <View style={styles.capacityFooter}>
-                <Text style={[styles.capacityFooterText, { color: C.textMuted }]}>
-                  {bookedWeight.toFixed(1)} kg / {trip.availableCapacity} kg booked
-                </Text>
-                <View style={[styles.rateHighlightPill, { backgroundColor: C.successSubtle }]}>
-                  <Text style={[styles.rateHighlightText, { color: C.success }]}>
-                    ₹{trip.pricePerKg}/kg
-                  </Text>
-                </View>
-              </View>
+              <Text style={[styles.capacityVal, { color: C.primary }]}>
+                {remainingWeight > 0 ? `${remainingWeight.toFixed(1)} kg available` : 'Full'}
+              </Text>
             </View>
 
-            {/* Highlights Row */}
-            <View style={styles.highlightsRow}>
-              <View style={styles.highlightItem}>
-                <Text style={[styles.highlightVal, { color: C.textPrimary }]}>{trip.availableCapacity} kg</Text>
-                <Text style={[styles.highlightLbl, { color: C.textMuted }]}>Total Space</Text>
-              </View>
+            <View style={[styles.capacityProgressBar, { backgroundColor: C.surfaceElevated }]}>
+              <View
+                style={[
+                  styles.capacityFill,
+                  {
+                    width: `${Math.max(6, Math.min(100, capacityRatio * 100))}%`,
+                    backgroundColor: capacityRatio > 0.85 ? C.warning : C.primary,
+                  }
+                ]}
+              />
+            </View>
 
-              <View style={[styles.highlightDiv, { backgroundColor: C.surfaceBorder }]} />
-
-              <View style={styles.highlightItem}>
-                <Text style={[styles.highlightVal, { color: C.primary }]}>{visibleRequests.length}</Text>
-                <Text style={[styles.highlightLbl, { color: C.textMuted }]}>Requests</Text>
-              </View>
-
-              <View style={[styles.highlightDiv, { backgroundColor: C.surfaceBorder }]} />
-
-              <View style={styles.highlightItem}>
-                <Text style={[styles.highlightVal, { color: C.success }]}>₹{totalEarnings}</Text>
-                <Text style={[styles.highlightLbl, { color: C.textMuted }]}>Earned</Text>
-              </View>
+            <View style={styles.metricsRow}>
+              <Text style={[styles.totalSpaceText, { color: C.textMuted }]}>
+                {trip.availableCapacity} kg total capacity
+              </Text>
+              <Text style={[styles.rateText, { color: C.textPrimary }]}>
+                ₹{trip.pricePerKg}/kg
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Find Parcels Smart Action Card (when open & owned) */}
-        {isOwner && isTripActive ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.matchingBanner,
-              pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }
-            ]}
-            onPress={() => router.push({
-              pathname: '/search',
-              params: {
-                fromCity: trip.fromCity,
-                toCity: trip.toCity,
-                mode: 'parcels',
-              }
-            })}
-          >
-            <LinearGradient
-              colors={[C.primary, C.primaryDark]}
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0.5 }}
-            />
-            <View style={styles.matchingIconWrap}>
-              <MaterialIcons name="search" size={24} color="#fff" />
-            </View>
-            <View style={styles.matchingTextWrap}>
-              <Text style={styles.matchingHeading}>Find Parcels to Carry</Text>
-              <Text style={styles.matchingSubheading}>
-                Pick up parcels along your route from {trip.fromCity} to {trip.toCity}
-              </Text>
-            </View>
-            <MaterialIcons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />
-          </Pressable>
-        ) : null}
-
-        {/* Traveler Trust Profile (when viewer is sender) */}
+        {/* Traveler Profile Card (When Viewer is Sender) */}
         {!isOwner ? (
           <View style={[styles.travelerProfileCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <View style={styles.travelerTopRow}>
               <View style={styles.travelerAvatarWrap}>
-                {((trip as any).selfieUrl || (trip as any).userSelfieUrl || trip.userAvatar) ? (
-                  <Image source={{ uri: (trip as any).selfieUrl || (trip as any).userSelfieUrl || trip.userAvatar }} style={styles.travelerAvatar} contentFit="cover" />
+                {trip.userAvatar ? (
+                  <Image source={{ uri: trip.userAvatar }} style={styles.travelerAvatar} contentFit="cover" />
                 ) : (
-                  <View style={[styles.travelerAvatarPlaceholder, { backgroundColor: C.surfaceElevated }]}>
-                    <Text style={[styles.travelerAvatarInitials, { color: C.textPrimary }]}>
+                  <View style={[styles.travelerAvatarPlaceholder, { backgroundColor: C.primarySubtle }]}>
+                    <Text style={[styles.travelerAvatarInitials, { color: C.primary }]}>
                       {(trip.userName || 'T').charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
                 <View style={styles.travelerVerifiedBadge}>
-                  <MaterialIcons name="check" size={11} color="#FFFFFF" />
+                  <MaterialIcons name="check" size={10} color="#FFFFFF" />
                 </View>
               </View>
 
               <View style={styles.travelerInfoCol}>
                 <View style={styles.travelerNameRow}>
                   <Text style={[styles.travelerName, { color: C.textPrimary }]}>{trip.userName}</Text>
-                  <View style={styles.kycChip}>
-                    <MaterialIcons name="verified-user" size={12} color="#2563EB" />
-                    <Text style={styles.kycChipText}>ID VERIFIED</Text>
-                  </View>
+                  <MaterialIcons name="verified" size={14} color={C.primary} />
                 </View>
 
                 <View style={styles.travelerRatingRow}>
-                  <View style={styles.ratingBadge}>
-                    <MaterialIcons name="star" size={14} color="#F59E0B" />
-                    <Text style={[styles.ratingNumber, { color: C.textPrimary }]}>
-                      {trip.userRating && trip.userRating > 0 ? trip.userRating.toFixed(1) : '5.0'}
-                    </Text>
-                  </View>
-                  <Text style={[styles.travelerTripsCount, { color: C.textMuted }]}>
-                    · Verified Traveler
+                  <MaterialIcons name="star" size={13} color="#F59E0B" />
+                  <Text style={[styles.ratingNumber, { color: C.textPrimary }]}>
+                    {trip.userRating && trip.userRating > 0 ? trip.userRating.toFixed(1) : '5.0'}
                   </Text>
+                  <Text style={[styles.travelerSubtitle, { color: C.textMuted }]}>· Verified Traveler</Text>
                 </View>
-              </View>
-            </View>
-
-            <View style={[styles.trustPointsRow, { borderTopColor: C.surfaceBorder }]}>
-              <View style={styles.trustPointItem}>
-                <MaterialIcons name="shield" size={14} color={C.primary} />
-                <Text style={[styles.trustPointText, { color: C.textSecondary }]}>CarryGo Protected</Text>
-              </View>
-              <View style={styles.trustPointItem}>
-                <MaterialIcons name="bolt" size={16} color="#F59E0B" />
-                <Text style={[styles.trustPointText, { color: C.textSecondary }]}>Instant Booking</Text>
-              </View>
-              <View style={styles.trustPointItem}>
-                <MaterialIcons name="schedule" size={14} color={C.success} />
-                <Text style={[styles.trustPointText, { color: C.textSecondary }]}>Fast Handover</Text>
-              </View>
-            </View>
-
-            {/* Vehicle amenities row */}
-            <View style={styles.vehicleAmenitiesRow}>
-              <View style={[styles.amenityChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                <MaterialIcons name={vehicleIcons[trip.vehicleType?.toLowerCase() || 'car'] || 'directions-car'} size={14} color={C.primary} />
-                <Text style={[styles.amenityChipText, { color: C.textPrimary }]}>
-                  {(trip.vehicleType || 'Car').toUpperCase()}
-                </Text>
-              </View>
-
-              {['car', 'flight', 'train'].includes(trip.vehicleType?.toLowerCase() || 'car') ? (
-                <View style={[styles.amenityChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                  <MaterialIcons name="ac-unit" size={13} color="#0284C7" />
-                  <Text style={[styles.amenityChipText, { color: C.textPrimary }]}>AC Comfort</Text>
-                </View>
-              ) : null}
-
-              <View style={[styles.amenityChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                <MaterialIcons name="luggage" size={13} color={C.success} />
-                <Text style={[styles.amenityChipText, { color: C.textPrimary }]}>Trunk Space</Text>
-              </View>
-
-              <View style={[styles.amenityChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                <MaterialIcons name="bolt" size={14} color="#D97706" />
-                <Text style={[styles.amenityChipText, { color: C.textPrimary }]}>Instant Confirm</Text>
               </View>
             </View>
           </View>
         ) : null}
 
-        {/* What Traveler Allows To Carry Section */}
-        {!isOwner ? (
-          <View style={[styles.allowsToCarryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <View style={styles.allowsHeaderRow}>
-              <View style={styles.allowsIconWrap}>
-                <MaterialIcons name="luggage" size={20} color={C.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.allowsHeaderTitle, { color: C.textPrimary }]}>
-                  What Traveler Allows to Carry
-                </Text>
-                <Text style={[styles.allowsHeaderSub, { color: C.textMuted }]}>
-                  {remainingWeight > 0 ? `${remainingWeight.toFixed(1)} kg space free` : 'Space full'} · {(trip.vehicleType || 'Car').toUpperCase()}
-                </Text>
-              </View>
+        {/* What this Traveler Can Carry */}
+        <View style={[styles.canCarryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.canCarryHeaderRow}>
+            <View style={[styles.canCarryIconBox, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name="inventory-2" size={16} color={C.primary} />
             </View>
-
-            {/* Standard dimensions badge */}
-            <View style={[styles.dimensionsBadge, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-              <MaterialIcons name="straighten" size={16} color={C.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.dimensionsTitle, { color: C.textPrimary }]}>
-                  Maximum Package Dimensions
-                </Text>
-                <Text style={[styles.dimensionsSub, { color: C.textMuted }]}>
-                  Up to 60 × 40 × 30 cm · Standard vehicle boot or seat compartment fit
-                </Text>
-              </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.canCarryTitle, { color: C.textPrimary }]}>
+                {isOwner ? 'What You Can Carry' : `What ${trip.userName.split(' ')[0]} Can Carry`}
+              </Text>
+              <Text style={[styles.canCarrySub, { color: C.textMuted }]}>
+                {isOwner
+                  ? 'Senders can only request parcels from these categories.'
+                  : 'Only parcels in these categories can be requested on this trip.'}
+              </Text>
             </View>
+          </View>
 
-            {/* Allowed Categories Grid */}
-            <View style={styles.allowsGrid}>
-              {[
-                { label: 'Documents & Books', icon: 'description' as const },
-                { label: 'Electronics & Gadgets', icon: 'devices' as const },
-                { label: 'Clothes & Lifestyle', icon: 'checkroom' as const },
-                { label: 'Packaged Dry Food', icon: 'restaurant' as const },
-                { label: 'Prescription Medicine', icon: 'medical-services' as const },
-                { label: 'Other Legal Parcels', icon: 'inventory-2' as const },
-              ].map((cat) => (
+          <View style={styles.canCarryPillsWrap}>
+            {CARRY_CATEGORIES.map((cat) => {
+              const allowed = allowedSet.has(cat.type);
+              return (
                 <View
-                  key={cat.label}
+                  key={cat.type}
                   style={[
-                    styles.categoryCheckPill,
-                    {
-                      backgroundColor: C.surfaceElevated,
-                      borderColor: C.surfaceBorder,
-                    },
+                    styles.canCarryPill,
+                    allowed
+                      ? { backgroundColor: C.successSubtle, borderColor: C.successBorder }
+                      : { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
                   ]}
                 >
-                  <MaterialIcons name="check-circle" size={14} color={C.success} />
-                  <Text style={[styles.categoryCheckText, { color: C.textPrimary }]}>
+                  <MaterialIcons
+                    name={allowed ? 'check-circle' : 'cancel'}
+                    size={13}
+                    color={allowed ? C.success : C.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.canCarryPillText,
+                      {
+                        color: allowed ? C.success : C.textMuted,
+                        textDecorationLine: allowed ? 'none' : 'line-through',
+                      },
+                    ]}
+                  >
                     {cat.label}
                   </Text>
                 </View>
-              ))}
-            </View>
+              );
+            })}
+          </View>
 
-            {/* Selected Parcel Compatibility Status */}
-            {activeParcel ? (
-              <View style={[styles.parcelCompatibilityBox, {
-                backgroundColor: remainingWeight >= activeParcel.weight ? '#ECFDF5' : '#FEF2F2',
-                borderColor: remainingWeight >= activeParcel.weight ? '#A7F3D0' : '#FECACA',
-              }]}>
-                <Text style={[styles.parcelCompatTitle, {
-                  color: remainingWeight >= activeParcel.weight ? '#065F46' : '#991B1B',
-                }]}>
-                  {remainingWeight >= activeParcel.weight
-                    ? `✅ Your ${activeParcel.category} (${activeParcel.weight}kg) fits in available space`
-                    : `⚠️ Your parcel (${activeParcel.weight}kg) exceeds available space (${remainingWeight.toFixed(1)}kg)`}
-                </Text>
-                <Text style={[styles.parcelCompatSub, {
-                  color: remainingWeight >= activeParcel.weight ? '#047857' : '#B91C1C',
-                }]}>
-                  Offered: ₹{activeParcel.priceOffer || calculatedPrice} · Traveler rate: ₹{trip.pricePerKg}/kg
-                </Text>
-              </View>
-            ) : null}
-
-            {/* Prohibited items safety alert */}
-            <View style={[styles.prohibitedBox, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : '#FEF2F2', borderColor: '#FECACA' }]}>
-              <View style={styles.prohibitedTitleRow}>
-                <MaterialIcons name="warning" size={15} color="#DC2626" />
-                <Text style={[styles.prohibitedTitle, { color: '#DC2626' }]}>
-                  Strictly Prohibited & Safety Rules
-                </Text>
-              </View>
-              <Text style={[styles.prohibitedText, { color: isDark ? '#FCA5A5' : '#7F1D1D' }]}>
-                No hazardous chemicals, flammable items, or contraband. Packages must remain accessible for traveler inspection before departure.
+          {!isOwner && parcelCategoryBlocked && activeParcel ? (
+            <View style={[styles.canCarryMismatchBanner, { backgroundColor: C.errorSubtle, borderColor: C.errorBorder }]}>
+              <MaterialIcons name="warning-amber" size={16} color={C.error} />
+              <Text style={[styles.canCarryMismatchText, { color: C.error }]}>
+                Your parcel is {activeParcel.category}. {trip.userName.split(' ')[0]} doesn't carry this category — pick a different trip or edit your parcel.
               </Text>
             </View>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
 
-        {/* Existing Request Status (if sender already sent request) */}
+        {/* Existing Request Status Banner (for Sender) */}
         {!isOwner && myRequest ? (
-          <View style={[styles.matchingBanner, { backgroundColor: C.surface, borderColor: myRequest.status === 'accepted' ? '#10B98155' : '#F59E0B55' }]}>
-            <View style={[styles.matchingIconWrap, { backgroundColor: myRequest.status === 'accepted' ? '#10B98120' : '#F59E0B20' }]}>
+          <View style={[
+            styles.statusBanner,
+            {
+              backgroundColor: myRequest.status === 'accepted' ? C.successSubtle : C.surface,
+              borderColor: myRequest.status === 'accepted' ? C.successBorder : C.surfaceBorder,
+            }
+          ]}>
+            <View style={styles.statusBannerIcon}>
               <MaterialIcons
                 name={myRequest.status === 'accepted' ? 'check-circle' : 'schedule'}
-                size={24}
-                color={myRequest.status === 'accepted' ? '#10B981' : '#F59E0B'}
+                size={22}
+                color={myRequest.status === 'accepted' ? C.success : C.warning}
               />
             </View>
-            <View style={styles.matchingTextWrap}>
-              <Text style={[styles.matchingHeading, { color: C.textPrimary }]}>
-                {myRequest.status === 'accepted' ? 'Request Accepted!' : 'Request Pending'}
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statusBannerTitle, { color: C.textPrimary }]}>
+                {myRequest.status === 'accepted' ? 'Request Accepted' : 'Request Pending'}
               </Text>
-              <Text style={[styles.matchingSubheading, { color: C.textMuted }]}>
+              <Text style={[styles.statusBannerSub, { color: C.textMuted }]}>
                 {myRequest.status === 'accepted'
-                  ? `Coordinate with ${trip.userName} in chat to arrange pickup.`
+                  ? `Coordinate delivery with ${trip.userName} in chat.`
                   : `Waiting for ${trip.userName} to accept your request.`}
               </Text>
             </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.statusBannerAction,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.85 }
+              ]}
+              onPress={() => handleChat(myRequest)}
+            >
+              <MaterialIcons name="chat" size={14} color="#fff" />
+              <Text style={styles.statusBannerActionText}>Chat</Text>
+            </Pressable>
           </View>
         ) : null}
 
-        {/* Requests Feed */}
-        <View style={styles.requestsSection}>
-          <View style={styles.requestsHeaderRow}>
-            <View style={styles.requestsTitleRow}>
+        {/* Owner Summary Strip */}
+        {isOwner ? (
+          <View style={[styles.ownerStatsStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <View style={styles.ownerStatItem}>
+              <Text style={[styles.ownerStatVal, { color: C.textPrimary }]}>{visibleRequests.length}</Text>
+              <Text style={[styles.ownerStatLbl, { color: C.textMuted }]}>Requests</Text>
+            </View>
+            <View style={[styles.ownerStatDiv, { backgroundColor: C.surfaceBorder }]} />
+            <View style={styles.ownerStatItem}>
+              <Text style={[styles.ownerStatVal, { color: C.textPrimary }]}>{bookedWeight.toFixed(1)} kg</Text>
+              <Text style={[styles.ownerStatLbl, { color: C.textMuted }]}>Booked Space</Text>
+            </View>
+            <View style={[styles.ownerStatDiv, { backgroundColor: C.surfaceBorder }]} />
+            <View style={styles.ownerStatItem}>
+              <Text style={[styles.ownerStatVal, { color: C.success }]}>₹{totalEarnings}</Text>
+              <Text style={[styles.ownerStatLbl, { color: C.textMuted }]}>Earned</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Requests Feed (for Owner) */}
+        {isOwner ? (
+          <View style={styles.requestsSection}>
+            <View style={styles.requestsHeaderRow}>
               <Text style={[styles.requestsTitle, { color: C.textPrimary }]}>
-                Parcel Requests
+                Delivery Requests
               </Text>
               <View style={[styles.requestsCountBadge, { backgroundColor: C.primarySubtle }]}>
                 <Text style={[styles.requestsCountText, { color: C.primary }]}>
@@ -1120,143 +997,128 @@ export default function TripDetailScreen() {
               </View>
             </View>
 
-            {/* Filter Pills */}
-            <View style={styles.filterPillsRow}>
-              {[
-                { key: 'all' as TabFilter, label: 'All' },
-                { key: 'pending' as TabFilter, label: `Pending (${pending.length})` },
-                { key: 'active' as TabFilter, label: `Active (${active.length})` },
-              ].map((tab) => {
-                const isSelected = selectedTab === tab.key;
-                return (
+            {loading ? (
+              <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
+            ) : visibleRequests.length === 0 ? (
+              <View style={[styles.emptyRequestsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                <MaterialIcons name="inbox" size={32} color={C.textMuted} />
+                <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Delivery Requests Yet</Text>
+                <Text style={[styles.emptySub, { color: C.textMuted }]}>
+                  Senders will send delivery requests when they see your trip in the marketplace.
+                </Text>
+                {isTripActive ? (
                   <Pressable
-                    key={tab.key}
-                    style={[
-                      styles.filterPill,
-                      {
-                        backgroundColor: isSelected ? C.primary : C.surface,
-                        borderColor: isSelected ? C.primary : C.surfaceBorder,
-                      }
+                    style={({ pressed }) => [
+                      styles.browseParcelsBtn,
+                      { backgroundColor: C.primary },
+                      pressed && { opacity: 0.9 }
                     ]}
-                    onPress={() => {
-                      Haptic.select();
-                      setSelectedTab(tab.key);
-                    }}
+                    onPress={() => router.push({
+                      pathname: '/search',
+                      params: { fromCity: trip.fromCity, toCity: trip.toCity, mode: 'parcels' }
+                    })}
                   >
-                    <Text style={[
-                      styles.filterPillText,
-                      { color: isSelected ? '#fff' : C.textMuted }
-                    ]}>
-                      {tab.label}
-                    </Text>
+                    <MaterialIcons name="search" size={16} color="#fff" />
+                    <Text style={styles.browseParcelsText}>Browse Parcels on Route</Text>
                   </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Requests Feed */}
-          {loading ? (
-            <ActivityIndicator color={C.primary} style={{ marginVertical: 32 }} />
-          ) : displayedRequests.length === 0 ? (
-            <View style={[styles.emptyRequestsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: C.surfaceElevated }]}>
-                <MaterialIcons name="inbox" size={32} color={C.primary} />
+                ) : null}
               </View>
-              <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Parcel Requests Yet</Text>
-              <Text style={[styles.emptySub, { color: C.textMuted }]}>
-                {isOwner
-                  ? 'Senders will send requests when they see your trip in the marketplace.'
-                  : 'No requests submitted on this trip.'}
-              </Text>
-              {isOwner && isTripActive ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.findParcelsEmptyBtn,
-                    { backgroundColor: C.primary },
-                    pressed && { opacity: 0.85 }
-                  ]}
-                  onPress={() => router.push({
-                    pathname: '/search',
-                    params: { fromCity: trip.fromCity, toCity: trip.toCity, mode: 'parcels' }
-                  })}
-                >
-                  <MaterialIcons name="explore" size={16} color="#fff" />
-                  <Text style={styles.findParcelsEmptyText}>Browse Parcels on Route</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : (
-            <View style={styles.requestsList}>
-              {displayedRequests.map((req) => (
-                <RequestItem
-                  key={req.id}
-                  request={req}
-                  parcel={parcels.find(p => p.id === req.parcelId)}
-                  viewerRole={viewerRole}
-                  onAccept={() => handleAccept(req)}
-                  onReject={() => handleReject(req)}
-                  onChat={() => handleChat(req)}
-                  onDelivery={() => handleDelivery(req)}
-                  onPayment={() => handlePayment(req)}
-                />
-              ))}
-            </View>
-          )}
-        </View>
+            ) : (
+              <View style={styles.requestsList}>
+                {visibleRequests.map((req) => (
+                  <RequestItem
+                    key={req.id}
+                    request={req}
+                    parcel={parcels.find(p => p.id === req.parcelId)}
+                    viewerRole={viewerRole}
+                    onAccept={() => handleAccept(req)}
+                    onReject={() => handleReject(req)}
+                    onChat={() => handleChat(req)}
+                    onDelivery={() => handleDelivery(req)}
+                    onPayment={() => handlePayment(req)}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : null}
       </ScrollView>
 
-      {/* Fixed Bottom Action Bar for Senders */}
-      {!isOwner && isTripActive && !myRequest ? (
-        <View style={[styles.fixedBottomBar, {
-          backgroundColor: C.surface,
-          borderTopColor: C.surfaceBorder,
-          paddingBottom: insets.bottom + 12,
-        }]}>
+      {/* Fixed Bottom Action Bar for Sender */}
+      {showBottomBar ? (
+        <View style={[
+          styles.fixedBottomBar,
+          {
+            backgroundColor: C.surface,
+            borderTopColor: C.surfaceBorder,
+            paddingBottom: insets.bottom + 10,
+          }
+        ]}>
           <View style={styles.bottomBarInner}>
-            <Pressable
-              onPress={() => {
-                if (!user) {
-                  Haptic.warning();
-                  showAlert('Sign In Required', 'Please sign in to negotiate trips.');
-                  return;
-                }
-                Haptic.tap();
-                setShowNegotiateModal(true);
-              }}
-              style={({ pressed }) => [
-                styles.negotiateBtn,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <MaterialIcons name="tune" size={18} color={C.textPrimary} />
-              <Text style={[styles.negotiateBtnText, { color: C.textPrimary }]}>Negotiate</Text>
-            </Pressable>
+            <View style={styles.bottomPriceCol}>
+              <Text style={[styles.bottomPriceLabel, { color: C.textMuted }]}>Estimated Fare</Text>
+              <Text style={[styles.bottomPriceAmount, { color: C.textPrimary }]}>
+                ₹{calculatedPrice}
+              </Text>
+              <Text style={[styles.bottomRateSub, { color: C.textMuted }]}>₹{trip.pricePerKg}/kg</Text>
+            </View>
 
-            <Pressable
-              onPress={() => {
-                if (!user) {
-                  Haptic.warning();
-                  showAlert('Sign In Required', 'Please sign in to book trips.');
-                  return;
-                }
-                Haptic.confirm();
-                if (activeParcel) {
-                  handleConfirmRequest(activeParcel.id, trip, calculatedPrice);
-                } else {
-                  setShowRequestModal(true);
-                }
-              }}
-              style={({ pressed }) => [
-                styles.bookTripBtn,
-                { backgroundColor: C.primary },
-                pressed && { opacity: 0.9 },
-              ]}
-            >
-              <MaterialIcons name="bolt" size={20} color="#FFFFFF" />
-              <Text style={styles.bookTripBtnText}>Book Trip · ₹{calculatedPrice}</Text>
-            </Pressable>
+            <View style={styles.bottomActionsRow}>
+              <Pressable
+                onPress={() => {
+                  if (!user) {
+                    Haptic.warning();
+                    showAlert('Sign In Required', 'Please sign in to negotiate trips.');
+                    return;
+                  }
+                  Haptic.tap();
+                  setShowNegotiateModal(true);
+                }}
+                style={({ pressed }) => [
+                  styles.negotiateBtn,
+                  { borderColor: C.surfaceBorder },
+                  pressed && { opacity: 0.75 }
+                ]}
+              >
+                <MaterialIcons name="tune" size={16} color={C.textPrimary} />
+                <Text style={[styles.negotiateBtnText, { color: C.textPrimary }]}>Negotiate</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  if (!user) {
+                    Haptic.warning();
+                    showAlert('Sign In Required', 'Please sign in to send requests.');
+                    return;
+                  }
+                  if (parcelCategoryBlocked && activeParcel) {
+                    Haptic.warning();
+                    showAlert(
+                      'Category Not Supported',
+                      `${trip.userName} doesn't carry ${activeParcel.category}. Pick a different parcel or choose another trip.`
+                    );
+                    return;
+                  }
+                  Haptic.confirm();
+                  if (activeParcel) {
+                    handleConfirmRequest(activeParcel.id, trip, calculatedPrice);
+                  } else {
+                    setShowRequestModal(true);
+                  }
+                }}
+                disabled={parcelCategoryBlocked}
+                style={({ pressed }) => [
+                  styles.requestDeliveryBtn,
+                  { backgroundColor: parcelCategoryBlocked ? C.textMuted : C.primary },
+                  pressed && { opacity: 0.9 }
+                ]}
+              >
+                <MaterialIcons name="local-shipping" size={17} color="#FFFFFF" />
+                <Text style={styles.requestDeliveryBtnText}>
+                  {parcelCategoryBlocked ? 'Not Supported' : 'Request Delivery'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       ) : null}

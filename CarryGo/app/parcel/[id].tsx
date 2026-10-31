@@ -10,13 +10,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversationsQuery } from '@/features/conversations/queries';
-import { useParcelQuery, useUpdateParcelStatusMutation, useTripsQuery, useCreateTripMutation, flattenInfiniteData } from '@/features/listings/queries';
+import { useParcelQuery, useUpdateParcelStatusMutation, useTripsQuery, useTripQuery, useCreateTripMutation, flattenInfiniteData } from '@/features/listings/queries';
 import { useRequestsByParcelQuery, useUpdateRequestStatusMutation, useCreateRequestMutation } from '@/features/requests/queries';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Parcel } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, StatusBarGeometry } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { getUserErrorMessage } from '@/lib/error-handler';
 
@@ -38,35 +38,53 @@ const categoryGradients: Record<string, [string, string]> = {
   other: ['#059669', '#064E3B'],
 };
 
-type TabFilter = 'all' | 'pending' | 'active' | 'done';
-
 interface ProposalCardProps {
   request: Request;
-  viewerRole: 'sender' | 'traveller' | 'observer';
+  parcelCategory?: string;
+  isSender: boolean;
   onAccept?: () => void;
   onDecline?: () => void;
-  onCancel: () => void;
   onChat: () => void;
   onTrack: () => void;
-  onPayment: () => void;
   C: ThemeColors;
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  documents: 'Documents',
+  electronics: 'Electronics',
+  clothing: 'Clothing',
+  food: 'Food',
+  medicine: 'Medicine',
+  other: 'General',
+};
+
 function ProposalCard({
   request,
-  viewerRole,
+  parcelCategory,
+  isSender,
   onAccept,
   onDecline,
-  onCancel,
   onChat,
   onTrack,
-  onPayment,
   C,
 }: ProposalCardProps) {
-  const isSender = viewerRole === 'sender';
   const isPending = request.status === 'pending';
   const isAccepted = request.status === 'accepted';
   const isCompleted = request.status === 'completed';
+
+  // Fetch trip to show carrier's allowed categories (only matters to sender)
+  const tripQuery = useTripQuery(isSender && isPending ? request.tripId : undefined);
+  const allowed = tripQuery.data?.allowedCategories;
+  const categoryMismatch = Boolean(
+    isSender && isPending && parcelCategory && allowed && allowed.length > 0 && !allowed.includes(parcelCategory as any)
+  );
+
+  const dateStr = useMemo(() => {
+    const d = request.createdAt ? new Date(request.createdAt) : null;
+    return d && !isNaN(d.getTime())
+      ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+      : 'Recently';
+  }, [request.createdAt]);
 
   return (
     <View style={[styles.proposalCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -75,13 +93,13 @@ function ProposalCard({
         <View style={styles.carrierLeft}>
           <View style={[styles.carrierAvatar, { backgroundColor: C.primarySubtle }]}>
             <Text style={[styles.carrierAvatarText, { color: C.primary }]}>
-              {(request.travellerName || 'U').charAt(0).toUpperCase()}
+              {(request.travellerName || 'T').charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.carrierMeta}>
             <View style={styles.carrierNameRow}>
               <Text style={[styles.carrierName, { color: C.textPrimary }]}>
-                {request.travellerName}
+                {request.travellerName || 'Traveler'}
               </Text>
               <View style={[styles.verifiedPill, { backgroundColor: C.successSubtle }]}>
                 <MaterialIcons name="verified" size={11} color={C.success} />
@@ -89,65 +107,103 @@ function ProposalCard({
               </View>
             </View>
             <Text style={[styles.carrierDate, { color: C.textMuted }]}>
-              Offered on {new Date(request.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              Offered {dateStr}
             </Text>
           </View>
         </View>
 
         <View style={styles.bidAmountBox}>
-          <Text style={[styles.bidAmount, { color: C.success }]}>₹{request.price}</Text>
-          <Text style={[styles.bidLabel, { color: C.textMuted }]}>Proposed</Text>
+          <Text style={[styles.bidAmount, { color: C.textPrimary }]}>₹{request.price}</Text>
+          <Text style={[styles.bidLabel, { color: C.textMuted }]}>Offered</Text>
         </View>
       </View>
 
-      {/* Message from Carrier */}
+      {/* Message from Carrier (if present) */}
       {request.message ? (
         <View style={[styles.carrierMessageBox, { backgroundColor: C.surfaceElevated }]}>
-          <Ionicons name="chatbubble-ellipses-outline" size={14} color={C.primary} />
           <Text style={[styles.carrierMessageText, { color: C.textSecondary }]}>
-            {`"${request.message}"`}
+            {request.message}
           </Text>
         </View>
       ) : null}
 
-      {/* Action Buttons */}
+      {/* Carrier can-carry snapshot (visible to sender on pending offer) */}
+      {isSender && isPending && allowed && allowed.length > 0 ? (
+        <View style={styles.carrierCanCarryRow}>
+          <MaterialIcons name="inventory-2" size={12} color={C.textMuted} />
+          <Text style={[styles.carrierCanCarryLabel, { color: C.textMuted }]}>CAN CARRY:</Text>
+          <View style={styles.carrierCanCarryPills}>
+            {allowed.map((cat) => {
+              const isMatch = parcelCategory === cat;
+              return (
+                <View
+                  key={cat}
+                  style={[
+                    styles.carrierCanCarryPill,
+                    {
+                      backgroundColor: isMatch ? C.successSubtle : C.surfaceElevated,
+                      borderColor: isMatch ? C.successBorder : C.surfaceBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.carrierCanCarryPillText, { color: isMatch ? C.success : C.textSecondary }]}>
+                    {CATEGORY_LABELS[cat] || cat}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {categoryMismatch ? (
+        <View style={[styles.carrierMismatchBox, { backgroundColor: C.errorSubtle, borderColor: C.errorBorder }]}>
+          <MaterialIcons name="warning-amber" size={14} color={C.error} />
+          <Text style={[styles.carrierMismatchText, { color: C.error }]}>
+            This carrier doesn't carry {parcelCategory}. Review carefully before accepting.
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Actions */}
       {isSender && isPending ? (
         <View style={styles.proposalActionsRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.cancelOfferBtn,
-              { borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.7 }
-            ]}
-            onPress={onDecline || onCancel}
-          >
-            <MaterialIcons name="close" size={15} color={C.error} />
-            <Text style={[styles.cancelOfferText, { color: C.error }]}>Decline</Text>
-          </Pressable>
+          {onDecline ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionBtnSecondary,
+                { borderColor: C.surfaceBorder },
+                pressed && { opacity: 0.7 }
+              ]}
+              onPress={onDecline}
+            >
+              <Text style={[styles.actionBtnText, { color: C.error }]}>Decline</Text>
+            </Pressable>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [
-              styles.chatOfferBtn,
-              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.75 }
+              styles.actionBtnSecondary,
+              { borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.7 }
             ]}
             onPress={onChat}
           >
             <Ionicons name="chatbubble-outline" size={15} color={C.textPrimary} />
-            <Text style={[styles.chatOfferText, { color: C.textPrimary }]}>Chat</Text>
+            <Text style={[styles.actionBtnText, { color: C.textPrimary }]}>Chat</Text>
           </Pressable>
 
           {onAccept ? (
             <Pressable
               style={({ pressed }) => [
-                styles.acceptOfferBtn,
+                styles.actionBtnPrimary,
                 { backgroundColor: C.primary },
-                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }
+                pressed && { opacity: 0.9 }
               ]}
               onPress={onAccept}
             >
               <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-              <Text style={styles.acceptOfferText}>Accept</Text>
+              <Text style={styles.actionBtnPrimaryText}>Accept</Text>
             </Pressable>
           ) : null}
         </View>
@@ -157,47 +213,26 @@ function ProposalCard({
         <View style={styles.proposalActionsRow}>
           <Pressable
             style={({ pressed }) => [
-              styles.chatOfferBtn,
-              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.75 }
+              styles.actionBtnSecondary,
+              { borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.7 }
             ]}
             onPress={onChat}
           >
             <Ionicons name="chatbubble-outline" size={15} color={C.textPrimary} />
-            <Text style={[styles.chatOfferText, { color: C.textPrimary }]}>Chat</Text>
+            <Text style={[styles.actionBtnText, { color: C.textPrimary }]}>Chat</Text>
           </Pressable>
-
-          {isSender ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.escrowBtn,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                pressed && { opacity: 0.75 }
-              ]}
-              onPress={onPayment}
-            >
-              <MaterialIcons name="account-balance-wallet" size={15} color={C.warning} />
-              <Text style={[styles.escrowBtnText, { color: C.warning }]}>Escrow</Text>
-            </Pressable>
-          ) : null}
 
           <Pressable
             style={({ pressed }) => [
-              styles.trackLiveBtn,
+              styles.actionBtnPrimary,
+              { backgroundColor: C.primary },
               pressed && { opacity: 0.9 }
             ]}
             onPress={onTrack}
           >
-            <LinearGradient
-              colors={[C.primary, C.primaryDark]}
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            />
-            <MaterialIcons name={isSender ? 'radar' : 'fact-check'} size={16} color="#fff" />
-            <Text style={styles.trackLiveText}>
-              {isSender ? 'Track Delivery' : 'Process Shipment'}
-            </Text>
+            <MaterialIcons name="radar" size={16} color="#fff" />
+            <Text style={styles.actionBtnPrimaryText}>Track Delivery</Text>
           </Pressable>
         </View>
       ) : null}
@@ -206,7 +241,7 @@ function ProposalCard({
         <View style={styles.deliveryCompletedBadge}>
           <Ionicons name="checkmark-circle" size={16} color={C.success} />
           <Text style={[styles.deliveryCompletedText, { color: C.success }]}>
-            Successfully Delivered
+            Delivered
           </Text>
         </View>
       ) : null}
@@ -232,7 +267,6 @@ export default function ParcelDetailScreen() {
   const createTripMutation = useCreateTripMutation();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<TabFilter>('all');
   const [showImageModal, setShowImageModal] = useState(false);
   const [showCarryModal, setShowCarryModal] = useState(false);
 
@@ -245,20 +279,17 @@ export default function ParcelDetailScreen() {
   const loading = parcelQuery.isLoading || requestsQuery.isLoading;
 
   const isSender = parcel?.userId === user?.id;
+  const isParcelOpen = parcel?.status === 'open';
+
+  // Visible requests: sender sees all proposals; traveler sees only their own
   const visibleRequests = useMemo(() => {
     if (isSender) return requests;
     return requests.filter(request => request.travellerId === user?.id);
   }, [isSender, requests, user?.id]);
 
-  const viewerRole: 'sender' | 'traveller' | 'observer' = isSender
-    ? 'sender'
-    : visibleRequests.length > 0
-      ? 'traveller'
-      : 'observer';
-
   const catGradient: [string, string] = parcel
-    ? (categoryGradients[parcel.category] || ['#059669', '#064E3B'])
-    : ['#059669', '#064E3B'];
+    ? (categoryGradients[parcel.category] || ['#1A4CA2', '#123777'])
+    : ['#1A4CA2', '#123777'];
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -320,7 +351,6 @@ export default function ParcelDetailScreen() {
   const handleQuickCreateAndCarry = async (quickParams: QuickCarryTripParams, targetParcel: Parcel) => {
     if (!user) return;
     try {
-      // 1. Post trip for the exact parcel route automatically
       const newTrip = await createTripMutation.mutateAsync({
         userId: user.id,
         userName: user.fullName || user.name || 'Traveller',
@@ -335,7 +365,6 @@ export default function ParcelDetailScreen() {
         status: 'active',
       });
 
-      // 2. Immediately send carry offer
       const result = await createRequestAsync({
         parcelId: targetParcel.id,
         tripId: newTrip.id,
@@ -353,7 +382,7 @@ export default function ParcelDetailScreen() {
         Haptic.success();
         showAlert(
           'Trip Posted & Offer Sent! 🎉',
-          `Your trip for ${targetParcel.fromCity} ➔ ${targetParcel.toCity} was posted and your offer (₹${targetParcel.priceOffer}) was sent to ${targetParcel.userName}!`,
+          `Your trip was posted and your offer (₹${targetParcel.priceOffer}) was sent to ${targetParcel.userName}.`,
           [
             { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
             { text: 'OK', style: 'cancel' },
@@ -373,7 +402,7 @@ export default function ParcelDetailScreen() {
     showAlert('Accept Offer?', `Accept ${req.travellerName}'s offer to carry this parcel for ₹${req.price}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Accept Offer',
+        text: 'Accept',
         onPress: async () => {
           try {
             await updateRequestStatusAsync({ requestId: req.id, status: 'accepted' });
@@ -382,7 +411,7 @@ export default function ParcelDetailScreen() {
             showAlert('Offer Accepted! 🎉', 'You can now coordinate pickup details directly in chat.');
           } catch (error) {
             Haptic.error();
-            showAlert('Could Not Accept', getUserErrorMessage(error, 'Failed to accept proposal.'));
+            showAlert('Could Not Accept', getUserErrorMessage(error, 'Failed to accept offer.'));
           }
         },
       },
@@ -393,7 +422,7 @@ export default function ParcelDetailScreen() {
     showAlert('Decline Offer?', `Decline ${req.travellerName}'s offer to carry this parcel?`, [
       { text: 'Keep', style: 'cancel' },
       {
-        text: 'Decline Offer',
+        text: 'Decline',
         style: 'destructive',
         onPress: async () => {
           try {
@@ -402,20 +431,8 @@ export default function ParcelDetailScreen() {
             await requestsQuery.refetch();
           } catch (error) {
             Haptic.error();
-            showAlert('Could Not Decline', getUserErrorMessage(error, 'Failed to decline proposal.'));
+            showAlert('Could Not Decline', getUserErrorMessage(error, 'Failed to decline offer.'));
           }
-        },
-      },
-    ]);
-  };
-
-  const handleCancel = (req: Request) => {
-    showAlert('Cancel Request?', 'Cancel your request to this traveller?', [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Cancel Request', style: 'destructive', onPress: async () => {
-          await updateRequestStatusAsync({ requestId: req.id, status: 'cancelled' });
-          await requestsQuery.refetch();
         },
       },
     ]);
@@ -423,14 +440,17 @@ export default function ParcelDetailScreen() {
 
   const handleChat = (req: Request) => {
     const conv = conversations.find(c => c.requestId === req.id);
-    if (conv?.id) router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
-    else showAlert('No Chat', 'Chat opens once the request is accepted.');
+    if (conv?.id) {
+      router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
+    } else {
+      showAlert('Chat', 'Chat is ready once the request is accepted.');
+    }
   };
 
   const handleCancelParcel = () => {
     if (!parcel || !isSender) return;
-    showAlert('Cancel Parcel?', 'This will remove your parcel listing from the marketplace. Any active deliveries will continue.', [
-      { text: 'Keep Parcel', style: 'cancel' },
+    showAlert('Cancel Parcel?', 'This will remove your parcel listing from the marketplace.', [
+      { text: 'Keep', style: 'cancel' },
       {
         text: 'Cancel Parcel',
         style: 'destructive',
@@ -438,10 +458,10 @@ export default function ParcelDetailScreen() {
           try {
             await updateParcelStatusMutation.mutateAsync({ parcelId: parcel.id, status: 'cancelled' });
             Haptic.success();
-            showAlert('Parcel Cancelled', 'Your parcel listing has been removed.');
+            showAlert('Parcel Cancelled', 'Your parcel listing has been cancelled.');
           } catch (error) {
             Haptic.error();
-            showAlert('Parcel Not Cancelled', getUserErrorMessage(error, 'Could not cancel parcel. Please try again.'));
+            showAlert('Error', getUserErrorMessage(error, 'Could not cancel parcel. Please try again.'));
           }
         },
       },
@@ -452,23 +472,12 @@ export default function ParcelDetailScreen() {
     if (!parcel) return;
     try {
       await Share.share({
-        message: `CarryGo Shipment: ${parcel.description} from ${parcel.fromCity} to ${parcel.toCity}! Weight: ${parcel.weight}kg, Reward: ₹${parcel.priceOffer}. Connect with me on CarryGo.`,
+        message: `CarryGo Parcel: ${parcel.description} from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ₹${parcel.priceOffer}).`,
       });
     } catch {
       // Ignored
     }
   };
-
-  const pending = visibleRequests.filter(r => r.status === 'pending');
-  const active = visibleRequests.filter(r => r.status === 'accepted');
-  const done = visibleRequests.filter(r => ['completed', 'rejected', 'cancelled', 'failed'].includes(r.status));
-
-  const displayedRequests = useMemo(() => {
-    if (selectedTab === 'pending') return pending;
-    if (selectedTab === 'active') return active;
-    if (selectedTab === 'done') return done;
-    return visibleRequests;
-  }, [selectedTab, visibleRequests, pending, active, done]);
 
   if (!parcel) {
     return (
@@ -478,12 +487,12 @@ export default function ParcelDetailScreen() {
     );
   }
 
-  const isParcelOpen = parcel.status === 'open';
+  const showBottomBar = !isSender && isParcelOpen && !myRequest;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      {/* Top Floating App Bar */}
-      <View style={[styles.topNavBar, { paddingTop: insets.top + 8 }]}>
+      {/* Top Header Bar */}
+      <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }]}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
@@ -498,15 +507,21 @@ export default function ParcelDetailScreen() {
 
         <View style={styles.navTitleContainer}>
           <Text style={[styles.navTitle, { color: C.textPrimary }]}>
-            {isSender ? 'Manage Shipment' : 'Parcel Details'}
+            {isSender ? 'Manage Parcel' : 'Parcel Details'}
           </Text>
-          <View style={styles.navSubRow}>
+          <View style={[
+            styles.statusCapsule,
+            { backgroundColor: isParcelOpen ? C.successSubtle : C.surfaceElevated }
+          ]}>
             <View style={[
-              styles.navStatusDot,
-              { backgroundColor: isParcelOpen ? C.success : C.primary }
+              styles.statusDot,
+              { backgroundColor: isParcelOpen ? C.success : C.textMuted }
             ]} />
-            <Text style={[styles.navSubtitle, { color: C.textMuted }]}>
-              {parcel.status.replace('_', ' ').toUpperCase()}
+            <Text style={[
+              styles.statusCapsuleText,
+              { color: isParcelOpen ? C.success : C.textMuted }
+            ]}>
+              {parcel.status.toUpperCase()}
             </Text>
           </View>
         </View>
@@ -529,7 +544,7 @@ export default function ParcelDetailScreen() {
               onPress={handleCancelParcel}
               style={({ pressed }) => [
                 styles.roundNavBtn,
-                { backgroundColor: C.errorSubtle, borderColor: C.error + '30' },
+                { backgroundColor: C.errorSubtle, borderColor: C.errorBorder },
                 pressed && { opacity: 0.75 }
               ]}
               hitSlop={6}
@@ -541,33 +556,23 @@ export default function ParcelDetailScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scrollBody, { paddingBottom: insets.bottom + 36 }]}
+        contentContainerStyle={[
+          styles.scrollBody,
+          { paddingBottom: showBottomBar ? insets.bottom + 90 : insets.bottom + 36 }
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
       >
-        {/* Package Identity Card */}
+        {/* Package Card */}
         <View style={[styles.packageCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           {parcel.imageUri ? (
             <Pressable onPress={() => setShowImageModal(true)} style={styles.packageImageContainer}>
               <Image source={{ uri: parcel.imageUri }} style={styles.packageImage} contentFit="cover" />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.7)']}
-                style={styles.imageScrim}
-              />
               <View style={styles.imageOverlayTop}>
                 <View style={[styles.categoryBadgePill, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
                   <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={14} color="#fff" />
                   <Text style={styles.categoryBadgeText}>{parcel.category.toUpperCase()}</Text>
                 </View>
-                <View style={styles.zoomHintBadge}>
-                  <MaterialIcons name="fullscreen" size={16} color="#fff" />
-                  <Text style={styles.zoomHintText}>Inspect</Text>
-                </View>
-              </View>
-              <View style={styles.imageOverlayBottom}>
-                <Text style={styles.packageImageTitle} numberOfLines={2}>
-                  {parcel.description}
-                </Text>
               </View>
             </Pressable>
           ) : (
@@ -583,256 +588,212 @@ export default function ParcelDetailScreen() {
                   <MaterialIcons name={categoryIcons[parcel.category] || 'inventory-2'} size={14} color="#fff" />
                   <Text style={styles.noImageCategoryText}>{parcel.category.toUpperCase()}</Text>
                 </View>
-                <View style={styles.packageWeightPill}>
-                  <MaterialIcons name="scale" size={13} color="#fff" />
-                  <Text style={styles.packageWeightPillText}>{parcel.weight} kg</Text>
-                </View>
               </View>
-              <Text style={styles.packageNoImageTitle}>
-                {parcel.description}
-              </Text>
             </View>
           )}
 
-          {/* Courier Route Section (Vertical Delivery Flow) */}
-          <View style={styles.routeSection}>
-            {/* Origin Step */}
-            <View style={styles.routeStep}>
-              <View style={styles.stepIndicatorCol}>
-                <View style={[styles.pickupDot, { backgroundColor: C.success }]} />
-                <View style={[styles.verticalLine, { backgroundColor: C.surfaceBorder }]} />
+          <View style={styles.packageDetailsBody}>
+            {/* Title / Description */}
+            <Text style={[styles.parcelTitle, { color: C.textPrimary }]}>
+              {parcel.description}
+            </Text>
+
+            {/* Clean Route: Origin ➔ Destination */}
+            <View style={[styles.routeRow, { backgroundColor: C.surfaceElevated }]}>
+              <View style={styles.routeCityBox}>
+                <Text style={[styles.routeLabel, { color: C.textMuted }]}>FROM</Text>
+                <Text style={[styles.routeCity, { color: C.textPrimary }]} numberOfLines={1}>
+                  {parcel.fromCity}
+                </Text>
               </View>
-              <View style={styles.stepContent}>
-                <Text style={[styles.stepLabel, { color: C.textMuted }]}>PICKUP LOCATION</Text>
-                <Text style={[styles.stepCity, { color: C.textPrimary }]}>{parcel.fromCity}</Text>
+              <MaterialIcons name="arrow-forward" size={18} color={C.primary} />
+              <View style={[styles.routeCityBox, { alignItems: 'flex-end' }]}>
+                <Text style={[styles.routeLabel, { color: C.textMuted }]}>TO</Text>
+                <Text style={[styles.routeCity, { color: C.textPrimary }]} numberOfLines={1}>
+                  {parcel.toCity}
+                </Text>
               </View>
             </View>
 
-            {/* Destination Step */}
-            <View style={styles.routeStep}>
-              <View style={styles.stepIndicatorCol}>
-                <View style={[styles.dropoffPin, { backgroundColor: C.primary }]}>
-                  <MaterialIcons name="location-on" size={12} color="#fff" />
+            {/* 3 Metric Pills: Weight, Category, Reward */}
+            <View style={styles.metricsRow}>
+              <View style={[styles.metricItem, { backgroundColor: C.surfaceElevated }]}>
+                <Text style={[styles.metricLabel, { color: C.textMuted }]}>Weight</Text>
+                <Text style={[styles.metricValue, { color: C.textPrimary }]}>{parcel.weight} kg</Text>
+              </View>
+
+              <View style={[styles.metricItem, { backgroundColor: C.surfaceElevated }]}>
+                <Text style={[styles.metricLabel, { color: C.textMuted }]}>Category</Text>
+                <Text style={[styles.metricValue, { color: C.textPrimary }]}>
+                  {parcel.category.charAt(0).toUpperCase() + parcel.category.slice(1)}
+                </Text>
+              </View>
+
+              <View style={[styles.metricItem, { backgroundColor: C.surfaceElevated }]}>
+                <Text style={[styles.metricLabel, { color: C.textMuted }]}>Reward</Text>
+                <Text style={[styles.metricValue, { color: C.primary }]}>
+                  {parcel.priceOffer ? `₹${parcel.priceOffer}` : 'Negotiable'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Sender attribution (for travelers) */}
+            {!isSender ? (
+              <View style={[styles.senderRow, { borderTopColor: C.surfaceBorder }]}>
+                <View style={[styles.senderAvatar, { backgroundColor: C.primarySubtle }]}>
+                  <Text style={[styles.senderAvatarText, { color: C.primary }]}>
+                    {(parcel.userName || 'S').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.senderLabel, { color: C.textMuted }]}>Sender</Text>
+                  <Text style={[styles.senderName, { color: C.textPrimary }]}>{parcel.userName}</Text>
                 </View>
               </View>
-              <View style={styles.stepContent}>
-                <Text style={[styles.stepLabel, { color: C.textMuted }]}>DELIVERY DESTINATION</Text>
-                <Text style={[styles.stepCity, { color: C.textPrimary }]}>{parcel.toCity}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Compensation & Escrow Guarantee Strip */}
-          <View style={[styles.escrowBanner, { backgroundColor: C.surfaceElevated }]}>
-            <View style={styles.escrowLeft}>
-              <Text style={[styles.offerAmount, { color: C.textPrimary }]}>
-                {parcel.priceOffer && parcel.priceOffer > 0 ? `₹${parcel.priceOffer}` : 'Negotiable'}
-              </Text>
-              <Text style={[styles.offerSubtext, { color: C.textMuted }]}>
-                {parcel.priceOffer && parcel.priceOffer > 0 ? `Carrier Reward (${parcel.weight} kg)` : `Reward Negotiable with Sender (${parcel.weight} kg)`}
-              </Text>
-            </View>
-            <View style={[styles.escrowRight, { backgroundColor: C.successSubtle }]}>
-              <MaterialIcons name="security" size={15} color={C.success} />
-              <Text style={[styles.escrowProtectedText, { color: C.success }]}>
-                100% Escrow
-              </Text>
-            </View>
+            ) : null}
           </View>
         </View>
 
-        {/* Find Travellers Smart Action Card (when open & owned) */}
-        {isSender && isParcelOpen ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.matchingCard,
-              pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }
-            ]}
-            onPress={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcel.id } })}
-          >
-            <LinearGradient
-              colors={[C.primary, C.primaryDark]}
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0.5 }}
-            />
-            <View style={styles.matchingIconCircle}>
-              <MaterialIcons name="explore" size={24} color="#fff" />
+        {/* Traveler Perspective: Current Request Status Banner */}
+        {!isSender && myRequest ? (
+          <View style={[
+            styles.statusBanner,
+            {
+              backgroundColor: myRequest.status === 'accepted' ? C.successSubtle : C.surface,
+              borderColor: myRequest.status === 'accepted' ? C.successBorder : C.surfaceBorder,
+            }
+          ]}>
+            <View style={styles.statusBannerIcon}>
+              <MaterialIcons
+                name={myRequest.status === 'accepted' ? 'check-circle' : 'schedule'}
+                size={22}
+                color={myRequest.status === 'accepted' ? C.success : C.warning}
+              />
             </View>
-            <View style={styles.matchingTextCol}>
-              <Text style={styles.matchingTitle}>Find Matching Travellers</Text>
-              <Text style={styles.matchingSub}>
-                Browse travellers heading from {parcel.fromCity} to {parcel.toCity}
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statusBannerTitle, { color: C.textPrimary }]}>
+                {myRequest.status === 'accepted' ? 'Offer Accepted' : 'Offer Sent'}
+              </Text>
+              <Text style={[styles.statusBannerSub, { color: C.textMuted }]}>
+                {myRequest.status === 'accepted'
+                  ? 'Coordinate pickup with the sender in chat.'
+                  : `Waiting for ${parcel.userName} to accept your ₹${myRequest.price} offer.`}
               </Text>
             </View>
-            <MaterialIcons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />
-          </Pressable>
-        ) : null}
-
-        {/* Carry Action Card for Travellers */}
-        {!isSender && isParcelOpen ? (
-          myRequest ? (
-            <View style={[styles.matchingCard, { backgroundColor: C.surface, borderColor: myRequest.status === 'accepted' ? '#10B98155' : '#F59E0B55' }]}>
-              <View style={[styles.matchingIconCircle, { backgroundColor: myRequest.status === 'accepted' ? '#10B98120' : '#F59E0B20' }]}>
-                <MaterialIcons
-                  name={myRequest.status === 'accepted' ? 'check-circle' : 'schedule'}
-                  size={24}
-                  color={myRequest.status === 'accepted' ? '#10B981' : '#F59E0B'}
-                />
-              </View>
-              <View style={styles.matchingTextCol}>
-                <Text style={[styles.matchingTitle, { color: C.textPrimary }]}>
-                  {myRequest.status === 'accepted' ? 'Your Offer Was Accepted!' : 'Carry Offer Sent'}
-                </Text>
-                <Text style={[styles.matchingSub, { color: C.textMuted }]}>
-                  {myRequest.status === 'accepted'
-                    ? 'Coordinate with sender in chat to begin pickup.'
-                    : `Waiting for ${parcel.userName} to accept your offer for ₹${myRequest.price}.`}
-                </Text>
-              </View>
-            </View>
-          ) : (
             <Pressable
               style={({ pressed }) => [
-                styles.matchingCard,
-                pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }
+                styles.statusBannerAction,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.85 }
               ]}
-              onPress={() => {
-                if (!user) {
-                  Haptic.warning();
-                  showAlert('Sign In Required', 'Please sign in to post a trip.');
-                  return;
-                }
-                Haptic.confirm();
-                router.push({
-                  pathname: '/create-trip',
-                  params: {
-                    fromCity: parcel.fromCity,
-                    toCity: parcel.toCity,
-                    capacity: String(Math.max(1, parcel.weight)),
-                  },
-                });
-              }}
+              onPress={() => handleChat(myRequest)}
             >
-              <LinearGradient
-                colors={[C.primary, C.primaryDark]}
-                style={StyleSheet.absoluteFillObject}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0.5 }}
-              />
-              <View style={styles.matchingIconCircle}>
-                <MaterialIcons name="directions-car" size={24} color="#fff" />
-              </View>
-              <View style={styles.matchingTextCol}>
-                <Text style={styles.matchingTitle}>Post a Trip on This Route</Text>
-                <Text style={styles.matchingSub}>
-                  Traveling from {parcel.fromCity} to {parcel.toCity}? Post your trip so senders can request delivery.
-                </Text>
-              </View>
-              <MaterialIcons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" />
+              <Ionicons name="chatbubble-outline" size={15} color="#FFFFFF" />
+              <Text style={styles.statusBannerActionText}>Chat</Text>
             </Pressable>
-          )
+          </View>
         ) : null}
 
-        {/* Carrier Proposals Section */}
-        <View style={styles.proposalsSection}>
-          <View style={styles.proposalsHeaderRow}>
-            <View style={styles.proposalsTitleRow}>
-              <Text style={[styles.proposalsTitle, { color: C.textPrimary }]}>
-                Carrier Bids
+        {/* Sender Perspective: Carrier Offers */}
+        {isSender ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
+                Carrier Offers
               </Text>
-              <View style={[styles.proposalsCountBadge, { backgroundColor: C.primarySubtle }]}>
-                <Text style={[styles.proposalsCountText, { color: C.primary }]}>
+              <View style={[styles.countBadge, { backgroundColor: C.primarySubtle }]}>
+                <Text style={[styles.countBadgeText, { color: C.primary }]}>
                   {visibleRequests.length}
                 </Text>
               </View>
             </View>
 
-            {/* Segmented Filter Pills */}
-            <View style={styles.filterPillsRow}>
-              {[
-                { key: 'all' as TabFilter, label: 'All' },
-                { key: 'pending' as TabFilter, label: `Pending (${pending.length})` },
-                { key: 'active' as TabFilter, label: `Active (${active.length})` },
-              ].map((tab) => {
-                const isSelected = selectedTab === tab.key;
-                return (
+            {loading ? (
+              <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
+            ) : visibleRequests.length === 0 ? (
+              <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                <MaterialIcons name="local-shipping" size={32} color={C.textMuted} />
+                <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
+                  No Offers Yet
+                </Text>
+                <Text style={[styles.emptySub, { color: C.textMuted }]}>
+                  We'll notify you when a traveler offers to carry your parcel.
+                </Text>
+                {isParcelOpen ? (
                   <Pressable
-                    key={tab.key}
-                    style={[
-                      styles.filterPill,
-                      {
-                        backgroundColor: isSelected ? C.primary : C.surface,
-                        borderColor: isSelected ? C.primary : C.surfaceBorder,
-                      }
+                    style={({ pressed }) => [
+                      styles.findTravelersBtn,
+                      { backgroundColor: C.primary },
+                      pressed && { opacity: 0.9 }
                     ]}
-                    onPress={() => {
-                      Haptic.select();
-                      setSelectedTab(tab.key);
-                    }}
+                    onPress={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcel.id } })}
                   >
-                    <Text style={[
-                      styles.filterPillText,
-                      { color: isSelected ? '#fff' : C.textMuted }
-                    ]}>
-                      {tab.label}
-                    </Text>
+                    <MaterialIcons name="search" size={16} color="#fff" />
+                    <Text style={styles.findTravelersText}>Find Matching Travelers</Text>
                   </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Proposals List or Empty State */}
-          {loading ? (
-            <ActivityIndicator color={C.primary} style={{ marginVertical: 32 }} />
-          ) : displayedRequests.length === 0 ? (
-            <View style={[styles.emptyBidsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <View style={[styles.emptyBidsIconCircle, { backgroundColor: C.surfaceElevated }]}>
-                <MaterialIcons name="radar" size={32} color={C.primary} />
+                ) : null}
               </View>
-              <Text style={[styles.emptyBidsTitle, { color: C.textPrimary }]}>
-                Waiting for Carrier Offers
-              </Text>
-              <Text style={[styles.emptyBidsSub, { color: C.textMuted }]}>
-                {isSender
-                  ? 'Your parcel is live on the marketplace. Travellers along this route can submit bids to carry it.'
-                  : 'No bids submitted yet.'}
-              </Text>
-              {isSender && isParcelOpen ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.inviteTravellerBtn,
-                    { backgroundColor: C.primary },
-                    pressed && { opacity: 0.85 }
-                  ]}
-                  onPress={() => router.push({ pathname: '/matching', params: { mode: 'parcel', id: parcel.id } })}
-                >
-                  <MaterialIcons name="person-search" size={16} color="#fff" />
-                  <Text style={styles.inviteTravellerText}>Invite Travellers</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : (
-            <View style={styles.proposalsList}>
-              {displayedRequests.map((req) => (
-                <ProposalCard
-                  key={req.id}
-                  request={req}
-                  viewerRole={viewerRole}
-                  onAccept={() => handleAcceptProposal(req)}
-                  onDecline={() => handleDeclineProposal(req)}
-                  onCancel={() => handleCancel(req)}
-                  onChat={() => handleChat(req)}
-                  onTrack={() => router.push({ pathname: '/delivery/[id]', params: { id: req.id } })}
-                  onPayment={() => router.push({ pathname: '/payment/[id]', params: { id: req.id } })}
-                  C={C}
-                />
-              ))}
-            </View>
-          )}
-        </View>
+            ) : (
+              <View style={styles.proposalsList}>
+                {visibleRequests.map((req) => (
+                  <ProposalCard
+                    key={req.id}
+                    request={req}
+                    parcelCategory={parcel.category}
+                    isSender={isSender}
+                    onAccept={() => handleAcceptProposal(req)}
+                    onDecline={() => handleDeclineProposal(req)}
+                    onChat={() => handleChat(req)}
+                    onTrack={() => router.push({ pathname: '/delivery/[id]', params: { id: req.id } })}
+                    C={C}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : null}
       </ScrollView>
+
+      {/* Fixed Bottom Action Bar for Traveler */}
+      {showBottomBar ? (
+        <View style={[
+          styles.fixedBottomBar,
+          {
+            backgroundColor: C.surface,
+            borderTopColor: C.surfaceBorder,
+            paddingBottom: insets.bottom + 10,
+          }
+        ]}>
+          <View style={styles.bottomBarInner}>
+            <View>
+              <Text style={[styles.bottomBarLabel, { color: C.textMuted }]}>Offered Reward</Text>
+              <Text style={[styles.bottomBarPrice, { color: C.textPrimary }]}>
+                {parcel.priceOffer ? `₹${parcel.priceOffer}` : 'Negotiable'}
+              </Text>
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryCtaBtn,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.9 }
+              ]}
+              onPress={() => {
+                if (!user) {
+                  Haptic.warning();
+                  showAlert('Sign In Required', 'Please sign in to offer to carry this parcel.');
+                  return;
+                }
+                Haptic.tap();
+                setShowCarryModal(true);
+              }}
+            >
+              <MaterialIcons name="local-shipping" size={18} color="#fff" />
+              <Text style={styles.primaryCtaText}>Deliver This Parcel</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       <CarryParcelModal
         visible={showCarryModal}
@@ -855,17 +816,12 @@ export default function ParcelDetailScreen() {
         >
           <View style={styles.modalBackdrop}>
             <Pressable
-              style={({ pressed }) => [
-                styles.modalCloseBtn,
-                { transform: [{ scale: pressed ? 0.92 : 1 }], opacity: pressed ? 0.8 : 1 },
-              ]}
+              style={styles.modalCloseBtn}
               onPress={() => {
                 Haptic.tap();
                 setShowImageModal(false);
               }}
               hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Close photo viewer"
             >
               <MaterialIcons name="close" size={24} color="#fff" />
             </Pressable>
@@ -897,39 +853,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingBottom: Spacing.md,
   },
   roundNavBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   navTitleContainer: {
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   navTitle: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
   },
-  navSubRow: {
+  statusCapsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
   },
-  navStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
-  navSubtitle: {
+  statusCapsuleText: {
     fontSize: 10,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
   },
   navRightRow: {
     flexDirection: 'row',
@@ -945,88 +903,44 @@ const styles = StyleSheet.create({
 
   // Package Card
   packageCard: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
   },
-
-  // Image Header
   packageImageContainer: {
-    height: 220,
+    height: 200,
     position: 'relative',
   },
   packageImage: {
     width: '100%',
     height: '100%',
   },
-  imageScrim: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-  },
   imageOverlayTop: {
     position: 'absolute',
-    top: 14,
-    left: 14,
-    right: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    top: 12,
+    left: 12,
   },
   categoryBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
   categoryBadgeText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.4,
   },
-  zoomHintBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.full,
-  },
-  zoomHintText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: FontWeight.semibold,
-  },
-  imageOverlayBottom: {
-    position: 'absolute',
-    bottom: 14,
-    left: 16,
-    right: 16,
-  },
-  packageImageTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: FontWeight.extrabold,
-    lineHeight: 24,
-  },
-
-  // No-Image Header
   packageNoImageHeader: {
-    padding: Spacing.xl,
-    minHeight: 140,
-    justifyContent: 'space-between',
-    gap: Spacing.md,
+    padding: Spacing.lg,
+    height: 72,
+    justifyContent: 'center',
   },
   noImageTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   noImageCategoryPill: {
     flexDirection: 'row',
@@ -1041,224 +955,181 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.4,
-  },
-  packageWeightPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-  },
-  packageWeightPillText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-  },
-  packageNoImageTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: FontWeight.extrabold,
-    lineHeight: 26,
-    letterSpacing: -0.3,
   },
 
-  // Vertical Delivery Route Flow
-  routeSection: {
+  packageDetailsBody: {
     padding: Spacing.lg,
-    gap: 16,
+    gap: Spacing.md,
   },
-  routeStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-  },
-  stepIndicatorCol: {
-    alignItems: 'center',
-    width: 20,
-  },
-  pickupDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginTop: 3,
-  },
-  verticalLine: {
-    width: 2,
-    height: 32,
-    marginTop: 4,
-    borderRadius: 1,
-  },
-  dropoffPin: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  stepContent: {
-    flex: 1,
-    gap: 2,
-  },
-  stepLabel: {
-    fontSize: 10,
+  parcelTitle: {
+    fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.6,
-  },
-  stepCity: {
-    fontSize: 16,
-    fontWeight: FontWeight.extrabold,
+    lineHeight: 24,
   },
 
-  // Escrow Strip
-  escrowBanner: {
+  // Route Box
+  routeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.mdl,
     paddingVertical: Spacing.md,
+    borderRadius: 14,
   },
-  escrowLeft: {
+  routeCityBox: {
+    flex: 1,
     gap: 2,
   },
-  offerAmount: {
-    fontSize: 22,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.4,
+  routeLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
   },
-  offerSubtext: {
+  routeCity: {
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+  },
+
+  // Metrics
+  metricsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  metricItem: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 12,
+    gap: 2,
+  },
+  metricLabel: {
     fontSize: 11,
     fontWeight: FontWeight.medium,
   },
-  escrowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.full,
-  },
-  escrowProtectedText: {
-    fontSize: 11,
+  metricValue: {
+    fontSize: 14,
     fontWeight: FontWeight.bold,
   },
 
-  // Smart Matching Card
-  matchingCard: {
+  // Sender Attribution
+  senderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    borderRadius: 20,
-    padding: Spacing.mdl,
-    overflow: 'hidden',
+    gap: 10,
+    paddingTop: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  matchingIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  senderAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  matchingTextCol: {
-    flex: 1,
-    gap: 2,
-  },
-  matchingTitle: {
-    color: '#fff',
-    fontSize: 15,
+  senderAvatarText: {
+    fontSize: 14,
     fontWeight: FontWeight.bold,
   },
-  matchingSub: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    lineHeight: 16,
+  senderLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+  },
+  senderName: {
+    fontSize: 14,
+    fontWeight: FontWeight.semibold,
   },
 
-  // Proposals Section
-  proposalsSection: {
+  // Traveler Status Banner
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: Spacing.mdl,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  statusBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBannerTitle: {
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+  },
+  statusBannerSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  statusBannerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+  },
+  statusBannerActionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
+
+  // Section
+  section: {
     gap: Spacing.md,
   },
-  proposalsHeaderRow: {
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  proposalsTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  sectionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
   },
-  proposalsTitle: {
-    fontSize: 18,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.3,
-  },
-  proposalsCountBadge: {
+  countBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
-  proposalsCountText: {
+  countBadgeText: {
     fontSize: 12,
     fontWeight: FontWeight.bold,
   },
-  filterPillsRow: {
-    flexDirection: 'row',
+
+  // Empty Card
+  emptyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: 16,
+    borderWidth: 1,
     gap: 6,
   },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: FontWeight.semibold,
-  },
-
-  // Empty Bids
-  emptyBidsCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: Spacing.sm,
-  },
-  emptyBidsIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyBidsTitle: {
-    fontSize: 16,
+  emptyTitle: {
+    fontSize: 15,
     fontWeight: FontWeight.bold,
     marginTop: 4,
   },
-  emptyBidsSub: {
+  emptySub: {
     fontSize: 12,
     textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 270,
+    maxWidth: 240,
   },
-  inviteTravellerBtn: {
+  findTravelersBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: BorderRadius.full,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
   },
-  inviteTravellerText: {
+  findTravelersText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: FontWeight.bold,
@@ -1266,11 +1137,11 @@ const styles = StyleSheet.create({
 
   // Proposals List
   proposalsList: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   proposalCard: {
-    borderRadius: 20,
-    padding: Spacing.mdl,
+    borderRadius: 16,
+    padding: Spacing.md,
     borderWidth: 1,
     gap: Spacing.md,
   },
@@ -1282,17 +1153,17 @@ const styles = StyleSheet.create({
   carrierLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   carrierAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
   carrierAvatarText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: FontWeight.bold,
   },
   carrierMeta: {
@@ -1301,22 +1172,22 @@ const styles = StyleSheet.create({
   carrierNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   carrierName: {
-    fontSize: FontSize.sm,
+    fontSize: 13,
     fontWeight: FontWeight.bold,
   },
   verifiedPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
     borderRadius: 4,
   },
   verifiedPillText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: FontWeight.bold,
   },
   carrierDate: {
@@ -1326,99 +1197,91 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   bidAmount: {
-    fontSize: 20,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.4,
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
   },
   bidLabel: {
     fontSize: 10,
     fontWeight: FontWeight.medium,
-    textTransform: 'uppercase',
   },
   carrierMessageBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
     padding: 10,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   carrierMessageText: {
     fontSize: 12,
-    lineHeight: 18,
-    flexShrink: 1,
+    lineHeight: 16,
+  },
+  carrierCanCarryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  carrierCanCarryLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  carrierCanCarryPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    flex: 1,
+  },
+  carrierCanCarryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  carrierCanCarryPillText: {
+    fontSize: 10,
+    fontWeight: FontWeight.semibold,
+  },
+  carrierMismatchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  carrierMismatchText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 14,
   },
   proposalActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  cancelOfferBtn: {
+  actionBtnSecondary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    paddingVertical: 11,
-    borderRadius: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
   },
-  cancelOfferText: {
+  actionBtnText: {
     fontSize: 12,
     fontWeight: FontWeight.bold,
   },
-  chatOfferBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  chatOfferText: {
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  acceptOfferBtn: {
+  actionBtnPrimary: {
     flex: 1.4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    paddingVertical: 11,
-    borderRadius: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
   },
-  acceptOfferText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  escrowBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  escrowBtnText: {
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  trackLiveBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  trackLiveText: {
+  actionBtnPrimaryText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: FontWeight.bold,
@@ -1433,10 +1296,47 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
 
+  // Fixed Bottom Bar
+  fixedBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
+  bottomBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bottomBarLabel: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+  },
+  bottomBarPrice: {
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+  },
+  primaryCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: BorderRadius.full,
+  },
+  primaryCtaText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+  },
+
   // Modal
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.95)',
+    backgroundColor: 'rgba(0,0,0,0.92)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1444,16 +1344,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
   modalImg: {
-    width: '94%',
-    height: '75%',
+    width: '90%',
+    height: '70%',
   },
 });

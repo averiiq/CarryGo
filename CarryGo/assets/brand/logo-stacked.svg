@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="CarryGo stacked logo">
+  <title>CarryGo</title>
+
+  <!-- Icon centered horizontally, 500x500 -->
+  <svg x="150" y="80" width="500" height="500" viewBox="0 0 1024 1024">
+    <defs>
+      <mask id="cg-arrow-s" maskUnits="userSpaceOnUse">
+        <rect width="1024" height="1024" fill="#fff"/>
+        <path d="M 192 448 H 640 V 320 L 864 512 L 640 704 V 576 H 192 Z" fill="#000"/>
+      </mask>
+    </defs>
+    <rect width="1024" height="1024" rx="229" ry="229" fill="#0F172A" mask="url(#cg-arrow-s)"/>
+  </svg>
+
+  <!-- Wordmark below icon, centered -->
+  <text x="400" y="820"
+        text-anchor="middle"
+        font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
+        font-size="180"
+        font-weight="800"
+        letter-spacing="-5"
+        fill="#0F172A">Carry<tspan fill="#2563EB">Go</tspan></text>
+</svg>

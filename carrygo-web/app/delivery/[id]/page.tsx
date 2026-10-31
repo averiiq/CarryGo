@@ -461,7 +461,7 @@ export default function DeliveryTrackingPage({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-heading font-semibold text-foreground">
-                  Delivery #{deliveryOrRequestId.slice(0, 8)}
+                  Delivery #{(deliveryOrRequestId || '').slice(0, 8) || 'JOURNEY'}
                 </h1>
                 <span
                   className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${

@@ -12,7 +12,7 @@ import { SendRequestModal, QuickCreateParcelParams } from '@/components/feature/
 import { CitySelectModal } from '@/components/feature/CitySelectModal';
 import { LiveActivityCompactPill } from '@/components/feature/LiveActivityCompactPill';
 import { PromotionalBannerCarousel } from '@/components/feature/PromotionalBannerCarousel';
-import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget, TabBarGeometry, StatusBarGeometry } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, useCreateParcelMutation, usePromotionalBannersQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
@@ -1140,7 +1140,7 @@ export default function HomeScreen() {
         style={[
           styles.miniHeader,
           {
-            paddingTop: insets.top + Spacing.xs,
+            paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.xs),
             backgroundColor: C.surface + 'FA',
             borderColor: C.surfaceBorder,
             opacity: scrollY.interpolate({
@@ -1175,8 +1175,8 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View>
-            <Text style={[styles.miniHeaderTitle, { color: C.textPrimary }]}>CarryGo</Text>
-            <Text style={[styles.miniHeaderSub, { color: C.textMuted }]}>
+            <Text style={[styles.miniHeaderTitle, { color: C.textPrimary }]} numberOfLines={1} maxFontSizeMultiplier={1.15}>CarryGo</Text>
+            <Text style={[styles.miniHeaderSub, { color: C.textMuted }]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
               {activeTab === 'trips' ? `Trips (${filteredTrips.length})` : `Parcels (${filteredParcels.length})`}
             </Text>
           </View>
@@ -1258,7 +1258,7 @@ export default function HomeScreen() {
         onScroll={handleScroll}
         scrollEventThrottle={16}
         ListHeaderComponent={
-          <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}>
+          <View style={[styles.headerWrap, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.sm) }, isTablet && styles.tabletContainer]}>
             <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
               <HomeHeader
                 userName={user?.fullName || user?.name || 'there'}
@@ -1367,7 +1367,7 @@ export default function HomeScreen() {
           ) : null
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
-        contentContainerStyle={{ paddingBottom: Math.max(88, insets.bottom + 80) }}
+        contentContainerStyle={{ paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) }}
       />
 
       {/* Floating Action Button (FAB) for fast one-tap creation on scroll */}
@@ -1376,7 +1376,7 @@ export default function HomeScreen() {
         style={[
           styles.fabWrap,
           {
-            bottom: insets.bottom + 68,
+            bottom: TabBarGeometry.getFabBottom(insets.bottom, isSmallDevice, isTablet),
             opacity: scrollY.interpolate({
               inputRange: [220, 280],
               outputRange: [0, 1],
