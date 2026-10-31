@@ -306,8 +306,6 @@ export async function generateAadhaarOtp(
         };
       }
 
-      console.log('SANDBOX_GENERATE_OTP_RESPONSE:', JSON.stringify(resData));
-
       const rawRef = resData.data?.reference_id ?? resData.reference_id;
       const msg = resData.data?.message ?? resData.message ?? '';
 
@@ -330,7 +328,6 @@ export async function generateAadhaarOtp(
       referenceId = String(rawRef);
       const mob = resData.data?.mobile_number ?? resData.mobile_number;
       registeredMobileEnding = extractLast2MobileDigits(msg, mob);
-      console.log('EXTRACTED_REGISTERED_MOBILE_ENDING:', registeredMobileEnding);
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Network error connecting to UIDAI gateway.' };
     }

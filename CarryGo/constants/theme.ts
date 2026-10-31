@@ -38,13 +38,6 @@ export const LightColors = {
   cobaltSubtle: '#EEF4FF',
   cobaltBorder: '#BFD5FA',
 
-  lime: '#104BB9',
-  limeDark: '#123777',
-  limeLight: '#2D72E2',
-  limeSubtle: '#EEF4FF',
-  limeBorder: '#BFD5FA',
-  limeText: '#FFFFFF',
-
   textPrimary: '#0F172A',
   textSecondary: '#475569',
   textMuted: '#64748B',
@@ -172,13 +165,6 @@ export const Shadow = {
     shadowRadius: 16,
     elevation: 3,
   },
-  limeGlow: {
-    shadowColor: '#104BB9',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    elevation: 3,
-  },
   sm: {
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
@@ -209,7 +195,6 @@ export const Shadow = {
 export const BoxShadow = {
   card: '0px 4px 14px rgba(15, 23, 42, 0.04)',
   glow: '0px 6px 16px rgba(26, 76, 162, 0.16)',
-  limeGlow: '0px 6px 16px rgba(16, 75, 185, 0.22)',
   sm: '0px 2px 6px rgba(15, 23, 42, 0.03)',
   md: '0px 6px 16px rgba(15, 23, 42, 0.06)',
   float: '0px 10px 24px rgba(15, 23, 42, 0.08)',
@@ -228,7 +213,6 @@ export const Gradients = {
   hero: ['#FFFFFF', '#EEF4FF', '#F8FAFC'] as [string, string, string],
   card: ['rgba(26, 76, 162, 0.04)', 'rgba(26, 76, 162, 0.0)'] as [string, string],
   cobaltSoft: ['#EEF4FF', '#DBE8FD'] as [string, string],
-  limeSoft: ['#EEF4FF', '#DBE8FD'] as [string, string],
   success: ['#10B981', '#059669'] as [string, string],
   warm: ['#F59E0B', '#D97706'] as [string, string],
   sky: ['#0EA5E9', '#0284C7'] as [string, string],

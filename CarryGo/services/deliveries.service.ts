@@ -48,13 +48,6 @@ export function generateRandomOtp(length: number = 4): string {
   return String(Math.floor(min + Math.random() * (max - min)));
 }
 
-/**
- * @deprecated Kept for backwards compatibility only.
- */
-export function generateDeterministicOtp(seed: string, length: number = 4): string {
-  return generateRandomOtp(length);
-}
-
 export async function createDelivery(requestId: string) {
   const sb = getSupabaseClient();
   const { data, error } = await sb.rpc('create_delivery', { p_request_id: requestId }).single();
@@ -135,16 +128,6 @@ export async function fetchOrCreateDelivery(
   };
 
   return { data: fallbackDelivery, error: null };
-}
-
-/**
- * @deprecated Legacy confirmation without OTP. Use confirmPickupWithOtp instead.
- */
-export async function confirmPickup(deliveryId: string) {
-  return {
-    data: null,
-    error: 'Direct pickup confirmation without verification code is disabled. Use confirmPickupWithOtp.',
-  };
 }
 
 export async function getOrIssuePickupOtp(
