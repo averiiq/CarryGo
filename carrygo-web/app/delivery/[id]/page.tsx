@@ -147,11 +147,27 @@ export default function DeliveryTrackingPage({
           ? 2
           : 1
 
+  const isFetchingRef = useRef(false)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   // Load all data
   const fetchData = useCallback(
     async (isPolling = false) => {
+      // Dedup: skip if a poll is already in flight. Non-poll calls (manual
+      // refresh, action-triggered reload) still run — they're user-initiated
+      // and shouldn't be silently dropped.
+      if (isPolling && isFetchingRef.current) return
+      isFetchingRef.current = true
       if (!isPolling) setLoading(true)
       try {
+        if (!isMountedRef.current) return
         const supabase = createClient()
 
         // 1. Get current user
@@ -256,11 +272,12 @@ export default function DeliveryTrackingPage({
           }
         }
       } catch (err) {
-        if (!isPolling) {
+        if (!isPolling && isMountedRef.current) {
           setError(err instanceof Error ? err.message : 'Failed to load tracking info.')
         }
       } finally {
-        if (!isPolling) setLoading(false)
+        isFetchingRef.current = false
+        if (!isPolling && isMountedRef.current) setLoading(false)
       }
     },
     [deliveryOrRequestId]

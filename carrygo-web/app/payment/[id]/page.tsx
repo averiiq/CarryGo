@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
+import Script from 'next/script'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -85,19 +86,13 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
   const [error, setError] = useState<string | null>(null)
   const [successNotice, setSuccessNotice] = useState<string | null>(null)
 
-  useEffect(() => {
-    // Load Razorpay Checkout script dynamically
-    const script = document.createElement('script')
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-    script.async = true
-    document.body.appendChild(script)
+  const [razorpayReady, setRazorpayReady] = useState(false)
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script)
-      }
-    }
-  }, [])
+  // Razorpay SDK is loaded via <Script> below. SRI is intentionally omitted
+  // because Razorpay serves the SDK from a non-versioned URL and does not
+  // publish integrity hashes — pinning a hash would silently break payments
+  // on their next release. The CSP in next.config.ts restricts the allowed
+  // script origin to checkout.razorpay.com.
 
   const loadData = async () => {
     setLoading(true)
@@ -208,7 +203,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
           email: user.email || 'customer@carygoo.in',
         },
         theme: {
-          color: '#059669',
+          color: '#008B48',
         },
         modal: {
           ondismiss: () => {
@@ -282,6 +277,13 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
 
   return (
     <MarketingShell>
+      <Script
+        src='https://checkout.razorpay.com/v1/checkout.js'
+        strategy='afterInteractive'
+        crossOrigin='anonymous'
+        referrerPolicy='no-referrer'
+        onLoad={() => setRazorpayReady(true)}
+      />
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 md:py-12">
         {/* Back Link */}
         <div className="mb-6">
@@ -512,7 +514,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-2 pt-2">
                   <button
                     type="button"
-                    disabled={processing}
+                    disabled={processing || !razorpayReady}
                     onClick={() => handlePayment()}
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-md shadow-emerald-600/25 hover:brightness-105 active:scale-98 transition disabled:opacity-50 cursor-pointer"
                   >

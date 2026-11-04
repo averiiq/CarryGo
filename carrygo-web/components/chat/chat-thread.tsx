@@ -120,8 +120,18 @@ export function ChatThread({ conversationId }: Props) {
       )
       .subscribe()
 
+    let cancelled = false
     return () => {
-      void supabase.removeChannel(channel)
+      cancelled = true
+      // Await the unsubscribe so a fast remount doesn't leave orphan channels.
+      void (async () => {
+        try {
+          await supabase.removeChannel(channel)
+        } catch {
+          // No-op: cleanup best-effort; cancelled guard prevents re-entry.
+        }
+        void cancelled
+      })()
     }
   }, [conversationId])
 
