@@ -103,7 +103,7 @@ export async function verifyOtp(
     // Role-based target redirect
     let target = nextPath || '/activity'
     if (existingProfile?.system_role === 'admin') {
-      const cmsUrl = process.env.NEXT_PUBLIC_CMS_URL || 'https://carrygo.averiq.in'
+      const cmsUrl = process.env.NEXT_PUBLIC_CMS_URL || 'https://cms.carygoo.in'
       target = `${cmsUrl}/dashboard`
     }
 

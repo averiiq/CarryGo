@@ -18,7 +18,7 @@ const headingFont = Outfit({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://carygoo.in'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.carygoo.in'),
   title: {
     default: "CaryGoo — Intercity Parcel Delivery at the Speed of Real Travel",
     template: "%s — CaryGoo",

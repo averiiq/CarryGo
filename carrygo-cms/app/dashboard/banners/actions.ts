@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { revalidatePath } from 'next/cache'
 
 export interface BannerInput {
@@ -130,7 +130,14 @@ export async function deletePromotionalBanner(id: string) {
   const auth = await requireAdmin()
   if ('error' in auth) return { error: auth.error }
 
-  const { supabase } = auth
+  const { supabase, userId } = auth
+
+  // Snapshot the row before deletion so the audit trail captures what was lost.
+  const { data: snapshot } = await supabase
+    .from('promotional_banners')
+    .select('id, type, title, subtitle, cta_action, deep_link, is_active, display_order')
+    .eq('id', id)
+    .maybeSingle()
 
   const { error } = await supabase
     .from('promotional_banners')
@@ -140,6 +147,11 @@ export async function deletePromotionalBanner(id: string) {
   if (error) {
     return { error: `Failed to delete banner: ${error.message}` }
   }
+
+  await logAdminAction(supabase, userId, 'admin_delete_banner', {
+    banner_id: id,
+    snapshot: snapshot ?? null,
+  })
 
   revalidatePath('/dashboard/banners')
   return { success: true }

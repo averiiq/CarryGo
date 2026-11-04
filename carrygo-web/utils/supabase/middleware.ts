@@ -2,7 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const ROLE_COOKIE_NAME = 'x-cms-role'
-const ROLE_COOKIE_MAX_AGE = 300 // 5 minutes balances security with reduced DB lookups
+// Shorter cache window — reduces the staleness gap when an admin is demoted.
+// 60s is enough to coalesce bursty nav within a single session without
+// stretching the privilege-revocation window to minutes.
+const ROLE_COOKIE_MAX_AGE = 60
+
+function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null
+  // Must be a single-segment internal path. Reject protocol-relative (//evil),
+  // absolute URLs, and backslash tricks that some browsers normalize.
+  if (!raw.startsWith('/')) return null
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return null
+  if (raw.includes('://')) return null
+  return raw
+}
 
 export async function updateSession(request: NextRequest, requestHeaders?: Headers) {
   let supabaseResponse = NextResponse.next({
@@ -81,7 +94,7 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
     }
 
     if (isAuthRoute) {
-      const nextUrl = request.nextUrl.searchParams.get('next')
+      const nextUrl = safeNextPath(request.nextUrl.searchParams.get('next'))
       const url = request.nextUrl.clone()
       url.searchParams.delete('next')
       if (systemRole === 'admin') {
