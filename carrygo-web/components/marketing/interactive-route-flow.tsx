@@ -194,20 +194,20 @@ export function InteractiveRouteFlow() {
               {/* Gradient definition */}
               <defs>
                 <linearGradient id="routeLaserGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#059669" />
+                  <stop offset="0%" stopColor="#008B48" />
                   <stop offset="50%" stopColor="#0284c7" />
-                  <stop offset="100%" stopColor="#059669" />
+                  <stop offset="100%" stopColor="#008B48" />
                 </linearGradient>
                 <radialGradient id="pulseGlowLight" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#059669" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#059669" stopOpacity="0" />
+                  <stop offset="0%" stopColor="#008B48" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#008B48" stopOpacity="0" />
                 </radialGradient>
               </defs>
 
               {/* Origin Node */}
               <g transform="translate(40, 45)">
                 <circle r="16" fill="url(#pulseGlowLight)" />
-                <circle r="6" fill="#059669" />
+                <circle r="6" fill="#008B48" />
                 <circle r="2.5" fill="#ffffff" />
                 <text
                   x="0"

@@ -285,7 +285,7 @@ export default async function LandingPage() {
                   <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between">
                       <InteractiveIconBadge tone="emerald" className="w-14 h-14">
-                        <AnimatedShieldBeacon size={36} color="#059669" />
+                        <AnimatedShieldBeacon size={36} color="#008B48" />
                       </InteractiveIconBadge>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100/80 text-emerald-800 border border-emerald-300">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -339,7 +339,7 @@ export default async function LandingPage() {
                   <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between">
                       <InteractiveIconBadge tone="sky" className="w-14 h-14">
-                        <AnimatedRouteNode size={36} color="#0284C7" />
+                        <AnimatedRouteNode size={36} color="#004AAD" />
                       </InteractiveIconBadge>
                       <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
                         Dual Passkey

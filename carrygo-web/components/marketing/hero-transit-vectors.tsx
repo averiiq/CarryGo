@@ -20,21 +20,21 @@ export function HeroTransitVectors() {
         <defs>
           {/* Gradient for transit vector arcs */}
           <linearGradient id="heroVectorGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#059669" stopOpacity="0.35" />
+            <stop offset="0%" stopColor="#008B48" stopOpacity="0.35" />
             <stop offset="50%" stopColor="#0284c7" stopOpacity="0.25" />
             <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
           </linearGradient>
 
           <linearGradient id="heroVectorGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#0284c7" stopOpacity="0.3" />
-            <stop offset="60%" stopColor="#059669" stopOpacity="0.2" />
+            <stop offset="60%" stopColor="#008B48" stopOpacity="0.2" />
             <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.03" />
           </linearGradient>
 
           {/* Node pulse glow */}
           <radialGradient id="nodePulseGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#059669" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#059669" stopOpacity="0" />
+            <stop offset="0%" stopColor="#008B48" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#008B48" stopOpacity="0" />
           </radialGradient>
         </defs>
 
@@ -62,7 +62,7 @@ export function HeroTransitVectors() {
             }}
           >
             <circle r="6" fill="#10b981" opacity="0.3" />
-            <circle r="3" fill="#059669" />
+            <circle r="3" fill="#008B48" />
             <circle r="1.2" fill="#ffffff" />
           </motion.g>
         )}
@@ -101,8 +101,8 @@ export function HeroTransitVectors() {
         {/* Waypoint A: Gurugram Node */}
         <g transform="translate(195, 485)">
           <circle r="14" fill="url(#nodePulseGlow)" className="animate-transit-pulse" />
-          <circle r="4.5" fill="#ffffff" stroke="#059669" strokeWidth="2" />
-          <circle r="2" fill="#059669" />
+          <circle r="4.5" fill="#ffffff" stroke="#008B48" strokeWidth="2" />
+          <circle r="2" fill="#008B48" />
           <text
             x="12"
             y="4"
@@ -137,8 +137,8 @@ export function HeroTransitVectors() {
         {/* Waypoint C: Panipat Terminal Node */}
         <g transform="translate(940, 175)">
           <circle r="14" fill="url(#nodePulseGlow)" className="animate-transit-pulse" />
-          <circle r="4.5" fill="#ffffff" stroke="#059669" strokeWidth="2" />
-          <circle r="2" fill="#059669" />
+          <circle r="4.5" fill="#ffffff" stroke="#008B48" strokeWidth="2" />
+          <circle r="2" fill="#008B48" />
           <text
             x="12"
             y="4"
@@ -155,8 +155,8 @@ export function HeroTransitVectors() {
         {/* 4. Precision Crosshair Reticles (+) at Architectural Grid Intersections */}
         {/* Reticle 1: Top Right */}
         <g transform="translate(1080, 75)" className="animate-coordinate-breathe">
-          <path d="M 0 -7 L 0 7 M -7 0 L 7 0" stroke="#059669" strokeWidth="1.2" opacity="0.45" />
-          <circle r="1" fill="#059669" opacity="0.6" />
+          <path d="M 0 -7 L 0 7 M -7 0 L 7 0" stroke="#008B48" strokeWidth="1.2" opacity="0.45" />
+          <circle r="1" fill="#008B48" opacity="0.6" />
         </g>
 
         {/* Reticle 2: Mid-Center */}
@@ -166,7 +166,7 @@ export function HeroTransitVectors() {
 
         {/* Reticle 3: Far Left Baseline */}
         <g transform="translate(90, 240)" className="animate-coordinate-breathe">
-          <path d="M 0 -6 L 0 6 M -6 0 L 6 0" stroke="#059669" strokeWidth="1" opacity="0.35" />
+          <path d="M 0 -6 L 0 6 M -6 0 L 6 0" stroke="#008B48" strokeWidth="1" opacity="0.35" />
         </g>
 
         {/* Reticle 4: Right Mid */}

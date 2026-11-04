@@ -91,8 +91,8 @@ export default function PricingPage() {
                   <div className="flex items-center justify-between mb-4">
                     <InteractiveIconBadge tone={plan.tone} className="w-12 h-12">
                       {plan.iconType === 'package' && <AnimatedPackageDelivery size={28} color="#D97706" />}
-                      {plan.iconType === 'vault' && <AnimatedWalletVault size={28} color="#059669" />}
-                      {plan.iconType === 'shield' && <AnimatedShieldBeacon size={28} color="#0284C7" />}
+                      {plan.iconType === 'vault' && <AnimatedWalletVault size={28} color="#008B48" />}
+                      {plan.iconType === 'shield' && <AnimatedShieldBeacon size={28} color="#004AAD" />}
                     </InteractiveIconBadge>
 
                     {plan.highlight && (
@@ -141,7 +141,7 @@ export default function PricingPage() {
             <article className='sturdy-card p-6 md:p-8 h-full flex flex-col justify-between'>
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <AnimatedWalletVault size={32} color="#059669" />
+                  <AnimatedWalletVault size={32} color="#008B48" />
                   <h3 className='text-2xl font-heading font-bold text-slate-900'>Pricing &amp; SafeVault™ Guarantee</h3>
                 </div>
                 <ul className='space-y-3 text-sm text-slate-600 font-normal'>
