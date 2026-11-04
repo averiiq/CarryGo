@@ -84,6 +84,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         result = await ensureProfile(userId, profileEmailFor(userId, email));
       }
 
+      // Admin-enforced account states — sign the user out so banned or
+      // suspended accounts can't keep making requests from a cached session.
+      if (result.data?.status === 'banned' || result.data?.status === 'suspended') {
+        const sb = getSupabaseClient();
+        await sb.auth.signOut().catch(() => {});
+        await persistUser(null);
+        setUser(null);
+        setSessionError(
+          result.data.status === 'banned'
+            ? 'This account has been banned. Contact support@carygoo.in to appeal.'
+            : 'This account is temporarily suspended. Contact support@carygoo.in for help.'
+        );
+        return { data: null, error: 'ACCOUNT_RESTRICTED' };
+      }
+
       if (result.data) {
         setUser(result.data);
         persistUser(result.data);

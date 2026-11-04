@@ -37,6 +37,7 @@ export interface User {
   panMasked?: string;
   selfieUrl?: string;
   isSelfieVerified?: boolean;
+  status?: 'active' | 'suspended' | 'banned' | 'deleted';
 }
 
 export type VehicleType = 'bike' | 'car' | 'bus' | 'train' | 'flight';

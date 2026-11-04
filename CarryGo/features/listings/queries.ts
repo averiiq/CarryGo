@@ -76,14 +76,69 @@ export function useTripsQuery(enabled = true, userCity?: string) {
 }
 
 export function useTripQuery(tripId?: string) {
+  const queryClient = useQueryClient();
+  const normalizedId = Array.isArray(tripId) ? tripId[0] : tripId;
+
   return useQuery<Trip | null>({
-    queryKey: queryKeys.listings.trip(tripId ?? 'missing'),
-    enabled: Boolean(tripId),
+    queryKey: queryKeys.listings.trip(normalizedId ?? 'missing'),
+    enabled: Boolean(normalizedId),
+    initialData: () => {
+      if (!normalizedId) return undefined;
+      // 1. Check direct cache
+      const direct = queryClient.getQueryData<Trip | null>(queryKeys.listings.trip(normalizedId));
+      if (direct) return direct;
+
+      // 2. Search active listings.trips caches
+      const tripsCaches = queryClient.getQueriesData<any>({
+        queryKey: ['listings', 'trips'],
+      });
+      for (const [, cacheData] of tripsCaches) {
+        if (!cacheData) continue;
+        if (Array.isArray(cacheData.pages)) {
+          for (const page of cacheData.pages) {
+            const found = page.items?.find((t: Trip) => t.id === normalizedId);
+            if (found) return found;
+          }
+        }
+        if (Array.isArray(cacheData.items)) {
+          const found = cacheData.items.find((t: Trip) => t.id === normalizedId);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    },
     queryFn: async () => {
-      if (!tripId) return null;
-      const { data, error } = await fetchTripById(tripId);
-      if (error) throw serviceError(error, 'Failed to load trip');
-      return data;
+      if (!normalizedId) return null;
+      try {
+        const { data, error } = await fetchTripById(normalizedId);
+        if (error || !data) {
+          // Check queryClient cache before returning null
+          const tripsCaches = queryClient.getQueriesData<any>({
+            queryKey: ['listings', 'trips'],
+          });
+          for (const [, cacheData] of tripsCaches) {
+            if (!cacheData) continue;
+            if (Array.isArray(cacheData.pages)) {
+              for (const page of cacheData.pages) {
+                const found = page.items?.find((t: Trip) => t.id === normalizedId);
+                if (found) return found;
+              }
+            }
+            if (Array.isArray(cacheData.items)) {
+              const found = cacheData.items.find((t: Trip) => t.id === normalizedId);
+              if (found) return found;
+            }
+          }
+          if (error) {
+            console.warn(`[useTripQuery] fetchTripById info for ${normalizedId}:`, error);
+          }
+          return null;
+        }
+        return data;
+      } catch (err) {
+        console.warn(`[useTripQuery] Exception fetching trip ${normalizedId}:`, err);
+        return null;
+      }
     },
     staleTime: 2 * 60_000,
   });
@@ -145,14 +200,66 @@ export function useParcelsQuery(enabled = true, userCity?: string) {
 }
 
 export function useParcelQuery(parcelId?: string) {
+  const queryClient = useQueryClient();
+  const normalizedId = Array.isArray(parcelId) ? parcelId[0] : parcelId;
+
   return useQuery<Parcel | null>({
-    queryKey: queryKeys.listings.parcel(parcelId ?? 'missing'),
-    enabled: Boolean(parcelId),
+    queryKey: queryKeys.listings.parcel(normalizedId ?? 'missing'),
+    enabled: Boolean(normalizedId),
+    initialData: () => {
+      if (!normalizedId) return undefined;
+      const direct = queryClient.getQueryData<Parcel | null>(queryKeys.listings.parcel(normalizedId));
+      if (direct) return direct;
+
+      const parcelsCaches = queryClient.getQueriesData<any>({
+        queryKey: ['listings', 'parcels'],
+      });
+      for (const [, cacheData] of parcelsCaches) {
+        if (!cacheData) continue;
+        if (Array.isArray(cacheData.pages)) {
+          for (const page of cacheData.pages) {
+            const found = page.items?.find((p: Parcel) => p.id === normalizedId);
+            if (found) return found;
+          }
+        }
+        if (Array.isArray(cacheData.items)) {
+          const found = cacheData.items.find((p: Parcel) => p.id === normalizedId);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    },
     queryFn: async () => {
-      if (!parcelId) return null;
-      const { data, error } = await fetchParcelById(parcelId);
-      if (error) throw serviceError(error, 'Failed to load parcel');
-      return data;
+      if (!normalizedId) return null;
+      try {
+        const { data, error } = await fetchParcelById(normalizedId);
+        if (error || !data) {
+          const parcelsCaches = queryClient.getQueriesData<any>({
+            queryKey: ['listings', 'parcels'],
+          });
+          for (const [, cacheData] of parcelsCaches) {
+            if (!cacheData) continue;
+            if (Array.isArray(cacheData.pages)) {
+              for (const page of cacheData.pages) {
+                const found = page.items?.find((p: Parcel) => p.id === normalizedId);
+                if (found) return found;
+              }
+            }
+            if (Array.isArray(cacheData.items)) {
+              const found = cacheData.items.find((p: Parcel) => p.id === normalizedId);
+              if (found) return found;
+            }
+          }
+          if (error) {
+            console.warn(`[useParcelQuery] fetchParcelById info for ${normalizedId}:`, error);
+          }
+          return null;
+        }
+        return data;
+      } catch (err) {
+        console.warn(`[useParcelQuery] Exception fetching parcel ${normalizedId}:`, err);
+        return null;
+      }
     },
     staleTime: 2 * 60_000,
   });
@@ -418,4 +525,40 @@ export function usePromotionalBannersQuery(enabled = true) {
     },
     staleTime: 5 * 60_000, // 5 minutes cache
   });
+}
+
+// Realtime: invalidate the banners cache whenever an admin publishes, toggles,
+// or deletes a banner. Without this, mobile keeps the cached list for up to
+// 5 minutes after a CMS change.
+export function usePromotionalBannersRealtime(enabled = true) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    let mounted = true;
+    const sb = getSupabaseClient();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const invalidate = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!mounted) return;
+        queryClient.invalidateQueries({ queryKey: queryKeys.promotionalBanners });
+      }, 400);
+    };
+
+    const channel = sb
+      .channel(`promotional-banners:${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'promotional_banners' }, invalidate)
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      try {
+        void sb.removeChannel(channel);
+      } catch {}
+    };
+  }, [enabled, queryClient]);
 }

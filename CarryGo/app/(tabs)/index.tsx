@@ -14,7 +14,7 @@ import { LiveActivityCompactPill } from '@/components/feature/LiveActivityCompac
 import { PromotionalBannerCarousel } from '@/components/feature/PromotionalBannerCarousel';
 import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget, TabBarGeometry, StatusBarGeometry } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
-import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, useCreateParcelMutation, usePromotionalBannersQuery } from '@/features/listings/queries';
+import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, useCreateParcelMutation, usePromotionalBannersQuery, usePromotionalBannersRealtime } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -615,6 +615,7 @@ export default function HomeScreen() {
   const createTripMutation = useCreateTripMutation();
   const createParcelMutation = useCreateParcelMutation();
   useListingsRealtime(true, effectiveCity);
+  usePromotionalBannersRealtime(true);
 
   const userRequests = requestsQuery.data || [];
 
