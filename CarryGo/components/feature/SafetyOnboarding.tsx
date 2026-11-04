@@ -409,6 +409,46 @@ function StepFragilePackaging({ C }: { C: any }) {
 }
 
 function StepSenderResponsibilities({ C }: { C: any }) {
+  const phases: {
+    label: string;
+    tag: string;
+    icon: IconName;
+    items: { icon: IconName; text: string }[];
+    footnote: string;
+  }[] = [
+    {
+      label: 'Before you post',
+      tag: 'Prepare',
+      icon: 'edit-note',
+      items: [
+        { icon: 'description', text: 'Describe contents accurately' },
+        { icon: 'straighten', text: 'Correct weight and dimensions' },
+        { icon: 'inventory', text: 'Package items securely' },
+      ],
+      footnote: 'Wrong details can void damage claims later.',
+    },
+    {
+      label: 'At handover',
+      tag: 'Meet',
+      icon: 'handshake',
+      items: [
+        { icon: 'schedule', text: 'Arrive on time at the agreed spot' },
+        { icon: 'photo-camera', text: 'Take photos before handing over' },
+      ],
+      footnote: 'Photos are your proof if something goes wrong.',
+    },
+    {
+      label: 'During delivery',
+      tag: 'Stay reachable',
+      icon: 'track-changes',
+      items: [
+        { icon: 'phone', text: 'Keep your phone reachable' },
+        { icon: 'currency-rupee', text: 'Honor the agreed price' },
+      ],
+      footnote: 'Travelers can only drop off when they reach you.',
+    },
+  ];
+
   return (
     <View style={styles.stepContainer}>
       <IllustrationArea bg={C.primarySubtle}>
@@ -425,23 +465,56 @@ function StepSenderResponsibilities({ C }: { C: any }) {
         Your Responsibilities
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        As a sender, you agree to the following obligations on every shipment.
+        Three short phases from posting a parcel to seeing it delivered. Here is what is on you.
       </Text>
 
-      <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <BulletPoint icon="description" text="Accurately describe your parcel contents" C={C} />
-        <BulletPoint icon="straighten" text="Provide correct weight and dimensions" C={C} />
-        <BulletPoint icon="inventory" text="Package items securely and appropriately" C={C} />
-        <BulletPoint icon="schedule" text="Be on time for handover at agreed location" C={C} />
-        <BulletPoint icon="photo-camera" text="Take photos of the parcel before handover" C={C} />
-        <BulletPoint icon="currency-rupee" text="Pay the agreed amount — no last-minute haggling" C={C} />
-        <BulletPoint icon="phone" text="Stay reachable during the delivery period" C={C} />
+      <View style={styles.timelineWrap}>
+        <View style={[styles.timelineRail, { backgroundColor: C.surfaceBorder }]} />
+        {phases.map((phase, idx) => (
+          <View key={phase.label} style={styles.timelineRow}>
+            <View style={[styles.timelineNumber, { backgroundColor: C.primary }]}>
+              <Text style={styles.timelineNumberText}>{idx + 1}</Text>
+            </View>
+            <View
+              style={[styles.phaseCard, { flex: 1, backgroundColor: C.surface, borderColor: C.surfaceBorder }]}
+            >
+              <View style={styles.phaseHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.phaseTag, { color: C.primary }]}>{phase.tag.toUpperCase()}</Text>
+                  <Text style={[styles.phaseLabel, { color: C.textPrimary }]}>{phase.label}</Text>
+                </View>
+                <MaterialIcons name={phase.icon} size={22} color={C.textMuted} />
+              </View>
+              <View style={[styles.phaseDivider, { backgroundColor: C.surfaceBorder }]} />
+              <View style={{ gap: Spacing.xs }}>
+                {phase.items.map((item) => (
+                  <BulletPoint key={item.text} icon={item.icon} text={item.text} C={C} />
+                ))}
+              </View>
+              <View style={[styles.phaseFootnote, { borderTopColor: C.surfaceBorder }]}>
+                <MaterialIcons name="info-outline" size={13} color={C.textMuted} />
+                <Text style={[styles.phaseFootnoteText, { color: C.textMuted }]}>
+                  {phase.footnote}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))}
       </View>
     </View>
   );
 }
 
 function StepTravelerResponsibilities({ C }: { C: any }) {
+  const commitments: { icon: IconName; title: string; desc: string }[] = [
+    { icon: 'shield', title: 'Careful transit', desc: 'Handle parcels gently, no stacking' },
+    { icon: 'photo-camera', title: 'Photo proof', desc: 'At pickup and delivery' },
+    { icon: 'timer', title: 'On-time delivery', desc: 'Within the agreed window' },
+    { icon: 'lock', title: 'Sealed packages', desc: 'Never opened or tampered' },
+    { icon: 'phone-in-talk', title: 'Clear comms', desc: 'Proactive updates on delays' },
+    { icon: 'pin', title: 'OTP handover', desc: 'Dual-code pickup and drop' },
+  ];
+
   return (
     <View style={styles.stepContainer}>
       <IllustrationArea bg={C.accentSubtle}>
@@ -458,22 +531,102 @@ function StepTravelerResponsibilities({ C }: { C: any }) {
         Traveler’s Role
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        Travelers who carry your parcels commit to these standards. Know what to expect.
+        Every traveler on CaryGoo signs the same commitments before they can carry a single parcel.
       </Text>
 
-      <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <BulletPoint icon="verified" text="Identity verified through KYC" C={C} />
-        <BulletPoint icon="shield" text="Handle parcels with care during transit" C={C} />
-        <BulletPoint icon="photo-camera" text="Confirm pickup and delivery with photos" C={C} />
-        <BulletPoint icon="timer" text="Deliver within the agreed timeframe" C={C} />
-        <BulletPoint icon="lock" text="Never open or tamper with sealed packages" C={C} />
-        <BulletPoint icon="phone-in-talk" text="Communicate proactively about delays" C={C} />
+      <View style={[styles.verifiedHero, { backgroundColor: C.successSubtle, borderColor: C.success + '33' }]}>
+        <View style={[styles.verifiedIconWrap, { backgroundColor: C.success }]}>
+          <MaterialIcons name="verified-user" size={22} color="#FFFFFF" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.verifiedTitle, { color: C.textPrimary }]}>
+            KYC-verified humans only
+          </Text>
+          <Text style={[styles.verifiedSub, { color: C.textSecondary }]}>
+            Aadhaar + PAN verified via DigiLocker before posting any trip
+          </Text>
+        </View>
+      </View>
+
+      <View style={[styles.statsStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={styles.statCell}>
+          <Text style={[styles.statValue, { color: C.textPrimary }]}>100%</Text>
+          <Text style={[styles.statLabel, { color: C.textMuted }]}>ID verified</Text>
+        </View>
+        <View style={[styles.statSeparator, { backgroundColor: C.surfaceBorder }]} />
+        <View style={styles.statCell}>
+          <Text style={[styles.statValue, { color: C.textPrimary }]}>4.8★</Text>
+          <Text style={[styles.statLabel, { color: C.textMuted }]}>Avg rating</Text>
+        </View>
+        <View style={[styles.statSeparator, { backgroundColor: C.surfaceBorder }]} />
+        <View style={styles.statCell}>
+          <Text style={[styles.statValue, { color: C.textPrimary }]}>2-OTP</Text>
+          <Text style={[styles.statLabel, { color: C.textMuted }]}>Handover</Text>
+        </View>
+      </View>
+
+      <View style={styles.commitGrid}>
+        {commitments.map((c) => (
+          <View
+            key={c.title}
+            style={[styles.commitCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}
+          >
+            <View style={[styles.commitIconBox, { backgroundColor: C.accentSubtle }]}>
+              <MaterialIcons name={c.icon} size={18} color={C.accent} />
+            </View>
+            <Text style={[styles.commitTitle, { color: C.textPrimary }]}>{c.title}</Text>
+            <Text style={[styles.commitDesc, { color: C.textMuted }]}>{c.desc}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={[styles.responseStrip, { backgroundColor: C.accentSubtle, borderColor: C.accent + '33' }]}>
+        <MaterialIcons name="bolt" size={18} color={C.accent} />
+        <Text style={[styles.responseText, { color: C.textSecondary }]}>
+          Expect a reply within 30 minutes during active trips. Flag silence &gt; 2h to support.
+        </Text>
       </View>
     </View>
   );
 }
 
 function StepLiability({ C }: { C: any }) {
+  const parties: {
+    role: string;
+    icon: IconName;
+    scope: string;
+    color: string;
+    bg: string;
+  }[] = [
+    {
+      role: 'Sender',
+      icon: 'person',
+      scope: 'Contents, packaging, accurate description',
+      color: C.primary,
+      bg: C.primarySubtle,
+    },
+    {
+      role: 'Traveler',
+      icon: 'flight',
+      scope: 'Safe transit and on-time delivery',
+      color: C.accent,
+      bg: C.accentSubtle,
+    },
+    {
+      role: 'CaryGoo',
+      icon: 'store',
+      scope: 'Matchmaking, escrow, dispute mediation',
+      color: C.success,
+      bg: C.successSubtle,
+    },
+  ];
+
+  const claims: { label: string; amount: string; icon: IconName }[] = [
+    { label: 'Documents', amount: '₹2,000', icon: 'description' },
+    { label: 'Standard', amount: '₹5,000', icon: 'inventory-2' },
+    { label: 'Electronics', amount: '₹15,000', icon: 'devices' },
+  ];
+
   return (
     <View style={styles.stepContainer}>
       <IllustrationArea bg={C.warningSubtle}>
@@ -490,27 +643,126 @@ function StepLiability({ C }: { C: any }) {
         Liability & Risk
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        Understand who bears responsibility during each phase of delivery.
+        Three parties, three scopes. Here is exactly who owns what.
       </Text>
 
-      <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <BulletPoint icon="person" text="Sender: responsible for contents & packaging" C={C} />
-        <BulletPoint icon="flight" text="Traveler: responsible for safe transit & timely delivery" C={C} />
-        <BulletPoint icon="store" text="CaryGoo: facilitates connection, holds booking payments" C={C} />
+      <View style={{ gap: Spacing.sm }}>
+        {parties.map((p) => (
+          <View
+            key={p.role}
+            style={[styles.partyRow, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}
+          >
+            <View style={[styles.partyIconBox, { backgroundColor: p.bg }]}>
+              <MaterialIcons name={p.icon} size={22} color={p.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.partyRole, { color: p.color }]}>{p.role}</Text>
+              <Text style={[styles.partyScope, { color: C.textSecondary }]}>{p.scope}</Text>
+            </View>
+          </View>
+        ))}
       </View>
 
       <View style={[styles.warningBox, { backgroundColor: C.warningSubtle, borderColor: C.warning + '55' }]}>
         <MaterialIcons name="info-outline" size={20} color={C.warning} />
         <Text style={[styles.warningText, { color: C.textSecondary }]}>
-          CaryGoo is a marketplace platform. We are not a courier service and do not assume carrier liability. Disputes are resolved through our mediation process.
+          CaryGoo is a marketplace, not a courier. We do not assume carrier liability — disputes go through our mediation process.
         </Text>
       </View>
 
-      <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Maximum Claim Limits</Text>
-        <BulletPoint icon="currency-rupee" text="Standard parcels: up to Rs 5,000" C={C} />
-        <BulletPoint icon="currency-rupee" text="Electronics: up to Rs 15,000" C={C} />
-        <BulletPoint icon="currency-rupee" text="Documents: up to Rs 2,000" C={C} />
+      <View>
+        <Text style={[styles.cardTitle, { color: C.textPrimary, marginBottom: Spacing.sm }]}>
+          Maximum claim per parcel
+        </Text>
+        <View style={styles.claimRow}>
+          {claims.map((c) => (
+            <View
+              key={c.label}
+              style={[styles.claimPill, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}
+            >
+              <MaterialIcons name={c.icon} size={18} color={C.primary} />
+              <Text style={[styles.claimAmount, { color: C.textPrimary }]}>{c.amount}</Text>
+              <Text style={[styles.claimLabel, { color: C.textMuted }]}>{c.label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View>
+        <Text style={[styles.cardTitle, { color: C.textPrimary, marginBottom: Spacing.sm }]}>
+          What happens if…
+        </Text>
+        <View style={{ gap: Spacing.sm }}>
+          <ScenarioRow
+            C={C}
+            icon="broken-image"
+            scenario="Parcel is damaged in transit"
+            owner="Traveler"
+            ownerColor={C.accent}
+            ownerBg={C.accentSubtle}
+            detail="Escrow refunded from traveler payout"
+          />
+          <ScenarioRow
+            C={C}
+            icon="inventory-2"
+            scenario="Item broken due to bad packing"
+            owner="Sender"
+            ownerColor={C.primary}
+            ownerBg={C.primarySubtle}
+            detail="Claim denied, escrow still releases"
+          />
+          <ScenarioRow
+            C={C}
+            icon="report"
+            scenario="Dispute between both parties"
+            owner="CaryGoo"
+            ownerColor={C.success}
+            ownerBg={C.successSubtle}
+            detail="48h mediation, escrow stays frozen"
+          />
+          <ScenarioRow
+            C={C}
+            icon="gavel"
+            scenario="Prohibited item seized"
+            owner="Sender"
+            ownerColor={C.error}
+            ownerBg={C.errorSubtle}
+            detail="Account ban + legal liability"
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ScenarioRow({
+  C,
+  icon,
+  scenario,
+  owner,
+  ownerColor,
+  ownerBg,
+  detail,
+}: {
+  C: any;
+  icon: IconName;
+  scenario: string;
+  owner: string;
+  ownerColor: string;
+  ownerBg: string;
+  detail: string;
+}) {
+  return (
+    <View style={[styles.scenarioRow, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      <View style={[styles.scenarioIcon, { backgroundColor: ownerBg }]}>
+        <MaterialIcons name={icon} size={18} color={ownerColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.scenarioText, { color: C.textPrimary }]}>{scenario}</Text>
+        <Text style={[styles.scenarioDetail, { color: C.textMuted }]}>{detail}</Text>
+      </View>
+      <View style={[styles.ownerChip, { backgroundColor: ownerBg, borderColor: ownerColor + '55' }]}>
+        <Text style={[styles.ownerChipText, { color: ownerColor }]}>{owner}</Text>
       </View>
     </View>
   );
@@ -840,6 +1092,262 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FontSize.sm,
     lineHeight: 20,
+  },
+
+  /* Sender timeline */
+  timelineWrap: {
+    position: 'relative',
+    gap: Spacing.md,
+  },
+  timelineRail: {
+    position: 'absolute',
+    left: 15,
+    top: 16,
+    bottom: 16,
+    width: 2,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  timelineNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  timelineNumberText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    color: '#FFFFFF',
+  },
+  phaseCard: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  phaseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  phaseFootnote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: Spacing.sm,
+    marginTop: 2,
+    borderTopWidth: 1,
+  },
+  phaseFootnoteText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+    fontStyle: 'italic',
+  },
+  phaseTag: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.8,
+  },
+  phaseLabel: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    marginTop: 2,
+  },
+  phaseDivider: {
+    height: 1,
+    marginVertical: 2,
+  },
+
+  /* Traveler stats strip */
+  statsStrip: {
+    flexDirection: 'row',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingVertical: Spacing.sm,
+  },
+  statCell: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  statValue: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  statSeparator: {
+    width: 1,
+    marginVertical: 4,
+  },
+  responseStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  responseText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+  },
+
+  /* Traveler commitments */
+  verifiedHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  verifiedIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifiedTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+  },
+  verifiedSub: {
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  commitGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  commitCard: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    gap: 6,
+  },
+  commitIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  commitTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  commitDesc: {
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+  },
+
+  /* Liability parties */
+  partyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  partyIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  partyRole: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.3,
+  },
+  partyScope: {
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  claimRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  claimPill: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  claimAmount: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
+  },
+  claimLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+
+  /* Liability scenarios */
+  scenarioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  scenarioIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scenarioText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
+  scenarioDetail: {
+    fontSize: FontSize.xs,
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  ownerChip: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  ownerChipText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
 
   /* Legal Link */
