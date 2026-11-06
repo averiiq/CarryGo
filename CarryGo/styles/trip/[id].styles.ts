@@ -315,6 +315,45 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
   },
+  canCarryMatchBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  canCarryMatchText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: FontWeight.medium,
+  },
+  vehicleSpaceStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  vehicleSpaceIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vehicleSpaceTitle: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
+  vehicleSpaceDesc: {
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 2,
+  },
 
   // Request Status Banner (for sender when request exists)
   statusBanner: {
@@ -502,5 +541,28 @@ export const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: FontWeight.bold,
+  },
+  tabletCentered: {
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  bottomBarInnerSmall: {
+    gap: Spacing.xs + 2,
+  },
+  negotiateBtnSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  negotiateBtnTextSmall: {
+    fontSize: 12,
+  },
+  requestDeliveryBtnSmall: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  requestDeliveryBtnTextSmall: {
+    fontSize: 12,
   },
 });

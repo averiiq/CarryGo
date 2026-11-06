@@ -7,7 +7,7 @@ import { FontSize, FontWeight, BorderRadius, ThemeColors, TouchTarget } from '@/
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
 export interface RequestCardProps {
   request: Request;
@@ -256,10 +256,13 @@ export function getRequestCardViewModel({
 
   const contextBanner = getContextBanner(request, isSender, isTraveller, isRequester, personName, C);
 
-  const formattedDate = new Date(request.createdAt).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-  });
+  let formattedDate = 'Recent';
+  try {
+    const rawTime = request.createdAt ? Date.parse(request.createdAt) : NaN;
+    const d = isNaN(rawTime) ? new Date() : new Date(rawTime);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    formattedDate = `${d.getDate()} ${months[d.getMonth()] || 'Jan'}`;
+  } catch {}
 
   const isPending = request.status === 'pending';
   const isAccepted = request.status === 'accepted';
@@ -441,19 +444,13 @@ export const RequestCard = React.memo(function RequestCard({
           <View style={styles.topRow}>
             <View style={styles.userBlock}>
               <View style={[styles.avatar, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                {vm.personAvatar && !avatarError ? (
-                  <Image
-                    source={{ uri: vm.personAvatar }}
-                    style={{ width: '100%', height: '100%', borderRadius: 19 }}
-                    contentFit="cover"
-                    transition={200}
-                    onError={() => setAvatarError(true)}
-                  />
-                ) : (
-                  <Text style={[styles.avatarText, { color: C.primary }]}>
-                    {vm.personName.charAt(0).toUpperCase()}
-                  </Text>
-                )}
+                <Image
+                  source={avatarError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(vm.personAvatar, vm.personName)}
+                  style={{ width: '100%', height: '100%', borderRadius: 19 }}
+                  contentFit="cover"
+                  transition={200}
+                  onError={() => setAvatarError(true)}
+                />
                 <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.card }]} />
               </View>
               <View style={styles.userMeta}>

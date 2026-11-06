@@ -30,9 +30,11 @@ import {
   useConversationsQuery,
   useConversationsRealtime,
   useDeleteConversationMutation,
+  useUserAvatarsQuery,
 } from '@/features/conversations/queries';
+import { getCachedAvatar } from '@/services/avatar-enrichment.service';
 import { useRequestsQuery } from '@/features/requests/queries';
-import { AsyncStateCard, OfflineBanner } from '@/components';
+import { AsyncStateCard, OfflineBanner, LottieAnimation } from '@/components';
 import { useAlert } from '@/template';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -41,9 +43,9 @@ import { formatRelative } from '@/lib/dateFormat';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { Conversation, Request } from '@/types';
 import { ProductIllustration } from '@/components/illustrations';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource } from '@/constants/images';
 
-interface ConversationRowModel {
+export interface ConversationRowModel {
   id: string;
   requestId: string;
   displayName: string;
@@ -62,7 +64,11 @@ interface ConversationRowModel {
   isActiveDelivery: boolean;
   isCompleted: boolean;
   counterpartRole: 'traveller' | 'sender';
+  price?: number;
+  category?: string;
 }
+
+export type MessageFilter = 'all' | 'active' | 'unread';
 
 function safeText(value: unknown, fallback: string) {
   if (typeof value !== 'string') return fallback;
@@ -84,7 +90,8 @@ function formatConversationTime(timestamp?: string) {
 function toConversationRowModel(
   conversation: Conversation,
   userId: string,
-  requestMap: Map<string, Request>
+  requestMap: Map<string, Request>,
+  avatarMap?: Record<string, string>
 ): ConversationRowModel | null {
   const participantNames =
     conversation.participantNames && typeof conversation.participantNames === 'object'
@@ -118,7 +125,9 @@ function toConversationRowModel(
 
   const otherUserId = namedOtherEntry?.[0] || unnamedOtherId || (isSender ? req?.travellerId : req?.senderId);
   const participantAvatars = (conversation as any).participantAvatars || {};
-  let avatarUri = otherUserId ? participantAvatars[otherUserId] : undefined;
+  let avatarUri = (otherUserId ? avatarMap?.[otherUserId] : undefined) ||
+    (otherUserId ? getCachedAvatar(otherUserId) : undefined) ||
+    (otherUserId ? participantAvatars[otherUserId] : undefined);
   if (!avatarUri && req) {
     avatarUri = isSender
       ? ((req as any).travellerSelfieUrl || req.travellerAvatar)
@@ -166,6 +175,8 @@ function toConversationRowModel(
     isActiveDelivery,
     isCompleted,
     counterpartRole,
+    price: req?.price,
+    category: req?.parcelCategory,
   };
 }
 
@@ -196,7 +207,7 @@ const ConversationRowItem = React.memo(function ConversationRowItem({
         accessibilityRole="button"
         accessibilityLabel={`Delete conversation with ${item.displayName}`}
       >
-        <MaterialIcons name="delete-outline" size={20} color="#FFFFFF" />
+        <MaterialIcons name="delete-outline" size={22} color="#FFFFFF" />
         <Text style={styles.swipeDeleteText}>Delete</Text>
       </Pressable>
     </View>
@@ -207,43 +218,45 @@ const ConversationRowItem = React.memo(function ConversationRowItem({
       <Swipeable
         rightThreshold={36}
         renderRightActions={renderSwipeActions}
-        containerStyle={{ overflow: 'hidden', borderRadius: BorderRadius.lg }}
+        containerStyle={styles.swipeableContainer}
       >
         <Pressable
           style={({ pressed }) => [
             styles.convCard,
             {
-              backgroundColor: C.surface,
-              borderColor: item.isUnread ? C.primary + '30' : C.surfaceBorder,
+              backgroundColor: item.isUnread ? C.surfaceElevated : C.surface,
+              borderColor: item.isUnread ? C.primary + '35' : C.surfaceBorder,
             },
             pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] },
           ]}
           onPress={() => onOpen(item.id)}
         >
-          {/* Avatar with subtle unread indicator */}
+          {/* Avatar with verified badge & unread dot */}
           <View style={styles.avatarWrap}>
             <View
               style={[
                 styles.avatarCircle,
                 {
                   backgroundColor: C.primarySubtle,
-                  borderColor: C.surfaceBorder,
+                  borderColor: item.isUnread ? C.primary : C.surfaceBorder,
                 },
               ]}
             >
-              {item.avatarUri ? (
-                <Image
-                  source={{ uri: item.avatarUri }}
-                  style={styles.avatarImg}
-                  contentFit="cover"
-                  transition={200}
-                />
-              ) : (
-                <Text style={[styles.avatarText, { color: C.primary }]}>
-                  {item.displayInitial}
-                </Text>
-              )}
+              <Image
+                source={getUserAvatarSource(item.avatarUri, item.id || item.displayName)}
+                style={styles.avatarImg}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={120}
+              />
             </View>
+
+            {/* Verified Partner Badge */}
+            <View style={[styles.verifiedBadge, { backgroundColor: C.surface }]}>
+              <MaterialIcons name="verified" size={13} color={C.success} />
+            </View>
+
+            {/* Unread dot */}
             {item.isUnread ? (
               <View
                 style={[
@@ -254,65 +267,141 @@ const ConversationRowItem = React.memo(function ConversationRowItem({
             ) : null}
           </View>
 
-          {/* Details */}
+          {/* Details Column */}
           <View style={styles.convDetails}>
-            {/* Top Row: Name and Time */}
+            {/* Top Row: Name, Role Pill, and Timestamp */}
             <View style={styles.nameTimeRow}>
-              <Text
-                style={[
-                  styles.displayName,
-                  { color: C.textPrimary },
-                  item.isUnread && styles.displayNameUnread,
-                ]}
-                numberOfLines={1}
-              >
-                {item.displayName}
-              </Text>
+              <View style={styles.nameRoleContainer}>
+                <Text
+                  style={[
+                    styles.displayName,
+                    { color: C.textPrimary },
+                    item.isUnread && styles.displayNameUnread,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.displayName}
+                </Text>
+
+                <View
+                  style={[
+                    styles.rolePill,
+                    {
+                      backgroundColor:
+                        item.counterpartRole === 'traveller'
+                          ? C.primarySubtle
+                          : C.successSubtle,
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={item.counterpartRole === 'traveller' ? 'directions-car' : 'inventory-2'}
+                    size={10}
+                    color={item.counterpartRole === 'traveller' ? C.primary : C.success}
+                  />
+                  <Text
+                    style={[
+                      styles.rolePillText,
+                      {
+                        color: item.counterpartRole === 'traveller' ? C.primary : C.success,
+                      },
+                    ]}
+                  >
+                    {item.counterpartRole === 'traveller' ? 'Traveler' : 'Sender'}
+                  </Text>
+                </View>
+              </View>
+
               <Text
                 style={[
                   styles.timeLabel,
                   { color: item.isUnread ? C.primary : C.textMuted },
-                  item.isUnread && { fontWeight: FontWeight.semibold },
+                  item.isUnread && { fontWeight: FontWeight.bold },
                 ]}
               >
                 {item.previewTimeLabel}
               </Text>
             </View>
 
-            {/* Context Subtitle: Route & Delivery Status */}
-            {item.routeLabel ? (
-              <Text style={[styles.routeSubtitle, { color: C.textMuted }]} numberOfLines={1}>
-                {item.routeLabel}
-                {item.isActiveDelivery ? ' • In Transit' : ''}
-              </Text>
+            {/* Middle Row: Route Corridor, Price Tag & Delivery Status */}
+            {(item.routeLabel || item.price || item.isActiveDelivery || item.isCompleted) ? (
+              <View style={styles.corridorRow}>
+                {item.routeLabel ? (
+                  <View
+                    style={[
+                      styles.routePill,
+                      { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="near-me"
+                      size={10}
+                      color={C.primary}
+                      style={{ transform: [{ rotate: '45deg' }] }}
+                    />
+                    <Text style={[styles.routePillText, { color: C.textSecondary }]} numberOfLines={1}>
+                      {item.routeLabel}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {item.price ? (
+                  <View style={[styles.pricePill, { backgroundColor: C.successSubtle }]}>
+                    <Text style={[styles.pricePillText, { color: C.success }]}>₹{item.price}</Text>
+                  </View>
+                ) : null}
+
+                {item.isActiveDelivery ? (
+                  <View style={[styles.statusPill, { backgroundColor: C.successSubtle }]}>
+                    <View style={[styles.statusPulseDot, { backgroundColor: C.success }]} />
+                    <Text style={[styles.statusPillText, { color: C.success }]}>In Transit</Text>
+                  </View>
+                ) : item.isCompleted ? (
+                  <View style={[styles.statusPill, { backgroundColor: C.primarySubtle }]}>
+                    <Text style={[styles.statusPillText, { color: C.primary }]}>Delivered</Text>
+                  </View>
+                ) : item.status === 'pending' ? (
+                  <View style={[styles.statusPill, { backgroundColor: C.warningSubtle }]}>
+                    <Text style={[styles.statusPillText, { color: C.warning }]}>Pending</Text>
+                  </View>
+                ) : null}
+              </View>
             ) : null}
 
-            {/* Message Preview */}
+            {/* Bottom Row: Message Preview & Read Receipts */}
             <View style={styles.previewRow}>
-              {item.isLastMessageFromMe ? (
-                <MaterialIcons
-                  name="done-all"
-                  size={14}
-                  color={item.isUnread ? C.textMuted : C.primary}
-                  style={styles.ticksIcon}
-                />
-              ) : null}
-              <Text
-                style={[
-                  styles.previewText,
-                  {
-                    color: item.isUnread ? C.textPrimary : C.textSecondary,
-                    fontWeight: item.isUnread ? FontWeight.semibold : FontWeight.regular,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {item.isLastMessageFromMe ? `You: ${item.previewText}` : item.previewText}
-              </Text>
+              <View style={styles.previewTextWrapper}>
+                {item.isLastMessageFromMe ? (
+                  <MaterialIcons
+                    name="done-all"
+                    size={14}
+                    color={item.isUnread ? C.textMuted : C.primary}
+                    style={styles.ticksIcon}
+                  />
+                ) : null}
+                <Text
+                  style={[
+                    styles.previewText,
+                    {
+                      color: item.isUnread ? C.textPrimary : C.textSecondary,
+                      fontWeight: item.isUnread ? FontWeight.semibold : FontWeight.regular,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.isLastMessageFromMe ? `You: ${item.previewText}` : item.previewText}
+                </Text>
+              </View>
+
+              {item.isUnread ? (
+                <View style={[styles.newBadgePill, { backgroundColor: C.primary }]}>
+                  <Text style={styles.newBadgeText}>NEW</Text>
+                </View>
+              ) : (
+                <Feather name="chevron-right" size={15} color={C.textMuted} style={styles.chevronIcon} />
+              )}
             </View>
           </View>
-
-          <Feather name="chevron-right" size={16} color={C.textMuted} style={styles.chevronIcon} />
         </Pressable>
       </Swipeable>
     </View>
@@ -334,6 +423,7 @@ export default function MessagesScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<MessageFilter>('all');
   const headerEntrance = useFadeIn(0, 300);
   const listEntrance = useFadeIn(80, 300);
 
@@ -351,11 +441,38 @@ export default function MessagesScreen() {
     [conversationsQuery.data, user]
   );
 
+  // Extract all counterpart user IDs across all active conversations and requests
+  const counterpartUserIds = useMemo(() => {
+    if (!user?.id) return [];
+    const idSet = new Set<string>();
+    for (const conv of rawConversations) {
+      if (Array.isArray(conv.participants)) {
+        for (const p of conv.participants) {
+          if (p && p !== user.id) idSet.add(p);
+        }
+      }
+      if (conv.participantNames && typeof conv.participantNames === 'object') {
+        for (const p of Object.keys(conv.participantNames)) {
+          if (p && p !== user.id) idSet.add(p);
+        }
+      }
+      const req = requestMap.get(conv.requestId);
+      if (req) {
+        if (req.travellerId && req.travellerId !== user.id) idSet.add(req.travellerId);
+        if (req.senderId && req.senderId !== user.id) idSet.add(req.senderId);
+      }
+    }
+    return Array.from(idSet);
+  }, [rawConversations, user?.id, requestMap]);
+
+  const userAvatarsQuery = useUserAvatarsQuery(counterpartUserIds);
+  const avatarMap = userAvatarsQuery.data || {};
+
   const conversationRows = useMemo(() => {
     if (!user?.id) return [];
 
     return rawConversations
-      .map((conv) => toConversationRowModel(conv, user.id, requestMap))
+      .map((conv) => toConversationRowModel(conv, user.id, requestMap, avatarMap))
       .filter((row): row is ConversationRowModel => Boolean(row))
       .sort((a, b) => {
         if (a.previewTimeValue === b.previewTimeValue) {
@@ -363,19 +480,32 @@ export default function MessagesScreen() {
         }
         return b.previewTimeValue - a.previewTimeValue;
       });
-  }, [rawConversations, user?.id, requestMap]);
+  }, [rawConversations, user?.id, requestMap, avatarMap]);
 
+  const allCount = conversationRows.length;
+  const activeCount = useMemo(
+    () => conversationRows.filter((r) => r.isActiveDelivery).length,
+    [conversationRows]
+  );
   const unreadCount = useMemo(
     () => conversationRows.filter((r) => r.isUnread).length,
     [conversationRows]
   );
 
-  // Fast client search across names, routes, cities, and preview text
+  // Fast client search and active filter segment
   const filteredRows = useMemo(() => {
-    const cleanSearch = searchQuery.trim().toLowerCase();
-    if (!cleanSearch) return conversationRows;
+    let list = conversationRows;
 
-    return conversationRows.filter(
+    if (activeFilter === 'active') {
+      list = list.filter((r) => r.isActiveDelivery);
+    } else if (activeFilter === 'unread') {
+      list = list.filter((r) => r.isUnread);
+    }
+
+    const cleanSearch = searchQuery.trim().toLowerCase();
+    if (!cleanSearch) return list;
+
+    return list.filter(
       (r) =>
         r.displayName.toLowerCase().includes(cleanSearch) ||
         r.routeLabel.toLowerCase().includes(cleanSearch) ||
@@ -383,7 +513,7 @@ export default function MessagesScreen() {
         (r.toCity && r.toCity.toLowerCase().includes(cleanSearch)) ||
         r.previewText.toLowerCase().includes(cleanSearch)
     );
-  }, [conversationRows, searchQuery]);
+  }, [conversationRows, activeFilter, searchQuery]);
 
   useConversationsRealtime(user?.id);
 
@@ -391,12 +521,16 @@ export default function MessagesScreen() {
     if (!user?.id) return;
     setRefreshing(true);
     try {
-      await Promise.all([conversationsQuery.refetch(), requestsQuery.refetch()]);
+      await Promise.all([
+        conversationsQuery.refetch(),
+        requestsQuery.refetch(),
+        userAvatarsQuery.refetch(),
+      ]);
       Haptic.success();
     } finally {
       setRefreshing(false);
     }
-  }, [conversationsQuery, requestsQuery, user?.id]);
+  }, [conversationsQuery, requestsQuery, userAvatarsQuery, user?.id]);
 
   const openConversation = useCallback(
     (conversationId: string) => {
@@ -459,7 +593,7 @@ export default function MessagesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      {/* ── Minimal Header ──────────────────────────────────────────── */}
+      {/* ── Polished Header & Filter Section ──────────────────────────── */}
       <Animated.View
         style={[
           styles.header,
@@ -472,7 +606,13 @@ export default function MessagesScreen() {
         ]}
       >
         <View style={styles.headerRow}>
-          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Messages</Text>
+          <View style={styles.titleWithBrandRow}>
+            <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Messages</Text>
+            <View style={[styles.brandBadge, { backgroundColor: C.primarySubtle }]}>
+              <Text style={[styles.brandBadgeText, { color: C.primary }]}>CaryGoo</Text>
+            </View>
+          </View>
+
           {unreadCount > 0 ? (
             <View style={[styles.unreadBadge, { backgroundColor: C.primary }]}>
               <Text style={styles.unreadBadgeText}>
@@ -482,14 +622,14 @@ export default function MessagesScreen() {
           ) : null}
         </View>
 
-        {/* Clean, single search input */}
+        {/* Search input with clear button */}
         {conversationRows.length > 0 ? (
           <View style={[styles.searchBar, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <Feather name="search" size={15} color={C.textMuted} style={styles.searchIcon} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search messages or routes..."
+              placeholder="Search messages, names, or routes..."
               placeholderTextColor={C.textMuted}
               style={[styles.searchInput, { color: C.textPrimary }]}
               autoCapitalize="none"
@@ -509,6 +649,153 @@ export default function MessagesScreen() {
             ) : null}
           </View>
         ) : null}
+
+        {/* Filter Pills: All, Active Deliveries, Unread */}
+        {conversationRows.length > 0 ? (
+          <View style={styles.filterTabsRow}>
+            {/* Filter: All */}
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                setActiveFilter('all');
+              }}
+              style={[
+                styles.filterTabPill,
+                activeFilter === 'all'
+                  ? { backgroundColor: C.primary, borderColor: C.primary }
+                  : { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Show all messages (${allCount})`}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  activeFilter === 'all'
+                    ? { color: '#FFFFFF', fontWeight: FontWeight.bold }
+                    : { color: C.textSecondary },
+                ]}
+              >
+                All
+              </Text>
+              <View
+                style={[
+                  styles.filterCountBadge,
+                  activeFilter === 'all'
+                    ? { backgroundColor: 'rgba(255,255,255,0.25)' }
+                    : { backgroundColor: C.surfaceElevated },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterCountText,
+                    activeFilter === 'all' ? { color: '#FFFFFF' } : { color: C.textMuted },
+                  ]}
+                >
+                  {allCount}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Filter: Active Deliveries */}
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                setActiveFilter('active');
+              }}
+              style={[
+                styles.filterTabPill,
+                activeFilter === 'active'
+                  ? { backgroundColor: C.primary, borderColor: C.primary }
+                  : { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Show active deliveries (${activeCount})`}
+            >
+              <View
+                style={[
+                  styles.filterActiveDot,
+                  { backgroundColor: activeFilter === 'active' ? '#6EE7B7' : C.success },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.filterTabText,
+                  activeFilter === 'active'
+                    ? { color: '#FFFFFF', fontWeight: FontWeight.bold }
+                    : { color: C.textSecondary },
+                ]}
+              >
+                Active
+              </Text>
+              {activeCount > 0 ? (
+                <View
+                  style={[
+                    styles.filterCountBadge,
+                    activeFilter === 'active'
+                      ? { backgroundColor: 'rgba(255,255,255,0.25)' }
+                      : { backgroundColor: C.successSubtle },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterCountText,
+                      activeFilter === 'active' ? { color: '#FFFFFF' } : { color: C.success },
+                    ]}
+                  >
+                    {activeCount}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+
+            {/* Filter: Unread */}
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                setActiveFilter('unread');
+              }}
+              style={[
+                styles.filterTabPill,
+                activeFilter === 'unread'
+                  ? { backgroundColor: C.primary, borderColor: C.primary }
+                  : { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Show unread messages (${unreadCount})`}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  activeFilter === 'unread'
+                    ? { color: '#FFFFFF', fontWeight: FontWeight.bold }
+                    : { color: C.textSecondary },
+                ]}
+              >
+                Unread
+              </Text>
+              {unreadCount > 0 ? (
+                <View
+                  style={[
+                    styles.filterCountBadge,
+                    activeFilter === 'unread'
+                      ? { backgroundColor: 'rgba(255,255,255,0.28)' }
+                      : { backgroundColor: C.primary },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterCountText,
+                      { color: '#FFFFFF', fontWeight: FontWeight.bold },
+                    ]}
+                  >
+                    {unreadCount}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
+        ) : null}
       </Animated.View>
 
       {!isOnline ? (
@@ -517,7 +804,7 @@ export default function MessagesScreen() {
         </View>
       ) : null}
 
-      {/* ── Main List Content ─────────────────────────────────────────── */}
+      {/* ── Main Conversations List ───────────────────────────────────── */}
       <Animated.View
         style={[
           { flex: 1 },
@@ -535,7 +822,9 @@ export default function MessagesScreen() {
               C={C}
               icon="person-outline"
               title="Sign in required"
-              message="Sign in to access your direct delivery conversations."
+              message="Sign in to access your direct CaryGoo delivery conversations."
+              actionLabel="Sign In"
+              onAction={() => router.push('/login')}
             />
           </View>
         ) : conversationsQuery.error ? (
@@ -580,7 +869,9 @@ export default function MessagesScreen() {
             <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               {searchQuery ? (
                 <>
-                  <Feather name="search" size={28} color={C.textMuted} style={{ marginBottom: 4 }} />
+                  <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                    <LottieAnimation name="searchEmpty" style={{ width: 140, height: 110 }} />
+                  </View>
                   <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No matches</Text>
                   <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
                     No conversations matching "{searchQuery}"
@@ -595,13 +886,75 @@ export default function MessagesScreen() {
                     <Text style={styles.emptyCTAText}>Clear Search</Text>
                   </Pressable>
                 </>
+              ) : activeFilter === 'unread' ? (
+                <>
+                  <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                    <LottieAnimation name="success" style={{ width: 140, height: 110 }} loop={false} />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>All Caught Up!</Text>
+                  <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
+                    You have no unread messages. All conversations are up to date.
+                  </Text>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.emptyCTA,
+                      { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1, opacity: pressed ? 0.9 : 1 },
+                    ]}
+                    onPress={() => setActiveFilter('all')}
+                  >
+                    <Text style={[styles.emptyCTAText, { color: C.textPrimary }]}>View All Messages</Text>
+                  </Pressable>
+                </>
+              ) : activeFilter === 'active' ? (
+                <>
+                  <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                    <LottieAnimation name="deliveryCar" style={{ width: 140, height: 110 }} />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Active Deliveries</Text>
+                  <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
+                    Conversations for ongoing and accepted deliveries will appear here.
+                  </Text>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.emptyCTA,
+                      { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, borderWidth: 1, opacity: pressed ? 0.9 : 1 },
+                    ]}
+                    onPress={() => setActiveFilter('all')}
+                  >
+                    <Text style={[styles.emptyCTAText, { color: C.textPrimary }]}>View All Messages</Text>
+                  </Pressable>
+                </>
               ) : (
                 <>
-                  <ProductIllustration variant="chat" size={130} />
+                  <View style={{ width: 180, height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                    <LottieAnimation name="chat" style={{ width: 180, height: 140 }} />
+                  </View>
                   <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Messages Yet</Text>
                   <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
-                    When you request a parcel delivery or coordinate a trip, your chats will appear here.
+                    Coordinate delivery details and handover OTPs directly with verified CaryGoo travelers along your route.
                   </Text>
+                  <View style={styles.emptyActionsRow}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.emptyPrimaryCTA,
+                        { backgroundColor: C.primary, opacity: pressed ? 0.9 : 1 },
+                      ]}
+                      onPress={() => router.push('/(tabs)')}
+                    >
+                      <MaterialIcons name="explore" size={15} color="#FFFFFF" />
+                      <Text style={styles.emptyPrimaryCTAText}>Browse Deliveries</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.emptySecondaryCTA,
+                        { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: pressed ? 0.9 : 1 },
+                      ]}
+                      onPress={() => router.push('/create-parcel')}
+                    >
+                      <MaterialIcons name="add-box" size={15} color={C.textPrimary} />
+                      <Text style={[styles.emptySecondaryCTAText, { color: C.textPrimary }]}>Send Parcel</Text>
+                    </Pressable>
+                  </View>
                 </>
               )}
             </View>
@@ -612,7 +965,7 @@ export default function MessagesScreen() {
             data={filteredRows}
             keyExtractor={keyExtractor}
             renderItem={renderItem}
-            estimatedItemSize={84}
+            estimatedItemSize={92}
             contentContainerStyle={{
               paddingHorizontal: Spacing.md,
               paddingTop: Spacing.xs,
@@ -647,10 +1000,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 4,
   },
+  titleWithBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   pageTitle: {
     fontSize: FontSize.xxl,
     fontWeight: FontWeight.bold,
     letterSpacing: -0.4,
+  },
+  brandBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  brandBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.2,
   },
   unreadBadge: {
     paddingHorizontal: 9,
@@ -686,54 +1054,97 @@ const styles = StyleSheet.create({
     padding: 2,
   },
 
+  filterTabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+    marginTop: 2,
+    marginBottom: Spacing.xs,
+  },
+  filterTabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  filterTabText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  filterCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: BorderRadius.full,
+  },
+  filterCountText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
+  filterActiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+
   itemSeparator: {
     height: Spacing.xs + 2,
+  },
+
+  swipeableContainer: {
+    overflow: 'hidden',
+    borderRadius: BorderRadius.lg,
   },
 
   convCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm + 2,
+    paddingVertical: Spacing.sm + 3,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    gap: Spacing.sm + 2,
+    gap: Spacing.sm + 3,
   },
   avatarWrap: {
     position: 'relative',
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
   },
   avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     overflow: 'hidden',
   },
   avatarImg: {
     width: '100%',
     height: '100%',
   },
-  avatarText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    borderRadius: BorderRadius.full,
+    padding: 1,
   },
   unreadDot: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 1.5,
+    top: -1,
+    right: -1,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    borderWidth: 2,
   },
 
   convDetails: {
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
   nameTimeRow: {
     flexDirection: 'row',
@@ -741,27 +1152,96 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.xs,
   },
+  nameRoleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
   displayName: {
     fontSize: FontSize.sm + 0.5,
     fontWeight: FontWeight.medium,
-    flex: 1,
+    flexShrink: 1,
   },
   displayNameUnread: {
+    fontWeight: FontWeight.bold,
+  },
+  rolePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BorderRadius.full,
+  },
+  rolePillText: {
+    fontSize: 9.5,
     fontWeight: FontWeight.bold,
   },
   timeLabel: {
     fontSize: 11,
   },
 
-  routeSubtitle: {
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
+  corridorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 1,
+  },
+  routePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    maxWidth: 160,
+  },
+  routePillText: {
+    fontSize: 10,
+    fontWeight: FontWeight.semibold,
+  },
+  pricePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  pricePillText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  statusPulseDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  statusPillText: {
+    fontSize: 9.5,
+    fontWeight: FontWeight.bold,
   },
 
   previewRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 1,
+  },
+  previewTextWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
     gap: 4,
+    marginRight: 6,
   },
   ticksIcon: {
     marginRight: 1,
@@ -771,8 +1251,18 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs + 0.5,
     lineHeight: 16,
   },
+  newBadgePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BorderRadius.full,
+  },
+  newBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+  },
   chevronIcon: {
-    opacity: 0.5,
+    opacity: 0.45,
     marginLeft: 2,
   },
 
@@ -821,10 +1311,10 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs + 0.5,
     textAlign: 'center',
     lineHeight: 18,
-    maxWidth: 260,
+    maxWidth: 280,
   },
   emptyCTA: {
-    paddingHorizontal: Spacing.md + 2,
+    paddingHorizontal: Spacing.md + 4,
     paddingVertical: Spacing.xs + 3,
     borderRadius: BorderRadius.full,
     marginTop: Spacing.xs,
@@ -834,9 +1324,41 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     fontSize: FontSize.xs,
   },
+  emptyActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  emptyPrimaryCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+  },
+  emptyPrimaryCTAText: {
+    color: '#FFFFFF',
+    fontWeight: FontWeight.bold,
+    fontSize: FontSize.xs + 0.5,
+  },
+  emptySecondaryCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  emptySecondaryCTAText: {
+    fontWeight: FontWeight.bold,
+    fontSize: FontSize.xs + 0.5,
+  },
 
   tabletContainer: {
-    maxWidth: 620,
+    maxWidth: 640,
     width: '100%',
     alignSelf: 'center',
   },

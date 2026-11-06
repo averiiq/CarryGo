@@ -14,6 +14,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
+import { getUserAvatarSource } from '@/constants/images';
 
 function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
@@ -143,13 +144,11 @@ export function CarryParcelModal({
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={[styles.avatarWrap, { backgroundColor: C.primarySubtle }]}>
-              {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatarImage} contentFit="cover" />
-              ) : (
-                <Text style={[styles.avatarText, { color: C.primary }]}>
-                  {parcel.userName ? parcel.userName.charAt(0).toUpperCase() : 'S'}
-                </Text>
-              )}
+              <Image
+                source={getUserAvatarSource(avatarUri, parcel.userId || parcel.id || parcel.userName)}
+                style={styles.avatarImage}
+                contentFit="cover"
+              />
               <View style={styles.verifiedDot} />
             </View>
             <View style={{ flex: 1 }}>

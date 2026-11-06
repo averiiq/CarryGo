@@ -35,7 +35,8 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn } from '@/hooks/useAnimations';
 import { useAppUpdates } from '@/hooks/useAppUpdates';
 import { AnimatedIcon, type AnimatedIconName, type AnimatedIconRef } from '@/components';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
+import { getUserCoinSummary } from '@/services/rewards.service';
 
 interface MenuItemProps {
   icon?: React.ReactNode;
@@ -213,6 +214,7 @@ export default function ProfileScreen() {
 
   const [showKyc, setShowKyc] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const resolvedAvatar = resolveImageUrl(user?.avatar);
 
   useEffect(() => {
@@ -233,10 +235,15 @@ export default function ProfileScreen() {
     applyUpdate,
   } = useAppUpdates();
 
-  // Refresh user data on focus
+  // Refresh user data & coin summary on focus
   useFocusEffect(
     useCallback(() => {
       refreshUser();
+      void getUserCoinSummary().then((res) => {
+        if (res.data) {
+          setCoinBalance(res.data.balance);
+        }
+      });
     }, [refreshUser])
   );
 
@@ -298,17 +305,47 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   const displayName = user.fullName || user.name || user.email?.split('@')[0] || 'User';
-  const isKycApproved = Boolean(user.kycStatus === 'approved' || user.verified);
+  const isKycApproved = Boolean(
+    user.kycStatus === 'approved' ||
+    user.verified ||
+    user.isAadhaarVerified
+  );
   const isKycSubmitted = !isKycApproved && user.kycStatus === 'submitted';
-  const isKycAvailable = FeatureFlags.kycProvider;
-  const canOpenKycBanner = isKycAvailable && !isKycApproved && !isKycSubmitted;
+  const isKycRejected = !isKycApproved && user.kycStatus === 'rejected';
+
+  const handleOpenKyc = () => {
+    Haptic.tap();
+    if (isKycApproved) {
+      showAlert(
+        'Identity Verified ✓',
+        'Your identity has been verified with Aadhaar and face match. You have full access to send parcels, post trips, and carry deliveries on CaryGoo.',
+        [
+          { text: 'View Verification Details', onPress: () => router.push('/kyc' as never) },
+          { text: 'OK', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    if (isKycSubmitted) {
+      showAlert(
+        'KYC In Review ⏳',
+        'Your Aadhaar and selfie verification documents have been submitted and are currently being reviewed. You will receive an alert once approved.',
+        [
+          { text: 'Check Status', onPress: () => router.push('/kyc' as never) },
+          { text: 'OK', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    setShowKyc(true);
+  };
 
   const joinedDateFormatted = user.joinedAt
     ? new Date(user.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : 'Recent';
 
   return (
-    <>
+    <View style={[styles.container, { backgroundColor: C.background }]}>
       <KycOnboarding
         visible={showKyc}
         onClose={() => setShowKyc(false)}
@@ -317,14 +354,35 @@ export default function ProfileScreen() {
           refreshUser();
         }}
       />
+
+      {/* ── Top Header Bar ─────────────────────────────────────────── */}
+      <View style={[styles.headerBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.xs) }]}>
+        <Text style={[styles.screenHeaderTitle, { color: C.textPrimary }]}>Profile</Text>
+        <Pressable
+          onPress={() => {
+            Haptic.tap();
+            router.push('/edit-profile');
+          }}
+          style={({ pressed }) => [
+            styles.headerEditBtn,
+            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+          ]}
+          hitSlop={8}
+          accessibilityLabel="Edit profile"
+        >
+          <Feather name="edit-2" size={14} color={C.primary} />
+        </Pressable>
+      </View>
+
       <Animated.ScrollView
         ref={scrollRef}
         keyboardDismissMode="on-drag"
-        style={[styles.container, { backgroundColor: C.background }]}
+        style={{ flex: 1 }}
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.sm),
+            paddingTop: Spacing.xs,
             paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet),
           },
           isTablet && styles.tabletContainer,
@@ -346,7 +404,7 @@ export default function ProfileScreen() {
             ]}
           >
             <View style={styles.heroMainRow}>
-              {/* Avatar on Left with quick edit badge */}
+              {/* Avatar on Left */}
               <Pressable
                 onPress={() => {
                   Haptic.tap();
@@ -354,7 +412,7 @@ export default function ProfileScreen() {
                 }}
                 style={styles.avatarWrap}
                 accessibilityRole="button"
-                accessibilityLabel="Edit profile"
+                accessibilityLabel="Edit profile avatar"
               >
                 <View
                   style={[
@@ -362,21 +420,15 @@ export default function ProfileScreen() {
                     { backgroundColor: C.primarySubtle, borderColor: C.surfaceBorder },
                   ]}
                 >
-                  {resolvedAvatar && !avatarError ? (
-                    <Image
-                      source={{ uri: resolvedAvatar }}
-                      style={styles.avatarImage}
-                      contentFit="cover"
-                      onError={() => setAvatarError(true)}
-                    />
-                  ) : (
-                    <Text style={[styles.avatarText, { color: C.primary }]}>
-                      {displayName.charAt(0).toUpperCase()}
-                    </Text>
-                  )}
+                  <Image
+                    source={avatarError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(user?.avatar, user?.id || displayName)}
+                    style={styles.avatarImage}
+                    contentFit="cover"
+                    onError={() => setAvatarError(true)}
+                  />
                 </View>
                 {isKycApproved ? (
-                  <View style={[styles.verifiedCheckBadge, { backgroundColor: C.primary, borderColor: C.surface }]}>
+                  <View style={[styles.verifiedCheckBadge, { backgroundColor: C.success, borderColor: C.surface }]}>
                     <MaterialIcons name="check" size={11} color="#FFFFFF" />
                   </View>
                 ) : (
@@ -421,11 +473,18 @@ export default function ProfileScreen() {
                 {/* Status Chips */}
                 <View style={styles.chipsRow}>
                   {isKycApproved ? (
-                    <View style={[styles.statusChip, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                      <MaterialIcons name="verified" size={11} color={C.primary} />
-                      <Text style={[styles.statusChipText, { color: C.primary }]}>Verified Member</Text>
+                    <View style={[styles.statusChip, { backgroundColor: C.successSubtle, borderColor: C.successBorder }]}>
+                      <MaterialIcons name="verified" size={11} color={C.success} />
+                      <Text style={[styles.statusChipText, { color: C.success }]}>Verified Member</Text>
                     </View>
-                  ) : null}
+                  ) : (
+                    <View style={[styles.statusChip, { backgroundColor: isKycSubmitted ? C.warningSubtle : C.primarySubtle, borderColor: isKycSubmitted ? C.warningBorder : C.primaryBorder }]}>
+                      <MaterialIcons name={isKycSubmitted ? 'hourglass-empty' : 'shield'} size={11} color={isKycSubmitted ? C.warning : C.primary} />
+                      <Text style={[styles.statusChipText, { color: isKycSubmitted ? C.warning : C.primary }]}>
+                        {isKycSubmitted ? 'KYC In Review' : 'KYC Pending'}
+                      </Text>
+                    </View>
+                  )}
 
                   {user.city ? (
                     <View style={[styles.locationChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
@@ -468,60 +527,169 @@ export default function ProfileScreen() {
           />
         </Animated.View>
 
-        {/* ── KYC Prompt (Only when unverified) ────────────────────────── */}
+        {/* ── KYC Prompt Banner (When unverified or under review) ────────────────────────── */}
         {!isKycApproved ? (
           <Pressable
             style={[
               styles.kycBanner,
               {
-                backgroundColor: isKycSubmitted ? C.warningSubtle : C.primarySubtle,
-                borderColor: isKycSubmitted ? C.warningBorder : C.primaryBorder,
+                backgroundColor: isKycSubmitted
+                  ? C.warningSubtle
+                  : isKycRejected
+                  ? C.errorSubtle
+                  : C.primarySubtle,
+                borderColor: isKycSubmitted
+                  ? C.warningBorder
+                  : isKycRejected
+                  ? C.errorBorder
+                  : C.primaryBorder,
               },
             ]}
             hitSlop={TouchTarget.smallHitSlop}
-            onPress={canOpenKycBanner ? () => setShowKyc(true) : undefined}
-            disabled={!canOpenKycBanner}
+            onPress={handleOpenKyc}
           >
             <View
               style={[
                 styles.kycIconWrap,
-                { backgroundColor: isKycSubmitted ? C.warning + '22' : C.primary + '22' },
+                {
+                  backgroundColor: isKycSubmitted
+                    ? C.warning + '22'
+                    : isKycRejected
+                    ? C.error + '22'
+                    : C.primary + '22',
+                },
               ]}
             >
               <MaterialIcons
-                name={isKycSubmitted ? 'hourglass-empty' : 'shield'}
+                name={isKycSubmitted ? 'hourglass-empty' : isKycRejected ? 'error-outline' : 'shield'}
                 size={18}
-                color={isKycSubmitted ? C.warning : C.primary}
+                color={isKycSubmitted ? C.warning : isKycRejected ? C.error : C.primary}
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.kycTitle, { color: isKycSubmitted ? C.warning : C.primary }]}>
-                {isKycSubmitted ? 'KYC Under Review' : 'Verify Your Identity'}
+              <Text
+                style={[
+                  styles.kycTitle,
+                  {
+                    color: isKycSubmitted ? C.warning : isKycRejected ? C.error : C.primary,
+                  },
+                ]}
+              >
+                {isKycSubmitted
+                  ? 'KYC Under Review'
+                  : isKycRejected
+                  ? 'KYC Verification Required'
+                  : 'Verify Your Identity'}
               </Text>
               <Text style={[styles.kycBody, { color: C.textSecondary }]}>
                 {isKycSubmitted
-                  ? 'Your documents are being verified within 24 hours.'
-                  : 'Unlock unlimited parcel carriage and fast peer matching.'}
+                  ? 'Your documents are being reviewed within 24 hours.'
+                  : isKycRejected
+                  ? 'Tap to resolve verification issues and re-submit.'
+                  : 'Complete instant Aadhaar KYC to unlock full parcel delivery features.'}
               </Text>
             </View>
-            {canOpenKycBanner ? (
-              <View style={[styles.kycCta, { backgroundColor: C.primary }]}>
-                <Text style={styles.kycCtaText}>Verify</Text>
-                <MaterialIcons name="arrow-forward" size={11} color="#FFFFFF" />
-              </View>
-            ) : isKycSubmitted ? (
-              <View style={[styles.pendingChip, { backgroundColor: C.warning + '24' }]}>
-                <Text style={[styles.pendingChipText, { color: C.warning }]}>Pending</Text>
-              </View>
-            ) : null}
+            <View
+              style={[
+                styles.kycCta,
+                {
+                  backgroundColor: isKycSubmitted
+                    ? C.warning
+                    : isKycRejected
+                    ? C.error
+                    : C.primary,
+                },
+              ]}
+            >
+              <Text style={styles.kycCtaText}>
+                {isKycSubmitted ? 'Status' : isKycRejected ? 'Re-try' : 'Verify'}
+              </Text>
+              <MaterialIcons name="arrow-forward" size={11} color="#FFFFFF" />
+            </View>
           </Pressable>
         ) : null}
 
         {/* ── Settings Groups ─────────────────────────────────────────── */}
         <Animated.View style={[styles.sectionsWrap, { opacity: sectionsEntrance.opacity, transform: sectionsEntrance.transform }]}>
-          {/* Group 1: Activity & Earnings */}
+          {/* Group 1: Identity & Trust */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Activity & Earnings</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Identity & Trust</Text>
+            <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <MenuItem
+                C={C}
+                icon={
+                  <MaterialIcons
+                    name={isKycApproved ? 'verified-user' : isKycSubmitted ? 'hourglass-empty' : 'shield'}
+                    size={18}
+                    color={isKycApproved ? C.success : isKycSubmitted ? C.warning : C.primary}
+                  />
+                }
+                label="Identity Verification (KYC)"
+                subtitle={
+                  isKycApproved
+                    ? 'Verified • Aadhaar & Selfie approved'
+                    : isKycSubmitted
+                    ? 'Under Review • Verification in progress'
+                    : isKycRejected
+                    ? 'Action Required • Please re-submit documents'
+                    : 'Instant Aadhaar OTP & biometric selfie match'
+                }
+                right={
+                  <View
+                    style={[
+                      styles.kycStatusBadge,
+                      {
+                        backgroundColor: isKycApproved
+                          ? C.successSubtle
+                          : isKycSubmitted
+                          ? C.warningSubtle
+                          : isKycRejected
+                          ? C.errorSubtle
+                          : C.primarySubtle,
+                        borderColor: isKycApproved
+                          ? C.successBorder
+                          : isKycSubmitted
+                          ? C.warningBorder
+                          : isKycRejected
+                          ? C.errorBorder
+                          : C.primaryBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.kycStatusBadgeText,
+                        {
+                          color: isKycApproved
+                            ? C.success
+                            : isKycSubmitted
+                            ? C.warning
+                            : isKycRejected
+                            ? C.error
+                            : C.primary,
+                        },
+                      ]}
+                    >
+                      {isKycApproved ? 'Verified' : isKycSubmitted ? 'Pending' : isKycRejected ? 'Action' : 'Verify'}
+                    </Text>
+                  </View>
+                }
+                onPress={handleOpenKyc}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
+              <MenuItem
+                C={C}
+                icon={<Feather name="user-check" size={18} color={C.primary} />}
+                label="Edit Profile Details"
+                subtitle="Full name, phone number, city & photo"
+                onPress={() => router.push('/edit-profile')}
+              />
+            </View>
+          </View>
+
+          {/* Group 2: Activity & Payments */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Activity & Payments</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
@@ -536,7 +704,7 @@ export default function ProfileScreen() {
                 C={C}
                 icon={<MaterialIcons name="receipt-long" size={18} color={C.warning} />}
                 label="Transactions & Receipts"
-                subtitle="Booking payments, transfers & invoices"
+                subtitle="Booking payments & invoices"
                 onPress={() => router.push('/my-activity?tab=transactions')}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
@@ -544,15 +712,39 @@ export default function ProfileScreen() {
                 C={C}
                 icon={<MaterialIcons name="monetization-on" size={18} color="#F59E0B" />}
                 label="Coins & Rewards"
-                subtitle="Earn credits on completed deliveries"
+                subtitle={
+                  coinBalance != null && coinBalance > 0
+                    ? `${coinBalance.toLocaleString()} Coins (≈ ₹${(coinBalance / 10).toFixed(0)} credit)`
+                    : 'Earn credits on completed deliveries'
+                }
+                right={
+                  coinBalance != null && coinBalance > 0 ? (
+                    <View
+                      style={{
+                        backgroundColor: '#FEF3C7',
+                        paddingHorizontal: Spacing.xs + 4,
+                        paddingVertical: 2,
+                        borderRadius: BorderRadius.full,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
+                      <MaterialIcons name="monetization-on" size={12} color="#D97706" />
+                      <Text style={{ fontSize: 11, fontWeight: FontWeight.bold, color: '#D97706' }}>
+                        {coinBalance}
+                      </Text>
+                    </View>
+                  ) : undefined
+                }
                 onPress={() => router.push('/rewards' as any)}
               />
             </View>
           </View>
 
-          {/* Group 2: Preferences & Alerts */}
+          {/* Group 3: Preferences */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Preferences & Alerts</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Preferences</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
@@ -574,7 +766,7 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Group 3: Help & Policies */}
+          {/* Group 4: Support & Legal */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Support & Legal</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -613,28 +805,10 @@ export default function ProfileScreen() {
                 subtitle="Data protection and privacy encryption"
                 onPress={() => router.push('/legal/privacy')}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
-              <MenuItem
-                C={C}
-                animatedIconName="activity"
-                animatedIconColor={C.warning}
-                label="Refund & Cancellation"
-                subtitle="Booking refunds & cancellation terms"
-                onPress={() => router.push('/legal/refund-policy' as any)}
-              />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
-              <MenuItem
-                C={C}
-                animatedIconName="package"
-                animatedIconColor={C.primary}
-                label="Shipping & Delivery"
-                subtitle="Peer carriage scope & custody protocols"
-                onPress={() => router.push('/legal/shipping-policy' as any)}
-              />
             </View>
           </View>
 
-          {/* Group 4: App & Account */}
+          {/* Group 5: App & Account */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textMuted }]}>App & Account</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -688,20 +862,39 @@ export default function ProfileScreen() {
             <View style={styles.footerContent}>
               <Image
                 source={require('@/assets/images/logo-horizontal.png')}
-                style={{ width: 110, height: 34, opacity: 0.85 }}
+                style={{ width: 310, height: 68, opacity: 1.0 }}
                 contentFit="contain"
               />
-              <Text style={[styles.footerText, { color: C.textMuted }]}>CaryGoo v1.2.2 • Move . Connect . Deliver</Text>
             </View>
           </View>
         </Animated.View>
       </Animated.ScrollView>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  screenHeaderTitle: {
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.5,
+  },
+  headerEditBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
   content: {
     paddingHorizontal: Spacing.md,
     gap: Spacing.md,
@@ -950,6 +1143,16 @@ const styles = StyleSheet.create({
   pendingChipText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
+  },
+  kycStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  kycStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
   },
 
   // Sections

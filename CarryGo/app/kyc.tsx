@@ -41,9 +41,10 @@ import {
 import { verifyHumanFace, FaceVerificationResult } from '@/services/face-verification.service';
 import KycStepIndicator from '@/components/feature/kyc/KycStepIndicator';
 import { Haptic } from '@/services/haptics.service';
-import { KeyboardAwareScrollView } from '@/components';
+import { KeyboardAwareScrollView, LottieAnimation } from '@/components';
 import { getCityNames } from '@/constants/indian-cities';
 import { detectCurrentCity } from '@/services/location.service';
+import { useResponsive } from '@/hooks/useResponsive';
 
 type AccountStep = 'account_username' | 'account_name' | 'account_phone' | 'account_city' | 'account_role';
 type KycInnerStep =
@@ -88,6 +89,7 @@ function formatMobileInput(value?: string) {
 export default function KycScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isSmallDevice, isTablet } = useResponsive();
   const { user, updateUser, refreshUser, logout, isLoading: isAuthLoading } = useAuth();
   const { C, S } = useThemeColors();
   const { showAlert } = useAlert();
@@ -1188,8 +1190,8 @@ export default function KycScreen() {
           </Text>
         </View>
 
-        <View style={[styles.iconCircle, { backgroundColor: C.primarySubtle }]}>
-          <MaterialIcons name="fingerprint" size={44} color={C.primary} />
+        <View style={{ width: 140, height: 110, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+          <LottieAnimation name="aadharVerification" style={{ width: 140, height: 110 }} />
         </View>
 
         <Text style={[styles.title, { color: C.textPrimary }]}>Aadhaar Identity Verification</Text>
@@ -1547,8 +1549,8 @@ export default function KycScreen() {
   // ---------------------------------------------------------------------------
   const renderSelfieStep = () => (
     <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
-      <View style={[styles.iconCircle, { backgroundColor: C.primarySubtle }]}>
-        <MaterialIcons name="camera-alt" size={44} color={C.primary} />
+      <View style={{ width: 140, height: 110, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+        <LottieAnimation name="idVerification" style={{ width: 140, height: 110 }} />
       </View>
 
       <Text style={[styles.title, { color: C.textPrimary }]}>Face Liveness Selfie</Text>
@@ -1658,13 +1660,15 @@ export default function KycScreen() {
 
     return (
       <Animated.View entering={ZoomIn.duration(450)} style={styles.card}>
-        <View style={[styles.iconCircle, { backgroundColor: isApproved ? C.successSubtle : C.accentSubtle }]}>
-          <MaterialIcons
-            name={isApproved ? 'verified' : 'pending-actions'}
-            size={56}
-            color={isApproved ? C.success : C.accent}
-          />
-        </View>
+        {isApproved ? (
+          <View style={{ width: 160, height: 120, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+            <LottieAnimation name="success" style={{ width: 160, height: 120 }} loop={false} />
+          </View>
+        ) : (
+          <View style={{ width: 140, height: 110, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+            <LottieAnimation name="idVerification" style={{ width: 140, height: 110 }} />
+          </View>
+        )}
 
         <Text style={[styles.title, { color: C.textPrimary }]}>
           {isApproved ? "You're Officially Verified!" : 'KYC Submitted for Review'}
@@ -1769,7 +1773,7 @@ export default function KycScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: C.surfaceBorder }]}>
+      <View style={[styles.header, { borderBottomColor: C.surfaceBorder }, isTablet && styles.tabletCentered]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go back"
@@ -1794,11 +1798,18 @@ export default function KycScreen() {
 
       {/* Progress Indicator */}
       {step !== 'completed' ? (
-        <KycStepIndicator currentStep={stepNumber} totalSteps={totalSteps} stepLabel={stepLabel} />
+        <View style={[isTablet && styles.tabletCentered]}>
+          <KycStepIndicator currentStep={stepNumber} totalSteps={totalSteps} stepLabel={stepLabel} />
+        </View>
       ) : null}
 
       <KeyboardAwareScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.xxl + 20 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + Spacing.xxl + 20 },
+          isTablet && styles.tabletCentered,
+          isSmallDevice && { paddingHorizontal: Spacing.sm },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         extraScrollHeight={80}
@@ -1821,6 +1832,11 @@ export default function KycScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  tabletCentered: {
+    maxWidth: 580,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

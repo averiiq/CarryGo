@@ -759,6 +759,7 @@ export type Database = {
           status: Database["public"]["Enums"]["parcel_status"]
           to_city: string
           updated_at: string
+          user_avatar: string | null
           user_city: string | null
           user_id: string
           user_name: string
@@ -776,6 +777,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["parcel_status"]
           to_city: string
           updated_at?: string
+          user_avatar?: string | null
           user_city?: string | null
           user_id: string
           user_name: string
@@ -793,6 +795,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["parcel_status"]
           to_city?: string
           updated_at?: string
+          user_avatar?: string | null
           user_city?: string | null
           user_id?: string
           user_name?: string
@@ -1102,6 +1105,7 @@ export type Database = {
           time: string
           to_city: string
           updated_at: string
+          user_avatar: string | null
           user_city: string | null
           user_id: string
           user_name: string
@@ -1119,6 +1123,7 @@ export type Database = {
           time: string
           to_city: string
           updated_at?: string
+          user_avatar?: string | null
           user_city?: string | null
           user_id: string
           user_name: string
@@ -1136,6 +1141,7 @@ export type Database = {
           time?: string
           to_city?: string
           updated_at?: string
+          user_avatar?: string | null
           user_city?: string | null
           user_id?: string
           user_name?: string
@@ -1693,6 +1699,7 @@ export type Database = {
           user_id: string
           user_name: string
           user_rating: number
+          user_avatar: string | null
           from_city: string
           to_city: string
           date: string
@@ -1715,6 +1722,7 @@ export type Database = {
           id: string
           user_id: string
           user_name: string
+          user_avatar: string | null
           from_city: string
           to_city: string
           category: Database["public"]["Enums"]["parcel_category"]

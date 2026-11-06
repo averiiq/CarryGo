@@ -6,7 +6,7 @@ import Svg, { Line } from 'react-native-svg';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatScheduleDate } from './SevenDaySchedulePicker';
-import { resolveImageUrl, getCategoryFallbackImage, getVehicleImage } from '@/constants/images';
+import { resolveImageUrl, getCategoryFallbackImage, getVehicleImage, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
 interface DigitalWaybillCardProps {
   type: 'parcel' | 'trip';
@@ -97,21 +97,13 @@ export function DigitalWaybillCard({
         {/* User / Traveller Profile Strip */}
         <View style={[styles.profileStrip, { backgroundColor: C.surface, borderBottomColor: C.surfaceBorderLight, borderBottomWidth: 1 }]}>
           <View style={styles.profileAvatarWrap}>
-            {resolvedAvatar && !avatarError ? (
-              <Image
-                source={{ uri: resolvedAvatar }}
-                style={styles.profileAvatarImg}
-                contentFit="cover"
-                transition={200}
-                onError={() => setAvatarError(true)}
-              />
-            ) : (
-              <View style={[styles.profileAvatarPlaceholder, { backgroundColor: C.primarySubtle }]}>
-                <Text style={[styles.profileAvatarLetter, { color: C.primary }]}>
-                  {(userName || 'T').charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
+            <Image
+              source={avatarError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(userAvatar, userName)}
+              style={styles.profileAvatarImg}
+              contentFit="cover"
+              transition={200}
+              onError={() => setAvatarError(true)}
+            />
             <View style={[styles.profileVerifiedBadge, { backgroundColor: '#10B981', borderColor: C.card }]}>
               <MaterialIcons name="check" size={8} color="#FFFFFF" />
             </View>

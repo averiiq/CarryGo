@@ -5,7 +5,8 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Trip, Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { resolveImageUrl, getVehicleImage } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export const VEHICLE_CONFIG: Record<
   string,
@@ -85,6 +86,7 @@ export interface TripCardProps {
   onRequest?: () => void;
   compact?: boolean;
   isOwner?: boolean;
+  currentUserAvatar?: string;
   existingRequest?: Request | null;
   onTrackDelivery?: (requestId: string) => void;
   onViewRequest?: (requestId: string) => void;
@@ -99,21 +101,21 @@ export const TripCard = React.memo(function TripCard({
   onRequest,
   compact = false,
   isOwner,
+  currentUserAvatar,
   existingRequest,
   onTrackDelivery,
   onViewRequest,
 }: TripCardProps) {
   const { C, S, isDark } = useThemeColors();
+  const { isSmallDevice } = useResponsive();
   const scale = useRef(new Animated.Value(1)).current;
   const [avatarError, setAvatarError] = useState(false);
 
   if (!trip) return null;
 
   const vMeta = getVehicleMeta(trip.vehicleType, isDark);
-  const vehicleAsset = getVehicleImage(trip.vehicleType);
   const rawName = trip.userName || 'User';
   const userName = rawName.trim();
-  const avatarLetter = (userName.charAt(0) || 'U').toUpperCase();
 
   const { hasRating, formatted: ratingText, numeric: userRating } = formatTripRating(trip.userRating);
 
@@ -131,6 +133,7 @@ export const TripCard = React.memo(function TripCard({
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...Motion.springBouncy }).start();
 
   const tripAvatarUri =
+    (isOwner && currentUserAvatar ? currentUserAvatar : undefined) ||
     trip.userAvatar ||
     (trip as any).avatar ||
     (trip as any).avatar_url ||
@@ -138,7 +141,7 @@ export const TripCard = React.memo(function TripCard({
     (trip as any).selfieUrl ||
     (trip as any).userSelfieUrl;
   const isSelfieVerified = Boolean((trip as any).selfieUrl || (trip as any).userSelfieUrl || (trip as any).isSelfieVerified);
-  const resolvedTripAvatar = resolveImageUrl(tripAvatarUri);
+  const avatarSource = getUserAvatarSource(tripAvatarUri, trip.userId || trip.id || userName);
 
   return (
     <Pressable
@@ -151,10 +154,10 @@ export const TripCard = React.memo(function TripCard({
       accessibilityHint={
         isOwner
           ? 'Double tap to view and manage your trip'
-          : 'Double tap to view trip details and send request'
+          : 'Double tap to view trip details, negotiate and book'
       }
       style={{
-        marginHorizontal: compact ? Spacing.xs : Spacing.md,
+        marginHorizontal: compact ? Spacing.xs : (isSmallDevice ? Spacing.sm : Spacing.md),
         marginBottom: compact ? Spacing.sm : Spacing.md,
       }}
     >
@@ -162,6 +165,7 @@ export const TripCard = React.memo(function TripCard({
         style={[
           styles.card,
           compact && styles.cardCompact,
+          isSmallDevice && { padding: Spacing.sm, gap: Spacing.sm },
           S.card,
           {
             backgroundColor: C.card,
@@ -179,17 +183,13 @@ export const TripCard = React.memo(function TripCard({
                 { backgroundColor: C.surfaceElevated, borderColor: isSelfieVerified ? C.success : C.surfaceBorder, borderWidth: 1.5 },
               ]}
             >
-              {resolvedTripAvatar && !avatarError ? (
-                <Image
-                  source={{ uri: resolvedTripAvatar }}
-                  style={styles.avatarImage}
-                  contentFit="cover"
-                  transition={200}
-                  onError={() => setAvatarError(true)}
-                />
-              ) : (
-                <Text style={[styles.avatarLetter, { color: C.primary }]}>{avatarLetter}</Text>
-              )}
+              <Image
+                source={avatarError ? DEFAULT_AVATAR_ASSET : avatarSource}
+                style={styles.avatarImage}
+                contentFit="cover"
+                transition={200}
+                onError={() => setAvatarError(true)}
+              />
               {isSelfieVerified ? (
                 <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.card }]} />
               ) : null}
@@ -250,17 +250,14 @@ export const TripCard = React.memo(function TripCard({
             </View>
           </View>
 
-          {/* Vehicle Mode Badge with vehicle photo */}
+          {/* Vehicle Mode Badge */}
           <View
             style={[
               styles.vehicleChip,
               { backgroundColor: vMeta.bg, borderColor: vMeta.border },
             ]}
           >
-            <View style={styles.vehicleThumbnailWrap}>
-              <Image source={vehicleAsset} style={styles.vehicleThumbnail} contentFit="cover" />
-            </View>
-            <MaterialIcons name={vMeta.icon} size={12} color={vMeta.color} />
+            <MaterialIcons name={vMeta.icon} size={13} color={vMeta.color} />
             <Text style={[styles.vehicleLabel, { color: vMeta.color }]}>{vMeta.label}</Text>
           </View>
         </View>
@@ -281,13 +278,13 @@ export const TripCard = React.memo(function TripCard({
                 {trip.time ? trip.time.toUpperCase() : 'FROM'}
               </Text>
             </View>
-            <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.cityName, isSmallDevice && { fontSize: 15 }, { color: C.textPrimary }]} numberOfLines={1}>
               {fromCity}
             </Text>
           </View>
 
           {/* Route Arrow Line */}
-          <View style={styles.arrowBlock}>
+          <View style={[styles.arrowBlock, isSmallDevice && { width: 44, paddingHorizontal: 2 }]}>
             <View style={[styles.arrowLine, { borderColor: C.surfaceBorder }]} />
             <View
               style={[
@@ -305,7 +302,7 @@ export const TripCard = React.memo(function TripCard({
               <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
               <MaterialIcons name="place" size={11} color={C.primary} style={{ marginLeft: 2 }} />
             </View>
-            <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.cityName, isSmallDevice && { fontSize: 15 }, { color: C.textPrimary }]} numberOfLines={1}>
               {toCity}
             </Text>
           </View>
@@ -549,10 +546,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  avatarLetter: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-  },
   userMeta: {
     gap: 2,
     flex: 1,
@@ -605,23 +598,11 @@ const styles = StyleSheet.create({
   vehicleChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingLeft: 4,
-    paddingRight: 10,
-    paddingVertical: 3.5,
+    gap: 4.5,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-  },
-  vehicleThumbnailWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0,0,0,0.06)',
-  },
-  vehicleThumbnail: {
-    width: '100%',
-    height: '100%',
   },
   vehicleLabel: {
     fontSize: 10,

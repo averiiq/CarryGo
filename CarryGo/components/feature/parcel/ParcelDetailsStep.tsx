@@ -1,12 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
 import { Input } from '@/components/ui/Input';
 import { ParcelImagePicker } from '@/components/feature/ParcelImagePicker';
 import { Haptic } from '@/services/haptics.service';
-import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import {
   ParcelDraft,
   PARCEL_CATEGORIES,
@@ -19,16 +19,47 @@ interface ParcelDetailsStepProps {
   updateField: <K extends keyof ParcelDraft>(key: K, value: ParcelDraft[K]) => void;
   fieldErrors: Record<string, string>;
   C: any;
+  onEditRoute?: () => void;
 }
+
+const QUICK_TAGS = [
+  { label: 'Documents', text: 'Documents in envelope' },
+  { label: 'Gadget', text: 'Electronics in box' },
+  { label: 'Clothes', text: 'Clothing / Apparel' },
+  { label: 'Box', text: 'Sealed parcel box' },
+  { label: 'Medicine', text: 'Prescription medicines' },
+  { label: 'Fragile', text: 'Fragile item - handle with care' },
+];
 
 export function ParcelDetailsStep({
   form,
   updateField,
   fieldErrors,
   C,
+  onEditRoute,
 }: ParcelDetailsStepProps) {
   const charCount = form.description.length;
-  const isNearLimit = charCount >= 280;
+  const isNearLimit = charCount >= 270;
+
+  const handleAdjustWeight = (delta: number) => {
+    Haptic.select();
+    const current = Number(form.weight) || 1;
+    const next = Math.max(0.5, Math.min(25, Math.round((current + delta) * 10) / 10));
+    updateField('weight', String(next));
+  };
+
+  const handleTagPress = (text: string) => {
+    Haptic.select();
+    if (!form.description.trim()) {
+      updateField('description', text);
+    } else if (!form.description.includes(text)) {
+      updateField('description', `${form.description.trim()}, ${text}`);
+    }
+  };
+
+  const selectedCategory = useMemo(() => {
+    return PARCEL_CATEGORIES.find((c) => c.type === form.category) || PARCEL_CATEGORIES[0];
+  }, [form.category]);
 
   return (
     <KeyboardAwareScrollView
@@ -37,20 +68,54 @@ export function ParcelDetailsStep({
       showsVerticalScrollIndicator={false}
       nestedScrollEnabled
       keyboardDismissMode="on-drag"
-      extraScrollHeight={130}
+      extraScrollHeight={120}
     >
-      {/* Compact inline header */}
-      <Text style={[styles.stepTitle, { color: C.textPrimary }]}>What are you sending?</Text>
+      {/* ── Route Pill Bar ── */}
+      {form.fromCity && form.toCity ? (
+        <Pressable
+          onPress={onEditRoute}
+          style={({ pressed }) => [
+            styles.routeCapsule,
+            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            pressed && onEditRoute && { opacity: 0.8 },
+          ]}
+        >
+          <View style={styles.routeRow}>
+            <View style={[styles.routeDot, { backgroundColor: C.primary }]} />
+            <Text style={[styles.routeCity, { color: C.textPrimary }]} numberOfLines={1}>
+              {form.fromCity}
+            </Text>
+            <MaterialIcons name="arrow-forward" size={13} color={C.textMuted} style={{ marginHorizontal: 6 }} />
+            <View style={[styles.routeDot, { backgroundColor: C.success }]} />
+            <Text style={[styles.routeCity, { color: C.textPrimary }]} numberOfLines={1}>
+              {form.toCity}
+            </Text>
+          </View>
+          {onEditRoute ? (
+            <View style={styles.routeActionRow}>
+              <Text style={[styles.routeActionText, { color: C.primary }]}>Change</Text>
+              <MaterialIcons name="chevron-right" size={16} color={C.primary} />
+            </View>
+          ) : null}
+        </Pressable>
+      ) : null}
 
-      {/* Horizontal scrollable category selector */}
-      <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>Category</Text>
+      {/* ── Category Carousel (Modern Artwork Cards) ── */}
+      <View style={styles.categorySection}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionHeading, { color: C.textPrimary }]}>Select Category</Text>
+          <View style={[styles.activeCategoryPill, { backgroundColor: C.primarySubtle }]}>
+            <Text style={[styles.activeCategoryPillText, { color: C.primary }]}>
+              {selectedCategory.label}
+            </Text>
+          </View>
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled={true}
           contentContainerStyle={styles.categoryScroll}
+          keyboardShouldPersistTaps="handled"
         >
           {PARCEL_CATEGORIES.map((cat) => {
             const isActive = form.category === cat.type;
@@ -60,56 +125,49 @@ export function ParcelDetailsStep({
               <Pressable
                 key={cat.type}
                 accessibilityRole="button"
-                accessibilityLabel={`Category: ${cat.label}`}
+                accessibilityLabel={cat.label}
                 accessibilityState={{ selected: isActive }}
-                style={({ pressed }) => [
-                  styles.categoryChip,
-                  {
-                    backgroundColor: isActive ? C.primarySubtle : C.surface,
-                    borderColor: isActive ? C.primary : C.surfaceBorder,
-                    borderWidth: isActive ? 1.5 : 1,
-                  },
-                  isActive && {
-                    shadowColor: C.primary,
-                    shadowOffset: { width: 0, height: 3 },
-                    shadowOpacity: 0.14,
-                    shadowRadius: 6,
-                    elevation: 2,
-                  },
-                  pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
-                ]}
                 onPress={() => {
                   Haptic.select();
                   updateField('category', cat.type);
                 }}
+                style={({ pressed }) => [
+                  styles.categoryCard,
+                  {
+                    backgroundColor: isActive ? C.primarySubtle : C.surface,
+                    borderColor: isActive ? C.primary : C.surfaceBorder,
+                    borderWidth: isActive ? 2 : 1,
+                  },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
+                ]}
               >
-                {/* Compact round image */}
-                <View style={styles.categoryImgWrap}>
+                {/* 3D Abstract Image Graphic */}
+                <View style={styles.artworkContainer}>
                   <Image
                     source={categoryImage}
-                    style={styles.categoryImg}
+                    style={styles.artworkImage}
                     contentFit="cover"
-                    transition={200}
+                    transition={150}
                   />
                   {isActive ? (
-                    <View style={[styles.categoryCheckBadge, { backgroundColor: C.primary }]}>
-                      <MaterialIcons name="check" size={10} color="#FFFFFF" />
+                    <View style={[styles.activeCheckBadge, { backgroundColor: C.primary }]}>
+                      <MaterialIcons name="check" size={11} color="#FFFFFF" />
                     </View>
                   ) : null}
                 </View>
 
-                {/* Label + tagline */}
+                {/* Category Label Below Image */}
                 <Text
                   style={[
-                    styles.categoryLabel,
-                    { color: isActive ? C.primary : C.textPrimary },
+                    styles.categoryTitle,
+                    {
+                      color: isActive ? C.primary : C.textPrimary,
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.semibold,
+                    },
                   ]}
                   numberOfLines={1}
                 >
                   {cat.label}
-                </Text>
-                <Text style={[styles.categoryTagline, { color: C.textMuted }]} numberOfLines={1}>
-                  {cat.tagline}
                 </Text>
               </Pressable>
             );
@@ -117,120 +175,267 @@ export function ParcelDetailsStep({
         </ScrollView>
       </View>
 
-      {/* Parcel Photos */}
-      <View style={styles.fieldGroup}>
-        <ParcelImagePicker
-          images={form.images}
-          onImagesChange={(imgs) => updateField('images', imgs)}
-          error={fieldErrors.images}
-          category={form.category}
-        />
-      </View>
+      {/* ── Unified Package Details Card ── */}
+      <View style={[styles.unifiedCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        {/* 1. Photos */}
+        <View style={styles.cardBlock}>
+          <View style={styles.blockHeader}>
+            <View style={styles.blockTitleRow}>
+              <MaterialIcons name="photo-camera" size={17} color={C.primary} />
+              <Text style={[styles.blockTitle, { color: C.textPrimary }]}>Parcel Photos</Text>
+            </View>
+            <Text style={[styles.blockBadge, { color: C.textMuted }]}>
+              {form.images?.length || 0}/4 (Min 1)
+            </Text>
+          </View>
 
-      {/* Description */}
-      <View style={styles.fieldGroup}>
-        <Input
-          label="Item description"
-          placeholder="Briefly describe what's inside (e.g., college marksheet, wrapped electronics)"
-          value={form.description}
-          onChangeText={(v) => updateField('description', v)}
-          multiline
-          numberOfLines={3}
-          maxLength={300}
-          style={{ minHeight: 76, textAlignVertical: 'top' }}
-          error={fieldErrors.description}
-        />
-        <Text
-          style={[
-            styles.charCount,
-            { color: isNearLimit ? C.warning : C.textMuted },
-            charCount >= 300 && { color: C.error },
-          ]}
-        >
-          {charCount}/300
-        </Text>
-      </View>
+          <ParcelImagePicker
+            images={form.images}
+            onImagesChange={(imgs) => updateField('images', imgs)}
+            error={fieldErrors.images}
+          />
+        </View>
 
-      {/* Weight Input & Presets */}
-      <View style={styles.fieldGroup}>
-        <Input
-          label="Weight (kg)"
-          placeholder="e.g. 1"
-          value={form.weight}
-          onChangeText={(v) => updateField('weight', v)}
-          keyboardType="decimal-pad"
-          error={fieldErrors.weight}
-        />
-        <View style={styles.presetSection}>
-          <Text style={[styles.presetSectionLabel, { color: C.textMuted }]}>Quick Presets:</Text>
-          <View style={styles.presetRow}>
-            {PARCEL_WEIGHT_PRESETS.map((value) => (
+        <View style={[styles.cardDivider, { backgroundColor: C.surfaceBorderLight }]} />
+
+        {/* 2. Description */}
+        <View style={styles.cardBlock}>
+          <View style={styles.blockHeader}>
+            <View style={styles.blockTitleRow}>
+              <MaterialIcons name="edit" size={16} color={C.primary} />
+              <Text style={[styles.blockTitle, { color: C.textPrimary }]}>Description</Text>
+            </View>
+            <Text
+              style={[
+                styles.blockBadge,
+                { color: isNearLimit ? C.warning : C.textMuted },
+                charCount >= 300 && { color: C.error },
+              ]}
+            >
+              {charCount}/300
+            </Text>
+          </View>
+
+          {/* Quick Tags */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickTagsScroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            {QUICK_TAGS.map((tag) => (
               <Pressable
-                key={`weight-${value}`}
+                key={tag.label}
+                onPress={() => handleTagPress(tag.text)}
                 style={({ pressed }) => [
-                  styles.presetChip,
+                  styles.quickTagChip,
                   { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                  form.weight === value && {
-                    backgroundColor: C.primarySubtle,
-                    borderColor: C.primary,
-                  },
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+                  pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] },
                 ]}
-                onPress={() => {
-                  Haptic.select();
-                  updateField('weight', value);
-                }}
               >
-                <Text
-                  style={[
-                    styles.presetText,
-                    { color: form.weight === value ? C.primary : C.textSecondary },
-                  ]}
-                >
-                  {value} kg
+                <Text style={[styles.quickTagText, { color: C.textSecondary }]}>
+                  {tag.label}
                 </Text>
               </Pressable>
             ))}
+          </ScrollView>
+
+          <Input
+            placeholder="e.g. Smartphone in box, Degree certificate in envelope"
+            value={form.description}
+            onChangeText={(v) => updateField('description', v)}
+            multiline
+            numberOfLines={2}
+            maxLength={300}
+            style={styles.descInput}
+            error={fieldErrors.description}
+          />
+        </View>
+
+        <View style={[styles.cardDivider, { backgroundColor: C.surfaceBorderLight }]} />
+
+        {/* 3. Weight */}
+        <View style={styles.cardBlock}>
+          <View style={styles.blockHeader}>
+            <View style={styles.blockTitleRow}>
+              <MaterialIcons name="scale" size={17} color={C.primary} />
+              <Text style={[styles.blockTitle, { color: C.textPrimary }]}>Package Weight</Text>
+            </View>
+            <Text style={[styles.blockBadge, { color: C.textMuted }]}>in kg</Text>
+          </View>
+
+          {/* Stepper Display */}
+          <View style={styles.stepperRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Decrease weight"
+              onPress={() => handleAdjustWeight(-0.5)}
+              style={({ pressed }) => [
+                styles.stepperBtn,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
+              ]}
+            >
+              <MaterialIcons name="remove" size={18} color={C.textPrimary} />
+            </Pressable>
+
+            <View style={[styles.stepperCenter, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <TextInput
+                keyboardType="decimal-pad"
+                value={form.weight}
+                onChangeText={(v) => updateField('weight', v)}
+                placeholder="1.0"
+                placeholderTextColor={C.textMuted}
+                style={[styles.stepperInput, { color: C.textPrimary }]}
+                maxLength={4}
+              />
+              <Text style={[styles.stepperUnit, { color: C.textMuted }]}>kg</Text>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Increase weight"
+              onPress={() => handleAdjustWeight(0.5)}
+              style={({ pressed }) => [
+                styles.stepperBtn,
+                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
+              ]}
+            >
+              <MaterialIcons name="add" size={18} color={C.textPrimary} />
+            </Pressable>
+          </View>
+
+          {fieldErrors.weight ? (
+            <Text style={[styles.errorText, { color: C.error }]}>{fieldErrors.weight}</Text>
+          ) : null}
+
+          {/* Preset Pills */}
+          <View style={styles.presetRow}>
+            {PARCEL_WEIGHT_PRESETS.map((value) => {
+              const isActive = form.weight === value;
+              return (
+                <Pressable
+                  key={`weight-${value}`}
+                  onPress={() => {
+                    Haptic.select();
+                    updateField('weight', value);
+                  }}
+                  style={({ pressed }) => [
+                    styles.presetPill,
+                    {
+                      backgroundColor: isActive ? C.primarySubtle : C.surfaceElevated,
+                      borderColor: isActive ? C.primary : C.surfaceBorder,
+                    },
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.presetPillText,
+                      { color: isActive ? C.primary : C.textSecondary },
+                    ]}
+                  >
+                    {value} kg
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </View>
+
+      
     </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   stepContent: { flex: 1 },
-  stepInner: { gap: Spacing.lg, paddingBottom: 110 },
-  stepTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.4,
-  },
-  fieldGroup: { gap: Spacing.sm },
-  fieldLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, marginLeft: 2 },
+  stepInner: { gap: Spacing.md, paddingBottom: 110 },
 
-  /* Horizontal scrollable category chips */
-  categoryScroll: {
-    gap: Spacing.sm,
-    paddingRight: Spacing.md,
+  /* Route Capsule */
+  routeCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  categoryChip: {
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  routeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  routeCity: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  routeActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  routeActionText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+
+  /* Category Section */
+  categorySection: {
+    gap: Spacing.sm,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  sectionHeading: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  activeCategoryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  activeCategoryPillText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+  },
+  categoryScroll: {
+    gap: 10,
+    paddingRight: Spacing.md,
+    paddingVertical: 2,
+  },
+  categoryCard: {
     width: 108,
     borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
+    padding: 8,
     alignItems: 'center',
-    paddingBottom: Spacing.sm,
+    gap: 8,
   },
-  categoryImgWrap: {
-    width: '100%',
-    height: 68,
+  artworkContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
     position: 'relative',
+    backgroundColor: 'transparent',
   },
-  categoryImg: {
+  artworkImage: {
     width: '100%',
     height: '100%',
+    borderRadius: BorderRadius.md,
   },
-  categoryCheckBadge: {
+  activeCheckBadge: {
     position: 'absolute',
     top: 4,
     right: 4,
@@ -240,28 +445,119 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
-    marginTop: 6,
+  categoryTitle: {
+    fontSize: 12,
     textAlign: 'center',
-  },
-  categoryTagline: {
-    fontSize: 9,
-    textAlign: 'center',
-    marginTop: 1,
-    paddingHorizontal: 4,
   },
 
-  charCount: { fontSize: FontSize.xs, textAlign: 'right', marginTop: -2, marginRight: 4, fontWeight: FontWeight.medium },
-  presetSection: { gap: 6, marginTop: 4 },
-  presetSectionLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginLeft: 2 },
-  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  presetChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+  /* Unified Card */
+  unifiedCard: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+  cardBlock: {
+    gap: Spacing.sm,
+  },
+  blockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  blockTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  blockTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  blockBadge: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  cardDivider: {
+    height: 1,
+    width: '100%',
+  },
+
+  /* Quick Tags */
+  quickTagsScroll: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  quickTagChip: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  quickTagText: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+  },
+  descInput: {
+    minHeight: 64,
+    textAlignVertical: 'top',
+  },
+
+  /* Stepper */
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  stepperBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperCenter: {
+    flex: 1,
+    height: 42,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperInput: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    textAlign: 'center',
+    minWidth: 44,
+  },
+  stepperUnit: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    marginLeft: 2,
+  },
+
+  /* Presets */
+  presetRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  presetPill: {
+    flex: 1,
+    paddingVertical: 7,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  presetText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  presetPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+
+  errorText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
 });

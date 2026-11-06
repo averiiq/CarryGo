@@ -15,7 +15,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
 export function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
@@ -195,18 +195,12 @@ export function SendRequestModal({
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={[styles.avatarWrap, { backgroundColor: C.primarySubtle }]}>
-              {resolvedAvatar && !avatarError ? (
-                <Image
-                  source={{ uri: resolvedAvatar }}
-                  style={styles.avatarImage}
-                  contentFit="cover"
-                  onError={() => setAvatarError(true)}
-                />
-              ) : (
-                <Text style={[styles.avatarText, { color: C.primary }]}>
-                  {trip.userName ? trip.userName.charAt(0).toUpperCase() : 'T'}
-                </Text>
-              )}
+              <Image
+                source={avatarError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(rawAvatar, trip.userId || trip.id || trip.userName)}
+                style={styles.avatarImage}
+                contentFit="cover"
+                onError={() => setAvatarError(true)}
+              />
               <View style={styles.verifiedDot} />
             </View>
             <View style={{ flex: 1 }}>

@@ -43,21 +43,19 @@ function AppShell() {
 
   if (isLoading) {
     return (
-      <View style={[styles.loadingRoot, { backgroundColor: C.background }]}>
-        <LinearGradient
-          colors={[C.primarySubtle, C.background]}
-          style={StyleSheet.absoluteFillObject}
+      <View style={[styles.loadingRoot, { backgroundColor: '#FFFFFF' }]}>
+        <Image
+          source={require('../assets/images/splash-logo.png')}
+          style={styles.splashLogo}
+          contentFit="contain"
+          priority="high"
+          accessibilityLabel="CaryGoo - Move . Connect . Deliver"
         />
-        <View style={[styles.loadingCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
-          <Image
-            source={require('../assets/images/logo-horizontal.png')}
-            style={styles.loadingLogo}
-            contentFit="contain"
-            transition={220}
-          />
-          <Text style={[styles.loadingTitle, { color: C.textPrimary }]}>Preparing CaryGoo</Text>
-          <Text style={[styles.loadingSub, { color: C.textMuted }]}>Smart matching and secure messaging</Text>
+        <View style={styles.splashFooter}>
           <ActivityIndicator color={C.primary} size="small" />
+          <Text style={[styles.splashFooterText, { color: C.textMuted }]}>
+            Move • Connect • Deliver
+          </Text>
         </View>
       </View>
     );
@@ -223,30 +221,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
+    backgroundColor: '#FFFFFF',
   },
-  loadingCard: {
-    width: '100%',
-    maxWidth: 300,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
+  splashLogo: {
+    width: 250,
+    height: 250,
+  },
+  splashFooter: {
+    position: 'absolute',
+    bottom: 50,
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
+    gap: 8,
   },
-  loadingLogo: {
-    width: 140,
-    height: 48,
-  },
-  loadingTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  loadingSub: {
-    fontSize: FontSize.sm,
-    textAlign: 'center',
-    marginBottom: 2,
+  splashFooterText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.5,
   },
   centerError: {
     flex: 1,

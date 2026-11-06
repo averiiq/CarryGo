@@ -22,6 +22,7 @@ import { useCreateParcelMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
+import { recordCorridorUsage } from '@/services/corridors.service';
 import {
   ParcelDraft,
   EMPTY_PARCEL_DRAFT,
@@ -194,6 +195,10 @@ export default function CreateParcelScreen() {
   useEffect(() => {
     if (isDraftRestored) {
       setShowDraftBanner(true);
+      const timer = setTimeout(() => {
+        setShowDraftBanner(false);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [isDraftRestored]);
 
@@ -357,6 +362,7 @@ export default function CreateParcelScreen() {
         body: `${user.name || 'Someone'} needs delivery from ${prepared.fromCity} to ${prepared.toCity} by ${formatScheduleDate(prepared.deliveryDate)}.`,
       });
       clearDraft();
+      void recordCorridorUsage(prepared.fromCity, prepared.toCity);
       Haptic.success();
       router.replace({ pathname: '/search', params: { mode: 'parcel', id: result.id } });
     } catch (error) {
@@ -442,6 +448,10 @@ export default function CreateParcelScreen() {
             updateField={updateField}
             fieldErrors={fieldErrors}
             C={C}
+            onEditRoute={() => {
+              setDirection('backward');
+              setStep(0);
+            }}
           />
         )}
         {step === 2 && (

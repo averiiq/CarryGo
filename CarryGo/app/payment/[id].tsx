@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,19 +32,29 @@ import { useAuth } from '@/hooks/useAuth';
 import { Haptic } from '@/services/haptics.service';
 import { getSupabaseClient } from '@/template';
 import { useRazorpayCheckout } from '@/hooks/useRazorpayCheckout';
+import { getAvailableParcelCredit } from '@/services/rewards.service';
+import { getUserAvatarSource } from '@/constants/images';
+import { useResponsive } from '@/hooks/useResponsive';
+import { AppErrorBoundary } from '@/components/ui/AppErrorBoundary';
 
 function formatAmount(amount?: number | null): string {
-  if (amount == null) return '₹0';
-  return `₹${Math.round(amount).toLocaleString('en-IN')}`;
+  if (amount == null || isNaN(Number(amount))) return '₹0';
+  const rounded = Math.round(Number(amount));
+  try {
+    return `₹${rounded.toLocaleString('en-IN')}`;
+  } catch {
+    return `₹${rounded}`;
+  }
 }
 
 let paymentChannelInstance = 0;
 
-export default function PaymentScreen() {
+function PaymentScreenContent() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
+  const { isSmallDevice, isTablet } = useResponsive();
   const { user } = useAuth();
   const { showAlert } = useAlert();
 
@@ -52,30 +62,39 @@ export default function PaymentScreen() {
   const [resolvedId, setResolvedId] = useState<string>(id || '');
   const [loadingPayment, setLoadingPayment] = useState(true);
   const [copiedId, setCopiedId] = useState(false);
+  const [availableCredit, setAvailableCredit] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
+    void getAvailableParcelCredit().then((credit) => {
+      if (isMounted) setAvailableCredit(credit);
+    });
     if (!id) return;
 
     const loadPayment = async () => {
       setLoadingPayment(true);
-      const targetRequestId = await resolveRequestId(id);
-      if (isMounted && targetRequestId) {
-        setResolvedId(targetRequestId);
-      }
-
-      const { data } = await fetchPaymentByRequestOrId(targetRequestId || id);
-      if (!isMounted) return;
-
-      if (data) {
-        setPayment(data);
-        if (data.requestId) {
-          setResolvedId(data.requestId);
+      try {
+        const targetRequestId = await resolveRequestId(id);
+        if (isMounted && targetRequestId) {
+          setResolvedId(targetRequestId);
         }
-      } else {
-        setPayment(null);
+
+        const { data } = await fetchPaymentByRequestOrId(targetRequestId || id);
+        if (!isMounted) return;
+
+        if (data) {
+          setPayment(data);
+          if (data.requestId) {
+            setResolvedId(data.requestId);
+          }
+        } else {
+          setPayment(null);
+        }
+      } catch (loadErr) {
+        console.warn('[PaymentScreen] loadPayment note:', loadErr);
+      } finally {
+        if (isMounted) setLoadingPayment(false);
       }
-      setLoadingPayment(false);
     };
 
     void loadPayment();
@@ -111,7 +130,7 @@ export default function PaymentScreen() {
   }, [id]);
 
   const effectiveRequestId = payment?.requestId || resolvedId || id;
-  const { data: request } = useRequestQuery(effectiveRequestId);
+  const { data: request, isLoading: isRequestLoading } = useRequestQuery(effectiveRequestId);
   const { data: conversations } = useConversationsQuery(user?.id);
 
   const isSender = user?.id && request?.senderId ? user.id === request.senderId : true;
@@ -124,16 +143,20 @@ export default function PaymentScreen() {
     : 'unpaid';
 
   const isPaid = paymentStatus === 'locked' || paymentStatus === 'released';
-  const canPay = !isPaid && isSender && isAccepted;
+  const canPay = !isPaid && isSender && (isAccepted || FeatureFlags.isDemoMode);
+
+  const effectivePrice = payment?.amount ?? request?.price ?? 100;
 
   const {
     isCreatingOrder,
+    isProcessing,
     isVerifying,
     error,
     startCheckout,
+    confirmDemoBooking,
   } = useRazorpayCheckout({
     requestId: effectiveRequestId,
-    senderName: user?.name,
+    senderName: user?.fullName || user?.name,
     senderEmail: user?.email,
     senderPhone: user?.phone,
     onSuccess: () => {
@@ -142,14 +165,21 @@ export default function PaymentScreen() {
     },
     onFailure: (message) => {
       Haptic.warning();
-      showAlert('Payment Incomplete', message);
+      showAlert('Payment Status', message);
     },
   });
 
-  const handleInitiatePayment = () => {
+  const isBusy = isCreatingOrder || isProcessing || isVerifying;
+
+  const handleInitiatePayment = useCallback(() => {
     Haptic.select();
-    startCheckout();
-  };
+    void startCheckout({ fallbackAmount: effectivePrice });
+  }, [effectivePrice, startCheckout]);
+
+  const handleDirectDemoBooking = useCallback(() => {
+    Haptic.select();
+    void confirmDemoBooking(effectivePrice);
+  }, [confirmDemoBooking, effectivePrice]);
 
   const receiptNumber = useMemo(() => {
     if (payment?.id) {
@@ -196,12 +226,22 @@ export default function PaymentScreen() {
     }
   };
 
-  const effectivePrice = payment?.amount ?? request?.price ?? 100;
-  const txDate = payment?.createdAt
-    ? new Date(payment.createdAt)
-    : request?.createdAt
-    ? new Date(request.createdAt)
-    : new Date();
+  const formattedDate = useMemo(() => {
+    try {
+      const raw = payment?.createdAt || request?.createdAt;
+      const parsed = raw ? Date.parse(raw) : NaN;
+      const d = isNaN(parsed) ? new Date() : new Date(parsed);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = d.getDate();
+      const month = months[d.getMonth()] || 'Jan';
+      const year = d.getFullYear();
+      const hh = d.getHours().toString().padStart(2, '0');
+      const mm = d.getMinutes().toString().padStart(2, '0');
+      return `${day} ${month} ${year} • ${hh}:${mm}`;
+    } catch {
+      return 'Recent';
+    }
+  }, [payment?.createdAt, request?.createdAt]);
 
   if (!FeatureFlags.payments) {
     return (
@@ -222,7 +262,7 @@ export default function PaymentScreen() {
     );
   }
 
-  if (loadingPayment) {
+  if (loadingPayment || isRequestLoading) {
     return (
       <View style={[styles.container, styles.loadingCenter, { backgroundColor: C.background }]}>
         <ActivityIndicator size="large" color={C.primary} />
@@ -242,6 +282,7 @@ export default function PaymentScreen() {
             backgroundColor: C.surface,
             borderBottomColor: C.surfaceBorder,
           },
+          isTablet && styles.tabletCentered,
         ]}
       >
         <Pressable
@@ -257,7 +298,7 @@ export default function PaymentScreen() {
 
         <View style={styles.navTitleCol}>
           <Text style={[styles.navTitle, { color: C.textPrimary }]}>
-            {isPaid ? 'Booking Receipt' : 'Payment Status'}
+            {isPaid ? 'Booking Receipt' : 'Payment & Booking'}
           </Text>
           <Text style={[styles.navSubtitle, { color: C.textMuted }]}>
             {receiptNumber}
@@ -275,7 +316,12 @@ export default function PaymentScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 36 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 36 },
+          isTablet && styles.tabletCentered,
+          isSmallDevice && { paddingHorizontal: Spacing.md },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Minimalist Status Hero ─────────────────────────────────── */}
@@ -358,7 +404,7 @@ export default function PaymentScreen() {
           {/* Amount Spotlight */}
           <View style={styles.amountWrap}>
             <Text style={[styles.amountLabel, { color: C.textMuted }]}>
-              {isPaid ? 'AMOUNT PAID & BOOKED' : 'AMOUNT PAYABLE'}
+              {isPaid ? 'AMOUNT PAID & SECURED' : 'AMOUNT PAYABLE'}
             </Text>
             <Text style={[styles.amountValue, { color: C.textPrimary }]}>
               {formatAmount(effectivePrice)}
@@ -372,7 +418,7 @@ export default function PaymentScreen() {
                 ? 'Delivery confirmed. Funds were successfully paid to the traveler.'
                 : 'Held safely by CaryGoo. Funds are released only after delivery PIN confirmation.'
               : canPay
-              ? 'Complete payment to confirm and book your parcel delivery.'
+              ? 'Complete payment to confirm and book your parcel delivery space.'
               : isAccepted
               ? 'The sender must complete the booking payment before transit begins.'
               : 'Payment will unlock as soon as both parties accept the delivery request.'}
@@ -537,14 +583,12 @@ export default function PaymentScreen() {
             <View style={[styles.participantsRow, { borderBottomColor: C.surfaceBorder }]}>
               {/* Sender */}
               <View style={styles.participantItem}>
-                <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle }]}>
-                  {request.senderAvatar ? (
-                    <Image source={{ uri: request.senderAvatar }} style={styles.avatarImg} contentFit="cover" />
-                  ) : (
-                    <Text style={[styles.avatarInitial, { color: C.primary }]}>
-                      {(request.senderName || 'S').charAt(0).toUpperCase()}
-                    </Text>
-                  )}
+                <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, overflow: 'hidden' }]}>
+                  <Image
+                    source={getUserAvatarSource(request.senderAvatar, request.senderId || request.senderName)}
+                    style={styles.avatarImg}
+                    contentFit="cover"
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.participantRole, { color: C.textMuted }]}>SENDER</Text>
@@ -558,14 +602,12 @@ export default function PaymentScreen() {
 
               {/* Traveler */}
               <View style={styles.participantItem}>
-                <View style={[styles.avatarCircle, { backgroundColor: C.successSubtle }]}>
-                  {request.travellerAvatar ? (
-                    <Image source={{ uri: request.travellerAvatar }} style={styles.avatarImg} contentFit="cover" />
-                  ) : (
-                    <Text style={[styles.avatarInitial, { color: C.success }]}>
-                      {(request.travellerName || 'T').charAt(0).toUpperCase()}
-                    </Text>
-                  )}
+                <View style={[styles.avatarCircle, { backgroundColor: C.successSubtle, overflow: 'hidden' }]}>
+                  <Image
+                    source={getUserAvatarSource(request.travellerAvatar, request.travellerId || request.travellerName)}
+                    style={styles.avatarImg}
+                    contentFit="cover"
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.participantRole, { color: C.textMuted }]}>TRAVELER</Text>
@@ -594,6 +636,20 @@ export default function PaymentScreen() {
               <Text style={[styles.breakdownFree, { color: C.success }]}>Included (₹0)</Text>
             </View>
 
+            {availableCredit > 0 && !isPaid ? (
+              <View style={styles.breakdownRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <MaterialIcons name="monetization-on" size={13} color={C.success} />
+                  <Text style={[styles.breakdownLabel, { color: C.success }]}>
+                    CaryGoo Rewards Credit
+                  </Text>
+                </View>
+                <Text style={[styles.breakdownFree, { color: C.success }]}>
+                  -₹{Math.min(availableCredit, effectivePrice).toFixed(0)} Credit Ready
+                </Text>
+              </View>
+            ) : null}
+
             <View style={[styles.breakdownDivider, { backgroundColor: C.surfaceBorder }]} />
 
             <View style={styles.breakdownRow}>
@@ -602,6 +658,18 @@ export default function PaymentScreen() {
                 {formatAmount(effectivePrice)}
               </Text>
             </View>
+
+            {!isPaid ? (
+              <Pressable
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 }}
+                onPress={() => router.push('/rewards')}
+              >
+                <MaterialIcons name="monetization-on" size={12} color="#F59E0B" />
+                <Text style={{ fontSize: 11, color: C.primary, fontWeight: FontWeight.medium }}>
+                  {availableCredit > 0 ? 'Manage CaryGoo Coins & Credit' : 'Earn CaryGoo Coins & Credits'} →
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
           {/* Transaction Metadata Footer */}
@@ -621,16 +689,7 @@ export default function PaymentScreen() {
             <View style={styles.metaRow}>
               <Text style={[styles.metaLabel, { color: C.textMuted }]}>Timestamp</Text>
               <Text style={[styles.metaValue, { color: C.textPrimary }]}>
-                {txDate.toLocaleDateString('en-IN', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}{' '}
-                •{' '}
-                {txDate.toLocaleTimeString('en-IN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {formattedDate}
               </Text>
             </View>
 
@@ -691,20 +750,20 @@ export default function PaymentScreen() {
           <View style={styles.actionBlock}>
             <Pressable
               onPress={handleInitiatePayment}
-              disabled={isCreatingOrder || isVerifying}
+              disabled={isBusy}
               style={({ pressed }) => [
                 styles.primaryActionBtn,
                 { backgroundColor: C.primary },
                 pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
-                (isCreatingOrder || isVerifying) && { opacity: 0.75 },
+                isBusy && { opacity: 0.75 },
               ]}
               hitSlop={TouchTarget.smallHitSlop}
             >
-              {isCreatingOrder || isVerifying ? (
+              {isBusy ? (
                 <>
                   <ActivityIndicator size="small" color="#FFFFFF" />
                   <Text style={styles.primaryActionText}>
-                    {isCreatingOrder ? 'Preparing Secure Gateway...' : 'Verifying Payment...'}
+                    {isCreatingOrder ? 'Preparing Secure Gateway...' : isVerifying ? 'Verifying Payment...' : 'Processing Booking...'}
                   </Text>
                 </>
               ) : error ? (
@@ -724,6 +783,24 @@ export default function PaymentScreen() {
                 </>
               )}
             </Pressable>
+
+            {/* In demo mode or if error occurred, provide immediate 1-tap booking fallback */}
+            {FeatureFlags.isDemoMode || error ? (
+              <Pressable
+                onPress={handleDirectDemoBooking}
+                disabled={isBusy}
+                style={({ pressed }) => [
+                  styles.secondaryActionBtn,
+                  { backgroundColor: C.surfaceElevated, borderColor: C.primary, marginTop: 4 },
+                  pressed && { opacity: 0.75 },
+                ]}
+              >
+                <Ionicons name="shield-checkmark-outline" size={16} color={C.primary} />
+                <Text style={[styles.secondaryActionText, { color: C.primary }]}>
+                  Confirm & Book Space (Demo Simulation)
+                </Text>
+              </Pressable>
+            ) : null}
 
             {error ? (
               <View style={[styles.errorBanner, { backgroundColor: C.errorSubtle, borderColor: C.errorBorder }]}>
@@ -794,9 +871,22 @@ export default function PaymentScreen() {
   );
 }
 
+export default function PaymentScreen() {
+  return (
+    <AppErrorBoundary>
+      <PaymentScreenContent />
+    </AppErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  tabletCentered: {
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
   },
   loadingCenter: {
     alignItems: 'center',
@@ -1015,10 +1105,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  avatarInitial: {
-    fontSize: 14,
-    fontWeight: FontWeight.bold,
-  },
   participantRole: {
     fontSize: 9,
     fontWeight: FontWeight.bold,
@@ -1116,6 +1202,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
     paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },

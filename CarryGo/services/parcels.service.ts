@@ -8,6 +8,7 @@ import { isAwsBackendEnabled } from '@/lib/backend/provider';
 import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
 import { getUnmatchedListingCutoffIso } from '@/constants/listingFlow';
 import { expireStaleUnmatchedListings } from '@/services/listing-expiry.service';
+import { enrichMissingUserAvatars } from './avatar-enrichment.service';
 
 type ParcelRow = Database['public']['Tables']['parcels']['Row'];
 
@@ -116,7 +117,8 @@ export async function fetchParcels(filters?: {
     if (p.deliveryDate && p.deliveryDate < todayStr) return false;
     return true;
   });
-  return { data: filtered, error: null, total: count ?? filtered.length };
+  const enriched = await enrichMissingUserAvatars(filtered);
+  return { data: enriched, error: null, total: count ?? enriched.length };
 }
 
 export async function fetchParcelById(parcelId: string) {
@@ -138,7 +140,9 @@ export async function fetchParcelById(parcelId: string) {
   const sb = getSupabaseClient();
   const { data, error } = await sb.from('parcels').select('*').eq('id', parcelId).single();
   if (error) return { data: null, error: error.message };
-  return { data: mapRow(data), error: null };
+  const mapped = mapRow(data);
+  const [enriched] = await enrichMissingUserAvatars([mapped]);
+  return { data: enriched || mapped, error: null };
 }
 
 export async function fetchParcelsByIds(parcelIds: string[]) {
@@ -149,7 +153,9 @@ export async function fetchParcelsByIds(parcelIds: string[]) {
   if (isAwsBackendEnabled()) {
     try {
       const results = await Promise.all(validIds.map((parcelId) => awsApiRequest<{ data: Parcel }>(`/parcels/${parcelId}`)));
-      return { data: results.map((entry) => entry.data), error: null };
+      const items = results.map((entry) => entry.data);
+      const enriched = await enrichMissingUserAvatars(items);
+      return { data: enriched, error: null };
     } catch (error) {
       const message = error instanceof AwsApiError ? error.message : 'Failed to fetch parcel list';
       return { data: null, error: message };
@@ -159,7 +165,9 @@ export async function fetchParcelsByIds(parcelIds: string[]) {
   const sb = getSupabaseClient();
   const { data, error } = await sb.from('parcels').select('*').in('id', validIds);
   if (error) return { data: null, error: error.message };
-  return { data: (data || []).map(mapRow), error: null };
+  const mapped = (data || []).map(mapRow);
+  const enriched = await enrichMissingUserAvatars(mapped);
+  return { data: enriched, error: null };
 }
 
 export async function createParcel(parcel: Omit<Parcel, 'id' | 'createdAt'>) {

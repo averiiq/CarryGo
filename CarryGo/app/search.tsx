@@ -1145,8 +1145,8 @@ function SmartMatchesSection({
             </View>
           ) : (
             <View style={[smStyles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-              <View style={{ width: 120, height: 95, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
-                <LottieAnimation name="searchEmpty" style={{ width: 120, height: 95 }} />
+              <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
+                <LottieAnimation name="matching" style={{ width: 140, height: 110 }} />
               </View>
               <Text style={[smStyles.cardTitle, { color: C.textSecondary }]}>No matching routes</Text>
               <Text style={[smStyles.cardSub, { color: C.textMuted }]}>
@@ -1218,8 +1218,8 @@ function SmartMatchesSection({
       ) : (
         // Trip mode (informational)
         <View style={[smStyles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <View style={{ width: 120, height: 95, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
-            <LottieAnimation name="searchEmpty" style={{ width: 120, height: 95 }} />
+          <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
+            <LottieAnimation name="trip" style={{ width: 140, height: 110 }} />
           </View>
           <Text style={[smStyles.cardTitle, { color: C.textSecondary }]}>Trip posted</Text>
           <Text style={[smStyles.cardSub, { color: C.textMuted }]}>

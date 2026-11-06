@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   View,
   Modal,
@@ -26,9 +26,9 @@ import { Haptic } from '@/services/haptics.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { BorderRadius, Spacing } from '@/constants/theme';
 
-// Responsive thresholds: a 70px pull or a 400px/s flick triggers clean dismissal
-const DISMISS_THRESHOLD = 70;
-const DISMISS_VELOCITY = 400;
+// Responsive thresholds: a 50px pull or a 300px/s flick triggers clean snappy dismissal
+const DISMISS_THRESHOLD = 50;
+const DISMISS_VELOCITY = 300;
 
 export interface GestureBottomSheetProps {
   visible: boolean;
@@ -51,38 +51,47 @@ export function GestureBottomSheet({
   enablePanDownToClose = true,
   dismissOnBackdropPress = true,
 }: GestureBottomSheetProps) {
-  const { height: SCREEN_HEIGHT } = useWindowDimensions();
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
+  const isTablet = SCREEN_WIDTH >= 600;
+  const isShortScreen = SCREEN_HEIGHT < 700;
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
+
+  // Internal rendered state preserves modal mounting during smooth slide-down exits
+  const [isRendered, setIsRendered] = useState(visible);
 
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const backdropProgress = useSharedValue(0);
   const keyboardOffset = useSharedValue(0);
+  const hasCrossedThreshold = useSharedValue(false);
 
   const handleDismissFinished = useCallback(() => {
+    setIsRendered(false);
     onClose();
   }, [onClose]);
 
   const animateOpen = useCallback(() => {
     translateY.value = withSpring(0, {
-      damping: 24,
-      stiffness: 280,
-      mass: 0.85,
+      damping: 26,
+      stiffness: 340,
+      mass: 0.65,
     });
-    backdropProgress.value = withTiming(1, { duration: 240 });
+    backdropProgress.value = withTiming(1, { duration: 160 });
   }, [backdropProgress, translateY]);
 
   const animateClose = useCallback((velocity = 0) => {
     'worklet';
-    backdropProgress.value = withTiming(0, { duration: 180 });
-    if (velocity > 80) {
+    backdropProgress.value = withTiming(0, { duration: 150 });
+    const clampedVelocity = Math.max(velocity, 0);
+
+    if (clampedVelocity > 80) {
       translateY.value = withSpring(
         SCREEN_HEIGHT,
         {
-          velocity,
-          damping: 24,
-          stiffness: 260,
-          mass: 0.8,
+          velocity: Math.max(clampedVelocity, 400),
+          damping: 26,
+          stiffness: 340,
+          mass: 0.65,
         },
         (finished) => {
           if (finished) {
@@ -91,7 +100,7 @@ export function GestureBottomSheet({
         }
       );
     } else {
-      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 200 }, (finished) => {
+      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 180 }, (finished) => {
         if (finished) {
           runOnJS(handleDismissFinished)();
         }
@@ -105,17 +114,26 @@ export function GestureBottomSheet({
     animateClose(velocity);
   }, [animateClose]);
 
+  const triggerDetentHaptic = useCallback(() => {
+    Haptic.select();
+  }, []);
+
   const dismissKeyboard = useCallback(() => {
     Keyboard.dismiss();
   }, []);
 
+  // Manage open and close sliding animations cleanly
   useEffect(() => {
     if (visible) {
+      setIsRendered(true);
       translateY.value = SCREEN_HEIGHT;
       backdropProgress.value = 0;
       animateOpen();
+    } else if (isRendered) {
+      // Parent triggered close: perform slide-down exit first
+      animateClose();
     }
-  }, [visible, animateOpen, SCREEN_HEIGHT, translateY, backdropProgress]);
+  }, [visible, isRendered, animateOpen, animateClose, SCREEN_HEIGHT, translateY, backdropProgress]);
 
   // Keyboard elevation tracking
   useEffect(() => {
@@ -157,11 +175,12 @@ export function GestureBottomSheet({
     };
   }, [keyboardOffset]);
 
-  // Dedicated handle gesture: highly sensitive, captures any downward swipe on the top bar
+  // Dedicated handle gesture: sensitive, captures any downward drag on the top grab bar
   const handleGesture = Gesture.Pan()
     .enabled(enablePanDownToClose)
-    .activeOffsetY([4, 1000])
+    .activeOffsetY([3, 1000])
     .onBegin(() => {
+      hasCrossedThreshold.value = false;
       runOnJS(dismissKeyboard)();
     })
     .onUpdate((event) => {
@@ -169,20 +188,29 @@ export function GestureBottomSheet({
         translateY.value = event.translationY;
         backdropProgress.value = interpolate(
           event.translationY,
-          [0, SCREEN_HEIGHT * 0.35],
-          [1, 0.15],
+          [0, SCREEN_HEIGHT * 0.38],
+          [1, 0.12],
           Extrapolation.CLAMP
         );
+
+        if (event.translationY > DISMISS_THRESHOLD && !hasCrossedThreshold.value) {
+          hasCrossedThreshold.value = true;
+          runOnJS(triggerDetentHaptic)();
+        } else if (event.translationY <= DISMISS_THRESHOLD && hasCrossedThreshold.value) {
+          hasCrossedThreshold.value = false;
+        }
       } else {
-        translateY.value = event.translationY * 0.14;
+        // Natural rubber-band resistance when pulling upward
+        translateY.value = -Math.pow(Math.abs(event.translationY), 0.72);
       }
     })
     .onEnd((event) => {
+      hasCrossedThreshold.value = false;
       if (event.translationY > DISMISS_THRESHOLD || event.velocityY > DISMISS_VELOCITY) {
         runOnJS(triggerCloseWithHaptic)(event.velocityY);
       } else {
-        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 24, stiffness: 280, mass: 0.85 });
-        backdropProgress.value = withTiming(1, { duration: 180 });
+        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 26, stiffness: 340, mass: 0.65 });
+        backdropProgress.value = withTiming(1, { duration: 150 });
       }
     });
 
@@ -193,6 +221,7 @@ export function GestureBottomSheet({
     .failOffsetY([-1000, -8])
     .failOffsetX([-25, 25])
     .onBegin(() => {
+      hasCrossedThreshold.value = false;
       runOnJS(dismissKeyboard)();
     })
     .onUpdate((event) => {
@@ -200,20 +229,28 @@ export function GestureBottomSheet({
         translateY.value = event.translationY;
         backdropProgress.value = interpolate(
           event.translationY,
-          [0, SCREEN_HEIGHT * 0.35],
-          [1, 0.15],
+          [0, SCREEN_HEIGHT * 0.38],
+          [1, 0.12],
           Extrapolation.CLAMP
         );
+
+        if (event.translationY > DISMISS_THRESHOLD && !hasCrossedThreshold.value) {
+          hasCrossedThreshold.value = true;
+          runOnJS(triggerDetentHaptic)();
+        } else if (event.translationY <= DISMISS_THRESHOLD && hasCrossedThreshold.value) {
+          hasCrossedThreshold.value = false;
+        }
       } else {
-        translateY.value = event.translationY * 0.14;
+        translateY.value = -Math.pow(Math.abs(event.translationY), 0.72);
       }
     })
     .onEnd((event) => {
+      hasCrossedThreshold.value = false;
       if (event.translationY > DISMISS_THRESHOLD || event.velocityY > DISMISS_VELOCITY) {
         runOnJS(triggerCloseWithHaptic)(event.velocityY);
       } else {
-        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 24, stiffness: 280, mass: 0.85 });
-        backdropProgress.value = withTiming(1, { duration: 180 });
+        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 26, stiffness: 340, mass: 0.65 });
+        backdropProgress.value = withTiming(1, { duration: 150 });
       }
     });
 
@@ -237,11 +274,11 @@ export function GestureBottomSheet({
     };
   });
 
-  if (!visible) return null;
+  if (!isRendered && !visible) return null;
 
   return (
     <Modal
-      visible={visible}
+      visible={isRendered}
       transparent
       animationType="none"
       onRequestClose={() => animateClose()}
@@ -264,11 +301,12 @@ export function GestureBottomSheet({
             <Animated.View
               style={[
                 styles.sheetCard,
+                isTablet && styles.tabletSheetCard,
                 {
                   backgroundColor: C.surface,
                   borderColor: C.surfaceBorder,
                   paddingBottom: Math.max(insets.bottom, Spacing.sm),
-                  maxHeight,
+                  maxHeight: isShortScreen && typeof maxHeight === 'string' && maxHeight.endsWith('%') ? '94%' : maxHeight,
                 },
                 sheetDynamicHeightStyle,
                 containerStyle,
@@ -316,12 +354,18 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 28,
   },
+  tabletSheetCard: {
+    maxWidth: 580,
+    width: '100%',
+    alignSelf: 'center',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
   handleContainer: {
     width: '100%',
     alignItems: 'center',
     paddingTop: Spacing.sm + 2,
     paddingBottom: Spacing.xs + 2,
-    // Generous hit target to ensure effortless downward swiping
     minHeight: 28,
   },
   handleBar: {

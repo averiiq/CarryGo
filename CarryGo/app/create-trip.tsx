@@ -28,6 +28,7 @@ import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import { findCity, getDistance } from '@/constants/indian-cities';
 import { useCreateTripMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
+import { recordCorridorUsage } from '@/services/corridors.service';
 
 const STEPS = [
   { label: 'Route' },
@@ -298,6 +299,10 @@ export default function CreateTripScreen() {
   useEffect(() => {
     if (isDraftRestored) {
       setShowDraftBanner(true);
+      const timer = setTimeout(() => {
+        setShowDraftBanner(false);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [isDraftRestored]);
 
@@ -427,6 +432,7 @@ export default function CreateTripScreen() {
         console.warn('Failed to notify route subscribers:', notifyErr);
       }
       clearDraft();
+      void recordCorridorUsage(prepared.fromCity, prepared.toCity);
       Haptic.success();
       router.replace({ pathname: '/trip/[id]', params: { id: result.id } });
     } catch (error) {

@@ -3,6 +3,16 @@ import {
   checkTripParcelRoute,
   areCitiesEquivalent,
 } from '@/services/route-compatibility.service';
+
+jest.mock('@/template', () => ({
+  getSupabaseClient: jest.fn(() => ({
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      in: jest.fn().mockResolvedValue({ data: [] }),
+    })),
+  })),
+}));
+
 import { MarketplaceRelevanceService } from '@/services/marketplace-relevance.service';
 import { Trip, Parcel } from '@/types';
 

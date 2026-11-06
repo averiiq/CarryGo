@@ -7,6 +7,7 @@ import { ThemeColors } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { AppNotification } from '@/types';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
+import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
 import { styles } from '@/styles/tabs/index.styles';
 
 type NotificationPanelProps = {
@@ -377,8 +378,8 @@ export function NotificationPanel({
 
         {groupedNotifications.length === 0 ? (
           <View style={styles.notifEmpty}>
-            <View style={[styles.emptyIconBox, { backgroundColor: C.surfaceElevated }]}>
-              <Ionicons name="notifications-off-outline" size={36} color={C.textMuted} />
+            <View style={{ width: 130, height: 100, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+              <LottieAnimation name="emailSent" style={{ width: 130, height: 100 }} />
             </View>
             <Text style={[styles.notifEmptyText, { color: C.textSecondary }]}>
               {activeFilter === 'unread' ? 'No unread notifications' : 'No notifications yet'}

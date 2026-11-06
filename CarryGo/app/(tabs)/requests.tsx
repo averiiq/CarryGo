@@ -762,7 +762,7 @@ export default function RequestsScreen() {
               <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
                 <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
                   <LottieAnimation
-                    name={tab === 'requests' ? 'packageBox' : 'deliveryCar'}
+                    name={tab === 'requests' ? 'emailSent' : 'deliveryCar'}
                     style={{ width: 140, height: 110 }}
                   />
                 </View>

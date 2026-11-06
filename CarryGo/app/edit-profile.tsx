@@ -32,7 +32,8 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import { Haptic } from '@/services/haptics.service';
 import { CitySelectModal } from '@/components/feature/CitySelectModal';
 import { UserRole } from '@/types';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
+import { useResponsive } from '@/hooks/useResponsive';
 
 // Curated avatar presets for instant profile photo selection
 const AVATAR_PRESETS = [
@@ -53,6 +54,7 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { C, S } = useThemeColors();
+  const { isSmallDevice, isTablet } = useResponsive();
 
   // Form state
   const [avatarUri, setAvatarUri] = useState<string>(user?.avatar || '');
@@ -280,7 +282,7 @@ export default function EditProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Top App Header */}
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.xs, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.xs, backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }, isTablet && styles.tabletCentered]}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backBtn, { backgroundColor: C.surfaceElevated }, pressed && { opacity: 0.7 }]}
@@ -324,7 +326,12 @@ export default function EditProfileScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, Spacing.xl) + 60 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, Spacing.xl) + 60 },
+          isTablet && styles.tabletCentered,
+          isSmallDevice && { paddingHorizontal: Spacing.md },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -353,19 +360,13 @@ export default function EditProfileScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Change profile picture"
               >
-                {resolvedAvatar && !avatarLoadError ? (
-                  <Image
-                    source={{ uri: resolvedAvatar }}
-                    style={styles.avatarImage}
-                    contentFit="cover"
-                    transition={200}
-                    onError={() => setAvatarLoadError(true)}
-                  />
-                ) : (
-                  <View style={[styles.avatarFallback, { backgroundColor: C.primarySubtle }]}>
-                    <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
-                  </View>
-                )}
+                <Image
+                  source={avatarLoadError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(avatarUri, user.id || user.name)}
+                  style={styles.avatarImage}
+                  contentFit="cover"
+                  transition={200}
+                  onError={() => setAvatarLoadError(true)}
+                />
               </Pressable>
 
               {/* Verified Lock Badge or Camera Badge */}
@@ -759,6 +760,11 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  tabletCentered: {
+    maxWidth: 600,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

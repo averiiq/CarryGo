@@ -58,3 +58,23 @@ export function resolveImageUrl(uri?: string | null): string | undefined {
 
   return undefined;
 }
+
+export const DEFAULT_AVATAR_ASSET: ImageSourcePropType = require('@/assets/images/default-avatar.png');
+
+/**
+ * Returns ImageSourcePropType for user avatars:
+ * 1. Always displays the user's real uploaded profile picture (Cloudinary, Supabase Storage, local file/content URI).
+ * 2. If the user has not uploaded a profile picture yet, cleanly falls back to DEFAULT_AVATAR_ASSET.
+ */
+export function getUserAvatarSource(avatarUri?: string | null, _seed?: string): ImageSourcePropType {
+  const resolved = resolveImageUrl(avatarUri);
+  if (resolved) {
+    return { uri: resolved };
+  }
+  return DEFAULT_AVATAR_ASSET;
+}
+
+export function getUserAvatarUrl(avatarUri?: string | null, _seed?: string): string {
+  const resolved = resolveImageUrl(avatarUri);
+  return resolved || '';
+}

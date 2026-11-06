@@ -8,11 +8,13 @@ import {
   ScrollView,
 } from 'react-native';
 import Animated, {
-  FadeInRight,
-  FadeOutLeft,
-  FadeInLeft,
-  FadeOutRight,
+  SlideInRight,
+  SlideOutLeft,
+  SlideInLeft,
+  SlideOutRight,
+  runOnJS,
 } from 'react-native-reanimated';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -79,8 +81,30 @@ export default function SafetyOnboarding({ visible, onComplete, onClose }: Safet
     });
   }, []);
 
-  const entering = direction === 'forward' ? FadeInRight.duration(300) : FadeInLeft.duration(300);
-  const exiting = direction === 'forward' ? FadeOutLeft.duration(200) : FadeOutRight.duration(200);
+  const entering = direction === 'forward'
+    ? SlideInRight.springify().damping(26).stiffness(320).mass(0.75)
+    : SlideInLeft.springify().damping(26).stiffness(320).mass(0.75);
+  const exiting = direction === 'forward'
+    ? SlideOutLeft.springify().damping(26).stiffness(320).mass(0.75)
+    : SlideOutRight.springify().damping(26).stiffness(320).mass(0.75);
+
+  // Gesture horizontal slider: swipe left for next step, swipe right for previous step
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-18, 18])
+    .failOffsetY([-25, 25])
+    .onEnd((event) => {
+      if (event.translationX < -40 || event.velocityX < -320) {
+        if (currentStep < TOTAL_STEPS - 1) {
+          runOnJS(goNext)();
+        }
+      } else if (event.translationX > 40 || event.velocityX > 320) {
+        if (currentStep > 0) {
+          runOnJS(goBack)();
+        } else {
+          runOnJS(handleClose)();
+        }
+      }
+    });
 
   return (
     <Modal
@@ -90,7 +114,8 @@ export default function SafetyOnboarding({ visible, onComplete, onClose }: Safet
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
           <Pressable
@@ -141,31 +166,33 @@ export default function SafetyOnboarding({ visible, onComplete, onClose }: Safet
           </Text>
         </View>
 
-        {/* Content */}
-        <Animated.View key={currentStep} entering={entering} exiting={exiting} style={styles.content}>
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-            showsVerticalScrollIndicator={false}
-          >
-            {currentStep === 0 && <StepWelcome C={C} />}
-            {currentStep === 1 && <StepAllowedItems C={C} />}
-            {currentStep === 2 && <StepRestrictedItems C={C} />}
-            {currentStep === 3 && <StepFragilePackaging C={C} />}
-            {currentStep === 4 && <StepSenderResponsibilities C={C} />}
-            {currentStep === 5 && <StepTravelerResponsibilities C={C} />}
-            {currentStep === 6 && <StepLiability C={C} />}
-            {currentStep === 7 && <StepTrustVerification C={C} />}
-            {currentStep === 8 && (
-              <StepFinalAgreement
-                C={C}
-                checks={checks}
-                onToggle={toggleCheck}
-                onViewTerms={() => router.push('/legal/terms' as never)}
-              />
-            )}
-          </ScrollView>
-        </Animated.View>
+        {/* Content with Screen Slider Gesture */}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View key={currentStep} entering={entering} exiting={exiting} style={styles.content}>
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+              showsVerticalScrollIndicator={false}
+            >
+              {currentStep === 0 && <StepWelcome C={C} />}
+              {currentStep === 1 && <StepAllowedItems C={C} />}
+              {currentStep === 2 && <StepRestrictedItems C={C} />}
+              {currentStep === 3 && <StepFragilePackaging C={C} />}
+              {currentStep === 4 && <StepSenderResponsibilities C={C} />}
+              {currentStep === 5 && <StepTravelerResponsibilities C={C} />}
+              {currentStep === 6 && <StepLiability C={C} />}
+              {currentStep === 7 && <StepTrustVerification C={C} />}
+              {currentStep === 8 && (
+                <StepFinalAgreement
+                  C={C}
+                  checks={checks}
+                  onToggle={toggleCheck}
+                  onViewTerms={() => router.push('/legal/terms' as never)}
+                />
+              )}
+            </ScrollView>
+          </Animated.View>
+        </GestureDetector>
 
         {/* Footer */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.md, backgroundColor: C.background }]}>
@@ -214,7 +241,8 @@ export default function SafetyOnboarding({ visible, onComplete, onClose }: Safet
             </Pressable>
           )}
         </View>
-      </View>
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -244,26 +272,37 @@ function StepWelcome({ C }: { C: any }) {
     <View style={styles.stepContainer}>
       <IllustrationArea bg={C.primarySubtle}>
         <View style={styles.illustrationRow}>
-          <IconCircle icon="shield" color={C.primary} bg={C.surface} size={64} />
+          <IconCircle icon="verified-user" color={C.primary} bg={C.surface} size={64} />
         </View>
         <View style={styles.illustrationRow}>
-          <IconCircle icon="local-shipping" color={C.accent} bg={C.surface} size={44} />
-          <IconCircle icon="verified-user" color={C.success} bg={C.surface} size={44} />
-          <IconCircle icon="people" color={C.warning} bg={C.surface} size={44} />
+          <IconCircle icon="local-shipping" color={C.primary} bg={C.surface} size={42} />
+          <IconCircle icon="lock" color={C.success} bg={C.surface} size={42} />
+          <IconCircle icon="health-and-safety" color="#F59E0B" bg={C.surface} size={42} />
         </View>
       </IllustrationArea>
+
+      <View style={styles.badgeRow}>
+        <View style={[styles.trustTag, { backgroundColor: C.primarySubtle }]}>
+          <MaterialIcons name="security" size={13} color={C.primary} />
+          <Text style={[styles.trustTagText, { color: C.primary }]}>CaryGoo SafeSend</Text>
+        </View>
+        <View style={[styles.trustTag, { backgroundColor: C.successSubtle }]}>
+          <MaterialIcons name="verified" size={13} color={C.success} />
+          <Text style={[styles.trustTagText, { color: C.success }]}>KYC Verified</Text>
+        </View>
+      </View>
 
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>
         Sender Safety Center
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        Before you send your first parcel, let’s walk through our safety guidelines. This keeps you, travelers, and the community protected.
+        Before you send your first parcel, let’s walk through our safety guidelines. This keeps you, travelers, and the community 100% protected.
       </Text>
 
       <View style={[styles.infoCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-        <BulletPoint icon="timer" text="Takes about 2 minutes" C={C} />
-        <BulletPoint icon="check-circle" text="One-time only — you won't see this again" C={C} />
-        <BulletPoint icon="security" text="Required for your first shipment" C={C} />
+        <BulletPoint icon="timer" text="Takes under 2 minutes to review" C={C} />
+        <BulletPoint icon="check-circle" text="One-time only — verified on your account" C={C} />
+        <BulletPoint icon="shield" text="Backed by CaryGoo Booking Protection Guarantee" C={C} />
       </View>
     </View>
   );
@@ -507,61 +546,61 @@ function StepSenderResponsibilities({ C }: { C: any }) {
 
 function StepTravelerResponsibilities({ C }: { C: any }) {
   const commitments: { icon: IconName; title: string; desc: string }[] = [
-    { icon: 'shield', title: 'Careful transit', desc: 'Handle parcels gently, no stacking' },
-    { icon: 'photo-camera', title: 'Photo proof', desc: 'At pickup and delivery' },
-    { icon: 'timer', title: 'On-time delivery', desc: 'Within the agreed window' },
-    { icon: 'lock', title: 'Sealed packages', desc: 'Never opened or tampered' },
-    { icon: 'phone-in-talk', title: 'Clear comms', desc: 'Proactive updates on delays' },
-    { icon: 'pin', title: 'OTP handover', desc: 'Dual-code pickup and drop' },
+    { icon: 'shield', title: 'Careful transit', desc: 'Handle parcels gently with secure trunk placement' },
+    { icon: 'photo-camera', title: 'Photo proof', desc: 'Mandatory photos at pickup & delivery handover' },
+    { icon: 'timer', title: 'On-time delivery', desc: 'Committed to transit within scheduled window' },
+    { icon: 'lock', title: 'Sealed packages', desc: 'Zero opening or tampering — verified integrity' },
+    { icon: 'phone-in-talk', title: 'Clear updates', desc: 'Proactive in-app chat & real-time milestone logs' },
+    { icon: 'pin', title: 'Dual OTP handover', desc: 'Dual-code verification for authorized release' },
   ];
 
   return (
     <View style={styles.stepContainer}>
-      <IllustrationArea bg={C.accentSubtle}>
+      <IllustrationArea bg={C.primarySubtle}>
         <View style={styles.illustrationRow}>
-          <IconCircle icon="flight" color={C.accent} bg={C.surface} size={56} />
+          <IconCircle icon="flight-takeoff" color={C.primary} bg={C.surface} size={56} />
         </View>
         <View style={styles.illustrationRow}>
-          <IconCircle icon="luggage" color={C.accent} bg={C.surface} size={38} />
-          <IconCircle icon="delivery-dining" color={C.accent} bg={C.surface} size={38} />
+          <IconCircle icon="luggage" color={C.primary} bg={C.surface} size={38} />
+          <IconCircle icon="verified" color={C.success} bg={C.surface} size={38} />
         </View>
       </IllustrationArea>
 
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>
-        Traveler’s Role
+        Traveler Safety Standards
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        Every traveler on CaryGoo signs the same commitments before they can carry a single parcel.
+        Every traveler on CaryGoo signs these safety commitments and passes mandatory biometric KYC before carrying a single parcel.
       </Text>
 
-      <View style={[styles.verifiedHero, { backgroundColor: C.successSubtle, borderColor: C.success + '33' }]}>
+      <View style={[styles.verifiedHero, { backgroundColor: C.successSubtle, borderColor: C.success + '40' }]}>
         <View style={[styles.verifiedIconWrap, { backgroundColor: C.success }]}>
           <MaterialIcons name="verified-user" size={22} color="#FFFFFF" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.verifiedTitle, { color: C.textPrimary }]}>
-            KYC-verified humans only
+            100% KYC-Verified Travelers
           </Text>
           <Text style={[styles.verifiedSub, { color: C.textSecondary }]}>
-            Aadhaar + PAN verified via DigiLocker before posting any trip
+            Govt. Aadhaar + PAN verified via DigiLocker before posting any corridor trip
           </Text>
         </View>
       </View>
 
       <View style={[styles.statsStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
         <View style={styles.statCell}>
-          <Text style={[styles.statValue, { color: C.textPrimary }]}>100%</Text>
-          <Text style={[styles.statLabel, { color: C.textMuted }]}>ID verified</Text>
+          <Text style={[styles.statValue, { color: C.primary }]}>100%</Text>
+          <Text style={[styles.statLabel, { color: C.textMuted }]}>ID VERIFIED</Text>
         </View>
         <View style={[styles.statSeparator, { backgroundColor: C.surfaceBorder }]} />
         <View style={styles.statCell}>
-          <Text style={[styles.statValue, { color: C.textPrimary }]}>4.8★</Text>
-          <Text style={[styles.statLabel, { color: C.textMuted }]}>Avg rating</Text>
+          <Text style={[styles.statValue, { color: C.success }]}>4.9★</Text>
+          <Text style={[styles.statLabel, { color: C.textMuted }]}>AVG RATING</Text>
         </View>
         <View style={[styles.statSeparator, { backgroundColor: C.surfaceBorder }]} />
         <View style={styles.statCell}>
-          <Text style={[styles.statValue, { color: C.textPrimary }]}>2-OTP</Text>
-          <Text style={[styles.statLabel, { color: C.textMuted }]}>Handover</Text>
+          <Text style={[styles.statValue, { color: C.primary }]}>2-OTP</Text>
+          <Text style={[styles.statLabel, { color: C.textMuted }]}>SECURE HANDOVER</Text>
         </View>
       </View>
 
@@ -571,8 +610,8 @@ function StepTravelerResponsibilities({ C }: { C: any }) {
             key={c.title}
             style={[styles.commitCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}
           >
-            <View style={[styles.commitIconBox, { backgroundColor: C.accentSubtle }]}>
-              <MaterialIcons name={c.icon} size={18} color={C.accent} />
+            <View style={[styles.commitIconBox, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name={c.icon} size={18} color={C.primary} />
             </View>
             <Text style={[styles.commitTitle, { color: C.textPrimary }]}>{c.title}</Text>
             <Text style={[styles.commitDesc, { color: C.textMuted }]}>{c.desc}</Text>
@@ -580,10 +619,10 @@ function StepTravelerResponsibilities({ C }: { C: any }) {
         ))}
       </View>
 
-      <View style={[styles.responseStrip, { backgroundColor: C.accentSubtle, borderColor: C.accent + '33' }]}>
-        <MaterialIcons name="bolt" size={18} color={C.accent} />
+      <View style={[styles.responseStrip, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
+        <MaterialIcons name="bolt" size={18} color={C.primary} />
         <Text style={[styles.responseText, { color: C.textSecondary }]}>
-          Expect a reply within 30 minutes during active trips. Flag silence &gt; 2h to support.
+          Average response time is under 15 minutes. Support intervenes if silence exceeds 2 hours during transit.
         </Text>
       </View>
     </View>
@@ -615,7 +654,7 @@ function StepLiability({ C }: { C: any }) {
     {
       role: 'CaryGoo',
       icon: 'store',
-      scope: 'Matchmaking, escrow, dispute mediation',
+      scope: 'Matchmaking, booking protection, dispute mediation',
       color: C.success,
       bg: C.successSubtle,
     },
@@ -640,10 +679,10 @@ function StepLiability({ C }: { C: any }) {
       </IllustrationArea>
 
       <Text style={[styles.stepTitle, { color: C.textPrimary }]}>
-        Liability & Risk
+        Platform Liabilities & Risk
       </Text>
       <Text style={[styles.stepDescription, { color: C.textSecondary }]}>
-        Three parties, three scopes. Here is exactly who owns what.
+        Three parties, three transparent scopes. Here is exactly who owns what.
       </Text>
 
       <View style={{ gap: Spacing.sm }}>
@@ -666,13 +705,13 @@ function StepLiability({ C }: { C: any }) {
       <View style={[styles.warningBox, { backgroundColor: C.warningSubtle, borderColor: C.warning + '55' }]}>
         <MaterialIcons name="info-outline" size={20} color={C.warning} />
         <Text style={[styles.warningText, { color: C.textSecondary }]}>
-          CaryGoo is a marketplace, not a courier. We do not assume carrier liability — disputes go through our mediation process.
+          CaryGoo is a peer-to-peer delivery marketplace, not a courier company. We do not assume common carrier liability — all disputes are resolved via our verified mediation process.
         </Text>
       </View>
 
       <View>
         <Text style={[styles.cardTitle, { color: C.textPrimary, marginBottom: Spacing.sm }]}>
-          Maximum claim per parcel
+          Maximum claim coverage per parcel
         </Text>
         <View style={styles.claimRow}>
           {claims.map((c) => (
@@ -690,7 +729,7 @@ function StepLiability({ C }: { C: any }) {
 
       <View>
         <Text style={[styles.cardTitle, { color: C.textPrimary, marginBottom: Spacing.sm }]}>
-          What happens if…
+          Resolution scenarios & protection
         </Text>
         <View style={{ gap: Spacing.sm }}>
           <ScenarioRow
@@ -700,7 +739,7 @@ function StepLiability({ C }: { C: any }) {
             owner="Traveler"
             ownerColor={C.accent}
             ownerBg={C.accentSubtle}
-            detail="Escrow refunded from traveler payout"
+            detail="Booking payment refunded from traveler payout"
           />
           <ScenarioRow
             C={C}
@@ -709,7 +748,7 @@ function StepLiability({ C }: { C: any }) {
             owner="Sender"
             ownerColor={C.primary}
             ownerBg={C.primarySubtle}
-            detail="Claim denied, escrow still releases"
+            detail="Claim denied, booking funds released to traveler"
           />
           <ScenarioRow
             C={C}
@@ -718,7 +757,7 @@ function StepLiability({ C }: { C: any }) {
             owner="CaryGoo"
             ownerColor={C.success}
             ownerBg={C.successSubtle}
-            detail="48h mediation, escrow stays frozen"
+            detail="48h investigation, booking funds held safely"
           />
           <ScenarioRow
             C={C}
@@ -727,7 +766,7 @@ function StepLiability({ C }: { C: any }) {
             owner="Sender"
             ownerColor={C.error}
             ownerBg={C.errorSubtle}
-            detail="Account ban + legal liability"
+            detail="Immediate permanent ban + legal liability"
           />
         </View>
       </View>
@@ -960,6 +999,24 @@ const styles = StyleSheet.create({
   /* Step Container */
   stepContainer: {
     gap: Spacing.lg,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: -Spacing.xs,
+  },
+  trustTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  trustTagText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
   },
 
   /* Illustration */

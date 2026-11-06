@@ -5,6 +5,13 @@ import {
   redeemSenderCoinsForCredit,
   getUserCoinSummary,
   getCoinTransactions,
+  claimDailyBonus,
+  checkDailyBonusStatus,
+  getAvailableParcelCredit,
+  applyParcelCredit,
+  getAvailableVouchers,
+  unlockVoucher,
+  awardDeliveryCoins,
 } from '../../services/rewards.service';
 
 // Mock Supabase client
@@ -192,6 +199,94 @@ describe('Coins and Rewards System Suite', () => {
       expect(res.data[0].transactionType).toBe('delivery_reward');
       expect(res.data[1].amount).toBe(-20);
       expect(res.data[1].transactionType).toBe('parcel_credit_redemption');
+    });
+  });
+
+  describe('5. Daily Bonus Reward', () => {
+    it('claims daily bonus if not yet claimed today', async () => {
+      mockRpc.mockResolvedValueOnce({
+        data: { balance: 0, total_earned: 0, total_redeemed: 0, rupee_value: 0 },
+        error: null,
+      });
+
+      const res = await claimDailyBonus();
+      expect(res.success).toBe(true);
+      expect(res.coinsAwarded).toBe(10);
+      expect(res.newBalance).toBe(10);
+    });
+
+    it('rejects duplicate daily bonus claim within the same day', async () => {
+      const res = await claimDailyBonus();
+      expect(res.success).toBe(false);
+      expect(res.alreadyClaimed).toBe(true);
+      expect(res.error).toContain('already claimed');
+    });
+
+    it('checks status correctly after claim', async () => {
+      const status = await checkDailyBonusStatus();
+      expect(status.canClaim).toBe(false);
+    });
+  });
+
+  describe('6. Available Parcel Credit Management', () => {
+    it('retrieves and applies parcel credit safely', async () => {
+      // Apply the credit that was added during test 2 redemption
+      const res = await applyParcelCredit(10);
+      expect(res.success).toBe(true);
+      expect(res.deducted).toBe(10);
+      expect(res.remainingCredit).toBe(0);
+
+      // Once empty, applying further credit safely returns error
+      const emptyRes = await applyParcelCredit(5);
+      expect(emptyRes.success).toBe(false);
+      expect(emptyRes.error).toContain('No parcel credit');
+    });
+  });
+
+  describe('7. CaryGoo Vouchers & Coupons', () => {
+    it('retrieves platform catalog vouchers', async () => {
+      const vouchers = await getAvailableVouchers();
+      expect(vouchers.length).toBeGreaterThanOrEqual(4);
+      expect(vouchers[0].code).toBe('CARYGOO50');
+    });
+
+    it('handles voucher unlock with insufficient coins', async () => {
+      mockRpc.mockResolvedValueOnce({
+        data: { balance: 10, total_earned: 10, total_redeemed: 0, rupee_value: 1 },
+        error: null,
+      });
+
+      const res = await unlockVoucher('voucher_fly50');
+      expect(res.success).toBe(false);
+      expect(res.error).toContain('Insufficient coins');
+    });
+
+    it('successfully unlocks voucher when user has sufficient coins', async () => {
+      mockRpc.mockResolvedValueOnce({
+        data: { balance: 200, total_earned: 200, total_redeemed: 0, rupee_value: 20 },
+        error: null,
+      });
+
+      const res = await unlockVoucher('voucher_fly50');
+      expect(res.success).toBe(true);
+      expect(res.voucher?.isUnlocked).toBe(true);
+      expect(res.voucher?.code).toBe('CARYGOO50');
+    });
+  });
+
+  describe('8. Automated Delivery Coin Award', () => {
+    it('awards delivery coins through RPC when available', async () => {
+      mockRpc.mockResolvedValueOnce({
+        data: { success: true, coins_per_user: 50 },
+        error: null,
+      });
+
+      const res = await awardDeliveryCoins('deliv-xyz-123');
+      expect(res.success).toBe(true);
+      expect(res.coinsAwarded).toBe(50);
+      expect(mockRpc).toHaveBeenCalledWith('award_delivery_coins', {
+        p_delivery_id: 'deliv-xyz-123',
+      });
     });
   });
 });

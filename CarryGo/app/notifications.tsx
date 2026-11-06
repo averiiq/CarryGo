@@ -16,6 +16,8 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Haptic } from '@/services/haptics.service';
 import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { AppNotification } from '@/types';
+import { useResponsive } from '@/hooks/useResponsive';
+import { LottieAnimation } from '@/components';
 
 type CategoryFilter = 'all' | 'deliveries' | 'messages' | 'payments' | 'matches';
 
@@ -23,6 +25,7 @@ export default function NotificationsScreen() {
   const { C, isDark } = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isSmallDevice, isTablet } = useResponsive();
   const {
     notifications,
     loading,
@@ -150,7 +153,7 @@ export default function NotificationsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}>
       {/* Top Header */}
-      <View style={[styles.header, { borderBottomColor: C.surfaceBorder }]}>
+      <View style={[styles.header, { borderBottomColor: C.surfaceBorder }, isTablet && styles.tabletCentered]}>
         <Pressable
           onPress={() => {
             Haptic.tap();
@@ -202,7 +205,7 @@ export default function NotificationsScreen() {
       </View>
 
       {/* Filter Tabs */}
-      <View style={styles.filterBar}>
+      <View style={[styles.filterBar, isTablet && styles.tabletCentered]}>
         {(['all', 'deliveries', 'messages', 'payments', 'matches'] as CategoryFilter[]).map((tab) => {
           const isActive = activeTab === tab;
           const label = tab.charAt(0).toUpperCase() + tab.slice(1);
@@ -244,14 +247,15 @@ export default function NotificationsScreen() {
         contentContainerStyle={[
           styles.listContainer,
           filteredNotifications.length === 0 && styles.emptyListContainer,
+          isTablet && styles.tabletCentered,
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />
         }
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}>
-              <MaterialIcons name="notifications-none" size={48} color={C.textMuted} />
+            <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+              <LottieAnimation name="emailSent" style={{ width: 140, height: 110 }} />
             </View>
             <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>You're all caught up!</Text>
             <Text style={[styles.emptySubtitle, { color: C.textMuted }]}>
@@ -269,6 +273,11 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  tabletCentered: {
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

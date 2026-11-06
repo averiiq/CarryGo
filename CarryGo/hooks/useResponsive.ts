@@ -17,7 +17,9 @@ export function useResponsive() {
   const isMediumDevice = width >= 380 && width < 440;
   const isLargeDevice = width >= 440 && width < 600;
   const isTablet = width >= 600;
+  const isDesktop = width >= 1024;
   const isLandscape = width > height;
+  const isShortScreen = height < 700;
 
   // Clamped moderate scaling based on screen width
   const scale = (size: number): number => {
@@ -35,11 +37,19 @@ export function useResponsive() {
 
   // Content max-width for tablet centering to avoid awkwardly stretched cards
   const contentMaxWidth = isTablet ? 620 : '100%';
+  const modalMaxWidth = isTablet ? 560 : '100%';
+  const formMaxWidth = isTablet ? 480 : '100%';
+  const cardMaxWidth = isTablet ? 620 : '100%';
 
-  // Tablet card container style
+  // Tablet card container style (strictly matches existing tests)
   const tabletContainerStyle = isTablet
     ? { maxWidth: 620, width: '100%' as const, alignSelf: 'center' as const }
     : undefined;
+
+  // Unified responsive container style that works everywhere
+  const containerStyle = isTablet
+    ? { maxWidth: 620, width: '100%' as const, alignSelf: 'center' as const }
+    : { width: '100%' as const };
 
   // Floating tab capsule layout parameters
   const tabBarHorizontalMargin = isSmallDevice ? 12 : isTablet ? 0 : 18;
@@ -47,6 +57,10 @@ export function useResponsive() {
 
   // Standard swipe gesture threshold for cards
   const swipeThreshold = Math.min(95, Math.max(65, Math.round(width * 0.22)));
+
+  // Responsive padding
+  const horizontalPadding = isSmallDevice ? 12 : isTablet ? 24 : 16;
+  const cardPadding = isSmallDevice ? 12 : 16;
 
   return {
     width,
@@ -57,14 +71,22 @@ export function useResponsive() {
     isMediumDevice,
     isLargeDevice,
     isTablet,
+    isDesktop,
     isLandscape,
+    isShortScreen,
     scale,
     moderateScale,
     contentMaxWidth,
+    modalMaxWidth,
+    formMaxWidth,
+    cardMaxWidth,
     tabletContainerStyle,
+    containerStyle,
     tabBarHorizontalMargin,
     tabBarMaxWidth,
     swipeThreshold,
+    horizontalPadding,
+    cardPadding,
     TouchTarget,
   };
 }

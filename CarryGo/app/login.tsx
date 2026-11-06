@@ -22,6 +22,7 @@ import { useBreathing, useFadeIn } from '@/hooks/useAnimations';
 import { LoginEmailForm } from '@/components/feature/LoginEmailForm';
 import { LoginOtpForm } from '@/components/feature/LoginOtpForm';
 import { KeyboardAwareScrollView } from '@/components';
+import { useResponsive } from '@/hooks/useResponsive';
 
 type Step = 'email' | 'otp';
 const OTP_LENGTH = AUTH_OTP_LENGTH;
@@ -29,6 +30,7 @@ const RESEND_COOLDOWN = 60;
 
 export default function LoginScreen() {
   const { width: W } = useWindowDimensions();
+  const { isSmallDevice, isTablet } = useResponsive();
   const { sendOTP, verifyOTP } = useAuth();
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
@@ -234,13 +236,13 @@ export default function LoginScreen() {
           extraScrollHeight={60}
         >
           {/* Hero */}
-          <Animated.View style={[styles.hero, { paddingTop: insets.top + Spacing.lg, opacity: heroFade.opacity, transform: heroFade.transform }]}>
+          <Animated.View style={[styles.hero, { paddingTop: insets.top + Spacing.lg, opacity: heroFade.opacity, transform: heroFade.transform }, isTablet && styles.tabletFormWrap]}>
             <LinearGradient
               colors={[C.primarySubtle, 'transparent']}
               style={StyleSheet.absoluteFillObject}
             />
             <View style={styles.brandRow}>
-              <Animated.View style={{ transform: [{ scale: logoBreathing }] }}>
+              <Animated.View>
                 <Image
                   source={require('@/assets/images/logo-horizontal.png')}
                   style={{ width: 180, height: 56 }}
@@ -255,7 +257,7 @@ export default function LoginScreen() {
           </Animated.View>
 
           {/* Sliding Form */}
-          <Animated.View style={[styles.formOuter, { transform: [{ translateX: shakeAnim }], opacity: formFade.opacity }]}>
+          <Animated.View style={[styles.formOuter, { transform: [{ translateX: shakeAnim }], opacity: formFade.opacity }, isTablet && styles.tabletFormWrap]}>
             <Animated.View style={[styles.formSlide, { transform: [{ translateX: emailSlideX }] }]}>
               <LoginEmailForm
                 email={email}
@@ -290,7 +292,7 @@ export default function LoginScreen() {
             </Animated.View>
           </Animated.View>
 
-          <View style={[styles.terms, { marginTop: Spacing.md }]}>
+          <View style={[styles.terms, { marginTop: Spacing.md }, isTablet && styles.tabletFormWrap]}>
             <Text style={{ color: C.textMuted, fontSize: FontSize.xs }}>By continuing you agree to CaryGoo&apos;s</Text>
             <View style={styles.legalLinks}>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/terms')}>
@@ -311,6 +313,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flexGrow: 1 },
+  tabletFormWrap: {
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
+  },
   hero: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md, gap: Spacing.md, overflow: 'hidden' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   logoBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

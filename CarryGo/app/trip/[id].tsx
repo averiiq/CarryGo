@@ -28,13 +28,15 @@ import { SendRequestModal, QuickCreateParcelParams } from '@/components/feature/
 import { NegotiateTripModal, NegotiationParams } from '@/components/feature/NegotiateTripModal';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Request, Trip, Parcel, ParcelCategory } from '@/types';
 import { isRequestIncoming } from '@/services/requests.service';
 import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
 import { getUserErrorMessage } from '@/lib/error-handler';
+import { getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 import { RequestItem } from '@/components/feature/RequestItem';
-import { StatusBarGeometry } from '@/constants/theme';
+import { StatusBarGeometry, Spacing, FontWeight } from '@/constants/theme';
 import { styles } from '@/styles/trip/[id].styles';
 import { CARRY_CATEGORIES } from '@/components/feature/trip/TripDetailsStep';
 
@@ -82,6 +84,7 @@ export default function TripDetailScreen() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
+  const { isSmallDevice, isTablet } = useResponsive();
 
   const tripQuery = useTripQuery(id);
   const requestsQuery = useRequestsByTripQuery(id);
@@ -646,27 +649,129 @@ export default function TripDetailScreen() {
   const totalEarnings = visibleRequests.filter(r => r.status === 'completed').reduce((s, r) => s + r.price, 0);
 
   if (!trip) {
+    if (tripQuery.isLoading) {
+      return (
+        <View style={[styles.center, { backgroundColor: C.background }]}>
+          <ActivityIndicator color={C.primary} size="large" />
+        </View>
+      );
+    }
+
     return (
-      <View style={[styles.center, { backgroundColor: C.background }]}>
-        <ActivityIndicator color={C.primary} size="large" />
+      <View style={[styles.container, { backgroundColor: C.background }]}>
+        <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }]}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.roundNavBtn,
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.75 }
+            ]}
+            hitSlop={8}
+          >
+            <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+          </Pressable>
+          <View style={styles.navTitleContainer}>
+            <Text style={[styles.navTitle, { color: C.textPrimary }]}>Trip Details</Text>
+          </View>
+          <View style={{ width: 38 }} />
+        </View>
+
+        <View style={[styles.center, { padding: Spacing.xl, gap: Spacing.md }]}>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: C.primarySubtle, alignItems: 'center', justifyContent: 'center' }}>
+            <MaterialIcons name="directions-car" size={32} color={C.primary} />
+          </View>
+          <Text style={{ fontSize: 18, fontWeight: FontWeight.bold, color: C.textPrimary, textAlign: 'center' }}>
+            Trip Not Available
+          </Text>
+          <Text style={{ fontSize: 13, color: C.textMuted, textAlign: 'center', lineHeight: 18 }}>
+            This trip might have completed, expired, or was removed from the live marketplace.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            <Pressable
+              onPress={() => handleRefresh()}
+              style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceBorder, backgroundColor: C.surface }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: FontWeight.semibold, color: C.textPrimary }}>Retry</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.replace('/(tabs)')}
+              style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primary }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: FontWeight.bold, color: '#fff' }}>Browse Marketplace</Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
     );
   }
 
   const isTripActive = trip.status === 'active';
   const allowedSet = useMemo(() => {
-    const list = trip.allowedCategories && trip.allowedCategories.length > 0
-      ? trip.allowedCategories
-      : ALL_PARCEL_CATEGORIES;
-    return new Set(list);
-  }, [trip.allowedCategories]);
+    if (trip.allowedCategories && trip.allowedCategories.length > 0) {
+      return new Set(trip.allowedCategories);
+    }
+    const vType = trip.vehicleType?.toLowerCase() || 'car';
+    if (vType === 'bike') {
+      return new Set<ParcelCategory>(['documents', 'electronics', 'clothing', 'medicine']);
+    }
+    if (vType === 'flight') {
+      return new Set<ParcelCategory>(['documents', 'clothing', 'electronics', 'medicine']);
+    }
+    if (vType === 'bus' || vType === 'train') {
+      return new Set<ParcelCategory>(['documents', 'clothing', 'food', 'medicine', 'other']);
+    }
+    return new Set(ALL_PARCEL_CATEGORIES);
+  }, [trip.allowedCategories, trip.vehicleType]);
+
+  const vehicleSpecs = useMemo(() => {
+    const vType = trip.vehicleType?.toLowerCase() || 'car';
+    switch (vType) {
+      case 'bike':
+        return {
+          title: 'Two-Wheeler / Bike',
+          icon: 'two-wheeler' as const,
+          spaceDesc: 'Backpack / Rear luggage bag',
+          guideline: 'Suitable for envelopes, small electronics, and light essentials under 10 kg.',
+        };
+      case 'flight':
+        return {
+          title: 'Commercial Flight',
+          icon: 'flight' as const,
+          spaceDesc: 'Cabin baggage / Checked suitcase',
+          guideline: 'Strictly airport-safe personal items. No hazardous goods or liquids.',
+        };
+      case 'bus':
+        return {
+          title: 'Intercity Bus',
+          icon: 'directions-bus' as const,
+          spaceDesc: 'Under-seat or boot baggage space',
+          guideline: 'Fits duffels, personal bags, packaged foods, apparel, and cartons.',
+        };
+      case 'train':
+        return {
+          title: 'Express Train',
+          icon: 'train' as const,
+          spaceDesc: 'Luggage berth & under-seat space',
+          guideline: 'Spacious for suitcases, boxes, apparel, and personal packages.',
+        };
+      case 'car':
+      default:
+        return {
+          title: 'Personal Car',
+          icon: 'directions-car' as const,
+          spaceDesc: 'Car trunk & rear seats',
+          guideline: 'Ample luggage space for suitcases, cartons, parcels, and clothing.',
+        };
+    }
+  }, [trip.vehicleType]);
   const parcelCategoryBlocked = Boolean(activeParcel && !allowedSet.has(activeParcel.category as ParcelCategory));
   const showBottomBar = !isOwner && isTripActive && !myRequest;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       {/* Top Header Bar */}
-      <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }]}>
+      <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }, isTablet && styles.tabletCentered]}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
@@ -732,7 +837,9 @@ export default function TripDetailScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollBody,
-          { paddingBottom: showBottomBar ? insets.bottom + 90 : insets.bottom + 36 }
+          { paddingBottom: showBottomBar ? insets.bottom + 90 : insets.bottom + 36 },
+          isTablet && styles.tabletCentered,
+          isSmallDevice && { paddingHorizontal: Spacing.md },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
@@ -771,7 +878,7 @@ export default function TripDetailScreen() {
             <View style={styles.routeRow}>
               <View style={styles.routeCityCol}>
                 <Text style={styles.routeLabel}>FROM</Text>
-                <Text style={styles.routeCityText} numberOfLines={1}>{trip.fromCity}</Text>
+                <Text style={[styles.routeCityText, isSmallDevice && { fontSize: 17 }]} numberOfLines={1}>{trip.fromCity}</Text>
               </View>
 
               <View style={styles.routeArrowBox}>
@@ -784,7 +891,7 @@ export default function TripDetailScreen() {
 
               <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
                 <Text style={styles.routeLabel}>TO</Text>
-                <Text style={styles.routeCityText} numberOfLines={1}>{trip.toCity}</Text>
+                <Text style={[styles.routeCityText, isSmallDevice && { fontSize: 17 }]} numberOfLines={1}>{trip.toCity}</Text>
               </View>
             </View>
           </View>
@@ -829,15 +936,11 @@ export default function TripDetailScreen() {
           <View style={[styles.travelerProfileCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <View style={styles.travelerTopRow}>
               <View style={styles.travelerAvatarWrap}>
-                {trip.userAvatar ? (
-                  <Image source={{ uri: trip.userAvatar }} style={styles.travelerAvatar} contentFit="cover" />
-                ) : (
-                  <View style={[styles.travelerAvatarPlaceholder, { backgroundColor: C.primarySubtle }]}>
-                    <Text style={[styles.travelerAvatarInitials, { color: C.primary }]}>
-                      {(trip.userName || 'T').charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
+                <Image
+                  source={getUserAvatarSource(trip.userAvatar, trip.userId || trip.userName)}
+                  style={styles.travelerAvatar}
+                  contentFit="cover"
+                />
                 <View style={styles.travelerVerifiedBadge}>
                   <MaterialIcons name="check" size={10} color="#FFFFFF" />
                 </View>
@@ -873,12 +976,28 @@ export default function TripDetailScreen() {
               </Text>
               <Text style={[styles.canCarrySub, { color: C.textMuted }]}>
                 {isOwner
-                  ? 'Senders can only request parcels from these categories.'
-                  : 'Only parcels in these categories can be requested on this trip.'}
+                  ? 'Senders can request parcels within your vehicle luggage limits & categories.'
+                  : `Luggage specifications and acceptable categories for this ${trip.vehicleType} trip.`}
               </Text>
             </View>
           </View>
 
+          {/* Dynamic Vehicle Luggage Space Callout */}
+          <View style={[styles.vehicleSpaceStrip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+            <View style={[styles.vehicleSpaceIconBox, { backgroundColor: C.primarySubtle }]}>
+              <MaterialIcons name={vehicleSpecs.icon} size={20} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.vehicleSpaceTitle, { color: C.textPrimary }]}>
+                {vehicleSpecs.title} • {remainingWeight.toFixed(1)} kg Available
+              </Text>
+              <Text style={[styles.vehicleSpaceDesc, { color: C.textMuted }]}>
+                {vehicleSpecs.spaceDesc}. {vehicleSpecs.guideline}
+              </Text>
+            </View>
+          </View>
+
+          {/* Category Acceptance Badges */}
           <View style={styles.canCarryPillsWrap}>
             {CARRY_CATEGORIES.map((cat) => {
               const allowed = allowedSet.has(cat.type);
@@ -889,7 +1008,7 @@ export default function TripDetailScreen() {
                     styles.canCarryPill,
                     allowed
                       ? { backgroundColor: C.successSubtle, borderColor: C.successBorder }
-                      : { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                      : { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: 0.6 },
                   ]}
                 >
                   <MaterialIcons
@@ -913,13 +1032,23 @@ export default function TripDetailScreen() {
             })}
           </View>
 
-          {!isOwner && parcelCategoryBlocked && activeParcel ? (
-            <View style={[styles.canCarryMismatchBanner, { backgroundColor: C.errorSubtle, borderColor: C.errorBorder }]}>
-              <MaterialIcons name="warning-amber" size={16} color={C.error} />
-              <Text style={[styles.canCarryMismatchText, { color: C.error }]}>
-                Your parcel is {activeParcel.category}. {trip.userName.split(' ')[0]} doesn't carry this category — pick a different trip or edit your parcel.
-              </Text>
-            </View>
+          {/* Match & Compatibility Status */}
+          {!isOwner && activeParcel ? (
+            parcelCategoryBlocked ? (
+              <View style={[styles.canCarryMismatchBanner, { backgroundColor: C.errorSubtle, borderColor: C.errorBorder }]}>
+                <MaterialIcons name="warning-amber" size={16} color={C.error} />
+                <Text style={[styles.canCarryMismatchText, { color: C.error }]}>
+                  Your parcel is {activeParcel.category}. {trip.userName.split(' ')[0]} doesn't accept this category on this {trip.vehicleType} trip.
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.canCarryMatchBanner, { backgroundColor: C.successSubtle, borderColor: C.successBorder }]}>
+                <MaterialIcons name="check-circle" size={16} color={C.success} />
+                <Text style={[styles.canCarryMatchText, { color: C.success }]}>
+                  Ready to book: Your {activeParcel.category} package ({activeParcel.weight}kg) is 100% compatible with this trip.
+                </Text>
+              </View>
+            )
           ) : null}
         </View>
 
@@ -1054,16 +1183,20 @@ export default function TripDetailScreen() {
             paddingBottom: insets.bottom + 10,
           }
         ]}>
-          <View style={styles.bottomBarInner}>
+          <View style={[
+            styles.bottomBarInner,
+            isTablet && styles.tabletCentered,
+            isSmallDevice && styles.bottomBarInnerSmall,
+          ]}>
             <View style={styles.bottomPriceCol}>
               <Text style={[styles.bottomPriceLabel, { color: C.textMuted }]}>Estimated Fare</Text>
-              <Text style={[styles.bottomPriceAmount, { color: C.textPrimary }]}>
+              <Text style={[styles.bottomPriceAmount, isSmallDevice && { fontSize: 16 }, { color: C.textPrimary }]}>
                 ₹{calculatedPrice}
               </Text>
               <Text style={[styles.bottomRateSub, { color: C.textMuted }]}>₹{trip.pricePerKg}/kg</Text>
             </View>
 
-            <View style={styles.bottomActionsRow}>
+            <View style={[styles.bottomActionsRow, isSmallDevice && { gap: 6 }]}>
               <Pressable
                 onPress={() => {
                   if (!user) {
@@ -1076,12 +1209,13 @@ export default function TripDetailScreen() {
                 }}
                 style={({ pressed }) => [
                   styles.negotiateBtn,
+                  isSmallDevice && styles.negotiateBtnSmall,
                   { borderColor: C.surfaceBorder },
                   pressed && { opacity: 0.75 }
                 ]}
               >
-                <MaterialIcons name="tune" size={16} color={C.textPrimary} />
-                <Text style={[styles.negotiateBtnText, { color: C.textPrimary }]}>Negotiate</Text>
+                <MaterialIcons name="tune" size={isSmallDevice ? 14 : 16} color={C.textPrimary} />
+                <Text style={[styles.negotiateBtnText, isSmallDevice && styles.negotiateBtnTextSmall, { color: C.textPrimary }]}>Negotiate</Text>
               </Pressable>
 
               <Pressable
@@ -1109,13 +1243,14 @@ export default function TripDetailScreen() {
                 disabled={parcelCategoryBlocked}
                 style={({ pressed }) => [
                   styles.requestDeliveryBtn,
+                  isSmallDevice && styles.requestDeliveryBtnSmall,
                   { backgroundColor: parcelCategoryBlocked ? C.textMuted : C.primary },
                   pressed && { opacity: 0.9 }
                 ]}
               >
-                <MaterialIcons name="local-shipping" size={17} color="#FFFFFF" />
-                <Text style={styles.requestDeliveryBtnText}>
-                  {parcelCategoryBlocked ? 'Not Supported' : 'Request Delivery'}
+                <MaterialIcons name="local-shipping" size={isSmallDevice ? 15 : 17} color="#FFFFFF" />
+                <Text style={[styles.requestDeliveryBtnText, isSmallDevice && styles.requestDeliveryBtnTextSmall]}>
+                  {parcelCategoryBlocked ? 'Not Supported' : (isSmallDevice ? 'Request' : 'Request Delivery')}
                 </Text>
               </Pressable>
             </View>

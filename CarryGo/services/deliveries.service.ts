@@ -10,6 +10,7 @@ import {
   notifyTripMilestone,
   notifyPayoutReleased,
 } from '@/services/notifications.service';
+import { awardDeliveryCoins } from '@/services/rewards.service';
 
 type DeliveryRow = Database['public']['Tables']['deliveries']['Row'];
 
@@ -362,6 +363,7 @@ export async function confirmDelivery(
 
     if (!error && data) {
       void triggerDeliveryCompleteNotification(sb, deliveryId);
+      void awardDeliveryCoins(deliveryId);
       return { success: true, data: mapRow(data as unknown as ExtendedDeliveryRow), error: null };
     }
 

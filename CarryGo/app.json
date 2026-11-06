@@ -15,6 +15,8 @@
       "bundleIdentifier": "in.averiq.carrygo",
       "newArchEnabled": true,
       "infoPlist": {
+        "CFBundleDisplayName": "CaryGoo",
+        "CFBundleName": "CaryGoo",
         "NSCameraUsageDescription": "CaryGoo uses the camera to capture parcel photos, delivery proof, and KYC verification documents.",
         "NSPhotoLibraryUsageDescription": "CaryGoo lets you upload parcel and verification images from your photo library.",
         "NSLocationWhenInUseUsageDescription": "CaryGoo uses your location to match routes and support live trip and parcel tracking when enabled."
@@ -57,6 +59,7 @@
       "newArchEnabled": true
     },
     "web": {
+      "name": "CaryGoo",
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
@@ -74,7 +77,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-logo.png",
-          "imageWidth": 220,
+          "imageWidth": 260,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {

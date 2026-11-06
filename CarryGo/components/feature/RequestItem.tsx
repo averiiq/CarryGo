@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { Request, Parcel } from '@/types';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
 type StatusKey = 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'failed';
 
@@ -83,19 +83,13 @@ export function RequestItem({
       <View style={styles.topRow}>
         <View style={styles.personInfo}>
           <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
-            {personAvatar && !avatarError ? (
-              <Image
-                source={{ uri: personAvatar }}
-                style={{ width: '100%', height: '100%', borderRadius: 21 }}
-                contentFit="cover"
-                transition={200}
-                onError={() => setAvatarError(true)}
-              />
-            ) : (
-              <Text style={[styles.avatarText, { color: C.primary }]}>
-                {personName.charAt(0).toUpperCase()}
-              </Text>
-            )}
+            <Image
+              source={avatarError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(personAvatar, personName)}
+              style={{ width: '100%', height: '100%', borderRadius: 21 }}
+              contentFit="cover"
+              transition={200}
+              onError={() => setAvatarError(true)}
+            />
             <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.surface }]} />
           </View>
           <View>

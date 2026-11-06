@@ -3,18 +3,20 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   Pressable,
   ScrollView,
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Request } from '@/types';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { STATUS_CONFIG, getRouteLocations, getRequestCardViewModel } from '@/components/feature/RequestCard';
+import { getUserAvatarSource } from '@/constants/images';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 
 interface RequestDetailModalProps {
   visible: boolean;
@@ -59,39 +61,25 @@ export function RequestDetailModal({
     C,
   });
 
-  const formattedDate = new Date(request.createdAt).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  let formattedDate = 'Recent';
+  try {
+    const rawTime = request.createdAt ? Date.parse(request.createdAt) : NaN;
+    const d = isNaN(rawTime) ? new Date() : new Date(rawTime);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    formattedDate = `${d.getDate()} ${months[d.getMonth()] || 'Jan'} ${d.getFullYear()}`;
+  } catch {}
 
   return (
-    <Modal
+    <GestureBottomSheet
       visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
+      onClose={onClose}
+      maxHeight="92%"
+      showHandle
+      enablePanDownToClose
     >
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-
-        <View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: C.surface,
-              borderColor: C.surfaceBorder,
-              paddingBottom: Math.max(insets.bottom, Spacing.md),
-            },
-          ]}
-        >
-          {/* Top Grab Handle */}
-          <View style={styles.handleWrap}>
-            <View style={[styles.handleBar, { backgroundColor: C.surfaceBorder }]} />
-          </View>
-
-          {/* Header Bar */}
-          <View style={styles.headerRow}>
+      <View style={{ flex: 1 }}>
+        {/* Header Bar */}
+        <View style={styles.headerRow}>
             <View style={styles.headerTitleWrap}>
               <Text style={[styles.headerRoute, { color: C.textPrimary }]} numberOfLines={1}>
                 {pickup} ➔ {drop}
@@ -150,10 +138,12 @@ export function RequestDetailModal({
             {/* Counterpart Card */}
             <View style={[styles.counterpartCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
               <View style={styles.counterpartLeft}>
-                <View style={[styles.counterpartAvatar, { backgroundColor: C.primarySubtle }]}>
-                  <Text style={[styles.counterpartInitial, { color: C.primary }]}>
-                    {vm.personName.charAt(0).toUpperCase()}
-                  </Text>
+                <View style={[styles.counterpartAvatar, { backgroundColor: C.surfaceElevated, overflow: 'hidden' }]}>
+                  <Image
+                    source={getUserAvatarSource(vm.personAvatar, vm.personName)}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                  />
                 </View>
                 <View style={styles.counterpartMeta}>
                   <View style={styles.counterpartNameRow}>
@@ -212,9 +202,9 @@ export function RequestDetailModal({
                 </Text>
               </View>
 
-              <View style={[styles.escrowBadge, { backgroundColor: C.surface, borderColor: C.primaryBorder }]}>
+              <View style={[styles.bookingProtectedBadge, { backgroundColor: C.surface, borderColor: C.primaryBorder }]}>
                 <MaterialIcons name="shield" size={14} color={C.primary} />
-                <Text style={[styles.escrowBadgeText, { color: C.primary }]}>100% Booking Protected</Text>
+                <Text style={[styles.bookingProtectedBadgeText, { color: C.primary }]}>100% Booking Protected</Text>
               </View>
             </View>
 
@@ -356,8 +346,7 @@ export function RequestDetailModal({
             ) : null}
           </View>
         </View>
-      </View>
-    </Modal>
+    </GestureBottomSheet>
   );
 }
 
@@ -546,7 +535,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     letterSpacing: -0.5,
   },
-  escrowBadge: {
+  bookingProtectedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -555,7 +544,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: BorderRadius.sm,
   },
-  escrowBadgeText: {
+  bookingProtectedBadgeText: {
     fontSize: 10.5,
     fontWeight: FontWeight.bold,
     color: '#065F46',
