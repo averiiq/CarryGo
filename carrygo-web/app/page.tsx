@@ -29,6 +29,8 @@ import { HeroRouteSimulator } from '@/components/marketing/hero-route-simulator'
 import { HeroTransitVectors } from '@/components/marketing/hero-transit-vectors'
 import { HeroSplitExperience } from '@/components/marketing/hero-split-experience'
 import { PromotionalBannerCarousel } from '@/components/marketing/promotional-banner-carousel'
+import { AppQuickActions } from '@/components/marketing/app-quick-actions'
+import { AppMarketplaceFeed, FeedTrip, FeedParcel } from '@/components/marketing/app-marketplace-feed'
 import { CorridorsMarketplace } from '@/components/marketing/corridors-marketplace'
 import { CourierComparison } from '@/components/marketing/courier-comparison'
 import { RateCalculator } from '@/components/marketing/rate-calculator'
@@ -104,27 +106,38 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function LandingPage() {
-  let liveTrips: TripPreview[] = []
+  let liveTrips: FeedTrip[] = []
+  let liveParcels: FeedParcel[] = []
 
   try {
     const today = new Date().toISOString().split('T')[0]
     const supabase = createAdminClient()
-    const { data } = await supabase
-      .from('trips')
-      .select('id, from_city, to_city, date, vehicle_type, available_capacity, price_per_kg, user_name')
-      .eq('status', 'active')
-      .gte('date', today)
-      .order('date', { ascending: true })
-      .limit(8)
+    const [tripsRes, parcelsRes] = await Promise.all([
+      supabase
+        .from('trips')
+        .select('id, from_city, to_city, date, time, vehicle_type, available_capacity, price_per_kg, user_name')
+        .eq('status', 'active')
+        .gte('date', today)
+        .order('date', { ascending: true })
+        .limit(12),
+      supabase
+        .from('parcels')
+        .select('id, from_city, to_city, delivery_date, weight, category, description, price_offer, user_name, status')
+        .eq('status', 'open')
+        .order('created_at', { ascending: false })
+        .limit(12),
+    ])
 
-    if (data && data.length > 0) {
-      liveTrips = data as TripPreview[]
+    if (tripsRes.data && tripsRes.data.length > 0) {
+      liveTrips = tripsRes.data as FeedTrip[]
+    }
+    if (parcelsRes.data && parcelsRes.data.length > 0) {
+      liveParcels = parcelsRes.data as FeedParcel[]
     }
   } catch {
     liveTrips = []
+    liveParcels = []
   }
-
-  const displayTrips = liveTrips
 
   return (
     <MarketingShell>
@@ -157,7 +170,7 @@ export default async function LandingPage() {
               {/* Left-Aligned High-Impact Typography */}
               <h1 className="text-3xl sm:text-5xl lg:text-[3.5rem] font-heading font-extrabold tracking-tight text-slate-900 leading-[1.12]">
                 Intercity Parcel Delivery at the{' '}
-                <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#004AAD] via-[#1E65D6] to-[#008B48] bg-clip-text text-transparent">
                   Speed of Real Travel
                 </span>
               </h1>
@@ -170,6 +183,13 @@ export default async function LandingPage() {
           </div>
 
           <PromotionalBannerCarousel />
+
+          {/* Quick Actions Row (Mobile App Parity) */}
+          <Reveal delay={0.08}>
+            <div className="my-6 max-w-2xl">
+              <AppQuickActions />
+            </div>
+          </Reveal>
 
           {/* Responsive Split Experience: Desktop side-by-side | Mobile segmented toggle */}
           <Reveal delay={0.12}>
@@ -210,14 +230,24 @@ export default async function LandingPage() {
         </div>
       </ScrollLinkedSection>
 
-      {/* 2. LIVE AVAILABLE CORRIDORS MARKETPLACE - Only shown when genuine active trips exist */}
-      {displayTrips.length > 0 && (
-        <ScrollLinkedSection className="px-4 py-14 sm:px-6 md:py-20 border-y border-slate-200/80 bg-white relative z-10">
-          <div className="mx-auto max-w-6xl">
-            <CorridorsMarketplace trips={displayTrips} />
+      {/* 2. LIVE APP MARKETPLACE FEED (Trips Available & Parcels Waiting) */}
+      <ScrollLinkedSection className="px-4 py-14 sm:px-6 md:py-20 border-y border-slate-200/80 bg-white relative z-10">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#EEF5FF] text-[#004AAD] border border-[#BBD8FF] mb-2">
+              <Navigation className="w-3.5 h-3.5 text-[#004AAD]" />
+              <span>Live Mobile-Parity Feed</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-heading font-extrabold text-slate-900 tracking-tight">
+              Community Travel &amp; Parcel Network
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 mt-1">
+              Connect with commuters departing with empty luggage space, or view active parcel requests awaiting delivery.
+            </p>
           </div>
-        </ScrollLinkedSection>
-      )}
+          <AppMarketplaceFeed initialTrips={liveTrips} initialParcels={liveParcels} />
+        </div>
+      </ScrollLinkedSection>
 
       {/* 3. INTERACTIVE RATE & SPEED CALCULATOR */}
       <ScrollLinkedSection className="px-4 py-16 sm:px-6 md:py-24 relative z-10">

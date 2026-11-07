@@ -93,7 +93,7 @@ export function HeroRouteSearch() {
             {mode === 'send' && (
               <motion.span
                 layoutId="heroModeTab"
-                className="absolute inset-0 rounded-xl bg-emerald-700"
+                className="absolute inset-0 rounded-xl bg-[#004AAD]"
                 transition={{ type: 'spring', stiffness: 450, damping: 32 }}
               />
             )}
@@ -111,7 +111,7 @@ export function HeroRouteSearch() {
             {mode === 'travel' && (
               <motion.span
                 layoutId="heroModeTab"
-                className="absolute inset-0 rounded-xl bg-emerald-700"
+                className="absolute inset-0 rounded-xl bg-[#004AAD]"
                 transition={{ type: 'spring', stiffness: 450, damping: 32 }}
               />
             )}
@@ -211,7 +211,7 @@ export function HeroRouteSearch() {
                 type="submit"
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full h-[46px] rounded-2xl font-bold text-sm text-white bg-emerald-700 hover:bg-emerald-800 transition-colors cursor-pointer flex items-center justify-center gap-2 group"
+                className="w-full h-[46px] rounded-2xl font-bold text-sm text-white bg-[#004AAD] hover:bg-[#003580] shadow-[0_2px_8px_rgba(0,74,173,0.25)] transition-all cursor-pointer flex items-center justify-center gap-2 group"
               >
                 <Search className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 <span>
@@ -241,12 +241,12 @@ export function HeroRouteSearch() {
                   whileTap={{ scale: 0.96 }}
                   className={`text-[11px] font-semibold px-2.5 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                     active
-                      ? 'bg-emerald-700 text-white'
-                      : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300'
+                      ? 'bg-[#004AAD] text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-[#EEF5FF] text-slate-700 hover:text-[#004AAD] border border-slate-200 hover:border-[#BBD8FF]'
                   }`}
                 >
                   <span>{corridor.from} → {corridor.to}</span>
-                  <span className={`text-[9px] px-1 rounded ${active ? 'bg-emerald-800 text-white' : 'bg-white text-slate-500'}`}>
+                  <span className={`text-[9px] px-1 rounded ${active ? 'bg-white/20 text-white' : 'bg-white text-slate-500'}`}>
                     {corridor.tag}
                   </span>
                 </motion.button>
