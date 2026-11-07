@@ -221,7 +221,7 @@ export async function generateAadhaarOtp(
   if (existingDuplicate) {
     return {
       data: null,
-      error: 'This Aadhaar number is already linked to another CarryGo account. Each individual may only operate one account.',
+      error: 'This Aadhaar number is already linked to another CaryGoo account. Each individual may only operate one account.',
     };
   }
 
@@ -784,7 +784,7 @@ export async function verifyPan(
   if (existingDuplicatePan) {
     return {
       data: null,
-      error: 'This PAN card is already linked to another CarryGo account.',
+      error: 'This PAN card is already linked to another CaryGoo account.',
     };
   }
 
@@ -860,7 +860,7 @@ export async function verifyTransactionPan(
   if (duplicateSession) {
     return {
       data: null,
-      error: 'This PAN card is already linked to another CarryGo account.',
+      error: 'This PAN card is already linked to another CaryGoo account.',
     };
   }
 

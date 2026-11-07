@@ -167,6 +167,7 @@ export function CitySelectModal({
     <GestureBottomSheet
       visible={visible}
       onClose={onClose}
+      height="88%"
       maxHeight="92%"
       showHandle
       enablePanDownToClose
@@ -339,6 +340,7 @@ export function CitySelectModal({
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={true}
+          style={styles.cityList}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: Math.max(insets.bottom, 24) },
@@ -362,6 +364,9 @@ export function CitySelectModal({
 
 const styles = StyleSheet.create({
   modalRoot: {
+    flex: 1,
+  },
+  cityList: {
     flex: 1,
   },
   headerBar: {

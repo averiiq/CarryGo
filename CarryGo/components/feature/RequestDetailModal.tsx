@@ -73,6 +73,7 @@ export function RequestDetailModal({
     <GestureBottomSheet
       visible={visible}
       onClose={onClose}
+      height="88%"
       maxHeight="92%"
       showHandle
       enablePanDownToClose

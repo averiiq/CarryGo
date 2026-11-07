@@ -608,9 +608,6 @@ export default function MessagesScreen() {
         <View style={styles.headerRow}>
           <View style={styles.titleWithBrandRow}>
             <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Messages</Text>
-            <View style={[styles.brandBadge, { backgroundColor: C.primarySubtle }]}>
-              <Text style={[styles.brandBadgeText, { color: C.primary }]}>CaryGoo</Text>
-            </View>
           </View>
 
           {unreadCount > 0 ? (

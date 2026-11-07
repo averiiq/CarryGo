@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import {
   View,
   Modal,
@@ -34,6 +34,7 @@ export interface GestureBottomSheetProps {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  height?: number | `${number}%`;
   maxHeight?: number | `${number}%`;
   containerStyle?: StyleProp<ViewStyle>;
   showHandle?: boolean;
@@ -45,6 +46,7 @@ export function GestureBottomSheet({
   visible,
   onClose,
   children,
+  height,
   maxHeight = '90%',
   containerStyle,
   showHandle = true,
@@ -57,62 +59,62 @@ export function GestureBottomSheet({
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
 
-  // Internal rendered state preserves modal mounting during smooth slide-down exits
-  const [isRendered, setIsRendered] = useState(visible);
+  // Internal mounted state preserves modal mounting during smooth slide-down exits
+  const [mounted, setMounted] = useState(visible);
+  const isClosingRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const backdropProgress = useSharedValue(0);
   const keyboardOffset = useSharedValue(0);
   const hasCrossedThreshold = useSharedValue(false);
 
-  const handleDismissFinished = useCallback(() => {
-    setIsRendered(false);
-    onClose();
-  }, [onClose]);
-
   const animateOpen = useCallback(() => {
     translateY.value = withSpring(0, {
-      damping: 26,
-      stiffness: 340,
+      damping: 28,
+      stiffness: 320,
       mass: 0.65,
     });
-    backdropProgress.value = withTiming(1, { duration: 160 });
+    backdropProgress.value = withTiming(1, { duration: 180 });
   }, [backdropProgress, translateY]);
 
-  const animateClose = useCallback((velocity = 0) => {
-    'worklet';
-    backdropProgress.value = withTiming(0, { duration: 150 });
+  const handleDismiss = useCallback((velocity = 0) => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    Haptic.tap();
+    Keyboard.dismiss();
+
+    backdropProgress.value = withTiming(0, { duration: 160 });
     const clampedVelocity = Math.max(velocity, 0);
 
-    if (clampedVelocity > 80) {
+    if (clampedVelocity > 100) {
       translateY.value = withSpring(
         SCREEN_HEIGHT,
         {
-          velocity: Math.max(clampedVelocity, 400),
-          damping: 26,
-          stiffness: 340,
+          velocity: Math.max(clampedVelocity, 500),
+          damping: 28,
+          stiffness: 320,
           mass: 0.65,
         },
         (finished) => {
           if (finished) {
-            runOnJS(handleDismissFinished)();
+            runOnJS(setMounted)(false);
+            runOnJS(onCloseRef.current)();
+            isClosingRef.current = false;
           }
         }
       );
     } else {
       translateY.value = withTiming(SCREEN_HEIGHT, { duration: 180 }, (finished) => {
         if (finished) {
-          runOnJS(handleDismissFinished)();
+          runOnJS(setMounted)(false);
+          runOnJS(onCloseRef.current)();
+          isClosingRef.current = false;
         }
       });
     }
-  }, [backdropProgress, handleDismissFinished, translateY, SCREEN_HEIGHT]);
-
-  const triggerCloseWithHaptic = useCallback((velocity = 0) => {
-    Haptic.tap();
-    Keyboard.dismiss();
-    animateClose(velocity);
-  }, [animateClose]);
+  }, [backdropProgress, translateY, SCREEN_HEIGHT]);
 
   const triggerDetentHaptic = useCallback(() => {
     Haptic.select();
@@ -122,18 +124,27 @@ export function GestureBottomSheet({
     Keyboard.dismiss();
   }, []);
 
-  // Manage open and close sliding animations cleanly
+  // Manage open and close sliding animations cleanly without race conditions
   useEffect(() => {
     if (visible) {
-      setIsRendered(true);
+      isClosingRef.current = false;
+      setMounted(true);
       translateY.value = SCREEN_HEIGHT;
       backdropProgress.value = 0;
       animateOpen();
-    } else if (isRendered) {
+    } else if (mounted && !isClosingRef.current) {
       // Parent triggered close: perform slide-down exit first
-      animateClose();
+      isClosingRef.current = true;
+      Keyboard.dismiss();
+      backdropProgress.value = withTiming(0, { duration: 150 });
+      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 180 }, (finished) => {
+        if (finished) {
+          runOnJS(setMounted)(false);
+          isClosingRef.current = false;
+        }
+      });
     }
-  }, [visible, isRendered, animateOpen, animateClose, SCREEN_HEIGHT, translateY, backdropProgress]);
+  }, [visible]);
 
   // Keyboard elevation tracking
   useEffect(() => {
@@ -207,49 +218,9 @@ export function GestureBottomSheet({
     .onEnd((event) => {
       hasCrossedThreshold.value = false;
       if (event.translationY > DISMISS_THRESHOLD || event.velocityY > DISMISS_VELOCITY) {
-        runOnJS(triggerCloseWithHaptic)(event.velocityY);
+        runOnJS(handleDismiss)(event.velocityY);
       } else {
-        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 26, stiffness: 340, mass: 0.65 });
-        backdropProgress.value = withTiming(1, { duration: 150 });
-      }
-    });
-
-  // Body gesture: activates on deliberate downward swipe, yields on horizontal or upward drags
-  const sheetGesture = Gesture.Pan()
-    .enabled(enablePanDownToClose)
-    .activeOffsetY([8, 1000])
-    .failOffsetY([-1000, -8])
-    .failOffsetX([-25, 25])
-    .onBegin(() => {
-      hasCrossedThreshold.value = false;
-      runOnJS(dismissKeyboard)();
-    })
-    .onUpdate((event) => {
-      if (event.translationY > 0) {
-        translateY.value = event.translationY;
-        backdropProgress.value = interpolate(
-          event.translationY,
-          [0, SCREEN_HEIGHT * 0.38],
-          [1, 0.12],
-          Extrapolation.CLAMP
-        );
-
-        if (event.translationY > DISMISS_THRESHOLD && !hasCrossedThreshold.value) {
-          hasCrossedThreshold.value = true;
-          runOnJS(triggerDetentHaptic)();
-        } else if (event.translationY <= DISMISS_THRESHOLD && hasCrossedThreshold.value) {
-          hasCrossedThreshold.value = false;
-        }
-      } else {
-        translateY.value = -Math.pow(Math.abs(event.translationY), 0.72);
-      }
-    })
-    .onEnd((event) => {
-      hasCrossedThreshold.value = false;
-      if (event.translationY > DISMISS_THRESHOLD || event.velocityY > DISMISS_VELOCITY) {
-        runOnJS(triggerCloseWithHaptic)(event.velocityY);
-      } else {
-        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 26, stiffness: 340, mass: 0.65 });
+        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 28, stiffness: 320, mass: 0.65 });
         backdropProgress.value = withTiming(1, { duration: 150 });
       }
     });
@@ -274,14 +245,18 @@ export function GestureBottomSheet({
     };
   });
 
-  if (!isRendered && !visible) return null;
+  if (!mounted && !visible) return null;
+
+  const resolvedMaxHeight = isShortScreen && typeof maxHeight === 'string' && maxHeight.endsWith('%')
+    ? '94%'
+    : maxHeight;
 
   return (
     <Modal
-      visible={isRendered}
+      visible={mounted}
       transparent
       animationType="none"
-      onRequestClose={() => animateClose()}
+      onRequestClose={() => handleDismiss()}
       statusBarTranslucent
     >
       <GestureHandlerRootView style={styles.gestureRoot}>
@@ -290,39 +265,41 @@ export function GestureBottomSheet({
           <Animated.View style={[styles.backdrop, backdropAnimatedStyle]}>
             <Pressable
               style={StyleSheet.absoluteFill}
-              onPress={dismissOnBackdropPress ? () => animateClose() : undefined}
+              onPress={dismissOnBackdropPress ? () => handleDismiss() : undefined}
               accessibilityRole="button"
               accessibilityLabel="Dismiss bottom sheet"
             />
           </Animated.View>
 
-          {/* Gesture & Keyboard Driven Bottom Sheet */}
-          <GestureDetector gesture={sheetGesture}>
-            <Animated.View
-              style={[
-                styles.sheetCard,
-                isTablet && styles.tabletSheetCard,
-                {
-                  backgroundColor: C.surface,
-                  borderColor: C.surfaceBorder,
-                  paddingBottom: Math.max(insets.bottom, Spacing.sm),
-                  maxHeight: isShortScreen && typeof maxHeight === 'string' && maxHeight.endsWith('%') ? '94%' : maxHeight,
-                },
-                sheetDynamicHeightStyle,
-                containerStyle,
-                sheetAnimatedStyle,
-              ]}
-            >
-              {showHandle && (
-                <GestureDetector gesture={handleGesture}>
-                  <View style={styles.handleContainer}>
-                    <View style={[styles.handleBar, { backgroundColor: C.surfaceBorderLight }]} />
-                  </View>
-                </GestureDetector>
-              )}
-              {children}
-            </Animated.View>
-          </GestureDetector>
+          {/* Bottom Sheet Card */}
+          <Animated.View
+            style={[
+              styles.sheetCard,
+              isTablet && styles.tabletSheetCard,
+              {
+                backgroundColor: C.surface,
+                borderColor: C.surfaceBorder,
+                paddingBottom: Math.max(insets.bottom, Spacing.sm),
+                maxHeight: resolvedMaxHeight,
+                ...(height !== undefined ? { height } : {}),
+              },
+              sheetDynamicHeightStyle,
+              containerStyle,
+              sheetAnimatedStyle,
+            ]}
+          >
+            {showHandle && (
+              <GestureDetector gesture={handleGesture}>
+                <View
+                  style={styles.handleContainer}
+                  hitSlop={{ top: 12, bottom: 12, left: 30, right: 30 }}
+                >
+                  <View style={[styles.handleBar, { backgroundColor: C.surfaceBorderLight }]} />
+                </View>
+              </GestureDetector>
+            )}
+            {children}
+          </Animated.View>
         </View>
       </GestureHandlerRootView>
     </Modal>
@@ -342,6 +319,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10, 16, 26, 0.58)',
   },
   sheetCard: {
+    width: '100%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     borderTopWidth: 1.2,
@@ -364,9 +342,10 @@ const styles = StyleSheet.create({
   handleContainer: {
     width: '100%',
     alignItems: 'center',
-    paddingTop: Spacing.sm + 2,
+    justifyContent: 'center',
+    paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs + 2,
-    minHeight: 28,
+    minHeight: 32,
   },
   handleBar: {
     width: 44,

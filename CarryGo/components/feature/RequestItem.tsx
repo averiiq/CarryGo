@@ -25,7 +25,7 @@ export interface RequestItemActions {
   canChat: boolean;
   canAccept: boolean;
   canReject: boolean;
-  canEscrowPayment: boolean;
+  canMakePayment: boolean;
   canTrackDelivery: boolean;
   isCompleted: boolean;
   chatLabel: string;
@@ -45,7 +45,7 @@ export function getRequestItemActions(
     canChat: isPending || isAccepted,
     canAccept: isTraveller && isPending,
     canReject: isTraveller && isPending,
-    canEscrowPayment: isSender && isAccepted,
+    canMakePayment: isSender && isAccepted,
     canTrackDelivery: isAccepted,
     isCompleted,
     chatLabel: isPending && isSender ? 'Chat with Traveler' : 'Chat',

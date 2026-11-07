@@ -1,5 +1,5 @@
 /**
- * Haptics & Sound utility for CarryGo
+ * Haptics & Sound utility for CaryGoo
  * Provides unified haptic feedback and lightweight sound effects
  */
 import * as Haptics from 'expo-haptics';

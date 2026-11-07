@@ -493,11 +493,11 @@ export function SendRequestModal({
           {/* Pricing & Booking Trust Guarantee */}
           <View style={[styles.pricingCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
             <View style={styles.pricingLeft}>
-              <View style={styles.escrowHeaderRow}>
+              <View style={styles.trustHeaderRow}>
                 <MaterialIcons name="verified-user" size={16} color="#008B48" />
-                <Text style={styles.escrowTitle}>100% Booking Protected</Text>
+                <Text style={styles.trustTitle}>100% Booking Protected</Text>
               </View>
-              <Text style={styles.escrowSub}>
+              <Text style={styles.trustSub}>
                 Funds are held safely and only released after delivery OTP is verified.
               </Text>
             </View>
@@ -824,18 +824,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 10,
   },
-  escrowHeaderRow: {
+  trustHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginBottom: 2,
   },
-  escrowTitle: {
+  trustTitle: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
     color: '#065F46',
   },
-  escrowSub: {
+  trustSub: {
     fontSize: 10,
     color: '#047857',
     lineHeight: 14,

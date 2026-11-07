@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-// CarryGo design tokens for a trust-first, calm logistics UI
+// CaryGoo design tokens for a trust-first, calm logistics UI
 
 // Light palette (Modern CaryGoo Brand Palette: Cobalt Blue #004AAD & Emerald Green #008B48)
 export const LightColors = {

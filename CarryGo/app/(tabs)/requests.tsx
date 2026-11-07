@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAlert, getSupabaseClient } from '@/template';
 import { fetchUserPayments } from '@/services/payments.service';
 import { AsyncStateCard, OfflineBanner, RequestCard, LottieAnimation } from '@/components';
+import { AppErrorBoundary } from '@/components/ui/AppErrorBoundary';
 import { RatingModal } from '@/components/feature/RatingModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget, TabBarGeometry, StatusBarGeometry } from '@/constants/theme';
@@ -20,7 +21,7 @@ import { flattenInfiniteData, useParcelsQuery, useParcelsByIdsQuery } from '@/fe
 import { useRequestsQuery, useUpdateRequestStatusMutation, useUserRatedRequestIdsQuery } from '@/features/requests/queries';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useFadeIn, useStaggeredList } from '@/hooks/useAnimations';
+import { useFadeIn } from '@/hooks/useAnimations';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { Request } from '@/types';
 import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
@@ -33,7 +34,6 @@ const RequestListItem = React.memo(function RequestListItem({
   isTablet,
   currentUserId,
   isPaid,
-  anim,
   onPress,
   onAccept,
   onReject,
@@ -47,7 +47,6 @@ const RequestListItem = React.memo(function RequestListItem({
   isTablet: boolean;
   currentUserId?: string;
   isPaid?: boolean;
-  anim?: { opacity: Animated.Value; translateY: Animated.Value };
   onPress: (req: Request) => void;
   onAccept: (id: string, req: Request) => void;
   onReject: (id: string, req: Request) => void;
@@ -68,7 +67,7 @@ const RequestListItem = React.memo(function RequestListItem({
 
   const cardType = isRequestIncoming(item, currentUserId) ? 'incoming' : 'outgoing';
 
-  const content = (
+  return (
     <View style={isTablet ? styles.tabletContainer : undefined}>
       <RequestCard
         request={item}
@@ -86,19 +85,9 @@ const RequestListItem = React.memo(function RequestListItem({
       />
     </View>
   );
-
-  if (anim) {
-    return (
-      <Animated.View style={{ opacity: anim.opacity, transform: [{ translateY: anim.translateY }] }}>
-        {content}
-      </Animated.View>
-    );
-  }
-
-  return content;
 });
 
-export default function RequestsScreen() {
+function RequestsScreenContent() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const router = useRouter();
@@ -132,14 +121,17 @@ export default function RequestsScreen() {
   const [paidRequestIds, setPaidRequestIds] = useState<Set<string>>(new Set());
   const refreshPaidRequests = useCallback(async () => {
     if (!user?.id) return;
-    const { data } = await fetchUserPayments(user.id);
-    if (!data) return;
-    const locked = new Set(
-      data
-        .filter((p: any) => p && (p.status === 'locked' || p.status === 'released') && p.requestId)
-        .map((p: any) => p.requestId as string),
-    );
-    setPaidRequestIds(locked);
+    try {
+      const res = await fetchUserPayments(user.id);
+      const data = res?.data;
+      if (!Array.isArray(data)) return;
+      const locked = new Set(
+        data
+          .filter((p: any) => p && (p.status === 'locked' || p.status === 'released') && p.requestId)
+          .map((p: any) => p.requestId as string),
+      );
+      setPaidRequestIds(locked);
+    } catch {}
   }, [user?.id]);
   useEffect(() => {
     void refreshPaidRequests();
@@ -178,24 +170,29 @@ export default function RequestsScreen() {
     };
   }, [user?.id]);
 
-  const rawRequests = user ? requestsQuery.data ?? [] : [];
-  const conversations = user ? conversationsQuery.data ?? [] : [];
+  const rawRequests = user && Array.isArray(requestsQuery.data) ? requestsQuery.data : [];
+  const conversations = user && Array.isArray(conversationsQuery.data) ? conversationsQuery.data : [];
   const marketplaceParcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
 
   const requestedParcelIds = useMemo(() => {
-    return Array.from(new Set(rawRequests.map(r => r.parcelId).filter(Boolean)));
+    if (!Array.isArray(rawRequests)) return [];
+    return Array.from(new Set(rawRequests.map(r => r?.parcelId).filter(Boolean)));
   }, [rawRequests]);
 
   const requestedParcelsQuery = useParcelsByIdsQuery(requestedParcelIds);
-  const requestedParcels = requestedParcelsQuery.data ?? [];
+  const requestedParcels = Array.isArray(requestedParcelsQuery.data) ? requestedParcelsQuery.data : [];
   const requestedParcelsRefetchRef = React.useRef(requestedParcelsQuery.refetch);
   requestedParcelsRefetchRef.current = requestedParcelsQuery.refetch;
 
   // Parcel lookup map prioritizing requestedParcelsQuery, then marketplace parcels
   const parcelMap = useMemo(() => {
     const map = new Map<string, typeof marketplaceParcels[0]>();
-    marketplaceParcels.forEach(p => map.set(p.id, p));
-    requestedParcels.forEach(p => map.set(p.id, p));
+    if (Array.isArray(marketplaceParcels)) {
+      marketplaceParcels.forEach(p => { if (p?.id) map.set(p.id, p); });
+    }
+    if (Array.isArray(requestedParcels)) {
+      requestedParcels.forEach(p => { if (p?.id) map.set(p.id, p); });
+    }
     return map;
   }, [marketplaceParcels, requestedParcels]);
 
@@ -203,31 +200,32 @@ export default function RequestsScreen() {
   const requests = useMemo(() => {
     return rawRequests
       .filter(req => {
+        if (!req || !req.id) return false;
         if (req.status === 'completed' && ratedRequestIds.has(req.id)) {
           return false;
         }
         return true;
       })
       .map(req => {
-        const p = parcelMap.get(req.parcelId);
+        const p = req.parcelId ? parcelMap.get(req.parcelId) : undefined;
         return {
           ...req,
-          fromCity: req.fromCity || p?.fromCity,
-          toCity: req.toCity || p?.toCity,
-          parcelCategory: req.parcelCategory || p?.category,
-          parcelWeight: req.parcelWeight || p?.weight,
+          fromCity: req.fromCity || p?.fromCity || '',
+          toCity: req.toCity || p?.toCity || '',
+          parcelCategory: req.parcelCategory || p?.category || 'documents',
+          parcelWeight: req.parcelWeight || p?.weight || 1,
         };
       });
   }, [rawRequests, ratedRequestIds, parcelMap]);
 
   // Received pending requests (action needed: Accept / Reject / Chat)
   const receivedRequests = useMemo(() => {
-    return requests.filter(r => isRequestIncoming(r, user?.id) && r.status === 'pending');
+    return requests.filter(r => r && isRequestIncoming(r, user?.id) && r.status === 'pending');
   }, [requests, user?.id]);
 
   // Sent pending requests (awaiting counterparty: Status / Cancel / Chat)
   const sentRequests = useMemo(() => {
-    return requests.filter(r => isRequestOutgoing(r, user?.id) && r.status === 'pending');
+    return requests.filter(r => r && isRequestOutgoing(r, user?.id) && r.status === 'pending');
   }, [requests, user?.id]);
 
   // All pending requests (received first for immediate action visibility, then sent)
@@ -237,7 +235,7 @@ export default function RequestsScreen() {
 
   // Active in-progress deliveries (accepted)
   const activeList = useMemo(() => {
-    return requests.filter(r => r.status === 'accepted');
+    return requests.filter(r => r && r.status === 'accepted');
   }, [requests]);
 
   const displayed = useMemo(() => {
@@ -246,8 +244,6 @@ export default function RequestsScreen() {
     if (requestFilter === 'sent') return sentRequests;
     return allPendingRequests;
   }, [tab, requestFilter, activeList, receivedRequests, sentRequests, allPendingRequests]);
-
-  const cardAnims = useStaggeredList(Math.max(displayed.length, 14), 70);
 
   const switchTab = (nextTab: MainTab) => {
     if (nextTab === tab) return;
@@ -531,13 +527,12 @@ export default function RequestsScreen() {
     }
   }, [router, user?.id, paidRequestIds]);
 
-  const renderRequestItem = useCallback(({ item, index }: { item: Request; index: number }) => (
+  const renderRequestItem = useCallback(({ item }: { item: Request }) => (
     <RequestListItem
       item={item}
       isTablet={isTablet}
       currentUserId={user?.id}
       isPaid={paidRequestIds.has(item.id)}
-      anim={cardAnims[index]}
       onPress={handleOpenDetail}
       onAccept={handleAccept}
       onReject={handleReject}
@@ -547,7 +542,7 @@ export default function RequestsScreen() {
       onPayment={handlePayment}
       onReview={handleReview}
     />
-  ), [isTablet, user?.id, paidRequestIds, cardAnims, handleOpenDetail, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
+  ), [isTablet, user?.id, paidRequestIds, handleOpenDetail, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
 
   const renderItemSeparator = useCallback(() => <View style={{ height: Spacing.md }} />, []);
 
@@ -762,7 +757,7 @@ export default function RequestsScreen() {
               <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
                 <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
                   <LottieAnimation
-                    name={tab === 'requests' ? 'emailSent' : 'deliveryCar'}
+                    name={tab === 'requests' ? 'emptyActivity' : 'deliveryCar'}
                     style={{ width: 140, height: 110 }}
                   />
                 </View>
@@ -844,6 +839,14 @@ export default function RequestsScreen() {
         />
       ) : null}
     </View>
+  );
+}
+
+export default function RequestsScreen() {
+  return (
+    <AppErrorBoundary>
+      <RequestsScreenContent />
+    </AppErrorBoundary>
   );
 }
 

@@ -376,7 +376,7 @@ export async function sendDeliveryNotification(type: 'otp_generated' | 'pickup_c
   const configs = {
     otp_generated: {
       title: '🔐 Delivery OTP Generated',
-      body: 'A delivery confirmation code is ready. Open CarryGo to continue.',
+      body: 'A delivery confirmation code is ready. Open CaryGoo to continue.',
     },
     pickup_confirmed: {
       title: '🚗 Parcel Picked Up!',
@@ -910,7 +910,7 @@ export async function notifyTripMilestone(params: {
   });
 }
 
-export async function notifyPaymentEscrowLocked(params: {
+export async function notifyPaymentLocked(params: {
   userId: string;
   amount: number;
   deliveryOrRequestId: string;
@@ -940,7 +940,7 @@ export async function notifyPayoutReleased(params: {
   return dispatchNotification({
     userId: params.travellerId,
     title: '💰 Payout Deposited!',
-    body: `₹${params.amount} has been credited to your CarryGo wallet for completing the delivery. Great work!`,
+    body: `₹${params.amount} has been credited to your CaryGoo wallet for completing the delivery. Great work!`,
     type: 'payment_released',
     priority: 'high',
     relatedId: params.deliveryId,
@@ -1156,7 +1156,7 @@ export async function runNotificationDiagnostics(userId?: string): Promise<Diagn
       message: `System notification permission is ${perms.status}. Notifications cannot be received or displayed.`,
       recommendation: perms.canAskAgain
         ? 'Tap "Enable Notifications" to grant notification permissions.'
-        : 'Permissions are blocked in Android Settings. Tap "Open Settings" to enable notifications for CarryGo.',
+        : 'Permissions are blocked in Android Settings. Tap "Open Settings" to enable notifications for CaryGoo.',
       details: {
         permissionGranted: false,
         permissionStatus: perms.status,
@@ -1179,8 +1179,8 @@ export async function runNotificationDiagnostics(userId?: string): Promise<Diagn
       state: 2,
       stateName: 'Expo Go Client Detected',
       status: 'warning',
-      message: 'Running inside Expo Go (host.exp.exponent). Push notifications in Expo Go are isolated to the Expo Go app, and tapping opens Expo Go instead of CarryGo.',
-      recommendation: 'Install the standalone CarryGo APK (in.averiq.carrygo) configured with native Firebase Cloud Messaging for production delivery.',
+      message: 'Running inside Expo Go (host.exp.exponent). Push notifications in Expo Go are isolated to the Expo Go app, and tapping opens Expo Go instead of CaryGoo.',
+      recommendation: 'Install the standalone CaryGoo APK (in.averiq.carrygo) configured with native Firebase Cloud Messaging for production delivery.',
       details: {
         permissionGranted: perms.granted,
         permissionStatus: perms.status,
@@ -1257,8 +1257,8 @@ export async function runNotificationDiagnostics(userId?: string): Promise<Diagn
       state: 3,
       stateName: 'Push Token Not Registered with Backend',
       status: 'error',
-      message: 'Device generated a valid push token, but could not register it with the CarryGo cloud backend.',
-      recommendation: 'Tap "Refresh Token" to synchronize your device with the CarryGo server.',
+      message: 'Device generated a valid push token, but could not register it with the CaryGoo cloud backend.',
+      recommendation: 'Tap "Refresh Token" to synchronize your device with the CaryGoo server.',
       details: {
         permissionGranted: true,
         permissionStatus: perms.status,
@@ -1279,7 +1279,7 @@ export async function runNotificationDiagnostics(userId?: string): Promise<Diagn
       state: 4,
       stateName: 'No Registered Devices for User',
       status: 'warning',
-      message: 'No active push notification tokens are registered for this user in the CarryGo database.',
+      message: 'No active push notification tokens are registered for this user in the CaryGoo database.',
       recommendation: 'Log in and grant notification permissions on this device to register it.',
       details: {
         permissionGranted: true,
@@ -1326,7 +1326,7 @@ export async function sendTestNotification(
     // Local notification test (verifies Android notification channel, sound, vibration, icon)
     if (mode === 'all' || mode === 'local') {
       await sendLocalNotification(
-        '🔔 CarryGo Notification Test',
+        '🔔 CaryGoo Notification Test',
         'Sound, vibration, and channels are functioning properly on this device!',
         { type: 'test' },
         'default'
@@ -1338,7 +1338,7 @@ export async function sendTestNotification(
       const result = await dispatchNotification({
         userId,
         title: '🚀 Remote Push Verified',
-        body: 'Your device is successfully connected to the CarryGo push notification network.',
+        body: 'Your device is successfully connected to the CaryGoo push notification network.',
         type: 'general',
         priority: 'high',
       });

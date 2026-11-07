@@ -425,8 +425,8 @@ export async function createRazorpayPaymentLink(params: {
         requestId: params.requestId,
         generateLink: true,
         customer: {
-          name: params.customerName || 'CarryGo Customer',
-          email: params.customerEmail || 'customer@carrygo.com',
+          name: params.customerName || 'CaryGoo Customer',
+          email: params.customerEmail || 'customer@carygoo.in',
           phone: params.customerPhone || '+919876543210',
           contact: params.customerPhone || '+919876543210',
         },

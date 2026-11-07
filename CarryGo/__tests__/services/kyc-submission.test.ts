@@ -173,7 +173,7 @@ describe('KYC Sandbox Submission Service', () => {
 
       const result = await verifyTransactionPan('user-1', 'ABCDE1234F');
       expect(result.data).toBeNull();
-      expect(result.error).toContain('already linked to another CarryGo account');
+      expect(result.error).toContain('already linked to another CaryGoo account');
     });
 
     it('verifies PAN successfully via verify_user_pan RPC', async () => {

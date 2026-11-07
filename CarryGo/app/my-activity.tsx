@@ -253,7 +253,7 @@ function TxRow({ item, userId, onPress, C }: { item: Payment; userId: string; on
               </View>
             </View>
           </View>
-          <View style={[styles.txDescRow, { borderTopWidth: 1, borderTopColor: C.surfaceBorder }]}>
+          <View style={[styles.txDescriptionRow, { borderTopWidth: 1, borderTopColor: C.surfaceBorder }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
               <Feather name="shield" size={11} color={C.textMuted} />
               <Text style={[styles.txDesc, { color: C.textMuted }]} numberOfLines={1}>
@@ -1448,7 +1448,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   txStatusText: { fontSize: 9, fontWeight: FontWeight.bold },
-  txDescRow: {
+  txDescriptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

@@ -39,6 +39,8 @@ import { RequestItem } from '@/components/feature/RequestItem';
 import { StatusBarGeometry, Spacing, FontWeight } from '@/constants/theme';
 import { styles } from '@/styles/trip/[id].styles';
 import { CARRY_CATEGORIES } from '@/components/feature/trip/TripDetailsStep';
+import { useQuery } from '@tanstack/react-query';
+import { fetchProfile } from '@/services/profile.service';
 
 const ALL_PARCEL_CATEGORIES: ParcelCategory[] = ['documents', 'electronics', 'clothing', 'food', 'medicine', 'other'];
 
@@ -105,7 +107,46 @@ export default function TripDetailScreen() {
   const trip = (tripQuery.data ?? undefined) as Trip | undefined;
   const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
-  const isOwner = trip?.userId === user?.id;
+  const isOwner = Boolean(trip?.userId && user?.id && trip.userId === user.id);
+
+  const travelerId = trip?.userId;
+  // Fetch traveler profile if not owner and travelerId is available
+  const { data: travelerProfile } = useQuery({
+    queryKey: ['userProfile', travelerId],
+    queryFn: async () => {
+      if (!travelerId) return null;
+      const { data } = await fetchProfile(travelerId);
+      return data;
+    },
+    enabled: Boolean(travelerId && !isOwner),
+    staleTime: 5 * 60_000,
+  });
+
+  const [avatarError, setAvatarError] = useState(false);
+
+  const rawTravelerAvatar = isOwner
+    ? (user?.avatar || trip?.userAvatar || (trip as any)?.avatar || (trip as any)?.avatar_url || (trip as any)?.selfieUrl)
+    : (travelerProfile?.avatar || trip?.userAvatar || (trip as any)?.avatar || (trip as any)?.avatar_url || (trip as any)?.selfieUrl);
+
+  const travelerAvatarSource = getUserAvatarSource(rawTravelerAvatar, travelerId || trip?.userName);
+
+  const travelerDisplayName = isOwner
+    ? (user?.fullName || user?.name || trip?.userName || 'Trip Host (You)')
+    : (travelerProfile?.name || trip?.userName || 'Verified Traveler');
+
+  const travelerFirstName = travelerDisplayName.split(' ')[0] || 'Traveler';
+
+  const travelerRatingDisplay = isOwner
+    ? (user?.rating && user.rating > 0 ? user.rating.toFixed(1) : (trip?.userRating && trip.userRating > 0 ? trip.userRating.toFixed(1) : '5.0'))
+    : (travelerProfile?.rating && travelerProfile.rating > 0 ? travelerProfile.rating.toFixed(1) : (trip?.userRating && trip.userRating > 0 ? trip.userRating.toFixed(1) : '5.0'));
+
+  const travelerTotalTrips = isOwner
+    ? (user?.totalTrips && user.totalTrips > 0 ? user.totalTrips : 1)
+    : (travelerProfile?.totalTrips && travelerProfile.totalTrips > 0 ? travelerProfile.totalTrips : 1);
+
+  const isTravelerVerified = isOwner
+    ? (user?.verified ?? true)
+    : (travelerProfile?.verified ?? true);
 
   const visibleRequests = useMemo(() => {
     if (isOwner) return requests;
@@ -707,22 +748,27 @@ export default function TripDetailScreen() {
   }
 
   const isTripActive = trip.status === 'active';
-  const allowedSet = useMemo(() => {
+
+  const normalizedAllowedCategories = useMemo(() => {
     if (trip.allowedCategories && trip.allowedCategories.length > 0) {
-      return new Set(trip.allowedCategories);
+      return trip.allowedCategories.map(c => String(c).trim().toLowerCase());
     }
     const vType = trip.vehicleType?.toLowerCase() || 'car';
     if (vType === 'bike') {
-      return new Set<ParcelCategory>(['documents', 'electronics', 'clothing', 'medicine']);
+      return ['documents', 'electronics', 'clothing', 'medicine'];
     }
     if (vType === 'flight') {
-      return new Set<ParcelCategory>(['documents', 'clothing', 'electronics', 'medicine']);
+      return ['documents', 'clothing', 'electronics', 'medicine'];
     }
     if (vType === 'bus' || vType === 'train') {
-      return new Set<ParcelCategory>(['documents', 'clothing', 'food', 'medicine', 'other']);
+      return ['documents', 'clothing', 'food', 'medicine', 'other'];
     }
-    return new Set(ALL_PARCEL_CATEGORIES);
+    return ALL_PARCEL_CATEGORIES;
   }, [trip.allowedCategories, trip.vehicleType]);
+
+  const allowedSet = useMemo(() => {
+    return new Set(normalizedAllowedCategories);
+  }, [normalizedAllowedCategories]);
 
   const vehicleSpecs = useMemo(() => {
     const vType = trip.vehicleType?.toLowerCase() || 'car';
@@ -731,22 +777,22 @@ export default function TripDetailScreen() {
         return {
           title: 'Two-Wheeler / Bike',
           icon: 'two-wheeler' as const,
-          spaceDesc: 'Backpack / Rear luggage bag',
-          guideline: 'Suitable for envelopes, small electronics, and light essentials under 10 kg.',
+          spaceDesc: 'Backpack & rear saddlebag storage',
+          guideline: 'Suitable for envelopes, small electronics, and light essentials under 5 kg.',
         };
       case 'flight':
         return {
           title: 'Commercial Flight',
           icon: 'flight' as const,
-          spaceDesc: 'Cabin baggage / Checked suitcase',
-          guideline: 'Strictly airport-safe personal items. No hazardous goods or liquids.',
+          spaceDesc: 'Cabin overhead baggage & checked luggage',
+          guideline: 'Strictly airport-safe personal items. No hazardous goods, flammables, or unsealed liquids.',
         };
       case 'bus':
         return {
           title: 'Intercity Bus',
           icon: 'directions-bus' as const,
-          spaceDesc: 'Under-seat or boot baggage space',
-          guideline: 'Fits duffels, personal bags, packaged foods, apparel, and cartons.',
+          spaceDesc: 'Under-seat baggage space & boot compartment',
+          guideline: 'Fits duffels, personal bags, packaged foods, apparel, and medium cartons.',
         };
       case 'train':
         return {
@@ -760,12 +806,12 @@ export default function TripDetailScreen() {
         return {
           title: 'Personal Car',
           icon: 'directions-car' as const,
-          spaceDesc: 'Car trunk & rear seats',
+          spaceDesc: 'Car trunk & secure rear seats',
           guideline: 'Ample luggage space for suitcases, cartons, parcels, and clothing.',
         };
     }
   }, [trip.vehicleType]);
-  const parcelCategoryBlocked = Boolean(activeParcel && !allowedSet.has(activeParcel.category as ParcelCategory));
+  const parcelCategoryBlocked = Boolean(activeParcel && !allowedSet.has(String(activeParcel.category).toLowerCase()));
   const showBottomBar = !isOwner && isTripActive && !myRequest;
 
   return (
@@ -931,53 +977,103 @@ export default function TripDetailScreen() {
           </View>
         </View>
 
-        {/* Traveler Profile Card (When Viewer is Sender) */}
-        {!isOwner ? (
-          <View style={[styles.travelerProfileCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-            <View style={styles.travelerTopRow}>
-              <View style={styles.travelerAvatarWrap}>
-                <Image
-                  source={getUserAvatarSource(trip.userAvatar, trip.userId || trip.userName)}
-                  style={styles.travelerAvatar}
-                  contentFit="cover"
-                />
+        {/* Traveler Profile Card (Always Visible to Senders and Owner) */}
+        <View style={[styles.travelerProfileCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.travelerHeaderRow}>
+            <Text style={[styles.travelerSectionTitle, { color: C.textMuted }]}>
+              {isOwner ? 'Your Traveler Profile' : 'Trip Host'}
+            </Text>
+            <View
+              style={[
+                styles.travelerRoleBadge,
+                { backgroundColor: isOwner ? C.primarySubtle : C.successSubtle },
+              ]}
+            >
+              <MaterialIcons
+                name={isOwner ? 'person' : 'verified-user'}
+                size={12}
+                color={isOwner ? C.primary : C.success}
+              />
+              <Text
+                style={[
+                  styles.travelerRoleText,
+                  { color: isOwner ? C.primary : C.success },
+                ]}
+              >
+                {isOwner ? 'You (Trip Host)' : 'Verified Traveler'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.travelerTopRow}>
+            <View style={styles.travelerAvatarWrap}>
+              <Image
+                source={avatarError ? DEFAULT_AVATAR_ASSET : travelerAvatarSource}
+                style={[styles.travelerAvatar, { borderColor: C.surfaceBorder }]}
+                contentFit="cover"
+                transition={200}
+                onError={() => setAvatarError(true)}
+              />
+              {isTravelerVerified ? (
                 <View style={styles.travelerVerifiedBadge}>
                   <MaterialIcons name="check" size={10} color="#FFFFFF" />
                 </View>
+              ) : null}
+            </View>
+
+            <View style={styles.travelerInfoCol}>
+              <View style={styles.travelerNameRow}>
+                <Text style={[styles.travelerName, { color: C.textPrimary }]} numberOfLines={1}>
+                  {travelerDisplayName}
+                </Text>
+                {isTravelerVerified ? (
+                  <MaterialIcons name="verified" size={16} color={C.primary} />
+                ) : null}
               </View>
 
-              <View style={styles.travelerInfoCol}>
-                <View style={styles.travelerNameRow}>
-                  <Text style={[styles.travelerName, { color: C.textPrimary }]}>{trip.userName}</Text>
-                  <MaterialIcons name="verified" size={14} color={C.primary} />
-                </View>
-
-                <View style={styles.travelerRatingRow}>
-                  <MaterialIcons name="star" size={13} color="#F59E0B" />
-                  <Text style={[styles.ratingNumber, { color: C.textPrimary }]}>
-                    {trip.userRating && trip.userRating > 0 ? trip.userRating.toFixed(1) : '5.0'}
-                  </Text>
-                  <Text style={[styles.travelerSubtitle, { color: C.textMuted }]}>· Verified Traveler</Text>
-                </View>
+              <View style={styles.travelerRatingRow}>
+                <MaterialIcons name="star" size={14} color="#F59E0B" />
+                <Text style={[styles.ratingNumber, { color: C.textPrimary }]}>
+                  {travelerRatingDisplay}
+                </Text>
+                <Text style={[styles.travelerSubtitle, { color: C.textMuted }]}>
+                  • {travelerTotalTrips} {travelerTotalTrips === 1 ? 'trip completed' : 'trips completed'}
+                </Text>
               </View>
             </View>
           </View>
-        ) : null}
+
+          {/* Trust & Safety Badges */}
+          <View style={[styles.travelerPillsRow, { borderTopColor: C.surfaceBorder }]}>
+            <View style={[styles.travelerTrustPill, { backgroundColor: C.surfaceElevated }]}>
+              <MaterialIcons name="shield" size={13} color={C.primary} />
+              <Text style={[styles.travelerTrustText, { color: C.textSecondary }]}>Govt ID Verified</Text>
+            </View>
+            <View style={[styles.travelerTrustPill, { backgroundColor: C.surfaceElevated }]}>
+              <MaterialIcons name="phone" size={13} color={C.success} />
+              <Text style={[styles.travelerTrustText, { color: C.textSecondary }]}>Phone Verified</Text>
+            </View>
+            <View style={[styles.travelerTrustPill, { backgroundColor: C.surfaceElevated }]}>
+              <MaterialIcons name="lock" size={13} color={C.warning} />
+              <Text style={[styles.travelerTrustText, { color: C.textSecondary }]}>OTP Secured Handover</Text>
+            </View>
+          </View>
+        </View>
 
         {/* What this Traveler Can Carry */}
         <View style={[styles.canCarryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           <View style={styles.canCarryHeaderRow}>
             <View style={[styles.canCarryIconBox, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="inventory-2" size={16} color={C.primary} />
+              <MaterialIcons name="inventory-2" size={20} color={C.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.canCarryTitle, { color: C.textPrimary }]}>
-                {isOwner ? 'What You Can Carry' : `What ${trip.userName.split(' ')[0]} Can Carry`}
+                {isOwner ? 'What You Can Carry' : `What ${travelerFirstName} Can Carry`}
               </Text>
               <Text style={[styles.canCarrySub, { color: C.textMuted }]}>
                 {isOwner
-                  ? 'Senders can request parcels within your vehicle luggage limits & categories.'
-                  : `Luggage specifications and acceptable categories for this ${trip.vehicleType} trip.`}
+                  ? 'Senders on CaryGoo can send parcels matching your vehicle luggage space and accepted categories.'
+                  : `Luggage specifications and acceptable package types for this ${trip.vehicleType} trip.`}
               </Text>
             </View>
           </View>
@@ -985,7 +1081,7 @@ export default function TripDetailScreen() {
           {/* Dynamic Vehicle Luggage Space Callout */}
           <View style={[styles.vehicleSpaceStrip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
             <View style={[styles.vehicleSpaceIconBox, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name={vehicleSpecs.icon} size={20} color={C.primary} />
+              <MaterialIcons name={vehicleSpecs.icon} size={22} color={C.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.vehicleSpaceTitle, { color: C.textPrimary }]}>
@@ -997,39 +1093,111 @@ export default function TripDetailScreen() {
             </View>
           </View>
 
-          {/* Category Acceptance Badges */}
-          <View style={styles.canCarryPillsWrap}>
+          {/* Quick Vehicle Specs Grid */}
+          <View style={[styles.canCarrySpecsRow, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+            <View style={styles.canCarrySpecItem}>
+              <Text style={[styles.canCarrySpecVal, { color: C.textPrimary }]}>
+                {trip.availableCapacity} kg
+              </Text>
+              <Text style={[styles.canCarrySpecLbl, { color: C.textMuted }]}>Total Capacity</Text>
+            </View>
+            <View style={[styles.canCarrySpecDivider, { backgroundColor: C.surfaceBorder }]} />
+            <View style={styles.canCarrySpecItem}>
+              <Text style={[styles.canCarrySpecVal, { color: remainingWeight > 0 ? C.success : C.warning }]}>
+                {remainingWeight.toFixed(1)} kg
+              </Text>
+              <Text style={[styles.canCarrySpecLbl, { color: C.textMuted }]}>Free Space</Text>
+            </View>
+            <View style={[styles.canCarrySpecDivider, { backgroundColor: C.surfaceBorder }]} />
+            <View style={styles.canCarrySpecItem}>
+              <Text style={[styles.canCarrySpecVal, { color: C.primary }]}>
+                ₹{trip.pricePerKg}
+              </Text>
+              <Text style={[styles.canCarrySpecLbl, { color: C.textMuted }]}>Per Kg Rate</Text>
+            </View>
+          </View>
+
+          {/* Detailed Category Acceptance List */}
+          <View style={styles.canCarryGrid}>
             {CARRY_CATEGORIES.map((cat) => {
               const allowed = allowedSet.has(cat.type);
               return (
                 <View
                   key={cat.type}
                   style={[
-                    styles.canCarryPill,
-                    allowed
-                      ? { backgroundColor: C.successSubtle, borderColor: C.successBorder }
-                      : { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, opacity: 0.6 },
+                    styles.canCarryCategoryCard,
+                    {
+                      backgroundColor: allowed ? C.surfaceElevated : C.surface,
+                      borderColor: allowed ? C.successBorder : C.surfaceBorder,
+                      opacity: allowed ? 1 : 0.6,
+                    },
                   ]}
                 >
-                  <MaterialIcons
-                    name={allowed ? 'check-circle' : 'cancel'}
-                    size={13}
-                    color={allowed ? C.success : C.textMuted}
-                  />
-                  <Text
+                  <View
                     style={[
-                      styles.canCarryPillText,
-                      {
-                        color: allowed ? C.success : C.textMuted,
-                        textDecorationLine: allowed ? 'none' : 'line-through',
-                      },
+                      styles.canCarryCategoryIconBox,
+                      { backgroundColor: allowed ? C.successSubtle : C.surfaceBorder },
                     ]}
                   >
-                    {cat.label}
-                  </Text>
+                    <MaterialIcons
+                      name={cat.icon}
+                      size={18}
+                      color={allowed ? C.success : C.textMuted}
+                    />
+                  </View>
+                  <View style={styles.canCarryCategoryInfo}>
+                    <View style={styles.canCarryCategoryTitleRow}>
+                      <Text style={[styles.canCarryCategoryTitle, { color: C.textPrimary }]}>
+                        {cat.label}
+                      </Text>
+                      <View
+                        style={[
+                          styles.canCarryBadge,
+                          {
+                            backgroundColor: allowed ? C.successSubtle : C.surfaceElevated,
+                          },
+                        ]}
+                      >
+                        <MaterialIcons
+                          name={allowed ? 'check-circle' : 'block'}
+                          size={11}
+                          color={allowed ? C.success : C.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.canCarryBadgeText,
+                            { color: allowed ? C.success : C.textMuted },
+                          ]}
+                        >
+                          {allowed ? 'Accepts' : 'Not Allowed'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.canCarryCategoryTagline, { color: C.textMuted }]}>
+                      {allowed ? cat.tagline : 'Not accepted for this journey'}
+                    </Text>
+                  </View>
                 </View>
               );
             })}
+          </View>
+
+          {/* Safe Travel & Guidelines Box */}
+          <View style={[styles.canCarryGuidelinesBox, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+            <View style={styles.canCarryGuidelineRow}>
+              <MaterialIcons name="security" size={15} color={C.primary} style={{ marginTop: 1 }} />
+              <Text style={[styles.canCarryGuidelineText, { color: C.textSecondary }]}>
+                <Text style={{ fontWeight: FontWeight.bold, color: C.textPrimary }}>Handover Security: </Text>
+                Packages are inspected at pickup and locked with instant sender & recipient OTP verification.
+              </Text>
+            </View>
+            <View style={styles.canCarryGuidelineRow}>
+              <MaterialIcons name="do-not-disturb" size={15} color={C.error} style={{ marginTop: 1 }} />
+              <Text style={[styles.canCarryGuidelineText, { color: C.textSecondary }]}>
+                <Text style={{ fontWeight: FontWeight.bold, color: C.textPrimary }}>Prohibited Items: </Text>
+                No flammables, hazardous liquids, illegal goods, or unsealed perishable food.
+              </Text>
+            </View>
           </View>
 
           {/* Match & Compatibility Status */}
@@ -1038,7 +1206,7 @@ export default function TripDetailScreen() {
               <View style={[styles.canCarryMismatchBanner, { backgroundColor: C.errorSubtle, borderColor: C.errorBorder }]}>
                 <MaterialIcons name="warning-amber" size={16} color={C.error} />
                 <Text style={[styles.canCarryMismatchText, { color: C.error }]}>
-                  Your parcel is {activeParcel.category}. {trip.userName.split(' ')[0]} doesn't accept this category on this {trip.vehicleType} trip.
+                  Your parcel is {activeParcel.category}. {travelerFirstName} doesn't accept this category on this {trip.vehicleType} trip.
                 </Text>
               </View>
             ) : (

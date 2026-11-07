@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode, useRef, useEffect } from 'react';
-import { View, StyleSheet, StyleProp, ViewStyle, Animated, Text } from 'react-native';
+import React, { Component, ErrorInfo, ReactNode, useRef, useEffect, useState } from 'react';
+import { View, StyleSheet, StyleProp, ViewStyle, Animated, Text, Platform, UIManager } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -381,14 +381,86 @@ class LottieErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
     return { hasError: true };
   }
 
-  componentDidCatch(_error: Error, _info: ErrorInfo) {}
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    if (__DEV__) {
+      console.warn('[LottieAnimation] Caught render error, displaying resilient vector fallback:', error?.message);
+    }
+  }
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallbackIcon || <NativeAnimatedVectorBadge name={this.props.name} />;
+      return (
+        <View style={styles.outerWrap}>
+          {this.props.fallbackIcon || <NativeAnimatedVectorBadge name={this.props.name} />}
+        </View>
+      );
     }
     return this.props.children;
   }
+}
+
+const isNativeLottieSupported = (): boolean => {
+  if (Platform.OS === 'web') return false;
+  try {
+    if (typeof (UIManager as any).hasViewManagerConfig === 'function') {
+      return Boolean((UIManager as any).hasViewManagerConfig('LottieAnimationView'));
+    }
+    if (typeof (UIManager as any).getViewManagerConfig === 'function') {
+      return Boolean((UIManager as any).getViewManagerConfig('LottieAnimationView'));
+    }
+    return Boolean((UIManager as any)?.LottieAnimationView);
+  } catch {
+    return false;
+  }
+};
+
+function SafeLottieRenderer({
+  name,
+  animSource,
+  autoPlay,
+  loop,
+  speed,
+  style,
+  fallbackIcon,
+  testID,
+}: {
+  name?: AnimationKey;
+  animSource: any;
+  autoPlay?: boolean;
+  loop?: boolean;
+  speed?: number;
+  style?: StyleProp<ViewStyle>;
+  fallbackIcon?: ReactNode;
+  testID?: string;
+}) {
+  const [hasFailed, setHasFailed] = useState(false);
+
+  // If the native binary lacks the Lottie view manager or native initialization fails,
+  // gracefully render the high-res native animated vector illustration.
+  if (!isNativeLottieSupported() || hasFailed) {
+    return (
+      <View style={[styles.outerWrap, style]} testID={testID || (name ? `lottie-${name}` : 'lottie-animation')}>
+        {fallbackIcon || <NativeAnimatedVectorBadge name={name} />}
+      </View>
+    );
+  }
+
+  return (
+    <LottieView
+      source={animSource}
+      autoPlay={autoPlay}
+      loop={loop}
+      speed={speed}
+      style={[styles.lottie, style]}
+      renderMode={Platform.OS === 'android' ? 'SOFTWARE' : 'AUTOMATIC'}
+      enableSafeModeAndroid={true}
+      cacheComposition={true}
+      onAnimationFailure={(_error) => {
+        setHasFailed(true);
+      }}
+      testID={testID}
+    />
+  );
 }
 
 export function LottieAnimation({
@@ -414,13 +486,15 @@ export function LottieAnimation({
   return (
     <LottieErrorBoundary name={name} fallbackIcon={fallbackIcon}>
       <View style={[styles.outerWrap, style]} testID={testID || (name ? `lottie-${name}` : 'lottie-animation')}>
-        <LottieView
-          source={animSource}
+        <SafeLottieRenderer
+          name={name}
+          animSource={animSource}
           autoPlay={autoPlay}
           loop={loop}
           speed={speed}
-          style={[styles.lottie, style]}
-          renderMode="AUTOMATIC"
+          style={style}
+          fallbackIcon={fallbackIcon}
+          testID={testID}
         />
       </View>
     </LottieErrorBoundary>

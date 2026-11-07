@@ -507,8 +507,8 @@ export function filterParcels(parcels: Parcel[], filters: FilterOptions, userCit
 }
 
 export function flattenInfiniteData<T>(data: { pages: PaginatedResult<T>[] } | undefined): T[] {
-  if (!data) return [];
-  return data.pages.flatMap(page => page.items);
+  if (!data || !Array.isArray(data.pages)) return [];
+  return data.pages.flatMap(page => Array.isArray(page?.items) ? page.items : []);
 }
 
 export function usePromotionalBannersQuery(enabled = true) {

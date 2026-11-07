@@ -213,13 +213,13 @@ export function getRequestCardViewModel({
 
   const isOffer = request.createdBy ? request.createdBy === request.travellerId : false;
 
-  const personName = currentUserId
+  const personName = (currentUserId
     ? (isSender ? request.travellerName : request.senderName)
     : (request.createdBy
         ? (isIncoming
             ? (request.createdBy === request.senderId ? request.senderName : request.travellerName)
             : (request.createdBy === request.senderId ? request.travellerName : request.senderName))
-        : (isIncoming ? request.senderName : request.travellerName));
+        : (isIncoming ? request.senderName : request.travellerName))) || 'User';
 
   const roleLabel = currentUserId
     ? (isSender ? 'Traveler' : 'Sender')
@@ -230,8 +230,8 @@ export function getRequestCardViewModel({
         : (isIncoming ? 'Sender' : 'Traveler'));
 
   const rawAvatar = isSender
-    ? ((request as any).travellerSelfieUrl || request.travellerAvatar)
-    : ((request as any).senderSelfieUrl || request.senderAvatar);
+    ? ((request as any)?.travellerSelfieUrl || request?.travellerAvatar)
+    : ((request as any)?.senderSelfieUrl || request?.senderAvatar);
   const personAvatar = resolveImageUrl(rawAvatar);
 
   const showSwipeHint = !isRequester && request.status === 'pending';
@@ -344,7 +344,7 @@ export const RequestCard = React.memo(function RequestCard({
   const translateX = useRef(new Animated.Value(0)).current;
   const [avatarError, setAvatarError] = React.useState(false);
 
-  const sc = STATUS_CONFIG(C)[request.status] || STATUS_CONFIG(C).pending;
+  const sc = STATUS_CONFIG(C)[request?.status || 'pending'] || STATUS_CONFIG(C).pending;
 
   const vm = getRequestCardViewModel({
     request,
@@ -380,12 +380,6 @@ export const RequestCard = React.memo(function RequestCard({
       }
     },
   })).current;
-
-  const bgColor = translateX.interpolate({
-    inputRange: [-200, -80, 0, 80, 200],
-    outputRange: [C.errorSubtle, '#F8FAFC', '#FFFFFF', '#F8FAFC', C.successSubtle],
-    extrapolate: 'clamp',
-  });
 
   const rejectOpacity = translateX.interpolate({ inputRange: [-80, 0], outputRange: [1, 0], extrapolate: 'clamp' });
   const acceptOpacity = translateX.interpolate({ inputRange: [0, 80], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -430,7 +424,7 @@ export const RequestCard = React.memo(function RequestCard({
           styles.card,
           S.card,
           isTablet && styles.cardTablet,
-          { backgroundColor: vm.showSwipeHint ? bgColor : C.card, borderColor: C.cardBorder },
+          { backgroundColor: C.card, borderColor: C.cardBorder },
           { transform: [{ translateX }] },
         ]}
         {...(vm.showSwipeHint ? panResponder.panHandlers : {})}

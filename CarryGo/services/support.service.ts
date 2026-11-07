@@ -26,7 +26,7 @@ export const SUPPORT_CATEGORIES: Record<SupportTicketCategory, { label: string; 
   },
   general: {
     label: 'General Inquiry',
-    description: 'Questions about rules, how CarryGo works, or feedback',
+    description: 'Questions about rules, how CaryGoo works, or feedback',
   },
 };
 
