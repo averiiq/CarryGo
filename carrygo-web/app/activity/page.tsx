@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { Suspense, useEffect, useMemo, useState, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -107,7 +107,7 @@ interface DeliveryRecord {
   created_at: string
 }
 
-export default function CustomerActivityPage() {
+function CustomerActivityContent() {
   const searchParams = useSearchParams()
   const initialTab: Tab = (() => {
     const t = searchParams?.get('tab')
@@ -895,5 +895,22 @@ export default function CustomerActivityPage() {
         />
       )}
     </MarketingShell>
+  )
+}
+
+export default function CustomerActivityPage() {
+  return (
+    <Suspense
+      fallback={
+        <MarketingShell>
+          <div className="mx-auto max-w-6xl px-4 py-24 flex flex-col items-center justify-center min-h-[50vh]">
+            <Loader2 className="w-8 h-8 text-[#004AAD] animate-spin" />
+            <p className="mt-3 text-sm text-slate-500 font-medium">Loading activity &amp; deliveries...</p>
+          </div>
+        </MarketingShell>
+      }
+    >
+      <CustomerActivityContent />
+    </Suspense>
   )
 }

@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ParityCreateForm } from '@/components/marketing/parity-create-form'
@@ -29,7 +31,16 @@ export default function CreateTripPage() {
       </ScrollLinkedSection>
 
       <ScrollLinkedSection className='px-6 pb-24 md:pb-28'>
-        <ParityCreateForm mode='trip' />
+        <Suspense
+          fallback={
+            <div className="glass-card mx-auto max-w-3xl rounded-3xl p-12 flex flex-col items-center justify-center text-center">
+              <Loader2 className="w-8 h-8 text-[#004AAD] animate-spin" />
+              <p className="mt-3 text-sm text-slate-500 font-medium">Loading trip creation form...</p>
+            </div>
+          }
+        >
+          <ParityCreateForm mode='trip' />
+        </Suspense>
       </ScrollLinkedSection>
     </MarketingShell>
   )
