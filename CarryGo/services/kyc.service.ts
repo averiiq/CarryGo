@@ -221,7 +221,7 @@ export async function generateAadhaarOtp(
   if (existingDuplicate) {
     return {
       data: null,
-      error: 'This Aadhaar number is already linked to another CarryGo account. Each individual may only operate one account.',
+      error: 'This Aadhaar number is already linked to another CaryGoo account. Each individual may only operate one account.',
     };
   }
 
@@ -306,8 +306,6 @@ export async function generateAadhaarOtp(
         };
       }
 
-      console.log('SANDBOX_GENERATE_OTP_RESPONSE:', JSON.stringify(resData));
-
       const rawRef = resData.data?.reference_id ?? resData.reference_id;
       const msg = resData.data?.message ?? resData.message ?? '';
 
@@ -330,7 +328,6 @@ export async function generateAadhaarOtp(
       referenceId = String(rawRef);
       const mob = resData.data?.mobile_number ?? resData.mobile_number;
       registeredMobileEnding = extractLast2MobileDigits(msg, mob);
-      console.log('EXTRACTED_REGISTERED_MOBILE_ENDING:', registeredMobileEnding);
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Network error connecting to UIDAI gateway.' };
     }
@@ -787,7 +784,7 @@ export async function verifyPan(
   if (existingDuplicatePan) {
     return {
       data: null,
-      error: 'This PAN card is already linked to another CarryGo account.',
+      error: 'This PAN card is already linked to another CaryGoo account.',
     };
   }
 
@@ -863,7 +860,7 @@ export async function verifyTransactionPan(
   if (duplicateSession) {
     return {
       data: null,
-      error: 'This PAN card is already linked to another CarryGo account.',
+      error: 'This PAN card is already linked to another CaryGoo account.',
     };
   }
 

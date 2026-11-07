@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { KeyRound, Lock, CheckCircle2, Shield, ArrowRight, Wallet } from 'lucide-react'
 
-export function EscrowVaultIllustration({ className = '' }: { className?: string }) {
+export function BookingVaultIllustration({ className = '' }: { className?: string }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(2)
 
   const steps = [
@@ -104,7 +104,7 @@ export function EscrowVaultIllustration({ className = '' }: { className?: string
             </div>
             <div>
               <p className="text-xs font-semibold text-foreground">
-                {activeStep === 1 && 'Step 1: Fare Allocated to Escrow Vault'}
+                {activeStep === 1 && 'Step 1: Fare Allocated to Booking Vault'}
                 {activeStep === 2 && 'Step 2: 4-Digit Handover Verification'}
                 {activeStep === 3 && 'Step 3: Instant UPI Traveler Settlement'}
               </p>
@@ -118,7 +118,7 @@ export function EscrowVaultIllustration({ className = '' }: { className?: string
 
           <div className="flex items-center gap-1.5 self-end sm:self-center">
             <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-              {activeStep === 1 ? '🔒 Escrow Locked' : activeStep === 2 ? '🔑 OTP Protocol' : '⚡ 0s UPI Release'}
+              {activeStep === 1 ? '🔒 Booked & Secured' : activeStep === 2 ? '🔑 OTP Protocol' : '⚡ 0s UPI Release'}
             </span>
           </div>
         </div>

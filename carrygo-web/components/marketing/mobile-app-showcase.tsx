@@ -43,7 +43,7 @@ export function MobileAppShowcase() {
               <span>Mobile-First Peer-to-Peer Delivery Network</span>
             </div>
             <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-extrabold text-slate-900 tracking-tight">
-              Move Parcels or Earn on the Go with CarryGo App
+              Move Parcels or Earn on the Go with CaryGoo App
             </h3>
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed mt-2.5 max-w-xl">
               Live highway route matching, private dual-OTP handovers, encrypted direct messaging, and zero-fee UPI payouts right from your pocket.
@@ -279,7 +279,7 @@ export function MobileAppShowcase() {
                         </div>
                         <div className="text-[9px] text-slate-500 pt-1.5 border-t border-slate-200 flex items-center justify-between">
                           <span className="flex items-center gap-1">
-                            <Lock className="w-3 h-3 text-emerald-600" /> SafeVault™ Escrow Locked
+                            <Lock className="w-3 h-3 text-emerald-600" /> SafeVault™ Booked & Secured
                           </span>
                           <span className="text-emerald-700 font-bold">100% Protected</span>
                         </div>

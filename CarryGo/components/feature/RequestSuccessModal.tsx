@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
+import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
@@ -44,11 +45,9 @@ export function RequestSuccessModal({
       maxHeight="80%"
     >
       <View style={styles.container}>
-        {/* Animated Celebration Icon */}
-        <View style={[styles.iconRing, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-          <View style={[styles.iconCore, { backgroundColor: '#10B981' }]}>
-            <MaterialIcons name="check" size={32} color="#FFFFFF" />
-          </View>
+        {/* Animated Celebration Lottie */}
+        <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
+          <LottieAnimation name="success" style={{ width: 140, height: 110 }} loop={false} />
         </View>
 
         <Text style={[styles.heading, { color: C.textPrimary }]}>{heading}</Text>
@@ -101,9 +100,9 @@ export function RequestSuccessModal({
               <MaterialIcons name="security" size={12} color={C.textMuted} />
             </View>
             <View style={styles.stepContent}>
-              <Text style={[styles.stepHeading, { color: C.textSecondary }]}>Escrow & OTP Handover</Text>
+              <Text style={[styles.stepHeading, { color: C.textSecondary }]}>Booking & OTP Handover</Text>
               <Text style={[styles.stepDesc, { color: C.textMuted }]}>
-                Funds are secured in escrow and payout is unlocked upon delivery OTP.
+                Funds are secured upon booking and payout is unlocked upon delivery OTP.
               </Text>
             </View>
           </View>

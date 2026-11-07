@@ -10,9 +10,9 @@ import {
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Administrative Access | CarryGo Operations Command',
+  title: 'Administrative Access | CaryGoo Operations Command',
   description:
-    'CarryGo Central Administration & Operations Command Gateway. Secure authentication for platform operations, KYC verification, and escrow arbitration.',
+    'CaryGoo Central Administration & Operations Command Gateway. Secure authentication for platform operations, KYC verification, and escrow arbitration.',
 }
 
 export default async function LoginPage({
@@ -36,19 +36,16 @@ export default async function LoginPage({
         <div className="relative max-w-xl space-y-10">
           {/* Top Brand Pill & System Badge */}
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center shadow-lg shadow-primary/30">
-              <Terminal className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src="/logo-horizontal.png"
+              alt="CaryGoo"
+              className="h-10 w-auto object-contain"
+            />
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-heading font-bold text-foreground tracking-tight">
-                  CarryGo
-                </span>
-                <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-primary/15 text-primary border border-primary/20">
-                  CMS CORE
-                </span>
-              </div>
-              <p className="text-xs text-muted font-medium">
+              <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-primary/15 text-primary border border-primary/20">
+                CMS CORE
+              </span>
+              <p className="text-xs text-muted font-medium mt-1">
                 Enterprise Operations Command & Platform Governance
               </p>
             </div>

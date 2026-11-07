@@ -18,9 +18,21 @@ import {
   X,
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
+import {
+  NegotiateTripModal,
+  type NegotiateTripInfo,
+} from '@/components/requests/negotiate-modal'
 
 type Props =
-  | { mode: 'trip'; tripId: string; suggestedPrice: number; fromCity?: string; toCity?: string }
+  | {
+      mode: 'trip'
+      tripId: string
+      suggestedPrice: number
+      fromCity?: string
+      toCity?: string
+      /** Full trip context — if provided, unlocks the "Negotiate" entry point. */
+      tripContext?: NegotiateTripInfo
+    }
   | { mode: 'parcel'; parcelId: string; suggestedPrice: number; fromCity?: string; toCity?: string }
 
 type UserParcel = {
@@ -65,6 +77,12 @@ export function RequestIntentForm(props: Props) {
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [negotiateOpen, setNegotiateOpen] = useState(false)
+
+  const selectedParcel =
+    props.mode === 'trip'
+      ? userParcels.find((p) => p.id === selectedListingId)
+      : undefined
 
   // Check auth and load user's listings when form opens
   useEffect(() => {
@@ -187,7 +205,7 @@ export function RequestIntentForm(props: Props) {
 
       setNotice({
         type: 'success',
-        message: 'Delivery request submitted successfully! SafeVault™ escrow will hold funds upon acceptance.',
+        message: 'Delivery request submitted successfully! SafeVault™ booking protection will hold funds upon acceptance.',
       })
       setMessage('')
     } catch (error) {
@@ -213,7 +231,7 @@ export function RequestIntentForm(props: Props) {
         </button>
 
         <span className="text-[11px] font-semibold text-slate-500">
-          Escrow Protected
+          Booking Protected
         </span>
       </div>
 
@@ -438,9 +456,45 @@ export function RequestIntentForm(props: Props) {
                   </>
                 )}
               </button>
+
+              {props.mode === 'trip' &&
+                props.tripContext &&
+                selectedParcel && (
+                  <button
+                    type="button"
+                    onClick={() => setNegotiateOpen(true)}
+                    className="w-full py-2 rounded-xl font-bold text-[11px] text-emerald-800 bg-white border border-emerald-200 hover:bg-emerald-50 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <MessageCircle className="h-3 w-3" />
+                    Negotiate landmarks &amp; price
+                  </button>
+                )}
             </>
           )}
         </div>
+      )}
+
+      {props.mode === 'trip' && props.tripContext && selectedParcel && (
+        <NegotiateTripModal
+          open={negotiateOpen}
+          onClose={() => setNegotiateOpen(false)}
+          trip={props.tripContext}
+          parcel={{
+            id: selectedParcel.id,
+            category: selectedParcel.category,
+            weight: selectedParcel.weight,
+          }}
+          initialPrice={Number(price) || props.suggestedPrice}
+          onOfferSent={(requestId) => {
+            setNotice({
+              type: 'success',
+              message: 'Counter-offer sent. The traveller will see it in their requests inbox.',
+            })
+            setConversationId(null)
+            // keep requestId available for potential inline chat link
+            void requestId
+          }}
+        />
       )}
     </div>
   )

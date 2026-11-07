@@ -8,13 +8,12 @@ import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, Parce
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
-import { SendRequestModal, QuickCreateParcelParams } from '@/components/feature/SendRequestModal';
 import { CitySelectModal } from '@/components/feature/CitySelectModal';
-import { LiveActivityCompactPill } from '@/components/feature/LiveActivityCompactPill';
+// import { LiveActivityCompactPill } from '@/components/feature/LiveActivityCompactPill';
 import { PromotionalBannerCarousel } from '@/components/feature/PromotionalBannerCarousel';
-import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, TouchTarget, TabBarGeometry, StatusBarGeometry } from '@/constants/theme';
 import { FeatureFlags } from '@/constants/featureFlags';
-import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, useCreateParcelMutation, usePromotionalBannersQuery } from '@/features/listings/queries';
+import { filterParcels, filterTrips, flattenInfiniteData, useListingsRealtime, useParcelsQuery, useTripsQuery, useCreateTripMutation, usePromotionalBannersQuery, usePromotionalBannersRealtime } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -26,7 +25,7 @@ import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
 import { checkTripParcelRoute } from '@/services/route-compatibility.service';
 import { FilterOptions, Parcel, Trip, Request } from '@/types';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
 const DEFAULT_FILTERS: FilterOptions = { fromCity: '', toCity: '', vehicleType: '', dateFrom: '', dateTo: '' };
 type FeedItem = { type: 'trip'; data: Trip } | { type: 'parcel'; data: Parcel };
@@ -48,7 +47,7 @@ function HomeHeader({
   locationCity?: string;
   onCityPress?: () => void;
 }) {
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const [imgError, setImgError] = useState(false);
   const resolvedAvatar = resolveImageUrl(avatarUri);
 
@@ -56,9 +55,7 @@ function HomeHeader({
     setImgError(false);
   }, [avatarUri]);
 
-  const initial = (userName || 'U').charAt(0).toUpperCase();
-  const currentHour = new Date().getHours();
-  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = (userName || 'there').trim().split(' ')[0];
   const bellRef = useRef<AnimatedIconRef>(null);
 
   return (
@@ -75,24 +72,43 @@ function HomeHeader({
         accessibilityRole="button"
         accessibilityLabel="View profile"
       >
-        <View style={[styles.avatarCircle, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-          {resolvedAvatar && !imgError ? (
-            <Image
-              source={{ uri: resolvedAvatar }}
-              style={{ width: 44, height: 44, borderRadius: 22 }}
-              contentFit="cover"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <Text style={[styles.avatarInitial, { color: C.primary }]}>{initial}</Text>
-          )}
-          <View style={[styles.onlineDot, { backgroundColor: C.success, borderColor: C.card, borderWidth: 1.5 }]} />
+        <View
+          style={[
+            styles.avatarCircle,
+            {
+              backgroundColor: C.surfaceElevated,
+              borderColor: isDark ? 'rgba(255,255,255,0.14)' : C.primary + '28',
+            },
+          ]}
+        >
+          <Image
+            source={imgError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(avatarUri, userName)}
+            style={{ width: 44, height: 44, borderRadius: 22 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={100}
+            onError={() => setImgError(true)}
+          />
+          <View
+            style={[
+              styles.onlineDot,
+              {
+                backgroundColor: C.success,
+                borderColor: isDark ? '#0F172A' : '#FFFFFF',
+              },
+            ]}
+          />
         </View>
         <View style={styles.greetingWrap}>
-          <Text style={[styles.greetingSub, { color: C.textMuted }]}>{greeting} 👋</Text>
-          <Text style={[styles.greetingName, { color: C.textPrimary }]} numberOfLines={1}>
-            {userName}
+          <Text style={[styles.greetingSub, { color: C.textMuted }]}>
+            Welcome back,
           </Text>
+          <View style={styles.nameRow}>
+            <Text style={[styles.greetingName, { color: C.textPrimary }]} numberOfLines={1}>
+              {firstName}
+            </Text>
+            <MaterialIcons name="verified" size={15} color={C.success} style={styles.verifiedIcon} />
+          </View>
         </View>
       </Pressable>
 
@@ -107,15 +123,27 @@ function HomeHeader({
             accessibilityLabel={`Active transit hub: ${locationCity || 'Choose City'}`}
             style={({ pressed }) => [
               styles.hubSelectorPill,
-              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+              {
+                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : C.primary + '22',
+              },
+              pressed && { opacity: 0.82, transform: [{ scale: 0.97 }] },
             ]}
           >
-            <MaterialIcons name="place" size={13} color={C.primary} />
+            <View
+              style={[
+                styles.hubIconCircle,
+                {
+                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.16)' : 'rgba(0, 74, 173, 0.08)',
+                },
+              ]}
+            >
+              <MaterialIcons name="near-me" size={13} color={C.primary} />
+            </View>
             <Text style={[styles.hubSelectorText, { color: C.textPrimary }]} numberOfLines={1}>
               {locationCity || 'India'}
             </Text>
-            <MaterialIcons name="expand-more" size={14} color={C.textMuted} />
+            <MaterialIcons name="keyboard-arrow-down" size={16} color={C.textMuted} />
           </Pressable>
         ) : null}
 
@@ -130,13 +158,24 @@ function HomeHeader({
           hitSlop={TouchTarget.smallHitSlop}
           style={({ pressed }) => [
             styles.notifyBtn,
-            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-            pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] },
+            {
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : C.surfaceBorder,
+            },
+            pressed && { opacity: 0.75, transform: [{ scale: 0.94 }] },
           ]}
         >
-          <AnimatedIcon ref={bellRef} name="notification" size={22} color={C.textPrimary} />
+          <AnimatedIcon ref={bellRef} name="notification" size={20} color={C.textPrimary} />
           {unreadCount > 0 ? (
-            <View style={[styles.notifyBadge, { backgroundColor: C.error }]}>
+            <View
+              style={[
+                styles.notifyBadge,
+                {
+                  backgroundColor: C.error,
+                  borderColor: isDark ? '#0F172A' : '#FFFFFF',
+                },
+              ]}
+            >
               <Text style={styles.notifyBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
             </View>
           ) : null}
@@ -178,8 +217,7 @@ function SearchBarTrigger({
         <AnimatedIcon ref={searchRef} name="searchToX" size={20} color={C.primary} />
       </View>
       <View style={styles.searchCopyWrap}>
-        <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Where are you traveling or sending?</Text>
-        <Text style={[styles.searchSubPlaceholder, { color: C.textMuted }]}>Search routes, cities or dates</Text>
+        <Text style={[styles.searchPlaceholder, { color: C.textPrimary }]}>Search routes or cities</Text>
       </View>
       <Pressable
         onPress={(e) => {
@@ -201,7 +239,7 @@ function SearchBarTrigger({
           pressed && { opacity: 0.75, transform: [{ scale: 0.94 }] },
         ]}
       >
-        <AnimatedIcon ref={filterRef} name="filter" size={17} color={hasFilter ? C.primary : C.textSecondary} />
+        <AnimatedIcon ref={filterRef} name="filter" size={18} color={hasFilter ? C.primary : C.textSecondary} />
         {hasFilter ? <View style={[styles.activeFilterDotOnTrigger, { backgroundColor: C.primary }]} /> : null}
       </Pressable>
     </Pressable>
@@ -232,7 +270,7 @@ function QuickActions() {
             <MaterialIcons name="inventory-2" size={18} color="#FFFFFF" />
           </View>
           <View style={[styles.quickActionMiniArrow, { backgroundColor: '#FFFFFF' }]}>
-            <MaterialIcons name="arrow-outward" size={13} color={C.primary} />
+            <MaterialIcons name="arrow-outward" size={16} color={C.primary} />
           </View>
         </View>
         <View style={styles.quickActionCopy}>
@@ -259,7 +297,7 @@ function QuickActions() {
             <MaterialIcons name="flight-takeoff" size={18} color={C.primary} />
           </View>
           <View style={[styles.quickActionMiniArrow, { backgroundColor: C.surfaceElevated }]}>
-            <MaterialIcons name="arrow-outward" size={13} color={C.textMuted} />
+            <MaterialIcons name="arrow-outward" size={16} color={C.textMuted} />
           </View>
         </View>
         <View style={styles.quickActionCopy}>
@@ -294,7 +332,7 @@ function EmptyMarketplace({
     <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
       <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
         <LottieAnimation
-          name={hasFilter ? 'searchEmpty' : activeTab === 'trips' ? 'deliveryCar' : 'packageBox'}
+          name={hasFilter ? 'matching' : activeTab === 'trips' ? 'trip' : 'noParcel'}
           style={{ width: 140, height: 110 }}
         />
       </View>
@@ -379,6 +417,7 @@ const FeedTripItem = React.memo(function FeedTripItem({
   trip,
   isTablet,
   isOwner,
+  currentUserAvatar,
   onPress,
   onRequest,
   onShare,
@@ -389,6 +428,7 @@ const FeedTripItem = React.memo(function FeedTripItem({
   trip: Trip;
   isTablet: boolean;
   isOwner: boolean;
+  currentUserAvatar?: string;
   onPress: (id: string) => void;
   onRequest: (tripId: string) => void;
   onShare: (trip: Trip) => void;
@@ -414,6 +454,7 @@ const FeedTripItem = React.memo(function FeedTripItem({
         <TripCard
           trip={trip}
           isOwner={isOwner}
+          currentUserAvatar={currentUserAvatar}
           existingRequest={existingRequest}
           onPress={handlePress}
           showRequestButton={!isOwner && trip.status === 'active' && FeatureFlags.payments && !existingRequest}
@@ -430,6 +471,7 @@ const FeedParcelItem = React.memo(function FeedParcelItem({
   parcel,
   isTablet,
   isOwner,
+  currentUserAvatar,
   onPress,
   onCarry,
   onShare,
@@ -440,6 +482,7 @@ const FeedParcelItem = React.memo(function FeedParcelItem({
   parcel: Parcel;
   isTablet: boolean;
   isOwner: boolean;
+  currentUserAvatar?: string;
   onPress: (id: string) => void;
   onCarry: (id: string) => void;
   onShare: (parcel: Parcel) => void;
@@ -462,6 +505,7 @@ const FeedParcelItem = React.memo(function FeedParcelItem({
         <ParcelCard
           parcel={parcel}
           isOwner={isOwner}
+          currentUserAvatar={currentUserAvatar}
           existingRequest={existingRequest}
           onPress={handlePress}
           showCarryButton={!isOwner && parcel.status === 'open' && !existingRequest}
@@ -478,7 +522,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const { showAlert } = useAlert();
   const { isOnline } = useNetworkStatus();
   const { notifications, unreadCount, markAllRead, markNotificationsAsRead, openNotification } = useNotifications();
@@ -495,7 +539,6 @@ export default function HomeScreen() {
   const stickyBellRef = useRef<AnimatedIconRef>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [carryParcelTarget, setCarryParcelTarget] = useState<Parcel | null>(null);
-  const [requestTripTarget, setRequestTripTarget] = useState<Trip | null>(null);
   const [requestSuccess, setRequestSuccess] = useState<{
     type: 'request_sent' | 'offer_sent';
     recipientName: string;
@@ -538,16 +581,16 @@ export default function HomeScreen() {
   const handleShareTrip = useCallback((trip: Trip) => {
     Haptic.confirm();
     Share.share({
-      title: `CarryGo Trip: ${trip.fromCity} to ${trip.toCity}`,
-      message: `Traveler going from ${trip.fromCity} to ${trip.toCity} on ${trip.date}. Capacity: ${trip.availableCapacity}kg available (₹${trip.pricePerKg}/kg). Check it out on CarryGo!`,
+      title: `CaryGoo Trip: ${trip.fromCity} to ${trip.toCity}`,
+      message: `Traveler going from ${trip.fromCity} to ${trip.toCity} on ${trip.date}. Capacity: ${trip.availableCapacity}kg available (₹${trip.pricePerKg}/kg). Check it out on CaryGoo!`,
     }).catch(() => {});
   }, []);
 
   const handleShareParcel = useCallback((parcel: Parcel) => {
     Haptic.confirm();
     Share.share({
-      title: `CarryGo Parcel: ${parcel.fromCity} to ${parcel.toCity}`,
-      message: `Parcel delivery request from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ${parcel.category}). Earn ₹${parcel.priceOffer} carrying this package on CarryGo!`,
+      title: `CaryGoo Parcel: ${parcel.fromCity} to ${parcel.toCity}`,
+      message: `Parcel delivery request from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ${parcel.category}). Earn ₹${parcel.priceOffer} carrying this package on CaryGoo!`,
     }).catch(() => {});
   }, []);
 
@@ -617,8 +660,8 @@ export default function HomeScreen() {
   const promotionalBannersQuery = usePromotionalBannersQuery();
   const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
   const createTripMutation = useCreateTripMutation();
-  const createParcelMutation = useCreateParcelMutation();
   useListingsRealtime(true, effectiveCity);
+  usePromotionalBannersRealtime(true);
 
   const userRequests = requestsQuery.data || [];
 
@@ -750,23 +793,9 @@ export default function HomeScreen() {
   }, [router]);
 
   const handleRequestTrip = useCallback((tripId: string) => {
-    if (!user) {
-      Haptic.warning();
-      showAlert('Sign In Required', 'Please sign in to send delivery requests.');
-      return;
-    }
-    const target = trips.find(t => t.id === tripId);
-    if (!target) return;
-    if (target.userId === user.id) {
-      router.push({ pathname: '/trip/[id]', params: { id: tripId } });
-      return;
-    }
-    if (target.status !== 'active') {
-      showAlert('Trip Not Active', 'This trip is no longer active.');
-      return;
-    }
-    setRequestTripTarget(target);
-  }, [router, showAlert, trips, user]);
+    Haptic.tap();
+    router.push({ pathname: '/trip/[id]', params: { id: tripId } });
+  }, [router]);
 
   const handlePressParcel = useCallback((parcelId: string) => {
     router.push({ pathname: '/parcel/[id]', params: { id: parcelId } });
@@ -835,51 +864,6 @@ export default function HomeScreen() {
       showAlert('Error', err?.message || 'Could not send offer. Please try again.');
     }
   }, [createRequestAsync, parcelsQuery, requestsQuery, showAlert, trips, user]);
-
-  const handleConfirmTripRequest = useCallback(async (parcelId: string, targetTrip: Trip, calculatedPrice: number) => {
-    if (!user) return;
-    const chosenParcel = parcels.find(p => p.id === parcelId);
-    if (!chosenParcel) return;
-
-    const routeCheck = checkTripParcelRoute(targetTrip, chosenParcel);
-    if (!routeCheck.isCompatible) {
-      Haptic.error();
-      showAlert('Incompatible Route', routeCheck.rejectionReason || 'This parcel journey does not match the trip route.');
-      return;
-    }
-
-    try {
-      const result = await createRequestAsync({
-        parcelId: chosenParcel.id,
-        tripId: targetTrip.id,
-        senderId: user.id,
-        senderName: user.name || 'Sender',
-        travellerId: targetTrip.userId,
-        travellerName: targetTrip.userName,
-        status: 'pending',
-        price: calculatedPrice,
-        message: `Hi ${targetTrip.userName}! Could you please carry my ${chosenParcel.category} package (${chosenParcel.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity} on ${targetTrip.date}?`,
-      });
-
-      if (result) {
-        setRequestTripTarget(null);
-        Haptic.success();
-        setRequestSuccess({
-          type: 'request_sent',
-          recipientName: targetTrip.userName,
-          price: calculatedPrice,
-          fromCity: targetTrip.fromCity,
-          toCity: targetTrip.toCity,
-        });
-        await Promise.all([requestsQuery.refetch(), tripsQuery.refetch()]);
-      } else {
-        showAlert('Error', 'Could not send request. Please try again.');
-      }
-    } catch (err: any) {
-      Haptic.error();
-      showAlert('Error', err?.message || 'Could not send request. Please try again.');
-    }
-  }, [createRequestAsync, parcels, requestsQuery, router, showAlert, tripsQuery, user]);
 
   const handlePostTripForParcel = useCallback((fromCity: string, toCity: string, minCapacity: number) => {
     router.push({
@@ -951,74 +935,6 @@ export default function HomeScreen() {
     }
   }, [createRequestAsync, createTripMutation, parcelsQuery, requestsQuery, router, showAlert, tripsQuery, user]);
 
-  const handleCreateParcelForTrip = useCallback((fromCity: string, toCity: string) => {
-    router.push({
-      pathname: '/create-parcel',
-      params: {
-        fromCity,
-        toCity,
-      },
-    });
-  }, [router]);
-
-  const handleQuickCreateAndRequest = useCallback(async (
-    quickParams: QuickCreateParcelParams,
-    targetTrip: Trip,
-    calculatedPrice: number
-  ) => {
-    if (!user) {
-      Haptic.warning();
-      showAlert('Sign In Required', 'Please sign in to send delivery requests.');
-      return;
-    }
-
-    try {
-      // 1. Post parcel for the exact trip route automatically
-      const newParcel = await createParcelMutation.mutateAsync({
-        userId: user.id,
-        userName: user.fullName || user.name || 'Sender',
-        fromCity: targetTrip.fromCity,
-        toCity: targetTrip.toCity,
-        category: quickParams.category,
-        weight: quickParams.weight,
-        description: quickParams.description,
-        priceOffer: calculatedPrice,
-        status: 'open',
-      });
-
-      // 2. Immediately dispatch delivery request to the traveller
-      const result = await createRequestAsync({
-        parcelId: newParcel.id,
-        tripId: targetTrip.id,
-        senderId: user.id,
-        senderName: user.fullName || user.name || 'Sender',
-        travellerId: targetTrip.userId,
-        travellerName: targetTrip.userName,
-        status: 'pending',
-        price: calculatedPrice,
-        message: `Hi ${targetTrip.userName}! Could you please carry my ${newParcel.category} package (${newParcel.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity} on ${targetTrip.date}?`,
-      });
-
-      if (result) {
-        setRequestTripTarget(null);
-        Haptic.success();
-        setRequestSuccess({
-          type: 'request_sent',
-          recipientName: targetTrip.userName,
-          price: calculatedPrice,
-          fromCity: targetTrip.fromCity,
-          toCity: targetTrip.toCity,
-        });
-        await Promise.all([requestsQuery.refetch(), parcelsQuery.refetch(), tripsQuery.refetch()]);
-      } else {
-        showAlert('Error', 'Could not send delivery request. Please try again.');
-      }
-    } catch (err: any) {
-      Haptic.error();
-      showAlert('Error', err?.message || 'Failed to create parcel and send request.');
-    }
-  }, [createParcelMutation, createRequestAsync, parcelsQuery, requestsQuery, router, showAlert, tripsQuery, user]);
-
   const handleTrackDelivery = useCallback((requestId: string) => {
     Haptic.tap();
     router.push({ pathname: '/delivery/[id]', params: { id: requestId } });
@@ -1031,12 +947,14 @@ export default function HomeScreen() {
 
   const renderItem = useCallback(({ item }: { item: FeedItem }) => {
     const isOwner = Boolean(user?.id && item.data.userId === user.id);
+    const currentUserAvatar = user?.avatar || user?.selfieUrl;
     if (item.type === 'trip') {
       return (
         <FeedTripItem
           trip={item.data}
           isTablet={isTablet}
           isOwner={isOwner}
+          currentUserAvatar={currentUserAvatar}
           existingRequest={requestsByTripId.get(item.data.id)}
           onPress={handlePressTrip}
           onRequest={handleRequestTrip}
@@ -1052,6 +970,7 @@ export default function HomeScreen() {
         parcel={item.data}
         isTablet={isTablet}
         isOwner={isOwner}
+        currentUserAvatar={currentUserAvatar}
         existingRequest={requestsByParcelId.get(item.data.id)}
         onPress={handlePressParcel}
         onCarry={handleCarryParcel}
@@ -1101,17 +1020,6 @@ export default function HomeScreen() {
         isSubmitting={isCreatingRequest || createTripMutation.isPending}
       />
 
-      <SendRequestModal
-        visible={Boolean(requestTripTarget)}
-        onClose={() => setRequestTripTarget(null)}
-        trip={requestTripTarget}
-        userParcels={parcels.filter(p => p.userId === user?.id)}
-        onConfirmRequest={handleConfirmTripRequest}
-        onCreateParcel={handleCreateParcelForTrip}
-        onQuickCreateAndRequest={handleQuickCreateAndRequest}
-        isSubmitting={isCreatingRequest || createParcelMutation.isPending}
-      />
-
       <CitySelectModal
         visible={showCityPicker}
         onClose={() => setShowCityPicker(false)}
@@ -1140,9 +1048,9 @@ export default function HomeScreen() {
         style={[
           styles.miniHeader,
           {
-            paddingTop: insets.top + Spacing.xs,
-            backgroundColor: C.surface + 'FA',
-            borderColor: C.surfaceBorder,
+            paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.xs),
+            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.96)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : C.surfaceBorder,
             opacity: scrollY.interpolate({
               inputRange: [140, 200],
               outputRange: [0, 1],
@@ -1169,17 +1077,12 @@ export default function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Scroll to top"
         >
-          <View style={[styles.miniAvatar, { backgroundColor: C.primarySubtle }]}>
-            <Text style={[styles.miniAvatarText, { color: C.primary }]}>
-              {(user?.fullName || user?.name || 'C').charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <View>
-            <Text style={[styles.miniHeaderTitle, { color: C.textPrimary }]}>CarryGo</Text>
-            <Text style={[styles.miniHeaderSub, { color: C.textMuted }]}>
-              {activeTab === 'trips' ? `Trips (${filteredTrips.length})` : `Parcels (${filteredParcels.length})`}
-            </Text>
-          </View>
+          <Image
+            source={require('@/assets/images/logo-horizontal.png')}
+            style={{ width: 90, height: 28 }}
+            contentFit="contain"
+          />
+         
         </Pressable>
 
         <View style={[styles.miniTabGroup, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
@@ -1227,7 +1130,7 @@ export default function HomeScreen() {
             accessibilityLabel="Filter listings"
             style={[styles.miniIconBtn, { borderColor: hasFilter ? C.primary : C.surfaceBorder, backgroundColor: C.surface }]}
           >
-            <AnimatedIcon ref={stickyFilterRef} name="filter" size={17} color={hasFilter ? C.primary : C.textPrimary} />
+            <AnimatedIcon ref={stickyFilterRef} name="filter" size={18} color={hasFilter ? C.primary : C.textPrimary} />
           </Pressable>
           <Pressable
             onPress={() => {
@@ -1258,7 +1161,7 @@ export default function HomeScreen() {
         onScroll={handleScroll}
         scrollEventThrottle={16}
         ListHeaderComponent={
-          <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}>
+          <View style={[styles.headerWrap, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.sm) }, isTablet && styles.tabletContainer]}>
             <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
               <HomeHeader
                 userName={user?.fullName || user?.name || 'there'}
@@ -1271,14 +1174,7 @@ export default function HomeScreen() {
               />
             </Animated.View>
 
-            {activeDeliveryRequest ? (
-              <LiveActivityCompactPill
-                request={activeDeliveryRequest}
-                isTraveller={activeDeliveryRequest.travellerId === user?.id}
-                onTrack={handleTrackDelivery}
-                onViewRequests={() => router.push('/(tabs)/requests')}
-              />
-            ) : null}
+            
 
             <SearchBarTrigger
               onSearchPress={() => router.push('/search')}
@@ -1357,7 +1253,7 @@ export default function HomeScreen() {
             <View style={styles.feedFooterEnd}>
               <View style={[styles.feedFooterLine, { backgroundColor: C.surfaceBorder }]} />
               <View style={[styles.feedFooterPill, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                <MaterialIcons name="check-circle" size={13} color={C.primary} />
+                <MaterialIcons name="check-circle" size={16} color={C.primary} />
                 <Text style={[styles.feedFooterText, { color: C.textSecondary }]}>
                   All {feedData.length} {activeTab === 'trips' ? 'trips' : 'parcels'} shown
                 </Text>
@@ -1367,7 +1263,7 @@ export default function HomeScreen() {
           ) : null
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
-        contentContainerStyle={{ paddingBottom: Math.max(88, insets.bottom + 80) }}
+        contentContainerStyle={{ paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) }}
       />
 
       {/* Floating Action Button (FAB) for fast one-tap creation on scroll */}
@@ -1376,7 +1272,7 @@ export default function HomeScreen() {
         style={[
           styles.fabWrap,
           {
-            bottom: insets.bottom + 68,
+            bottom: TabBarGeometry.getFabBottom(insets.bottom, isSmallDevice, isTablet),
             opacity: scrollY.interpolate({
               inputRange: [220, 280],
               outputRange: [0, 1],
@@ -1446,8 +1342,9 @@ const styles = StyleSheet.create({
   userProfileWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm + 2,
+    gap: Spacing.sm,
     flex: 1,
+    minWidth: 0,
   },
   avatarCircle: {
     width: 44,
@@ -1466,24 +1363,33 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
   },
   avatarInitial: {
     fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.semibold,
   },
   greetingWrap: {
     flex: 1,
+    justifyContent: 'center',
   },
   greetingSub: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    lineHeight: 16,
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.1,
+    lineHeight: 14,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   greetingName: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
+    fontSize: FontSize.md + 0.5,
+    fontWeight: '700',
     letterSpacing: -0.2,
+  },
+  verifiedIcon: {
+    marginTop: 1,
   },
   headerRightActions: {
     flexDirection: 'row',
@@ -1493,26 +1399,35 @@ const styles = StyleSheet.create({
   hubSelectorPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 7,
+    paddingLeft: 6,
+    paddingRight: 10,
+    paddingVertical: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    gap: 3,
-    maxWidth: 135,
+    gap: 5,
+    maxWidth: 155,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  hubIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   hubSelectorText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   notifyBtn: {
     width: 40,
     height: 40,
-    borderRadius: BorderRadius.full,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1525,16 +1440,17 @@ const styles = StyleSheet.create({
   },
   notifyBadge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
+    top: -3,
+    right: -3,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
   },
-  notifyBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: FontWeight.bold },
+  notifyBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', lineHeight: 12 },
 
   searchBar: {
     flexDirection: 'row',
@@ -1543,7 +1459,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm + 2,
+    gap: Spacing.sm,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -1561,13 +1477,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchPlaceholder: {
-    fontSize: FontSize.sm + 0.5,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    letterSpacing: -0.2,
-  },
-  searchSubPlaceholder: {
-    fontSize: FontSize.xs,
-    marginTop: 1,
   },
   filterIconBadge: {
     width: 38,
@@ -1588,12 +1499,12 @@ const styles = StyleSheet.create({
 
   quickActionsRow: {
     flexDirection: 'row',
-    gap: Spacing.sm + 2,
+    gap: Spacing.sm,
   },
   quickActionTile: {
     flex: 1,
     borderRadius: BorderRadius.xl,
-    borderWidth: 1.2,
+    borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.sm,
     shadowColor: '#0F172A',
@@ -1626,8 +1537,7 @@ const styles = StyleSheet.create({
   },
   quickActionTitle: {
     fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.3,
+    fontWeight: FontWeight.semibold,
   },
   quickActionSub: {
     fontSize: 11.5,
@@ -1635,7 +1545,7 @@ const styles = StyleSheet.create({
   },
 
   marketplaceSection: {
-    gap: Spacing.xs + 2,
+    gap: Spacing.xs,
     marginTop: Spacing.xs,
   },
   marketplaceHead: {
@@ -1667,14 +1577,14 @@ const styles = StyleSheet.create({
   locationPillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs + 2,
+    gap: Spacing.xs,
     marginTop: 2,
   },
   locationFilterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.sm + 4,
-    paddingVertical: 7,
+    paddingHorizontal: Spacing.smd,
+    paddingVertical: 8,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
     gap: 4,
@@ -1685,8 +1595,8 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   allIndiaBtn: {
-    paddingHorizontal: Spacing.sm + 4,
-    paddingVertical: 7,
+    paddingHorizontal: Spacing.smd,
+    paddingVertical: 8,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -1694,7 +1604,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
-  sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
+  sectionTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.semibold},
   sectionSub: { fontSize: FontSize.xs, marginTop: 2 },
   filterBtn: {
     width: 44,
@@ -1730,7 +1640,6 @@ const styles = StyleSheet.create({
   },
   segmentText: {
     fontSize: FontSize.sm - 0.5,
-    letterSpacing: -0.1,
   },
   miniHeader: {
     position: 'absolute',
@@ -1746,14 +1655,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
   },
   miniHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs + 2,
+    gap: Spacing.xs,
   },
   miniAvatar: {
     width: 32,
@@ -1764,12 +1673,11 @@ const styles = StyleSheet.create({
   },
   miniAvatarText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.semibold,
   },
   miniHeaderTitle: {
     fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
+    fontWeight: FontWeight.semibold,
   },
   miniHeaderSub: {
     fontSize: 10,
@@ -1783,7 +1691,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   miniTabBtn: {
-    paddingHorizontal: Spacing.sm + 2,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 6,
     minHeight: 32,
     justifyContent: 'center',
@@ -1792,7 +1700,7 @@ const styles = StyleSheet.create({
   },
   miniTabText: {
     fontSize: 11,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.semibold,
   },
   miniHeaderRight: {
     flexDirection: 'row',
@@ -1829,16 +1737,15 @@ const styles = StyleSheet.create({
   fabBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs + 2,
-    paddingHorizontal: Spacing.md + 2,
-    paddingVertical: Spacing.sm + 4,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.smd,
     borderRadius: BorderRadius.full,
   },
   fabBtnText: {
     color: '#FFFFFF',
     fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.1,
+    fontWeight: FontWeight.semibold,
   },
   tabletContainer: {
     maxWidth: 620,
@@ -1863,7 +1770,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterSummaryText: { flex: 1, fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  clearText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  clearText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   emptyCard: {
     marginHorizontal: Spacing.md,
@@ -1881,7 +1788,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
-  emptyTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, textAlign: 'center', letterSpacing: -0.2 },
+  emptyTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.semibold, textAlign: 'center'},
   emptySub: { fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.xs, lineHeight: 20 },
   emptyCta: {
     marginTop: Spacing.lg,
@@ -1891,7 +1798,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyCtaText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  emptyCtaText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 
   emptyActionRow: {
     flexDirection: 'row',
@@ -1910,7 +1817,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyOutlineBtnText: {
-    fontSize: FontSize.xs + 0.5,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
 
@@ -1932,7 +1839,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: Spacing.sm + 4,
+    paddingHorizontal: Spacing.smd,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1,

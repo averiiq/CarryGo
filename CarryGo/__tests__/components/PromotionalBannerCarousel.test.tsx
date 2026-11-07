@@ -112,7 +112,7 @@ describe('PromotionalBannerCarousel - buildPromotionalSlides', () => {
         badge_text: '🎁 50% OFF FEES',
         badge_color: '#EC4899',
         title: 'Festival Delivery Fest',
-        subtitle: 'Get 50% off platform escrow fee across Haryana.',
+        subtitle: 'Get 50% off platform booking fee across Haryana.',
         cta_text: 'Claim Offer',
         cta_action: 'link' as const,
         deep_link: '/festival-offer',

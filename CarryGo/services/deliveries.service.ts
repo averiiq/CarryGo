@@ -10,6 +10,7 @@ import {
   notifyTripMilestone,
   notifyPayoutReleased,
 } from '@/services/notifications.service';
+import { awardDeliveryCoins } from '@/services/rewards.service';
 
 type DeliveryRow = Database['public']['Tables']['deliveries']['Row'];
 
@@ -46,13 +47,6 @@ export function generateRandomOtp(length: number = 4): string {
   const min = Math.pow(10, length - 1);
   const max = Math.pow(10, length);
   return String(Math.floor(min + Math.random() * (max - min)));
-}
-
-/**
- * @deprecated Kept for backwards compatibility only.
- */
-export function generateDeterministicOtp(seed: string, length: number = 4): string {
-  return generateRandomOtp(length);
 }
 
 export async function createDelivery(requestId: string) {
@@ -135,16 +129,6 @@ export async function fetchOrCreateDelivery(
   };
 
   return { data: fallbackDelivery, error: null };
-}
-
-/**
- * @deprecated Legacy confirmation without OTP. Use confirmPickupWithOtp instead.
- */
-export async function confirmPickup(deliveryId: string) {
-  return {
-    data: null,
-    error: 'Direct pickup confirmation without verification code is disabled. Use confirmPickupWithOtp.',
-  };
 }
 
 export async function getOrIssuePickupOtp(
@@ -379,6 +363,7 @@ export async function confirmDelivery(
 
     if (!error && data) {
       void triggerDeliveryCompleteNotification(sb, deliveryId);
+      void awardDeliveryCoins(deliveryId);
       return { success: true, data: mapRow(data as unknown as ExtendedDeliveryRow), error: null };
     }
 

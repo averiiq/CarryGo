@@ -147,11 +147,27 @@ export default function DeliveryTrackingPage({
           ? 2
           : 1
 
+  const isFetchingRef = useRef(false)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   // Load all data
   const fetchData = useCallback(
     async (isPolling = false) => {
+      // Dedup: skip if a poll is already in flight. Non-poll calls (manual
+      // refresh, action-triggered reload) still run — they're user-initiated
+      // and shouldn't be silently dropped.
+      if (isPolling && isFetchingRef.current) return
+      isFetchingRef.current = true
       if (!isPolling) setLoading(true)
       try {
+        if (!isMountedRef.current) return
         const supabase = createClient()
 
         // 1. Get current user
@@ -222,7 +238,7 @@ export default function DeliveryTrackingPage({
           if (tData) setTrip(tData as TripRow)
         }
 
-        // 6. Query payment (escrow)
+        // 6. Query payment (booking)
         if (foundReq?.id) {
           const { data: payData } = await supabase
             .from('payments')
@@ -256,11 +272,12 @@ export default function DeliveryTrackingPage({
           }
         }
       } catch (err) {
-        if (!isPolling) {
+        if (!isPolling && isMountedRef.current) {
           setError(err instanceof Error ? err.message : 'Failed to load tracking info.')
         }
       } finally {
-        if (!isPolling) setLoading(false)
+        isFetchingRef.current = false
+        if (!isPolling && isMountedRef.current) setLoading(false)
       }
     },
     [deliveryOrRequestId]
@@ -461,7 +478,7 @@ export default function DeliveryTrackingPage({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-heading font-semibold text-foreground">
-                  Delivery #{deliveryOrRequestId.slice(0, 8)}
+                  Delivery #{(deliveryOrRequestId || '').slice(0, 8) || 'JOURNEY'}
                 </h1>
                 <span
                   className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
@@ -485,7 +502,7 @@ export default function DeliveryTrackingPage({
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Live Escrow Handshake & Route Telemetry
+                Live Booking Handshake & Route Telemetry
               </p>
             </div>
           </div>
@@ -555,7 +572,7 @@ export default function DeliveryTrackingPage({
               </div>
               <p className="text-xs leading-relaxed opacity-90">
                 {request.message ||
-                  'This journey has been reported to central administration. SafeVault™ escrow funds remain protected until final resolution.'}
+                  'This journey has been reported to central administration. SafeVault™ booking protection funds remain protected until final resolution.'}
               </p>
             </div>
           </div>
@@ -606,7 +623,7 @@ export default function DeliveryTrackingPage({
                 <span>
                   {payment?.status === 'released'
                     ? 'SafeVault™ Released'
-                    : 'SafeVault™ Escrow Protected'}
+                    : 'SafeVault™ Booking Protected'}
                 </span>
               </div>
             </div>
@@ -634,7 +651,7 @@ export default function DeliveryTrackingPage({
                 </span>
                 {activeStep > 1 && <CheckCircle2 className="w-4 h-4 text-primary" />}
               </div>
-              <h4 className="text-sm font-semibold text-foreground">Escrow Locked</h4>
+              <h4 className="text-sm font-semibold text-foreground">Booked & Secured</h4>
               <p className="text-[11px] text-muted-foreground mt-1">
                 Funds safely deposited in SafeVault™
               </p>
@@ -726,7 +743,7 @@ export default function DeliveryTrackingPage({
               </div>
               <h4 className="text-sm font-semibold text-foreground">Delivered & Paid</h4>
               <p className="text-[11px] text-muted-foreground mt-1">
-                6-digit passkey verified & escrow paid
+                6-digit passkey verified & booking paid
               </p>
             </div>
           </div>
@@ -918,7 +935,7 @@ export default function DeliveryTrackingPage({
                       <span>Delivery Successfully Completed!</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      The 6-digit passkey was verified. The SafeVault™ escrow payout of ₹
+                      The 6-digit passkey was verified. The SafeVault™ booking protection payout of ₹
                       {request.price} has been released.
                     </p>
                     <button
@@ -1002,12 +1019,39 @@ export default function DeliveryTrackingPage({
                   </p>
                 </div>
               )}
+
+              {typeof delivery?.traveller_lat === 'number' &&
+                typeof delivery?.traveller_lng === 'number' && (
+                  <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider">
+                        Live traveller location
+                      </span>
+                      {delivery.location_updated_at && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Updated {new Date(delivery.location_updated_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-mono text-foreground">
+                      {delivery.traveller_lat.toFixed(4)}°, {delivery.traveller_lng.toFixed(4)}°
+                    </p>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${delivery.traveller_lat},${delivery.traveller_lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
+                    >
+                      View on Google Maps →
+                    </a>
+                  </div>
+                )}
             </div>
           </div>
 
-          {/* Right Column: SafeVault™ Escrow & Safety Info */}
+          {/* Right Column: SafeVault™ Booking Protection & Safety Info */}
           <div className="space-y-6">
-            {/* Escrow Status Box */}
+            {/* Booking Status Box */}
             <div className="p-6 rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-500/5 to-transparent shadow-sm space-y-4">
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                 <ShieldCheck className="w-5 h-5" />
@@ -1018,11 +1062,11 @@ export default function DeliveryTrackingPage({
 
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Escrow Amount:</span>
+                  <span className="text-muted-foreground">Booking Amount:</span>
                   <span className="font-semibold text-foreground">₹{request.price}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Escrow Status:</span>
+                  <span className="text-muted-foreground">Booking Status:</span>
                   <span className="font-semibold text-emerald-500">
                     {payment?.status === 'released' ? 'Released to Traveler' : 'Securely Held'}
                   </span>
@@ -1034,7 +1078,7 @@ export default function DeliveryTrackingPage({
               </div>
 
               <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-border/40">
-                Funds remain locked in escrow and are only released when the recipient confirms
+                Funds remain booked & secured and are only released when the recipient confirms
                 the delivery passkey.
               </p>
             </div>
@@ -1262,8 +1306,8 @@ export default function DeliveryTrackingPage({
               </div>
 
               <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 leading-relaxed">
-                <span className="font-bold">SafeVault™ Escrow Protection:</span> When you submit a
-                dispute, escrow funds are placed in protective freeze. A certified platform
+                <span className="font-bold">SafeVault™ Booking Protection:</span> When you submit a
+                dispute, booking funds are placed in protective freeze. A certified platform
                 administrator will inspect the chat transcript, GPS corridor coordinates, and contact
                 both parties before ruling.
               </div>

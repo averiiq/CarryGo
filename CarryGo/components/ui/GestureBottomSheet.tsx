@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import {
   View,
   Modal,
@@ -26,14 +26,15 @@ import { Haptic } from '@/services/haptics.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { BorderRadius, Spacing } from '@/constants/theme';
 
-// Responsive thresholds: a 70px pull or a 400px/s flick triggers clean dismissal
-const DISMISS_THRESHOLD = 70;
-const DISMISS_VELOCITY = 400;
+// Responsive thresholds: a 50px pull or a 300px/s flick triggers clean snappy dismissal
+const DISMISS_THRESHOLD = 50;
+const DISMISS_VELOCITY = 300;
 
 export interface GestureBottomSheetProps {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  height?: number | `${number}%`;
   maxHeight?: number | `${number}%`;
   containerStyle?: StyleProp<ViewStyle>;
   showHandle?: boolean;
@@ -45,77 +46,105 @@ export function GestureBottomSheet({
   visible,
   onClose,
   children,
+  height,
   maxHeight = '90%',
   containerStyle,
   showHandle = true,
   enablePanDownToClose = true,
   dismissOnBackdropPress = true,
 }: GestureBottomSheetProps) {
-  const { height: SCREEN_HEIGHT } = useWindowDimensions();
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
+  const isTablet = SCREEN_WIDTH >= 600;
+  const isShortScreen = SCREEN_HEIGHT < 700;
   const insets = useSafeAreaInsets();
   const { C } = useThemeColors();
+
+  // Internal mounted state preserves modal mounting during smooth slide-down exits
+  const [mounted, setMounted] = useState(visible);
+  const isClosingRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const backdropProgress = useSharedValue(0);
   const keyboardOffset = useSharedValue(0);
-
-  const handleDismissFinished = useCallback(() => {
-    onClose();
-  }, [onClose]);
+  const hasCrossedThreshold = useSharedValue(false);
 
   const animateOpen = useCallback(() => {
     translateY.value = withSpring(0, {
-      damping: 24,
-      stiffness: 280,
-      mass: 0.85,
+      damping: 28,
+      stiffness: 320,
+      mass: 0.65,
     });
-    backdropProgress.value = withTiming(1, { duration: 240 });
+    backdropProgress.value = withTiming(1, { duration: 180 });
   }, [backdropProgress, translateY]);
 
-  const animateClose = useCallback((velocity = 0) => {
-    'worklet';
-    backdropProgress.value = withTiming(0, { duration: 180 });
-    if (velocity > 80) {
+  const handleDismiss = useCallback((velocity = 0) => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    Haptic.tap();
+    Keyboard.dismiss();
+
+    backdropProgress.value = withTiming(0, { duration: 160 });
+    const clampedVelocity = Math.max(velocity, 0);
+
+    if (clampedVelocity > 100) {
       translateY.value = withSpring(
         SCREEN_HEIGHT,
         {
-          velocity,
-          damping: 24,
-          stiffness: 260,
-          mass: 0.8,
+          velocity: Math.max(clampedVelocity, 500),
+          damping: 28,
+          stiffness: 320,
+          mass: 0.65,
         },
         (finished) => {
           if (finished) {
-            runOnJS(handleDismissFinished)();
+            runOnJS(setMounted)(false);
+            runOnJS(onCloseRef.current)();
+            isClosingRef.current = false;
           }
         }
       );
     } else {
-      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 200 }, (finished) => {
+      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 180 }, (finished) => {
         if (finished) {
-          runOnJS(handleDismissFinished)();
+          runOnJS(setMounted)(false);
+          runOnJS(onCloseRef.current)();
+          isClosingRef.current = false;
         }
       });
     }
-  }, [backdropProgress, handleDismissFinished, translateY, SCREEN_HEIGHT]);
+  }, [backdropProgress, translateY, SCREEN_HEIGHT]);
 
-  const triggerCloseWithHaptic = useCallback((velocity = 0) => {
-    Haptic.tap();
-    Keyboard.dismiss();
-    animateClose(velocity);
-  }, [animateClose]);
+  const triggerDetentHaptic = useCallback(() => {
+    Haptic.select();
+  }, []);
 
   const dismissKeyboard = useCallback(() => {
     Keyboard.dismiss();
   }, []);
 
+  // Manage open and close sliding animations cleanly without race conditions
   useEffect(() => {
     if (visible) {
+      isClosingRef.current = false;
+      setMounted(true);
       translateY.value = SCREEN_HEIGHT;
       backdropProgress.value = 0;
       animateOpen();
+    } else if (mounted && !isClosingRef.current) {
+      // Parent triggered close: perform slide-down exit first
+      isClosingRef.current = true;
+      Keyboard.dismiss();
+      backdropProgress.value = withTiming(0, { duration: 150 });
+      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 180 }, (finished) => {
+        if (finished) {
+          runOnJS(setMounted)(false);
+          isClosingRef.current = false;
+        }
+      });
     }
-  }, [visible, animateOpen, SCREEN_HEIGHT, translateY, backdropProgress]);
+  }, [visible]);
 
   // Keyboard elevation tracking
   useEffect(() => {
@@ -157,11 +186,12 @@ export function GestureBottomSheet({
     };
   }, [keyboardOffset]);
 
-  // Dedicated handle gesture: highly sensitive, captures any downward swipe on the top bar
+  // Dedicated handle gesture: sensitive, captures any downward drag on the top grab bar
   const handleGesture = Gesture.Pan()
     .enabled(enablePanDownToClose)
-    .activeOffsetY([4, 1000])
+    .activeOffsetY([3, 1000])
     .onBegin(() => {
+      hasCrossedThreshold.value = false;
       runOnJS(dismissKeyboard)();
     })
     .onUpdate((event) => {
@@ -169,51 +199,29 @@ export function GestureBottomSheet({
         translateY.value = event.translationY;
         backdropProgress.value = interpolate(
           event.translationY,
-          [0, SCREEN_HEIGHT * 0.35],
-          [1, 0.15],
+          [0, SCREEN_HEIGHT * 0.38],
+          [1, 0.12],
           Extrapolation.CLAMP
         );
-      } else {
-        translateY.value = event.translationY * 0.14;
-      }
-    })
-    .onEnd((event) => {
-      if (event.translationY > DISMISS_THRESHOLD || event.velocityY > DISMISS_VELOCITY) {
-        runOnJS(triggerCloseWithHaptic)(event.velocityY);
-      } else {
-        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 24, stiffness: 280, mass: 0.85 });
-        backdropProgress.value = withTiming(1, { duration: 180 });
-      }
-    });
 
-  // Body gesture: activates on deliberate downward swipe, yields on horizontal or upward drags
-  const sheetGesture = Gesture.Pan()
-    .enabled(enablePanDownToClose)
-    .activeOffsetY([8, 1000])
-    .failOffsetY([-1000, -8])
-    .failOffsetX([-25, 25])
-    .onBegin(() => {
-      runOnJS(dismissKeyboard)();
-    })
-    .onUpdate((event) => {
-      if (event.translationY > 0) {
-        translateY.value = event.translationY;
-        backdropProgress.value = interpolate(
-          event.translationY,
-          [0, SCREEN_HEIGHT * 0.35],
-          [1, 0.15],
-          Extrapolation.CLAMP
-        );
+        if (event.translationY > DISMISS_THRESHOLD && !hasCrossedThreshold.value) {
+          hasCrossedThreshold.value = true;
+          runOnJS(triggerDetentHaptic)();
+        } else if (event.translationY <= DISMISS_THRESHOLD && hasCrossedThreshold.value) {
+          hasCrossedThreshold.value = false;
+        }
       } else {
-        translateY.value = event.translationY * 0.14;
+        // Natural rubber-band resistance when pulling upward
+        translateY.value = -Math.pow(Math.abs(event.translationY), 0.72);
       }
     })
     .onEnd((event) => {
+      hasCrossedThreshold.value = false;
       if (event.translationY > DISMISS_THRESHOLD || event.velocityY > DISMISS_VELOCITY) {
-        runOnJS(triggerCloseWithHaptic)(event.velocityY);
+        runOnJS(handleDismiss)(event.velocityY);
       } else {
-        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 24, stiffness: 280, mass: 0.85 });
-        backdropProgress.value = withTiming(1, { duration: 180 });
+        translateY.value = withSpring(0, { velocity: event.velocityY, damping: 28, stiffness: 320, mass: 0.65 });
+        backdropProgress.value = withTiming(1, { duration: 150 });
       }
     });
 
@@ -237,14 +245,18 @@ export function GestureBottomSheet({
     };
   });
 
-  if (!visible) return null;
+  if (!mounted && !visible) return null;
+
+  const resolvedMaxHeight = isShortScreen && typeof maxHeight === 'string' && maxHeight.endsWith('%')
+    ? '94%'
+    : maxHeight;
 
   return (
     <Modal
-      visible={visible}
+      visible={mounted}
       transparent
       animationType="none"
-      onRequestClose={() => animateClose()}
+      onRequestClose={() => handleDismiss()}
       statusBarTranslucent
     >
       <GestureHandlerRootView style={styles.gestureRoot}>
@@ -253,38 +265,41 @@ export function GestureBottomSheet({
           <Animated.View style={[styles.backdrop, backdropAnimatedStyle]}>
             <Pressable
               style={StyleSheet.absoluteFill}
-              onPress={dismissOnBackdropPress ? () => animateClose() : undefined}
+              onPress={dismissOnBackdropPress ? () => handleDismiss() : undefined}
               accessibilityRole="button"
               accessibilityLabel="Dismiss bottom sheet"
             />
           </Animated.View>
 
-          {/* Gesture & Keyboard Driven Bottom Sheet */}
-          <GestureDetector gesture={sheetGesture}>
-            <Animated.View
-              style={[
-                styles.sheetCard,
-                {
-                  backgroundColor: C.surface,
-                  borderColor: C.surfaceBorder,
-                  paddingBottom: Math.max(insets.bottom, Spacing.sm),
-                  maxHeight,
-                },
-                sheetDynamicHeightStyle,
-                containerStyle,
-                sheetAnimatedStyle,
-              ]}
-            >
-              {showHandle && (
-                <GestureDetector gesture={handleGesture}>
-                  <View style={styles.handleContainer}>
-                    <View style={[styles.handleBar, { backgroundColor: C.surfaceBorderLight }]} />
-                  </View>
-                </GestureDetector>
-              )}
-              {children}
-            </Animated.View>
-          </GestureDetector>
+          {/* Bottom Sheet Card */}
+          <Animated.View
+            style={[
+              styles.sheetCard,
+              isTablet && styles.tabletSheetCard,
+              {
+                backgroundColor: C.surface,
+                borderColor: C.surfaceBorder,
+                paddingBottom: Math.max(insets.bottom, Spacing.sm),
+                maxHeight: resolvedMaxHeight,
+                ...(height !== undefined ? { height } : {}),
+              },
+              sheetDynamicHeightStyle,
+              containerStyle,
+              sheetAnimatedStyle,
+            ]}
+          >
+            {showHandle && (
+              <GestureDetector gesture={handleGesture}>
+                <View
+                  style={styles.handleContainer}
+                  hitSlop={{ top: 12, bottom: 12, left: 30, right: 30 }}
+                >
+                  <View style={[styles.handleBar, { backgroundColor: C.surfaceBorderLight }]} />
+                </View>
+              </GestureDetector>
+            )}
+            {children}
+          </Animated.View>
         </View>
       </GestureHandlerRootView>
     </Modal>
@@ -304,6 +319,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10, 16, 26, 0.58)',
   },
   sheetCard: {
+    width: '100%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     borderTopWidth: 1.2,
@@ -316,13 +332,20 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 28,
   },
+  tabletSheetCard: {
+    maxWidth: 580,
+    width: '100%',
+    alignSelf: 'center',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
   handleContainer: {
     width: '100%',
     alignItems: 'center',
-    paddingTop: Spacing.sm + 2,
+    justifyContent: 'center',
+    paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs + 2,
-    // Generous hit target to ensure effortless downward swiping
-    minHeight: 28,
+    minHeight: 32,
   },
   handleBar: {
     width: 44,

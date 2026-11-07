@@ -6,7 +6,7 @@ import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
 export const metadata = createMarketingMetadata(
   'Create Parcel',
-  'Create parcel requests on CarryGo web with app-style workflow and validations.',
+  'Create parcel requests on CaryGoo web with app-style workflow and validations.',
   '/create-parcel'
 )
 

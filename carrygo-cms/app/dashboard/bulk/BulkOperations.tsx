@@ -5,7 +5,32 @@ import { Users, Navigation, CheckCircle2, XCircle, Download, Loader2 } from 'luc
 import DataTable, { type Column } from '@/components/DataTable'
 import BulkActionBar from '@/components/BulkActionBar'
 import ExportButton from '@/components/ExportButton'
-import { bulkVerifyUsers, bulkCancelExpiredTrips } from './actions'
+import { bulkVerifyUsers, bulkCancelExpiredTrips, bulkExportUsers, bulkExportTrips } from './actions'
+
+function toCsv(rows: Array<Record<string, unknown>>): string {
+  if (rows.length === 0) return ''
+  const headers = Object.keys(rows[0])
+  const escape = (v: unknown) => {
+    const s = v == null ? '' : String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  return [
+    headers.join(','),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(',')),
+  ].join('\n')
+}
+
+function downloadCsv(filename: string, csv: string) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${filename}-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
 interface UnverifiedUser {
   id: string
@@ -69,7 +94,38 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
         setResult({ type: 'success', message: `${selectedUserIds.length} users verified successfully` })
         setSelectedUserIds([])
       }
+    } else if (actionKey === 'export' && selectedUserIds.length > 0) {
+      const selected = unverifiedUsers.filter((u) => selectedUserIds.includes(u.id))
+      downloadCsv(
+        'selected-users',
+        toCsv(selected as unknown as Array<Record<string, unknown>>)
+      )
+      setResult({ type: 'success', message: `${selected.length} users exported to CSV` })
     }
+  }
+
+  const handleExportAllUsers = async () => {
+    setIsProcessing(true)
+    const res = await bulkExportUsers()
+    setIsProcessing(false)
+    if (res.error || !res.data) {
+      setResult({ type: 'error', message: res.error || 'Export failed' })
+      return
+    }
+    downloadCsv('all-users', toCsv(res.data as Array<Record<string, unknown>>))
+    setResult({ type: 'success', message: `Exported ${res.data.length} users (full dataset)` })
+  }
+
+  const handleExportAllTrips = async () => {
+    setIsProcessing(true)
+    const res = await bulkExportTrips()
+    setIsProcessing(false)
+    if (res.error || !res.data) {
+      setResult({ type: 'error', message: res.error || 'Export failed' })
+      return
+    }
+    downloadCsv('all-trips', toCsv(res.data as Array<Record<string, unknown>>))
+    setResult({ type: 'success', message: `Exported ${res.data.length} trips (full dataset)` })
   }
 
   const handleCancelExpired = async () => {
@@ -126,17 +182,28 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
             <p className="text-sm text-muted">
               Users awaiting KYC verification. Select and verify in bulk.
             </p>
-            <ExportButton
-              data={unverifiedUsers}
-              columns={[
-                { key: 'name', label: 'Name' },
-                { key: 'email', label: 'Email' },
-                { key: 'kycStatus', label: 'KYC Status' },
-                { key: 'createdAt', label: 'Joined' },
-              ]}
-              filename="unverified-users"
-              label="Export"
-            />
+            <div className='flex items-center gap-2'>
+              <ExportButton
+                data={unverifiedUsers}
+                columns={[
+                  { key: 'name', label: 'Name' },
+                  { key: 'email', label: 'Email' },
+                  { key: 'kycStatus', label: 'KYC Status' },
+                  { key: 'createdAt', label: 'Joined' },
+                ]}
+                filename="unverified-users"
+                label="Export page"
+              />
+              <button
+                type='button'
+                onClick={handleExportAllUsers}
+                disabled={isProcessing}
+                className='inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border border-border bg-surface hover:bg-primary-subtle hover:border-primary disabled:opacity-50 transition-colors'
+              >
+                {isProcessing ? <Loader2 className='h-4 w-4 animate-spin' /> : <Download className='h-4 w-4' />}
+                Export all users (CSV)
+              </button>
+            </div>
           </div>
           <DataTable
             data={unverifiedUsers}
@@ -174,8 +241,17 @@ export default function BulkOperations({ unverifiedUsers, expiredTrips }: BulkOp
                   { key: 'date', label: 'Date' },
                 ]}
                 filename="expired-trips"
-                label="Export"
+                label="Export page"
               />
+              <button
+                type='button'
+                onClick={handleExportAllTrips}
+                disabled={isProcessing}
+                className='inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border border-border bg-surface hover:bg-primary-subtle hover:border-primary disabled:opacity-50 transition-colors'
+              >
+                {isProcessing ? <Loader2 className='h-4 w-4 animate-spin' /> : <Download className='h-4 w-4' />}
+                Export all trips (CSV)
+              </button>
               <button
                 onClick={handleCancelExpired}
                 disabled={isProcessing || expiredTrips.length === 0}

@@ -7,6 +7,7 @@ import {
   fetchPaymentByRequestOrId,
   releasePayment,
   refundPayment,
+  confirmMockBookingPayment,
 } from '@/services/payments.service';
 import { getSupabaseClient } from '@/template';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
@@ -189,6 +190,49 @@ describe('Payments Service - Gateway Verification & Anti-Bypass Audit Tests', ()
         p_payment_id: 'pay_uuid_1',
         p_actor_id: 'user_sender',
       });
+    });
+  });
+
+  describe('confirmMockBookingPayment', () => {
+    it('creates a locked payment record with demo gateway IDs and updates request state', async () => {
+      mockGetSession.mockResolvedValueOnce({ data: { session: { user: { id: 'sender_1' } } } });
+      const mockSelect = jest.fn().mockReturnThis();
+      const mockEq = jest.fn().mockReturnThis();
+      const mockMaybeSingle = jest.fn().mockResolvedValue({
+        data: {
+          id: 'req_test_1',
+          sender_id: 'sender_1',
+          traveller_id: 'trav_1',
+          price: 350,
+          status: 'pending',
+        },
+        error: null,
+      });
+
+      mockFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        maybeSingle: mockMaybeSingle,
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+          }),
+        }),
+      });
+
+      const res = await confirmMockBookingPayment({
+        requestId: 'req_test_1',
+        amount: 350,
+        senderId: 'sender_1',
+        travellerId: 'trav_1',
+      });
+
+      expect(res.error).toBeNull();
+      expect(res.data).toBeDefined();
+      expect(res.data?.status).toBe('locked');
+      expect(res.data?.amount).toBe(350);
+      expect(res.data?.requestId).toBe('req_test_1');
+      expect(res.data?.razorpayPaymentId).toContain('pay_demo_');
     });
   });
 });

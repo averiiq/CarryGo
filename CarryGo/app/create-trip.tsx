@@ -28,6 +28,7 @@ import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import { findCity, getDistance } from '@/constants/indian-cities';
 import { useCreateTripMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
+import { recordCorridorUsage } from '@/services/corridors.service';
 
 const STEPS = [
   { label: 'Route' },
@@ -239,6 +240,20 @@ export default function CreateTripScreen() {
     }
     if (!draft.time) {
       errors.time = 'Select departure time';
+    } else if (draft.date === todayKey) {
+      const match = draft.time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (match) {
+        let hour = Number(match[1]);
+        const minute = Number(match[2]);
+        const period = match[3].toUpperCase();
+        if (period === 'PM' && hour !== 12) hour += 12;
+        if (period === 'AM' && hour === 12) hour = 0;
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        if (hour * 60 + minute <= nowMinutes) {
+          errors.time = 'Departure time has already passed';
+        }
+      }
     }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -284,6 +299,10 @@ export default function CreateTripScreen() {
   useEffect(() => {
     if (isDraftRestored) {
       setShowDraftBanner(true);
+      const timer = setTimeout(() => {
+        setShowDraftBanner(false);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [isDraftRestored]);
 
@@ -413,6 +432,7 @@ export default function CreateTripScreen() {
         console.warn('Failed to notify route subscribers:', notifyErr);
       }
       clearDraft();
+      void recordCorridorUsage(prepared.fromCity, prepared.toCity);
       Haptic.success();
       router.replace({ pathname: '/trip/[id]', params: { id: result.id } });
     } catch (error) {

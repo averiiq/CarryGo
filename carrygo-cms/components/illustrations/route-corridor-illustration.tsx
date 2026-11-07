@@ -66,7 +66,7 @@ export function RouteCorridorIllustration({
           {/* Primary Route Highway Curve (Backdrop) */}
           <path
             d="M50 110 C140 40, 320 40, 410 110"
-            stroke="rgba(5, 150, 105, 0.18)"
+            stroke="rgba(0, 139, 72, 0.18)"
             strokeWidth="8"
             strokeLinecap="round"
           />
@@ -97,15 +97,15 @@ export function RouteCorridorIllustration({
 
           {/* Waypoint 1: Origin (From City) */}
           <g transform="translate(50, 110)">
-            <circle r="12" fill="rgba(5, 150, 105, 0.15)" />
-            <circle r="6" fill="#059669" />
+            <circle r="12" fill="rgba(0, 139, 72, 0.15)" />
+            <circle r="6" fill="#008B48" />
             <circle r="2.5" fill="#FFFFFF" />
           </g>
 
           {/* Waypoint 2: Midpoint Checkpoint */}
           <g transform="translate(230, 45)">
-            <circle r="7" fill="rgba(2, 132, 199, 0.15)" />
-            <circle r="3.5" fill="#0284C7" />
+            <circle r="7" fill="rgba(0, 74, 173, 0.15)" />
+            <circle r="3.5" fill="#004AAD" />
           </g>
 
           {/* Waypoint 3: Destination (To City) */}
@@ -118,8 +118,8 @@ export function RouteCorridorIllustration({
           {/* Gradients */}
           <defs>
             <linearGradient id="corridorGradient" x1="50" y1="110" x2="410" y2="110" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#059669" />
-              <stop offset="0.5" stopColor="#0284C7" />
+              <stop stopColor="#008B48" />
+              <stop offset="0.5" stopColor="#004AAD" />
               <stop offset="1" stopColor="#10B981" />
             </linearGradient>
           </defs>

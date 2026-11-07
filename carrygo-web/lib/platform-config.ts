@@ -23,7 +23,7 @@ export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
   maxWeightKg: 20,
   minPricePerKg: 40,
   maxPricePerKg: 1000,
-  supportEmail: 'support@carrygo.in',
+  supportEmail: 'support@carygoo.in',
   supportPhone: '+91 98765 43210',
   autoReleaseHours: 24,
 }

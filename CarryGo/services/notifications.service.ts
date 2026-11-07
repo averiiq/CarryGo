@@ -91,7 +91,7 @@ export async function setupNotificationChannels(): Promise<void> {
       showBadge: true,
     });
     await Notifications.setNotificationChannelAsync('payments', {
-      name: 'Payments & Escrow',
+      name: 'Payments & Bookings',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 300, 200, 300],
       lightColor: '#F59E0B',
@@ -376,7 +376,7 @@ export async function sendDeliveryNotification(type: 'otp_generated' | 'pickup_c
   const configs = {
     otp_generated: {
       title: '🔐 Delivery OTP Generated',
-      body: 'A delivery confirmation code is ready. Open CarryGo to continue.',
+      body: 'A delivery confirmation code is ready. Open CaryGoo to continue.',
     },
     pickup_confirmed: {
       title: '🚗 Parcel Picked Up!',
@@ -673,18 +673,21 @@ export async function dispatchNotification(payload: DispatchNotificationPayload)
         const pushResult = await pushResponse.json().catch(() => null);
         console.log('[dispatchNotification] Expo push response:', pushResponse.status, JSON.stringify(pushResult));
 
-        // Auto-cleanup dead tokens when Expo reports DeviceNotRegistered
+        // Auto-cleanup dead tokens when Expo reports DeviceNotRegistered and report error tickets
         if (pushResult && Array.isArray(pushResult.data)) {
           for (let i = 0; i < pushResult.data.length; i++) {
             const ticket = pushResult.data[i];
-            if (ticket?.status === 'error' && ticket?.details?.error === 'DeviceNotRegistered') {
-              const deadToken = tokens[i];
-              if (deadToken) {
-                console.log('[dispatchNotification] Pruning dead token:', deadToken);
-                void sb
-                  .from('user_devices')
-                  .update({ invalidated_at: new Date().toISOString() })
-                  .eq('expo_push_token', deadToken);
+            if (ticket?.status === 'error') {
+              console.warn('[dispatchNotification] Expo push ticket error for token:', tokens[i]?.substring(0, 20), ticket.message, ticket.details);
+              if (ticket?.details?.error === 'DeviceNotRegistered') {
+                const deadToken = tokens[i];
+                if (deadToken) {
+                  console.log('[dispatchNotification] Pruning dead token:', deadToken);
+                  void sb
+                    .from('user_devices')
+                    .update({ invalidated_at: new Date().toISOString() })
+                    .eq('expo_push_token', deadToken);
+                }
               }
             }
           }
@@ -750,8 +753,8 @@ export async function notifyRequestAccepted(params: {
 }) {
   return dispatchNotification({
     userId: params.senderId,
-    title: '✅ Request Accepted — Pay to Lock Escrow',
-    body: `${params.travellerName} accepted your delivery request. Tap to deposit escrow and unlock your pickup OTP.`,
+    title: '✅ Request Accepted — Pay to Book',
+    body: `${params.travellerName} accepted your delivery request. Tap to book and unlock your pickup OTP.`,
     type: 'request_accepted',
     priority: 'high',
     relatedId: params.requestId,
@@ -910,16 +913,16 @@ export async function notifyTripMilestone(params: {
   });
 }
 
-export async function notifyPaymentEscrowLocked(params: {
+export async function notifyPaymentLocked(params: {
   userId: string;
   amount: number;
   deliveryOrRequestId: string;
   isTraveller?: boolean;
 }) {
-  const title = params.isTraveller ? '🔒 Payment Secured in Escrow' : '🔒 Payment Reserved';
+  const title = params.isTraveller ? '🔒 Payment Booked & Secured' : '🔒 Payment Reserved';
   const body = params.isTraveller
-    ? `Sender payment of ₹${params.amount} has been secured in CarryGo Escrow. Safe to proceed with pickup!`
-    : `Your payment of ₹${params.amount} is securely held in escrow until you confirm delivery.`;
+    ? `Sender payment of ₹${params.amount} has been secured in CaryGoo Booking. Safe to proceed with pickup!`
+    : `Your payment of ₹${params.amount} is securely booked until you confirm delivery.`;
 
   return dispatchNotification({
     userId: params.userId,
@@ -928,7 +931,7 @@ export async function notifyPaymentEscrowLocked(params: {
     type: 'payment_locked',
     priority: 'high',
     relatedId: params.deliveryOrRequestId,
-    deepLink: '/transactions',
+    deepLink: '/my-activity?tab=transactions',
   });
 }
 
@@ -940,11 +943,11 @@ export async function notifyPayoutReleased(params: {
   return dispatchNotification({
     userId: params.travellerId,
     title: '💰 Payout Deposited!',
-    body: `₹${params.amount} has been credited to your CarryGo wallet for completing the delivery. Great work!`,
+    body: `₹${params.amount} has been credited to your CaryGoo wallet for completing the delivery. Great work!`,
     type: 'payment_released',
     priority: 'high',
     relatedId: params.deliveryId,
-    deepLink: '/transactions',
+    deepLink: '/my-activity?tab=transactions',
   });
 }
 
@@ -1007,6 +1010,8 @@ export async function getUnreadCount(userId: string): Promise<number> {
 export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: string | null): string | null {
   // If the notification payload has an explicit deep_link, use it directly
   if (deepLink && typeof deepLink === 'string' && deepLink.startsWith('/')) {
+    // Legacy transactions route → consolidated into My Activity tab
+    if (deepLink === '/transactions') return '/my-activity?tab=transactions';
     return deepLink;
   }
 
@@ -1046,7 +1051,7 @@ export function getDeepLinkRoute(type: string, relatedId?: string, deepLink?: st
     case 'payment_locked':
     case 'payment_released':
     case 'payment_refunded':
-      return '/transactions';
+      return '/my-activity?tab=transactions';
     case 'rating':
       return '/(tabs)/profile';
     case 'broadcast':
@@ -1154,7 +1159,7 @@ export async function runNotificationDiagnostics(userId?: string): Promise<Diagn
       message: `System notification permission is ${perms.status}. Notifications cannot be received or displayed.`,
       recommendation: perms.canAskAgain
         ? 'Tap "Enable Notifications" to grant notification permissions.'
-        : 'Permissions are blocked in Android Settings. Tap "Open Settings" to enable notifications for CarryGo.',
+        : 'Permissions are blocked in Android Settings. Tap "Open Settings" to enable notifications for CaryGoo.',
       details: {
         permissionGranted: false,
         permissionStatus: perms.status,
@@ -1177,8 +1182,8 @@ export async function runNotificationDiagnostics(userId?: string): Promise<Diagn
       state: 2,
       stateName: 'Expo Go Client Detected',
       status: 'warning',
-      message: 'Running inside Expo Go (host.exp.exponent). Push notifications in Expo Go are isolated to the Expo Go app, and tapping opens Expo Go instead of CarryGo.',
-      recommendation: 'Install the standalone CarryGo APK (in.averiq.carrygo) configured with native Firebase Cloud Messaging for production delivery.',
+      message: 'Running inside Expo Go (host.exp.exponent). Push notifications in Expo Go are isolated to the Expo Go app, and tapping opens Expo Go instead of CaryGoo.',
+      recommendation: 'Install the standalone CaryGoo APK (in.averiq.carrygo) configured with native Firebase Cloud Messaging for production delivery.',
       details: {
         permissionGranted: perms.granted,
         permissionStatus: perms.status,
@@ -1255,8 +1260,8 @@ export async function runNotificationDiagnostics(userId?: string): Promise<Diagn
       state: 3,
       stateName: 'Push Token Not Registered with Backend',
       status: 'error',
-      message: 'Device generated a valid push token, but could not register it with the CarryGo cloud backend.',
-      recommendation: 'Tap "Refresh Token" to synchronize your device with the CarryGo server.',
+      message: 'Device generated a valid push token, but could not register it with the CaryGoo cloud backend.',
+      recommendation: 'Tap "Refresh Token" to synchronize your device with the CaryGoo server.',
       details: {
         permissionGranted: true,
         permissionStatus: perms.status,
@@ -1277,7 +1282,7 @@ export async function runNotificationDiagnostics(userId?: string): Promise<Diagn
       state: 4,
       stateName: 'No Registered Devices for User',
       status: 'warning',
-      message: 'No active push notification tokens are registered for this user in the CarryGo database.',
+      message: 'No active push notification tokens are registered for this user in the CaryGoo database.',
       recommendation: 'Log in and grant notification permissions on this device to register it.',
       details: {
         permissionGranted: true,
@@ -1324,7 +1329,7 @@ export async function sendTestNotification(
     // Local notification test (verifies Android notification channel, sound, vibration, icon)
     if (mode === 'all' || mode === 'local') {
       await sendLocalNotification(
-        '🔔 CarryGo Notification Test',
+        '🔔 CaryGoo Notification Test',
         'Sound, vibration, and channels are functioning properly on this device!',
         { type: 'test' },
         'default'
@@ -1336,7 +1341,7 @@ export async function sendTestNotification(
       const result = await dispatchNotification({
         userId,
         title: '🚀 Remote Push Verified',
-        body: 'Your device is successfully connected to the CarryGo push notification network.',
+        body: 'Your device is successfully connected to the CaryGoo push notification network.',
         type: 'general',
         priority: 'high',
       });

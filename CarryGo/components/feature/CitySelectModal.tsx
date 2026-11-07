@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
-  Modal,
   View,
   Text,
   StyleSheet,
@@ -8,7 +7,6 @@ import {
   Pressable,
   FlatList,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +15,8 @@ import { INDIAN_CITIES, IndianCity } from '@/constants/indian-cities';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
+import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
 
 export interface CitySelectModalProps {
   visible: boolean;
@@ -164,18 +164,17 @@ export function CitySelectModal({
   );
 
   return (
-    <Modal
+    <GestureBottomSheet
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      height="88%"
+      maxHeight="92%"
+      showHandle
+      enablePanDownToClose
     >
-      <KeyboardAvoidingView
-        style={[styles.modalRoot, { backgroundColor: C.background }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={[styles.modalRoot, { backgroundColor: C.background }]}>
         {/* Top Header Bar */}
-        <View style={[styles.headerBar, { borderBottomColor: C.surfaceBorder, paddingTop: Math.max(insets.top, 14) }]}>
+        <View style={[styles.headerBar, { borderBottomColor: C.surfaceBorder }]}>
           <Pressable
             onPress={() => {
               Haptic.tap();
@@ -341,13 +340,16 @@ export function CitySelectModal({
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={true}
+          style={styles.cityList}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: Math.max(insets.bottom, 24) },
           ]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MaterialIcons name="location-off" size={40} color={C.textMuted} />
+              <View style={{ width: 120, height: 95, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                <LottieAnimation name="locationFetch" style={{ width: 120, height: 95 }} />
+              </View>
               <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No cities found</Text>
               <Text style={[styles.emptySub, { color: C.textMuted }]}>
                 Tap &quot;Use {query.trim()}&quot; above to use this custom location.
@@ -355,13 +357,16 @@ export function CitySelectModal({
             </View>
           }
         />
-      </KeyboardAvoidingView>
-    </Modal>
+      </View>
+    </GestureBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
   modalRoot: {
+    flex: 1,
+  },
+  cityList: {
     flex: 1,
   },
   headerBar: {

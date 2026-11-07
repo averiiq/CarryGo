@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '@/template';
 import { ServiceResult, SupportTicket, SupportTicketCategory, SupportTicketStatus } from '@/types';
 import { isValidUuid, sanitizeTextInput } from '@/lib/sanitize';
+import { logUserEvent } from '@/services/analytics.service';
 
 export const SUPPORT_CATEGORIES: Record<SupportTicketCategory, { label: string; description: string }> = {
   delivery_issue: {
@@ -9,7 +10,7 @@ export const SUPPORT_CATEGORIES: Record<SupportTicketCategory, { label: string; 
   },
   payment_refund: {
     label: 'Payment & Refund',
-    description: 'Escrow release delay, refund query, or pricing dispute',
+    description: 'Booking payout delay, refund query, or pricing dispute',
   },
   kyc_account: {
     label: 'KYC & Account',
@@ -25,7 +26,7 @@ export const SUPPORT_CATEGORIES: Record<SupportTicketCategory, { label: string; 
   },
   general: {
     label: 'General Inquiry',
-    description: 'Questions about rules, how CarryGo works, or feedback',
+    description: 'Questions about rules, how CaryGoo works, or feedback',
   },
 };
 
@@ -245,6 +246,14 @@ export async function createSupportTicket(
 
   // Record submission timestamp for rate limiter
   recordSupportSubmission(params.userId);
+
+  // Best-effort audit — surfaces in CMS /dashboard/audit so support agents
+  // can see which users recently opened tickets.
+  void logUserEvent('support.ticket_opened', {
+    entityType: 'support_ticket',
+    entityId: (data as { id?: string } | null)?.id,
+    payload: { category: params.category },
+  });
 
   return { data: mapSupportTicketRow(data as unknown as SupportTicketRow), error: null };
 }

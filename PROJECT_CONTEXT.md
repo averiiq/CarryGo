@@ -1,9 +1,9 @@
 # CarryGo - Master Project Context & Architectural Reference
 
-> **Document Version:** 3.3.0  
-> **Last Synchronized & Audited:** October 21, 2026 (Request & Accept Flow & 4-Item Tab Bar)  
+> **Document Version:** 3.4.0  
+> **Last Synchronized & Audited:** October 31, 2026 (Dead-Code Cleanup & Simplification Pass)  
 > **Repository:** `averiiq/CarryGo` (Monorepo)  
-> **System Test Scorecard:** **802 Automated Tests Passing across 86 Suites (100% Pass Rate)**  
+> **System Test Scorecard:** **782 Automated Tests Passing across 84 Suites (100% Pass Rate)**  
 > **TypeScript Strict Mode:** **0 Errors across Mobile, CMS, Web, Backend, and Infrastructure (100% Clean Build)**
 
 ---
@@ -24,9 +24,9 @@ The CarryGo ecosystem is composed of five tightly integrated subsystems:
 
 | Dimension | Score | Status | Key Highlights |
 | :--- | :---: | :---: | :--- |
-| **Mobile Architecture (Expo SDK 53)** | **99 / 100** | <span style="color:green">EXCELLENT</span> | 31 screens, 55 components, 19 services, 49 test suites with 651 passing tests, 0 TypeScript errors. |
-| **Admin CMS (Next.js 16.2 App Router)** | **98 / 100** | <span style="color:green">EXCELLENT</span> | 13 dashboard modules, strict `requireAdmin()` middleware, service-role isolation, 7 test suites with 59 passing tests. |
-| **Web Platform (Next.js 16.3 App Router)** | **98 / 100** | <span style="color:green">EXCELLENT</span> | 26 routes, GSAP/Framer marketing suite, web escrow checkout, 6 test suites with 54 passing tests. |
+| **Mobile Architecture (Expo SDK 53)** | **99 / 100** | <span style="color:green">EXCELLENT</span> | 28 screens, 49 components, 19 services, 49 test suites with 660 passing tests, 0 TypeScript errors. |
+| **Admin CMS (Next.js 16.2 App Router)** | **98 / 100** | <span style="color:green">EXCELLENT</span> | 13 dashboard modules, strict `requireAdmin()` middleware, service-role isolation, 6 test suites with 50 passing tests. |
+| **Web Platform (Next.js 16.3 App Router)** | **98 / 100** | <span style="color:green">EXCELLENT</span> | 26 routes, GSAP/Framer marketing suite, web escrow checkout, 5 test suites with 34 passing tests. |
 | **Backend Microservices & Gateway** | **98 / 100** | <span style="color:green">EXCELLENT</span> | 8,476 req/s benchmark throughput, HybridCache L1/L2, Redlock distributed locking, 24 test suites with 38 passing tests. |
 | **Database & Security-Definer RPCs** | **97 / 100** | <span style="color:green">EXCELLENT</span> | 67 SQL migrations, strict RLS on all 14 tables, atomic `FOR UPDATE` locks on payment/request transitions, outbox pattern. |
 | **Cloud Infrastructure (AWS CDK v2)** | **95 / 100** | <span style="color:green">EXCELLENT</span> | Multi-AZ ECS Fargate, ALB, CloudFront edge CDN, KMS-encrypted S3 KYC storage, SQS/SNS fanout queues. |
@@ -62,9 +62,9 @@ The CarryGo ecosystem is composed of five tightly integrated subsystems:
 
 | Subsystem | Framework / Core Tech | Key Libraries & Protocols | Testing & Validation |
 |---|---|---|---|
-| **Mobile App (`CarryGo/`)** | Expo SDK 53 (~53.0.27)<br>`react-native: 0.79.6`<br>`react: 19.0.0` | Expo Router v5.1.11, TanStack Query v5.101, `@shopify/flash-list` 1.7.6, `react-native-reanimated` 3.17.4, `expo-notifications` 0.31.2, `react-native-maps` 1.20.1, `react-native-razorpay` 2.3.0 | **46 Jest suites, 617 tests passed (0 failures)**<br>`tsc --noEmit`: **0 errors** |
-| **Admin CMS (`carrygo-cms/`)** | Next.js 16.2.0 App Router<br>`react: 19.2.0`<br>Tailwind CSS v4 | Recharts, Framer Motion, Lucide React, `@supabase/supabase-js`, `requireAdmin()` security middleware | **7 Vitest suites, 59 tests passed (0 failures)**<br>`tsc --noEmit`: **0 errors** |
-| **Web Platform (`carrygo-web/`)** | Next.js 16.3.3 App Router<br>`react: 19.2.4`<br>Tailwind CSS v4 | Framer Motion, GSAP, `@supabase/supabase-js`, Razorpay Standard Checkout SDK | **6 Vitest suites, 54 tests passed (0 failures)**<br>Vitest: **0 errors** |
+| **Mobile App (`CarryGo/`)** | Expo SDK 53 (~53.0.27)<br>`react-native: 0.79.6`<br>`react: 19.0.0` | Expo Router v5.1.11, TanStack Query v5.101, `@shopify/flash-list` 1.7.6, `react-native-reanimated` 3.17.4, `expo-notifications` 0.31.2, `react-native-razorpay` 2.3.0 | **49 Jest suites, 660 tests passed (0 failures)**<br>`tsc --noEmit`: **0 errors** |
+| **Admin CMS (`carrygo-cms/`)** | Next.js 16.2.0 App Router<br>`react: 19.2.0`<br>Tailwind CSS v4 | Recharts, Framer Motion, Lucide React, `@supabase/supabase-js`, `requireAdmin()` security middleware | **6 Vitest suites, 50 tests passed (0 failures)**<br>`tsc --noEmit`: **0 errors** |
+| **Web Platform (`carrygo-web/`)** | Next.js 16.3.3 App Router<br>`react: 19.2.4`<br>Tailwind CSS v4 | Framer Motion, GSAP, `@supabase/supabase-js`, Razorpay Standard Checkout SDK | **5 Vitest suites, 34 tests passed (0 failures)**<br>Vitest: **0 errors** |
 | **Backend Services (`backend/`)** | Node.js 20 LTS<br>TypeScript 5.9.2 | `ioredis` 6.0, `@aws-sdk/client-dynamodb`, `@aws-sdk/client-sqs`, SingleFlight, Redlock, Concurrency Governor | **24 Node test suites, 38 tests passed (0 failures)**<br>`tsc --noEmit`: **0 errors**<br>k6: **8,476 req/s** |
 | **Database (`CarryGo/supabase/`)** | PostgreSQL 15<br>Supabase Realtime | 67 Migrations, 14 Tables, RLS, 12 Security-Definer RPCs, `pg_trgm`, `pg_cron`, 8 Deno Edge Functions | Automated RLS & Phase 4 verification scripts |
 | **Cloud Infra (`infrastructure/`)** | AWS CDK v2.179.0<br>AWS CloudFormation | ECS Fargate Multi-AZ, ALB, CloudFront CDN, Cognito User Pools, Private S3 KYC Bucket, SQS DLQs, WAF | Synthesis & Typecheck: **0 errors** |
@@ -133,38 +133,35 @@ The mobile client is an enterprise React Native application built on Expo SDK 53
 
 | Screen File Path | Purpose & Functionality | Key Components & Hooks Used | Audit Status |
 |---|---|---|---|
-| [`CarryGo/app/(tabs)/index.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/(tabs)/index.tsx) | Central marketplace coordinator. Promotional carousel, active delivery pill, corridor chips, top live deliveries, segmented tabs. | `PromotionalBannerCarousel`, `LiveActivityCompactPill`, `LiveMarketplaceHeader`, `HaryanaCorridorChips`, `TopLiveDeliveryShowcase` | **PASS** |
+| [`CarryGo/app/(tabs)/index.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/(tabs)/index.tsx) | Central marketplace coordinator. Promotional carousel, active delivery pill, corridor chips, segmented tabs. | `PromotionalBannerCarousel`, `LiveActivityCompactPill`, `LiveMarketplaceHeader`, `HaryanaCorridorChips` | **PASS** |
 | [`CarryGo/app/(tabs)/requests.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/(tabs)/requests.tsx) | Request management center. Incoming vs Outgoing requests, counteroffer negotiations, cancel and accept triggers. | `RequestCard`, `RequestDetailModal`, `RequestSuccessModal`, `EmptyState` | **PASS** |
 | [`CarryGo/app/(tabs)/messages.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/(tabs)/messages.tsx) | Real-time conversations list with unread badges, participant avatars, and last message timestamps. | `FlashList`, `AnimatedTabIndicator`, `SwipeableCard`, `EmptyState` | **PASS** |
 | [`CarryGo/app/(tabs)/profile.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/(tabs)/profile.tsx) | User profile hub. Rating statistics, KYC badge, dual-role switcher (`sender`/`traveller`/`both`), legal links, account deletion. | `Badge`, `Card`, `Button`, `AuthContext`, `ThemeContext` | **PASS** |
 | [`CarryGo/app/(tabs)/_layout.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/(tabs)/_layout.tsx) | Bottom navigation bar with animated tab transitions, haptic taps, and unread notification badges. | `@react-navigation/bottom-tabs`, `AnimatedIcon`, `NotificationContext` | **PASS** |
 | [`CarryGo/app/_layout.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/_layout.tsx) | Root application wrapper. In-app notification banner, QueryProvider, AuthProvider, ThemeProvider, AppErrorBoundary. | `InAppNotificationBanner`, `QueryProvider`, `AuthProvider`, `ThemeProvider` | **PASS** |
-| [`CarryGo/app/login.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/login.tsx) | Sliding 2-stage authentication. Email input, 6-digit OTP verification, clipboard paste auto-submit, 60s resend cooldown. | `LoginEmailForm`, `LoginOtpForm`, `AuthContext`, `MicroInteractions` | **PASS** |
+| [`CarryGo/app/login.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/login.tsx) | Sliding 2-stage authentication. Email input, 6-digit OTP verification, clipboard paste auto-submit, 60s resend cooldown. On success redirects to `/kyc` (which handles both account-details and document phases). | `LoginEmailForm`, `LoginOtpForm`, `AuthContext`, `MicroInteractions` | **PASS** |
 | [`CarryGo/app/onboarding.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/onboarding.tsx) | 3-slide introductory walkthrough introducing community logistics, verified travelers, and escrow safety. | `HeroIllustrations`, `Button`, `StepIndicator` | **PASS** |
-| [`CarryGo/app/profile-setup.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/profile-setup.tsx) | Post-registration profile builder. Full Name, unique username checking via RPC, phone verification, role selection, home city. | `CityPicker`, `Input`, `Button`, `check_username` RPC | **PASS** |
 | [`CarryGo/app/create-trip.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/create-trip.tsx) | 4-step trip creation wizard: Route selection, date & time, vehicle type & available capacity (kg), pricing per kg. | `TripRouteStep`, `TripDetailsStep`, `TripReviewStep`, `WizardContainer` | **PASS** |
 | [`CarryGo/app/create-parcel.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/create-parcel.tsx) | 4-step parcel creation wizard: Pickup/Dropoff cities, dimensions, weight, photos, category, bounty price offer. | `ParcelRouteStep`, `ParcelDetailsStep`, `ParcelReviewStep`, `WizardContainer` | **PASS** |
-| [`CarryGo/app/delivery/[id].tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/delivery/[id].tsx) | Live delivery tracking cockpit. 4-digit pickup code, 6-digit delivery PIN, trip progress updates, route polyline map, ratings. | `DeliveryMap`, `DeliveryOtpEntry`, `DeliveryTimeline`, `ETACard`, `RatingModal` | **PASS** |
+| [`CarryGo/app/delivery/[id].tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/delivery/[id].tsx) | Live delivery tracking cockpit. 4-digit pickup code, 6-digit delivery PIN, trip progress updates, route polyline map, ratings. | `DeliveryMap`, `DeliveryOtpEntry`, `DeliveryTimeline`, `RatingModal` | **PASS** |
 | [`CarryGo/app/payment/[id].tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/payment/[id].tsx) | Escrow payment screen. Razorpay SDK checkout, WebBrowser payment links, payment breakdown, tax invoice display. | `useRazorpayCheckout`, `ShieldCheck`, `DigitalWaybillCard`, `Button` | **PASS** |
 | [`CarryGo/app/chat/[id].tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/chat/[id].tsx) | Realtime chat conversation. Delivery context pill, message bubbles, unread tracking, image attachments, debounce. | `FlashList`, `KeyboardAwareScrollView`, `chatHeaderMeta`, Supabase Realtime | **PASS** |
 | [`CarryGo/app/notifications.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/notifications.tsx) | Dedicated notification center. All/Requests/Deliveries tabs, mark all as read, deep linking to active entities. | `NotificationPanel`, `NotificationContext`, `AnimatedTabIndicator` | **PASS** |
 | [`CarryGo/app/notification-settings.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/notification-settings.tsx) | Notification preferences. Push notifications, SMS alerts, sound/haptic toggles, marketing opt-ins. | `Card`, `Button`, `notifications.service` | **PASS** |
-| [`CarryGo/app/search.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/search.tsx) | Corridor route search with fuzzy trigram matching, date picker, capacity filter, and vehicle selector. | `SmartSearchBar`, `FilterPanel`, `TripCard`, `ParcelCard` | **PASS** |
-| [`CarryGo/app/matching.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/matching.tsx) | Automated corridor matching engine. Multi-factor compatibility scoring (corridor, date, weight, rating). | `MatchDiagnosticCard`, `MatchResultCard`, `useMatching` | **PASS** |
-| [`CarryGo/app/kyc.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/kyc.tsx) | DigiLocker Aadhaar/PAN KYC submission. OTP generation, Aadhaar XML verification, PAN name matching, selfie capture. | `KycStepIndicator`, `KycMandatoryModal`, `PanVerificationModal`, `kyc.service` | **PASS** |
+| [`CarryGo/app/search.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/search.tsx) | Corridor route search with fuzzy trigram matching, date picker, capacity filter, and vehicle selector. When invoked with `mode=parcel\|browse_trips\|trip` URL params it also renders a top "Smart matches" section with multi-factor scoring and a match-breakdown sheet (absorbing the former `matching.tsx` screen); without params it behaves as a plain search. | `FilterPanel`, `TripCard`, `BlaBlaTripCard`, `ParcelCard`, `MatchDiagnosticCard`, `useMatching`, `scoreMatch` | **PASS** |
+| [`CarryGo/app/kyc.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/kyc.tsx) | Unified identity onboarding. When the authenticated user's profile is incomplete, the screen first runs an "Account Details" phase (username availability via `check_username` RPC, full name, phone, home city, role) before transitioning into DigiLocker Aadhaar/PAN KYC submission (OTP generation, Aadhaar XML verification, PAN name matching, selfie capture). This folded in the former standalone `profile-setup.tsx` screen. | `KycStepIndicator`, `KycMandatoryModal`, `PanVerificationModal`, `CityPicker`, `kyc.service` | **PASS** |
 | [`CarryGo/app/trip/[id].tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/trip/[id].tsx) | Public trip corridor details. Route itinerary, vehicle specs, traveler verification badge, Send Request modal. | `RouteMapView`, `SendRequestModal`, `NegotiateTripModal`, `Button` | **PASS** |
 | [`CarryGo/app/parcel/[id].tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/parcel/[id].tsx) | Public parcel details. Package photos, dimensions, weight, pickup timeframe, sender profile, Carry Parcel modal. | `CarryParcelModal`, `ProductIllustration`, `Badge`, `Button` | **PASS** |
-| [`CarryGo/app/my-activity.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/my-activity.tsx) | Consolidated user activity center. Active trips, active parcel listings, completed deliveries, archived items. | `ActivityParcelsList`, `ActivityTripsList`, `AnimatedTabIndicator` | **PASS** |
-| [`CarryGo/app/transactions.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/transactions.tsx) | Financial escrow ledger. Payment history, locked escrows, released payouts, refund records, tax invoices. | `DigitalWaybillCard`, `Card`, `Badge`, `EmptyState` | **PASS** |
+| [`CarryGo/app/my-activity.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/my-activity.tsx) | Consolidated user activity center. Pill-bar segments for active trips, active parcel listings, completed deliveries, archived items, and **Transactions** (the financial escrow ledger: payment history, locked escrows, released payouts, refunds, tax invoices — absorbed from the former `transactions.tsx` screen; reachable via deep link `/my-activity?tab=transactions`). | `ActivityParcelsList`, `ActivityTripsList`, `DigitalWaybillCard`, `AnimatedTabIndicator` | **PASS** |
 | [`CarryGo/app/edit-profile.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/edit-profile.tsx) | Profile editing. Avatar upload to storage, bio, phone number update, home city, notification preferences. | `ParcelImagePicker`, `CityPicker`, `Input`, `profile.service` | **PASS** |
-| [`CarryGo/app/subscriptions.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/subscriptions.tsx) | Tiered membership plans. Frequent traveler benefits, zero platform fee promotions, priority matching. | `Card`, `Button`, `Badge`, `subscriptions.service` | **PASS** |
+| [`CarryGo/app/subscriptions.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/subscriptions.tsx) | Route-match alert manager. Users save a city-pair (and optional date window) and receive a push/in-app notification whenever a matching trip or parcel is posted. Backed by the `route_subscriptions` table and the `notify_route_subscribers` RPC. (This screen is **not** a paid-tier membership feature.) | `Card`, `Button`, `Badge`, `subscriptions.service` | **PASS** |
 | [`CarryGo/app/support.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/support.tsx) | Support center & FAQ. Ticket submission, live chat link, Grievance Officer designation under IT Act 2021. | `Input`, `Button`, `support.service`, `Card` | **PASS** |
 | [`CarryGo/app/legal/terms.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/legal/terms.tsx) | Statutory Terms of Service compliant with Information Technology Act 2021 & Consumer Protection Rules 2020. | `ScrollView`, `Card`, `Button` | **PASS** |
 | [`CarryGo/app/legal/privacy.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/legal/privacy.tsx) | Statutory Privacy Policy compliant with Digital Personal Data Protection (DPDP) Act 2023. | `ScrollView`, `Card`, `Button` | **PASS** |
 | [`CarryGo/app/legal/refund-policy.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/legal/refund-policy.tsx) | Escrow Cancellation & Refund Policy (100% refund prior to pickup code verification; arbitration rules). | `ScrollView`, `Card`, `Button` | **PASS** |
 | [`CarryGo/app/legal/shipping-policy.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/app/legal/shipping-policy.tsx) | Shipping & Peer-to-Peer Transit Policy (Prohibited contraband items, packaging standards, loss liability). | `ScrollView`, `Card`, `Button` | **PASS** |
 
-### 4.2 Component Catalog (54 Components)
+### 4.2 Component Catalog (49 Components)
 
 * **UI Component Primitives (20 components)**:
   - [`InAppNotificationBanner.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/InAppNotificationBanner.tsx): Spring-animated floating banner for foreground notifications with haptic feedback.
@@ -173,15 +170,18 @@ The mobile client is an enterprise React Native application built on Expo SDK 53
   - [`AsyncState.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/AsyncState.tsx), [`Badge.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/Badge.tsx), [`Button.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/Button.tsx), [`Card.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/Card.tsx), [`EmptyState.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/EmptyState.tsx).
   - [`GestureBottomSheet.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/GestureBottomSheet.tsx): Crash-safe modal wrapped in `GestureHandlerRootView`.
   - [`Input.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/Input.tsx), [`KeyboardAwareScrollView.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/KeyboardAwareScrollView.tsx), [`LivelyCard.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/LivelyCard.tsx), [`LottieViewWrapper.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/LottieViewWrapper.tsx), [`MicroInteractions.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/MicroInteractions.tsx), [`Skeleton.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/Skeleton.tsx), [`SkeletonLoader.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/SkeletonLoader.tsx), [`SwipeableCard.tsx`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/components/ui/SwipeableCard.tsx).
-* **Feature Components (34 components)**:
-  - Marketplace & Discovery: `PromotionalBannerCarousel`, `LiveActivityCompactPill`, `LiveMarketplaceHeader`, `TopLiveDeliveryShowcase`, `HaryanaCorridorChips`, `TripCard`, `ParcelCard`, `SmartSearchBar`, `FilterPanel`, `InteractiveRouteCard`.
-  - Handover & Escrow: `DeliveryActionCards`, `DeliveryMap`, `DeliveryOtpEntry`, `DeliveryTimeline`, `DigitalWaybillCard`, `ETACard`, `RatingModal`.
+* **Feature Components (29 components)**:
+  - Marketplace & Discovery: `PromotionalBannerCarousel`, `LiveActivityCompactPill`, `LiveMarketplaceHeader`, `HaryanaCorridorChips`, `TripCard`, `ParcelCard`, `FilterPanel`, `InteractiveRouteCard`.
+  - Handover & Escrow: `DeliveryActionCards`, `DeliveryMap`, `DeliveryOtpEntry`, `DeliveryTimeline`, `DigitalWaybillCard`, `RatingModal`.
   - Requests & Modals: `RequestCard`, `RequestDetailModal`, `RequestItem`, `RequestSuccessModal`, `SendRequestModal`, `NegotiateTripModal`, `CarryParcelModal`.
   - Identity & KYC: `KycMandatoryModal`, `KycOnboarding`, `PanVerificationModal`, `KycStepIndicator`.
   - Wizard Framework: `WizardContainer`, `StepIndicator`, `SevenDaySchedulePicker`, `ParcelImagePicker`, `CityPicker`, `CitySelectModal`.
 * **Illustration Assets**: `CategoryIllustrations`, `HeroIllustrations`, `ProductIllustration`, `VehicleIllustrations`.
 
 ### 4.3 Services & Data Layer (18 Services)
+
+> **Cleanup note (2026-10-31):** The following were removed as part of the dead-code pass and are no longer part of the mobile tree: screens `profile-setup.tsx` (folded into `kyc.tsx`), `matching.tsx` (folded into `search.tsx`), and `transactions.tsx` (folded into `my-activity.tsx` as the Transactions pill); components `ETACard`, `SmartSearchBar`, `MatchResultCard`, `LiveActivityBanner`, `TopLiveDeliveryShowcase` (none had call sites in `app/`), plus their barrel re-exports in `components/index.ts`; service functions `generateDeterministicOtp` and `confirmPickup` from `deliveries.service.ts` (both `@deprecated` with zero importers); the entire `lime` colour group and `limeGlow` / `limeSoft` tokens in `constants/theme.ts`; the committed lint artifact `.lint-carrygo.txt`; and the unused dependencies `@gorhom/bottom-sheet`, `@react-native-picker/picker`, `expo-blur`, `expo-device`, `react-native-maps`, and `lottie-react-native` (the last of which was replaced in-tree by a native-only `LottieViewWrapper`). `notifications.service.ts` was rewired to point payment deep-links at the new path and defensively remaps any legacy `/transactions` link to `/my-activity?tab=transactions`.
+
 
 * [`deliveries.service.ts`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/services/deliveries.service.ts): Pickup OTP validation, delivery OTP PIN submission via `complete_delivery_command`, masked delivery PIN security.
 * [`payments.service.ts`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/services/payments.service.ts): Razorpay order creation, payment link generation, provider verification, escrow state checks.
@@ -234,13 +234,15 @@ All mutations (KYC approvals, dispute refunds, escrow releases) use a dedicated 
 | `/dashboard/trips` | Active travel corridors, capacity utilization, route cancellations. | `TripsTable`, `RouteMap`, `actions.ts` | Covered |
 | `/dashboard/parcels` | Live parcel shipment listings, delivery status tracking, weight distributions. | `ParcelsTable`, `actions.ts` | Covered |
 | `/dashboard/users` | User management. Identity verification, trust score adjustments, suspension/ban controls. | `UsersTable`, `actions.ts` (`updateUserStatus`, `banUser`) | Covered |
-| `/dashboard/analytics` | Platform metrics. GMV, completed deliveries, revenue charts, route demand heatmaps. | `RevenueChart`, `DeliveryFunnel`, `DashboardChart` | Covered |
+| `/dashboard/analytics` | Platform metrics. GMV, completed deliveries, revenue charts, route demand heatmaps. Reads data directly in server components; the former `actions.ts` server-action file was deleted in the 2026-10-31 cleanup pass because all three of its exports (`fetchRevenueData`, `fetchUserGrowth`, `exportAnalyticsCSV`) had zero call sites. | `RevenueChart`, `DeliveryFunnel`, `DashboardChart` | Covered |
 | `/dashboard/audit` | Immutable audit trail viewer. Inspect actor IDs, timestamps, event payloads. | `AuditLog`, `DataTable`, `ExportButton` | Covered |
 | `/dashboard/notifications` | Broadcast message composer. Send targeted alerts to all users or specific roles. | `BroadcastComposer`, `actions.ts` (`sendBroadcastNotification`) | Covered |
 | `/dashboard/banners` | Promotional banner management. Create home screen banners, upload images, set deep links. | `BannerManager`, `actions.ts` (`upsertBanner`, `deleteBanner`) | Covered |
 | `/dashboard/bulk` | Bulk operational actions. Batch user approvals, mass notification dispatches. | `BulkOperations`, `BulkActionBar`, `actions.ts` | Covered |
 | `/dashboard/support` | Customer support ticket queue. Issue escalation, ticket status updates. | `SupportTable`, `actions.ts` | Covered |
 | `/dashboard/settings` | Operational controls. Platform fee percentage (default 10%), maintenance mode toggle. | `SettingsTabs`, `actions.ts` (`updateSystemConfig`) | Covered |
+
+> **Cleanup note (2026-10-31):** The CMS also lost `lib/smart-matching.ts` and its test (a scoring engine that was never wired into any dashboard view), `lib/marketing-metadata.ts` (an unused SEO helper), and the `clsx` and `tailwind-merge` npm dependencies (no module imported them).
 
 ---
 
@@ -281,9 +283,10 @@ Built on Next.js 16.3 App Router and React 19.2, `carrygo-web` serves both as th
 
 ### 6.2 Identified Finding in Web Checkout
 
-* **File:** [`carrygo-web/app/payment/[id]/page.tsx:L532`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/carrygo-web/app/payment/[id]/page.tsx#L532)
-* **Finding:** Line 532 contains `onClick={() => handlePayment('simulated')}`. Because `handlePayment` takes 0 arguments (the simulated parameter was deprecated when the simulator backdoor was removed), TypeScript flags error TS2554: `Expected 0 arguments, but got 1`.
-* **Recommended Fix:** Change `onClick={() => handlePayment('simulated')}` to `onClick={() => handlePayment()}` or remove the test button in production builds.
+* **File:** [`carrygo-web/app/payment/[id]/page.tsx:L516`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/carrygo-web/app/payment/[id]/page.tsx#L516)
+* **Status:** **RESOLVED (2026-10-31).** The stale `onClick={() => handlePayment('simulated')}` call that previously tripped TS2554 (`Expected 0 arguments, but got 1`) has been corrected to `onClick={() => handlePayment()}` at line 516. The web checkout now typechecks cleanly and the simulator parameter is fully retired across the codebase.
+
+In the same cleanup pass the following unused web artifacts were deleted: `lib/rate-limit.ts` and its test (rate-limit stub never wired into any route), the `sanitizeText()` and `parsePositiveInt()` helpers from `lib/validation.ts` (zero importers), and the `recharts` npm dependency (no component imported it).
 
 ---
 
@@ -340,6 +343,8 @@ backend/src/
   - L2 Redis Cluster: 1ms access time.
   - SingleFlight: Prevents duplicate upstream database queries for hot corridors.
   - XFetch: Probabilistic early refresh eliminates cache stampedes on TTL expiry.
+
+> **Cleanup note (2026-10-31):** `src/lib/batch-buffer.ts` was removed (the exported `BatchBuffer` class had zero importers across the backend). The `esbuild` dev dependency was dropped alongside it. No runtime behaviour or test coverage changed.
 
 ---
 
@@ -550,16 +555,16 @@ Every layer of the platform is validated by automated unit, integration, and end
 ========================================================================================
  Subsystem           Test Framework        Suites / Files      Tests Passed     Errors
 ========================================================================================
- Mobile (CarryGo)    Jest / RTL            46 suites           617 tests        0
- Admin CMS           Vitest                7 test files        59 tests         0
- Web Platform        Vitest                6 test files        54 tests         0
+ Mobile (CarryGo)    Jest / RTL            49 suites           660 tests        0
+ Admin CMS           Vitest                6 test files        50 tests         0
+ Web Platform        Vitest                5 test files        34 tests         0
  Backend Services    Node.js Test Runner   24 test suites      38 tests         0
 ----------------------------------------------------------------------------------------
- TOTAL ECOSYSTEM                           83 test suites      768 tests        0
+ TOTAL ECOSYSTEM                           84 test suites      782 tests        0
 ========================================================================================
 ```
 
-### 13.1 Mobile Test Coverage (`CarryGo/__tests__/` - 46 Suites, 617 Tests)
+### 13.1 Mobile Test Coverage (`CarryGo/__tests__/` - 49 Suites, 660 Tests)
 - `payments.test.ts`: Verifies unpaid link detection, browser closure handling, fake ID rejection, and atomic escrow locking.
 - `deliveries.test.ts`: Verifies rejection of fake OTPs, pickup confirmation requirement, brute-force lockout, and valid completion.
 - `smart-matching.test.ts`: 36 scoring and corridor matching algorithm tests.
@@ -576,7 +581,7 @@ Every layer of the platform is validated by automated unit, integration, and end
 ### 13.2 TypeScript Compilation Status
 - `CarryGo`: `pnpm typecheck` -> **0 errors**
 - `carrygo-cms`: `npx tsc --noEmit` -> **0 errors**
-- `carrygo-web`: `npx vitest run` -> **54 passed** (1 TS lint error on line 532)
+- `carrygo-web`: `npx vitest run` -> **34 passed**; `npx tsc --noEmit` -> **0 errors** (the historical TS2554 on `payment/[id]/page.tsx` is now resolved)
 - `backend`: `npx tsc -p tsconfig.json --noEmit` -> **0 errors**
 - `infrastructure`: `npx tsc --noEmit` -> **0 errors**
 
@@ -617,6 +622,19 @@ Every layer of the platform is validated by automated unit, integration, and end
 ---
 
 ## 15. Complete System Change Log & Chronological Audit History
+
+### 2026-10-31 (Dead-Code Cleanup & Simplification Pass — branch `chore/cleanup-dead-code`)
+- **Mobile — screen consolidation**: Deleted `app/profile-setup.tsx` and folded its username/full-name/phone/city/role capture into `app/kyc.tsx` as a prepended "Account Details" phase (shown only when the user's profile is incomplete); login now redirects to `/kyc` instead of `/profile-setup`. Deleted `app/matching.tsx` and folded its scoring/breakdown UI into `app/search.tsx`, which renders a "Smart matches" section at the top when invoked with `mode=parcel|browse_trips|trip` URL params (manual search is pre-filled); without params `search.tsx` is unchanged. Deleted `app/transactions.tsx` and added it as a new "Transactions" segment in `app/my-activity.tsx`'s pill bar; deep link is now `/my-activity?tab=transactions`, and `notifications.service.ts` was rewired to point payment deep-links at the new path (defensively remapping any legacy `/transactions` link).
+- **Mobile — dead components removed** (zero `app/` call sites): `components/feature/ETACard.tsx`, `SmartSearchBar.tsx`, `MatchResultCard.tsx`, `LiveActivityBanner.tsx`, `TopLiveDeliveryShowcase.tsx` (plus its test), and the corresponding barrel re-exports in `components/index.ts`.
+- **Mobile — dead service functions removed**: `generateDeterministicOtp` and `confirmPickup` from `services/deliveries.service.ts` (both marked `@deprecated` with zero importers).
+- **Mobile — dead theme tokens removed**: the entire `lime` colour group (`lime`, `limeDark`, `limeLight`, `limeSubtle`, `limeBorder`, `limeText`), the `limeGlow` shadow, and the `limeSoft` gradient from `constants/theme.ts`.
+- **Mobile — misc**: Deleted the committed ESLint output artifact `.lint-carrygo.txt`. Removed six unused npm dependencies with zero source imports: `@gorhom/bottom-sheet`, `@react-native-picker/picker`, `expo-blur`, `expo-device`, `react-native-maps`, `lottie-react-native` (the last was replaced in-tree by a native-only `LottieViewWrapper`).
+- **Mobile — doc correction**: The `app/subscriptions.tsx` screen is route-match alerts (users save a city-pair and get notified when a matching trip/parcel appears, backed by `route_subscriptions` table and `notify_route_subscribers` RPC) — **not** tiered paid membership plans, as the previous doc version incorrectly described.
+- **Web (`carrygo-web/`)**: Removed `lib/rate-limit.ts` and its test (unused rate-limit stub), `sanitizeText()` and `parsePositiveInt()` from `lib/validation.ts` (zero importers), and the `recharts` dependency (no component imported it). Fixed the historical TS2554 at `app/payment/[id]/page.tsx` line 516 (`handlePayment()` with zero args) that section 6.2 previously flagged.
+- **CMS (`carrygo-cms/`)**: Removed `lib/smart-matching.ts` and its test (unused scoring engine never wired to UI), `lib/marketing-metadata.ts` (unused SEO helper), and `app/dashboard/analytics/actions.ts` outright (all three exported server actions — `fetchRevenueData`, `fetchUserGrowth`, `exportAnalyticsCSV` — had zero call sites). Removed the `clsx` and `tailwind-merge` dependencies.
+- **Backend (`backend/`)**: Removed `src/lib/batch-buffer.ts` (unused `BatchBuffer` class, zero importers) and the `esbuild` dev dependency.
+- **Test Suite Verification**: **782 automated tests passing across 84 suites** (100% pass rate) — Mobile Jest 49/660, Web Vitest 5/34, CMS Vitest 6/50, Backend `node --test` 24/38.
+- **Explicitly unchanged**: payment escrow architecture, dual-OTP handshake, database schema (migrations), edge functions list, AWS CDK infrastructure stack, and the statutory compliance posture.
 
 ### 2026-10-20 (Comprehensive Vulnerability Remediation & Security Hardening)
 - **SEC-01 (Push Notification Edge Function IDOR Fix)**: Hardened [`CarryGo/supabase/functions/send-push-notifications/index.ts`](file:///c:/Users/somve/Desktop/projects/Working%20real%20projects/App/CarryGo-finall/CarryGo/supabase/functions/send-push-notifications/index.ts) to verify caller user ID and prevent unauthorized notification spoofing.
@@ -694,4 +712,4 @@ Every layer of the platform is validated by automated unit, integration, and end
 
 ---
 
-> **Antigravity Verification Seal**: This project context document accurately represents the active codebase state, schemas, RPC domain commands, edge functions, security policies, feature inventory, component catalog, and architectural topology as of October 20, 2026.
+> **Antigravity Verification Seal**: This project context document accurately represents the active codebase state, schemas, RPC domain commands, edge functions, security policies, feature inventory, component catalog, and architectural topology as of October 31, 2026.

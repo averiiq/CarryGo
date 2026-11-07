@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -28,8 +29,23 @@ import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { createClient } from '@/utils/supabase/client'
 import { OtpHandshakeModal } from '@/components/delivery/otp-handshake-modal'
 import { RatingModal } from '@/components/delivery/rating-modal'
+import { RequestDetailModal } from '@/components/requests/request-detail-modal'
 
 type Tab = 'parcels' | 'trips' | 'payments'
+type StatusFilter = 'all' | 'active' | 'completed' | 'archived'
+
+const PARCEL_STATUS_FILTER: Record<StatusFilter, (s: string) => boolean> = {
+  all: () => true,
+  active: (s) => ['open', 'matched', 'in_transit', 'accepted'].includes(s),
+  completed: (s) => s === 'delivered' || s === 'completed',
+  archived: (s) => ['cancelled', 'expired', 'declined'].includes(s),
+}
+const TRIP_STATUS_FILTER: Record<StatusFilter, (s: string) => boolean> = {
+  all: () => true,
+  active: (s) => s === 'active',
+  completed: (s) => s === 'completed',
+  archived: (s) => ['cancelled', 'expired'].includes(s),
+}
 
 interface Parcel {
   id: string
@@ -92,7 +108,15 @@ interface DeliveryRecord {
 }
 
 export default function CustomerActivityPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('parcels')
+  const searchParams = useSearchParams()
+  const initialTab: Tab = (() => {
+    const t = searchParams?.get('tab')
+    if (t === 'transactions' || t === 'payments') return 'payments'
+    if (t === 'trips') return 'trips'
+    return 'parcels'
+  })()
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [loading, setLoading] = useState(true)
   const [isPending, startTransition] = useTransition()
   const [actionError, setActionError] = useState<string | null>(null)
@@ -104,6 +128,7 @@ export default function CustomerActivityPage() {
   const [deliveries, setDeliveries] = useState<DeliveryRecord[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>('User')
+  const [detailModalRequest, setDetailModalRequest] = useState<BookingRequest | null>(null)
 
   // Modals state
   const [otpModalState, setOtpModalState] = useState<{
@@ -256,7 +281,7 @@ export default function CustomerActivityPage() {
               </span>
             </div>
             <p className="text-sm text-slate-600">
-              Manage requests with real-time transition locks, dual-OTP handovers, and escrow payouts.
+              Manage requests with real-time transition locks, dual-OTP handovers, and booking payouts.
             </p>
           </div>
 
@@ -342,12 +367,35 @@ export default function CustomerActivityPage() {
             }`}
           >
             <CreditCard className="w-4 h-4 text-indigo-600" />
-            <span>Escrow &amp; Payments</span>
+            <span>Transactions</span>
             <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-slate-200 font-bold text-slate-700">
               {payments.length}
             </span>
           </button>
         </div>
+
+        {/* Secondary status filter — only shown on parcels/trips tabs */}
+        {(activeTab === 'parcels' || activeTab === 'trips') && (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {(['all', 'active', 'completed', 'archived'] as StatusFilter[]).map((s) => {
+              const active = statusFilter === s
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold border transition ${
+                    active
+                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {/* Tab 1: My Parcels (Sender View) */}
         {activeTab === 'parcels' && (
@@ -367,7 +415,7 @@ export default function CustomerActivityPage() {
                 </Link>
               </div>
             ) : (
-              parcels.map((parcel) => {
+              parcels.filter((p) => PARCEL_STATUS_FILTER[statusFilter](p.status)).map((parcel) => {
                 const parcelReqs = requests.filter((r) => r.parcel_id === parcel.id)
 
                 return (
@@ -469,14 +517,14 @@ export default function CustomerActivityPage() {
                                     href={`/payment/${req.id}`}
                                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-xs"
                                   >
-                                    <Lock className="w-3.5 h-3.5" /> Pay &amp; Lock Escrow
+                                    <Lock className="w-3.5 h-3.5" /> Pay &amp; Book
                                   </Link>
                                 )}
 
                                 {payment && (
                                   <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                                     <ShieldCheck className="w-3.5 h-3.5" />
-                                    {payment.status === 'released' ? 'Escrow Released' : 'Escrow Locked'}
+                                    {payment.status === 'released' ? 'Payout Released' : 'Booked & Secured'}
                                   </span>
                                 )}
 
@@ -553,7 +601,7 @@ export default function CustomerActivityPage() {
                 </Link>
               </div>
             ) : (
-              trips.map((trip) => {
+              trips.filter((t) => TRIP_STATUS_FILTER[statusFilter](t.status)).map((trip) => {
                 const tripReqs = requests.filter((r) => r.trip_id === trip.id)
 
                 return (
@@ -650,6 +698,13 @@ export default function CustomerActivityPage() {
                                   <>
                                     <button
                                       type="button"
+                                      onClick={() => setDetailModalRequest(req)}
+                                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold transition cursor-pointer"
+                                    >
+                                      View details
+                                    </button>
+                                    <button
+                                      type="button"
                                       onClick={() => handleTransitionRequest(req.id, 'accepted')}
                                       className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition cursor-pointer"
                                     >
@@ -734,17 +789,17 @@ export default function CustomerActivityPage() {
           </div>
         )}
 
-        {/* Tab 3: Escrow & Payments */}
+        {/* Tab 3: Bookings & Payments */}
         {activeTab === 'payments' && (
           <div className="mt-6 space-y-4">
             <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">
-                  Safe-Transit Escrow Guarantee
+                  Safe-Transit Booking Guarantee
                 </h4>
                 <p className="text-xs text-emerald-800 leading-relaxed">
-                  Every payment is locked safely in RBI-compliant escrow. Funds are automatically released to the traveler upon delivery code confirmation.
+                  Every payment is locked safely in RBI-compliant booking. Funds are automatically released to the traveler upon delivery code confirmation.
                 </p>
               </div>
             </div>
@@ -754,7 +809,7 @@ export default function CustomerActivityPage() {
                 <CreditCard className="w-10 h-10 text-slate-400 mx-auto" />
                 <h3 className="text-base font-bold text-slate-800">No Transactions Found</h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  When you send a package or deliver one, all escrow receipts and tax invoices appear here.
+                  When you send a package or deliver one, all booking receipts and tax invoices appear here.
                 </p>
               </div>
             ) : (
@@ -775,7 +830,7 @@ export default function CustomerActivityPage() {
                             : 'bg-rose-100 text-rose-800'
                         }`}
                       >
-                        {p.status === 'locked' ? 'Locked in Escrow' : p.status}
+                        {p.status === 'locked' ? 'Booked & Secured' : p.status}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500">
@@ -818,6 +873,27 @@ export default function CustomerActivityPage() {
         targetName={ratingModalState.targetName}
         onSubmitted={() => void loadData()}
       />
+
+      {/* Request detail modal */}
+      {detailModalRequest && (
+        <RequestDetailModal
+          requestId={detailModalRequest.id}
+          parcelId={detailModalRequest.parcel_id}
+          tripId={detailModalRequest.trip_id}
+          senderName={detailModalRequest.sender_name}
+          travellerName={detailModalRequest.traveller_name}
+          price={detailModalRequest.price}
+          message={detailModalRequest.message}
+          status={detailModalRequest.status}
+          currentUserIsTraveller={detailModalRequest.traveller_id === userId}
+          onClose={() => setDetailModalRequest(null)}
+          actionInFlight={isPending}
+          onAction={async (next) => {
+            await handleTransitionRequest(detailModalRequest.id, next)
+            setDetailModalRequest(null)
+          }}
+        />
+      )}
     </MarketingShell>
   )
 }

@@ -148,7 +148,7 @@ export default function NotificationSettingsScreen() {
       const token = await registerForPushNotifications();
       if (token) {
         await savePushToken(user.id, token);
-        setTestResult({ success: true, message: 'Device token refreshed and registered successfully with CarryGo cloud!' });
+        setTestResult({ success: true, message: 'Device token refreshed and registered successfully with CaryGoo cloud!' });
       } else {
         setTestResult({
           success: false,
@@ -211,13 +211,13 @@ export default function NotificationSettingsScreen() {
     {
       title: 'Payments',
       items: [
-        { key: 'enablePayments', label: 'Payment & Escrow Alerts', description: 'Escrow locks, payment releases, and refund confirmations.', icon: 'account-balance-wallet', color: '#EF4444', critical: true },
+        { key: 'enablePayments', label: 'Payment & Booking Alerts', description: 'Booking confirmations, payment releases, and refund updates.', icon: 'account-balance-wallet', color: '#EF4444', critical: true },
       ],
     },
     {
       title: 'Offers & Promotions',
       items: [
-        { key: 'enablePromotions', label: 'Promotional Offers', description: 'Discounts, cashback campaigns, and seasonal deals from CarryGo.', icon: 'local-offer', color: '#EC4899' },
+        { key: 'enablePromotions', label: 'Promotional Offers', description: 'Discounts, cashback campaigns, and seasonal deals from CaryGoo.', icon: 'local-offer', color: '#EC4899' },
       ],
     },
   ];
@@ -258,7 +258,7 @@ export default function NotificationSettingsScreen() {
               <View style={styles.envBannerContent}>
                 <Text style={[styles.envBannerTitle, { color: '#B45309' }]}>Running in Expo Go Client</Text>
                 <Text style={[styles.envBannerText, { color: '#92400E' }]}>
-                  Expo Go isolates notifications to the Expo Go app. Tapping notifications opens Expo Go instead of CarryGo. To test production notifications, install the standalone CarryGo APK (in.averiq.carrygo).
+                  Expo Go isolates notifications to the Expo Go app. Tapping notifications opens Expo Go instead of CaryGoo. To test production notifications, install the standalone CaryGoo APK (in.averiq.carygoo).
                 </Text>
               </View>
             </View>
@@ -268,7 +268,7 @@ export default function NotificationSettingsScreen() {
               <View style={styles.envBannerContent}>
                 <Text style={[styles.envBannerTitle, { color: '#047857' }]}>Production Standalone App Active</Text>
                 <Text style={[styles.envBannerText, { color: '#065F46' }]}>
-                  Native Firebase Cloud Messaging (FCM) is active for package &quot;{envInfo?.applicationId || 'com.averiq.carygoo'}&quot;. Tapping notifications opens CarryGo directly.
+                  Native Firebase Cloud Messaging (FCM) is active for package &quot;{envInfo?.applicationId || 'com.averiq.carygoo'}&quot;. Tapping notifications opens CaryGoo directly.
                 </Text>
               </View>
             </View>
@@ -442,7 +442,7 @@ export default function NotificationSettingsScreen() {
           <View style={[styles.infoNote, { backgroundColor: C.primarySubtle, borderColor: C.primary + '30' }]}>
             <MaterialIcons name="info-outline" size={15} color={C.primary} />
             <Text style={[styles.infoNoteText, { color: C.textSecondary }]}>
-              Critical security alerts, OTP verifications, escrow releases, and delivery completions bypass preference filters and are always delivered.
+              Critical security alerts, OTP verifications, booking payouts, and delivery completions bypass preference filters and are always delivered.
             </Text>
           </View>
 

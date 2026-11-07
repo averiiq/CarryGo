@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       const linkPayload = {
         amount: amountInPaise,
         currency: 'INR',
-        description: `CarryGo Delivery Escrow for Request #${request.id.slice(0, 8)}`,
+        description: `CaryGoo Delivery Booking Guarantee for Request #${request.id.slice(0, 8)}`,
         customer: {
           name: customer?.name || user.email || 'CarryGo Customer',
           email: customer?.email || user.email || 'customer@carrygo.com',

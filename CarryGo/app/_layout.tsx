@@ -1,6 +1,6 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AlertProvider } from '@/template';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -30,9 +30,10 @@ LogBox.ignoreLogs([
   '[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.',
 ]);
 
-const PUBLIC_ROUTE_ROOTS = new Set(['index', 'login', 'onboarding', 'profile-setup', 'legal']);
+const PUBLIC_ROUTE_ROOTS = new Set(['index', 'login', 'onboarding', 'kyc', 'legal']);
 
 function AppShell() {
+  const insets = useSafeAreaInsets();
   const { user, isLoading, requiresProfileSetup, sessionError, refreshUser } = useAuth();
   const { C } = useThemeColors();
   const { isOnline } = useNetworkStatus();
@@ -42,21 +43,19 @@ function AppShell() {
 
   if (isLoading) {
     return (
-      <View style={[styles.loadingRoot, { backgroundColor: C.background }]}>
-        <LinearGradient
-          colors={[C.primarySubtle, C.background]}
-          style={StyleSheet.absoluteFillObject}
+      <View style={[styles.loadingRoot, { backgroundColor: '#FFFFFF' }]}>
+        <Image
+          source={require('../assets/images/splash-logo.png')}
+          style={styles.splashLogo}
+          contentFit="contain"
+          priority="high"
+          accessibilityLabel="CaryGoo - Move . Connect . Deliver"
         />
-        <View style={[styles.loadingCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
-          <Image
-            source={require('../assets/images/splash-logo.png')}
-            style={styles.loadingLogo}
-            contentFit="contain"
-            transition={220}
-          />
-          <Text style={[styles.loadingTitle, { color: C.textPrimary }]}>Preparing CarryGo</Text>
-          <Text style={[styles.loadingSub, { color: C.textMuted }]}>Smart matching and secure messaging</Text>
+        <View style={styles.splashFooter}>
           <ActivityIndicator color={C.primary} size="small" />
+          <Text style={[styles.splashFooterText, { color: C.textMuted }]}>
+            Move • Connect • Deliver
+          </Text>
         </View>
       </View>
     );
@@ -84,15 +83,20 @@ function AppShell() {
   }
 
   if (!user && !isPublicRoute) return <Redirect href="/login" />;
-  if (user && requiresProfileSetup && routeRoot !== 'profile-setup') return <Redirect href="/profile-setup" />;
+  if (user && requiresProfileSetup && routeRoot !== 'kyc') return <Redirect href="/kyc" />;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
+      <StatusBar
+        style={C.statusBarStyle}
+        translucent
+        animated
+      />
       <NotificationRootListener />
       <InAppNotificationBanner />
       <UpdateBanner />
       {!isOnline ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 12, backgroundColor: C.background }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: insets.top > 0 ? insets.top + 4 : 12, backgroundColor: C.background }}>
           <OfflineBanner C={C} />
         </View>
       ) : null}
@@ -121,9 +125,7 @@ function AppStack() {
   } as const;
 
   return (
-    <>
-      <StatusBar style={C.statusBarStyle} />
-      <Stack
+    <Stack
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
@@ -135,15 +137,12 @@ function AppStack() {
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="onboarding" />
-        <Stack.Screen name="profile-setup" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="create-trip" options={{ headerShown: false }} />
         <Stack.Screen name="create-parcel" options={{ headerShown: false }} />
-        <Stack.Screen name="matching" options={{ headerShown: true, headerTitle: 'Matching Results', ...headerOpts }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: true, headerTitle: 'Chat', ...headerOpts }} />
         <Stack.Screen name="delivery/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="payment/[id]" options={{ headerShown: true, headerTitle: 'Payment Status', ...headerOpts }} />
-        <Stack.Screen name="transactions" options={{ headerShown: false }} />
+        <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ headerShown: false }} />
         <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
@@ -160,7 +159,6 @@ function AppStack() {
         <Stack.Screen name="legal/shipping-policy" options={{ headerShown: false }} />
         <Stack.Screen name="rewards" options={{ headerShown: false }} />
       </Stack>
-    </>
   );
 }
 
@@ -214,30 +212,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
+    backgroundColor: '#FFFFFF',
   },
-  loadingCard: {
-    width: '100%',
-    maxWidth: 300,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
+  splashLogo: {
+    width: 250,
+    height: 250,
+  },
+  splashFooter: {
+    position: 'absolute',
+    bottom: 50,
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
+    gap: 8,
   },
-  loadingLogo: {
-    width: 76,
-    height: 76,
-  },
-  loadingTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  loadingSub: {
-    fontSize: FontSize.sm,
-    textAlign: 'center',
-    marginBottom: 2,
+  splashFooterText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.5,
   },
   centerError: {
     flex: 1,

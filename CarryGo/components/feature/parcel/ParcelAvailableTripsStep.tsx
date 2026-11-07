@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { Haptic } from '@/services/haptics.service';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import type { Trip } from '@/types';
 import { ParcelDraft, PARCEL_CATEGORIES } from './types';
+import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
 
 interface ParcelAvailableTripsStepProps {
   form: ParcelDraft;
@@ -65,6 +66,26 @@ export function ParcelAvailableTripsStep({
 
   const parcelWeightNum = Number(form.weight) || 1;
   const isLoading = browseTripsQuery.isLoading;
+
+  const autoListTriggered = useRef(false);
+
+  // If no matching trips are found on the corridor, smoothly auto-list to the marketplace
+  useEffect(() => {
+    if (
+      !isLoading &&
+      sortedTrips.length === 0 &&
+      !isPostingOpenRequest &&
+      !autoListTriggered.current &&
+      form.fromCity &&
+      form.toCity
+    ) {
+      autoListTriggered.current = true;
+      const timer = setTimeout(() => {
+        onPostOpenRequest();
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, sortedTrips.length, isPostingOpenRequest, onPostOpenRequest, form.fromCity, form.toCity]);
 
   return (
     <View style={styles.container}>
@@ -180,21 +201,25 @@ export function ParcelAvailableTripsStep({
       {/* ── Content: Trip List or Empty State ── */}
       {isLoading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={C.primary} />
+          <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
+            <LottieAnimation name="matching" style={{ width: 140, height: 110 }} />
+          </View>
           <Text style={[styles.loadingText, { color: C.textSecondary }]}>
             Searching trips on this route...
           </Text>
         </View>
       ) : sortedTrips.length === 0 ? (
         <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <View style={[styles.emptyIconWrap, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons name="directions-car" size={32} color={C.primary} />
+          <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
+            <LottieAnimation name="locationFetch" style={{ width: 140, height: 110 }} />
           </View>
           <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-            No trips on this route yet
+            {isPostingOpenRequest ? 'Listing on Marketplace...' : 'No Trips on This Route Yet'}
           </Text>
           <Text style={[styles.emptySubtitle, { color: C.textMuted }]}>
-            List your parcel on the marketplace — travellers heading this way will send you offers.
+            {isPostingOpenRequest
+              ? 'Automatically listing your parcel so nearby travellers can discover and send delivery proposals.'
+              : 'No active travellers heading this way right now. Automatically listing your parcel to the open marketplace!'}
           </Text>
 
           <Pressable
@@ -210,11 +235,14 @@ export function ParcelAvailableTripsStep({
             ]}
           >
             {isPostingOpenRequest ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.postRequestBtnText}>Publishing Parcel...</Text>
+              </View>
             ) : (
               <>
                 <MaterialIcons name="campaign" size={16} color="#FFFFFF" />
-                <Text style={styles.postRequestBtnText}>List on Marketplace</Text>
+                <Text style={styles.postRequestBtnText}>List on Marketplace Now</Text>
               </>
             )}
           </Pressable>

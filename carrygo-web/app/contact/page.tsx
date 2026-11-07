@@ -5,28 +5,28 @@ import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
-export const metadata = createMarketingMetadata('Contact', 'Contact CarryGo for support, partnerships, and onboarding assistance.', '/contact')
+export const metadata = createMarketingMetadata('Contact', 'Contact CaryGoo for support, partnerships, and onboarding assistance.', '/contact')
 
 const channels = [
   {
     title: 'Email Support',
-    detail: 'support@carrygo.in',
+    detail: 'support@carygoo.in',
     description: 'For account support, delivery issues, and policy queries.',
-    href: 'mailto:support@carrygo.in',
+    href: 'mailto:support@carygoo.in',
     icon: Mail,
   },
   {
     title: 'Business Inquiries',
     detail: 'Partnership and enterprise setup',
     description: 'For operations partnerships, recurring route planning, and team onboarding.',
-    href: 'mailto:support@carrygo.in?subject=CarryGo%20Business%20Inquiry',
+    href: 'mailto:support@carygoo.in?subject=CaryGoo%20Business%20Inquiry',
     icon: MessageSquareHeart,
   },
   {
     title: 'Priority Assistance',
     detail: 'Response target: within 1 business day',
     description: 'For active shipment incidents and urgent escalation support.',
-    href: 'mailto:support@carrygo.in?subject=Urgent%20CarryGo%20Support',
+    href: 'mailto:support@carygoo.in?subject=Urgent%20CaryGoo%20Support',
     icon: Phone,
   },
 ]
@@ -37,13 +37,13 @@ export default function ContactPage() {
       <ScrollLinkedSection className='px-4 sm:px-6 py-16 md:py-24'>
         <PageHero
           badge='Contact'
-          title='Talk to the CarryGo Team'
+          title='Talk to the CaryGoo Team'
           description='Whether you need support, sales guidance, or partnership planning, our team is ready to help.'
           illustrationSrc='/images/custom/support-center.svg'
           illustrationAlt='Custom support center illustration'
           illustrationLabel='Fast onboarding and support'
           actions={[
-            { label: 'Email Support', href: 'mailto:support@carrygo.in' },
+            { label: 'Email Support', href: 'mailto:support@carygoo.in' },
             { label: 'Browse FAQ', href: '/faq', variant: 'secondary' },
           ]}
         />
@@ -71,11 +71,11 @@ export default function ContactPage() {
               <ShieldCheck className='h-5 w-5' />
             </div>
             <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>Grievance Redressal Officer</h3>
-            <p className='mt-1 text-sm font-medium text-foreground/80'>grievance@carrygo.in</p>
+            <p className='mt-1 text-sm font-medium text-foreground/80'>grievance@carygoo.in</p>
             <p className='mt-2 text-sm leading-relaxed text-muted'>
               Under the Consumer Protection (E-Commerce) Rules, 2020 and Information Technology Rules, 2021, consumer grievances are acknowledged within 24 hours and redressed within 15 days.
             </p>
-            <Link href='mailto:grievance@carrygo.in' className='inline-link mt-4'>
+            <Link href='mailto:grievance@carygoo.in' className='inline-link mt-4'>
               File a Grievance
             </Link>
           </article>
@@ -85,7 +85,7 @@ export default function ContactPage() {
               <MapPin className='h-5 w-5' />
             </div>
             <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>Registered Corporate Office</h3>
-            <p className='mt-1 text-sm font-medium text-foreground/80'>CarryGo Technologies Private Limited</p>
+            <p className='mt-1 text-sm font-medium text-foreground/80'>CaryGoo Technologies Private Limited</p>
             <p className='mt-2 text-sm leading-relaxed text-muted'>
               Plot No. 44, Institutional Area, Sector 44, Gurugram, Haryana - 122003, India. CIN: U63090HR2026PTC109842.
             </p>
@@ -105,7 +105,7 @@ export default function ContactPage() {
               </p>
             </div>
             <Link
-              href='mailto:support@carrygo.in?subject=CarryGo%20Onboarding%20Support'
+              href='mailto:support@carygoo.in?subject=CaryGoo%20Onboarding%20Support'
               className='button-primary w-full md:w-auto inline-flex items-center justify-center shrink-0'
             >
               <Sparkles className='h-4 w-4' />

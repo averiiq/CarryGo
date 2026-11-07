@@ -9,7 +9,7 @@ describe('RequestItem - UX Actions & Role Permissions', () => {
       expect(actions.chatLabel).toBe('Chat');
       expect(actions.canAccept).toBe(true);
       expect(actions.canReject).toBe(true);
-      expect(actions.canEscrowPayment).toBe(false);
+      expect(actions.canMakePayment).toBe(false);
       expect(actions.canTrackDelivery).toBe(false);
       expect(actions.isCompleted).toBe(false);
     });
@@ -21,7 +21,7 @@ describe('RequestItem - UX Actions & Role Permissions', () => {
       expect(actions.chatLabel).toBe('Chat with Traveler');
       expect(actions.canAccept).toBe(false);
       expect(actions.canReject).toBe(false);
-      expect(actions.canEscrowPayment).toBe(false);
+      expect(actions.canMakePayment).toBe(false);
       expect(actions.canTrackDelivery).toBe(false);
       expect(actions.isCompleted).toBe(false);
     });
@@ -36,26 +36,26 @@ describe('RequestItem - UX Actions & Role Permissions', () => {
   });
 
   describe('Accepted state', () => {
-    it('allows traveller to chat and track delivery, but not escrow payment', () => {
+    it('allows traveller to chat and track delivery, but not make payment', () => {
       const actions = getRequestItemActions('accepted', 'traveller');
 
       expect(actions.canChat).toBe(true);
       expect(actions.chatLabel).toBe('Chat');
       expect(actions.canAccept).toBe(false);
       expect(actions.canReject).toBe(false);
-      expect(actions.canEscrowPayment).toBe(false);
+      expect(actions.canMakePayment).toBe(false);
       expect(actions.canTrackDelivery).toBe(true);
       expect(actions.isCompleted).toBe(false);
     });
 
-    it('allows sender to chat, escrow payment, and track delivery', () => {
+    it('allows sender to chat, make payment, and track delivery', () => {
       const actions = getRequestItemActions('accepted', 'sender');
 
       expect(actions.canChat).toBe(true);
       expect(actions.chatLabel).toBe('Chat');
       expect(actions.canAccept).toBe(false);
       expect(actions.canReject).toBe(false);
-      expect(actions.canEscrowPayment).toBe(true);
+      expect(actions.canMakePayment).toBe(true);
       expect(actions.canTrackDelivery).toBe(true);
       expect(actions.isCompleted).toBe(false);
     });
@@ -69,23 +69,23 @@ describe('RequestItem - UX Actions & Role Permissions', () => {
       expect(actions.canAccept).toBe(false);
       expect(actions.canReject).toBe(false);
       expect(actions.canTrackDelivery).toBe(false);
-      expect(actions.canEscrowPayment).toBe(false);
+      expect(actions.canMakePayment).toBe(false);
     });
   });
 
   describe('Cancelled / Rejected state', () => {
-    it('disables accept, reject, escrow, and delivery tracking', () => {
+    it('disables accept, reject, payment, and delivery tracking', () => {
       const rejectedActions = getRequestItemActions('rejected', 'sender');
       expect(rejectedActions.canAccept).toBe(false);
       expect(rejectedActions.canReject).toBe(false);
-      expect(rejectedActions.canEscrowPayment).toBe(false);
+      expect(rejectedActions.canMakePayment).toBe(false);
       expect(rejectedActions.canTrackDelivery).toBe(false);
       expect(rejectedActions.isCompleted).toBe(false);
 
       const cancelledActions = getRequestItemActions('cancelled', 'traveller');
       expect(cancelledActions.canAccept).toBe(false);
       expect(cancelledActions.canReject).toBe(false);
-      expect(cancelledActions.canEscrowPayment).toBe(false);
+      expect(cancelledActions.canMakePayment).toBe(false);
       expect(cancelledActions.canTrackDelivery).toBe(false);
       expect(cancelledActions.isCompleted).toBe(false);
     });

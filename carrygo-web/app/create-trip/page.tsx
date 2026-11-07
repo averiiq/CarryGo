@@ -6,7 +6,7 @@ import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
 export const metadata = createMarketingMetadata(
   'Create Trip',
-  'Post a trip on CarryGo web with app-style workflow and validations.',
+  'Post a trip on CaryGoo web with app-style workflow and validations.',
   '/create-trip'
 )
 

@@ -145,7 +145,7 @@ describe('RequestCard - UX & Flow Architecture Logic', () => {
   });
 
   describe('Role Inversion Payment Security Guard', () => {
-    it('shows Pay Escrow button to Sender on accepted status (Booking flow)', () => {
+    it('shows Pay & Book button to Sender on accepted status (Booking flow)', () => {
       const acceptedReq: Request = {
         ...mockSenderInitiatedRequest,
         status: 'accepted',
@@ -162,7 +162,7 @@ describe('RequestCard - UX & Flow Architecture Logic', () => {
       expect(vm.showDeliveryButton).toBe(true);
     });
 
-    it('shows Pay Escrow button to Sender on accepted status (Carry Offer flow)', () => {
+    it('shows Pay & Book button to Sender on accepted status (Carry Offer flow)', () => {
       const acceptedReq: Request = {
         ...mockTravelerInitiatedOffer,
         status: 'accepted',
@@ -180,7 +180,7 @@ describe('RequestCard - UX & Flow Architecture Logic', () => {
       expect(vm.showPayButton).toBe(true);
     });
 
-    it('NEVER shows Pay Escrow button to Traveler on accepted status (Fix for Role Inversion Bug)', () => {
+    it('NEVER shows Pay & Book button to Traveler on accepted status (Fix for Role Inversion Bug)', () => {
       const acceptedOffer: Request = {
         ...mockTravelerInitiatedOffer,
         status: 'accepted',
@@ -256,12 +256,12 @@ describe('RequestCard - UX & Flow Architecture Logic', () => {
       expect(vm.stepper.step1.current).toBe(true);
       expect(vm.stepper.step1.done).toBe(false);
       expect(vm.stepper.step2.done).toBe(false);
-      expect(vm.stepper.step2.label).toBe('Escrow');
+      expect(vm.stepper.step2.label).toBe('Book');
       expect(vm.stepper.step3.done).toBe(false);
       expect(vm.stepper.step3.label).toBe('Delivery');
     });
 
-    it('sets Escrow Due for Sender when request is accepted', () => {
+    it('sets Booking Due for Sender when request is accepted', () => {
       const acceptedReq: Request = {
         ...mockSenderInitiatedRequest,
         status: 'accepted',
@@ -275,11 +275,11 @@ describe('RequestCard - UX & Flow Architecture Logic', () => {
       });
 
       expect(vm.stepper.step1.done).toBe(true);
-      expect(vm.stepper.step2.label).toBe('Escrow Due');
+      expect(vm.stepper.step2.label).toBe('Booking Due');
       expect(vm.stepper.step3.label).toBe('Handover');
     });
 
-    it('sets Escrow Pending for Traveler when request is accepted', () => {
+    it('sets Booking Pending for Traveler when request is accepted', () => {
       const acceptedReq: Request = {
         ...mockSenderInitiatedRequest,
         status: 'accepted',
@@ -293,7 +293,7 @@ describe('RequestCard - UX & Flow Architecture Logic', () => {
       });
 
       expect(vm.stepper.step1.done).toBe(true);
-      expect(vm.stepper.step2.label).toBe('Escrow Pending');
+      expect(vm.stepper.step2.label).toBe('Booking Pending');
       expect(vm.stepper.step3.label).toBe('Handover');
     });
   });
@@ -313,15 +313,15 @@ describe('RequestCard - UX & Flow Architecture Logic', () => {
       expect(banner?.message).toContain('offered to deliver your parcel for ₹350');
     });
 
-    it('renders escrow deposit prompt for sender when request is accepted', () => {
+    it('renders booking deposit prompt for sender when request is accepted', () => {
       const acceptedReq: Request = {
         ...mockSenderInitiatedRequest,
         status: 'accepted',
       };
       const banner = getContextBanner(acceptedReq, true, false, true, 'Priya Verma', LightColors);
       expect(banner).not.toBeNull();
-      expect(banner?.title).toBe('Step 2: Deposit Escrow Payment');
-      expect(banner?.message).toContain('Deposit ₹450 in secure escrow');
+      expect(banner?.title).toBe('Step 2: Confirm & Book Delivery');
+      expect(banner?.message).toContain('Pay ₹450 to book');
     });
   });
 });

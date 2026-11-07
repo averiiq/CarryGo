@@ -4,10 +4,10 @@ import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ScrollLinkedSection } from '@/components/marketing/scroll-linked-section'
 import { SectionHeading } from '@/components/marketing/section-heading'
-import { EscrowVaultIllustration } from '@/components/illustrations/escrow-vault-illustration'
+import { BookingVaultIllustration } from '@/components/illustrations/booking-vault-illustration'
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
-export const metadata = createMarketingMetadata('Safety', 'Review CarryGo identity, handover, payment, and support safeguards.', '/safety')
+export const metadata = createMarketingMetadata('Safety', 'Review CaryGoo identity, handover, payment, and support safeguards.', '/safety')
 
 const safetyLayers = [
   {
@@ -21,8 +21,8 @@ const safetyLayers = [
     icon: Fingerprint,
   },
   {
-    title: 'Smart Escrow Vault',
-    description: 'Fares remain locked in platform escrow until the recipient confirms physical delivery.',
+    title: 'Smart Booking Vault',
+    description: 'Fares remain locked in platform booking until the recipient confirms physical delivery.',
     icon: ShieldCheck,
   },
 ]
@@ -52,8 +52,8 @@ export default function SafetyPage() {
         <PageHero
           badge='Safety and Trust'
           title='Protection Layers Built into Every Delivery'
-          description='CarryGo unites verified identity screening, Golden Handshake passkeys, and SafeVault™ protection to make every peer-to-peer delivery completely tranquil and secure.'
-          illustrationSrc="/images/abstract/escrow-security.jpg"
+          description='CaryGoo unites verified identity screening, Golden Handshake passkeys, and SafeVault™ protection to make every peer-to-peer delivery completely tranquil and secure.'
+          illustrationSrc="/images/abstract/booking-security.jpg"
           illustrationAlt="Minimalist 3D frosted glass and platinum security shield lock"
           illustrationLabel="SafeVault™ Golden Handshake Protection"
           actions={[
@@ -65,7 +65,7 @@ export default function SafetyPage() {
 
       <ScrollLinkedSection className='px-4 sm:px-6 pb-12'>
         <div className='mx-auto max-w-6xl mb-12'>
-          <EscrowVaultIllustration />
+          <BookingVaultIllustration />
         </div>
 
         <SectionHeading

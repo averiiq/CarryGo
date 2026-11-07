@@ -18,7 +18,7 @@ interface AnimatedIconProps {
 export function AnimatedShieldBeacon({
   size = 40,
   className = '',
-  color = '#059669',
+  color = '#008B48',
   interactive = true,
 }: AnimatedIconProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -111,7 +111,7 @@ export function AnimatedShieldBeacon({
 export function AnimatedRouteNode({
   size = 40,
   className = '',
-  color = '#0284C7',
+  color = '#004AAD',
   interactive = true,
 }: AnimatedIconProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -340,7 +340,7 @@ export function AnimatedWalletVault({
 export function AnimatedChatBubble({
   size = 40,
   className = '',
-  color = '#059669',
+  color = '#008B48',
   interactive = true,
 }: AnimatedIconProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -423,12 +423,12 @@ export function InteractiveIconBadge({
     emerald: {
       bg: 'bg-emerald-50/80 hover:bg-emerald-100/70',
       border: 'border-emerald-200/80 hover:border-emerald-400',
-      glow: 'group-hover:shadow-[0_0_24px_rgba(5,150,105,0.25)]',
+      glow: 'group-hover:shadow-[0_0_24px_rgba(0,139,72,0.25)]',
     },
     sky: {
       bg: 'bg-sky-50/80 hover:bg-sky-100/70',
       border: 'border-sky-200/80 hover:border-sky-400',
-      glow: 'group-hover:shadow-[0_0_24px_rgba(2,132,199,0.25)]',
+      glow: 'group-hover:shadow-[0_0_24px_rgba(0,74,173,0.25)]',
     },
     amber: {
       bg: 'bg-amber-50/80 hover:bg-amber-100/70',

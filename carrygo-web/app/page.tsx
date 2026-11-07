@@ -28,6 +28,7 @@ import { HeroRouteSearch } from '@/components/marketing/hero-route-search'
 import { HeroRouteSimulator } from '@/components/marketing/hero-route-simulator'
 import { HeroTransitVectors } from '@/components/marketing/hero-transit-vectors'
 import { HeroSplitExperience } from '@/components/marketing/hero-split-experience'
+import { PromotionalBannerCarousel } from '@/components/marketing/promotional-banner-carousel'
 import { CorridorsMarketplace } from '@/components/marketing/corridors-marketplace'
 import { CourierComparison } from '@/components/marketing/courier-comparison'
 import { RateCalculator } from '@/components/marketing/rate-calculator'
@@ -168,6 +169,8 @@ export default async function LandingPage() {
             </Reveal>
           </div>
 
+          <PromotionalBannerCarousel />
+
           {/* Responsive Split Experience: Desktop side-by-side | Mobile segmented toggle */}
           <Reveal delay={0.12}>
             <HeroSplitExperience />
@@ -193,7 +196,7 @@ export default async function LandingPage() {
               <div className="p-4 rounded-2xl bg-gradient-to-b from-white via-sky-50/30 to-white border border-slate-200/90 relative overflow-hidden transition-colors">
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-sky-400 to-transparent" />
                 <p className="text-2xl sm:text-3xl font-heading font-extrabold text-sky-700">₹0 Risk</p>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Smart Escrow Vault</p>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Smart Booking Vault</p>
               </div>
               <div className="p-4 rounded-2xl bg-gradient-to-b from-white via-amber-50/30 to-white border border-slate-200/90 relative overflow-hidden transition-colors">
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
@@ -285,7 +288,7 @@ export default async function LandingPage() {
                   <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between">
                       <InteractiveIconBadge tone="emerald" className="w-14 h-14">
-                        <AnimatedShieldBeacon size={36} color="#059669" />
+                        <AnimatedShieldBeacon size={36} color="#008B48" />
                       </InteractiveIconBadge>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100/80 text-emerald-800 border border-emerald-300">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -339,7 +342,7 @@ export default async function LandingPage() {
                   <div className="space-y-4 relative z-10">
                     <div className="flex items-center justify-between">
                       <InteractiveIconBadge tone="sky" className="w-14 h-14">
-                        <AnimatedRouteNode size={36} color="#0284C7" />
+                        <AnimatedRouteNode size={36} color="#004AAD" />
                       </InteractiveIconBadge>
                       <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
                         Dual Passkey
@@ -390,16 +393,16 @@ export default async function LandingPage() {
                         <AnimatedWalletVault size={36} color="#D97706" />
                       </InteractiveIconBadge>
                       <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                        SafeVault™ Escrow
+                        SafeVault™ Booking Protection
                       </span>
                     </div>
 
                     <div>
                       <h3 className="text-xl font-heading font-bold text-slate-900 group-hover:text-amber-700 transition-colors">
-                        Protected UPI Escrow
+                        Protected UPI Booking
                       </h3>
                       <p className="text-xs sm:text-sm leading-relaxed text-slate-600 mt-1.5">
-                        Delivery rewards remain held in protected escrow and are automatically released to the traveler&apos;s UPI instantly upon recipient OTP entry.
+                        Delivery rewards remain held in protected booking and are automatically released to the traveler&apos;s UPI instantly upon recipient OTP entry.
                       </p>
                     </div>
 
@@ -460,7 +463,7 @@ export default async function LandingPage() {
                   </div>
 
                   <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs relative z-10">
-                    <span className="text-slate-500 font-medium">CarryGo Community Trust Covenant</span>
+                    <span className="text-slate-500 font-medium">CaryGoo Community Trust Covenant</span>
                     <span className="font-bold text-indigo-700 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Full Value Protection
                     </span>
@@ -551,7 +554,7 @@ export default async function LandingPage() {
               </h2>
 
               <p className="text-xs sm:text-base text-slate-600 leading-relaxed">
-                Connect with verified travelers on your corridor. Same-day handovers, zero transit delays, and complete escrow protection.
+                Connect with verified travelers on your corridor. Same-day handovers, zero transit delays, and complete booking protection.
               </p>
 
               <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5">

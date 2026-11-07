@@ -57,7 +57,7 @@ export async function verifyOtp(
   if (cleanEmail === 'carrygo.reviewer@gmail.com' && cleanToken === '202611') {
     const { data: revData, error: revError } = await supabase.auth.signInWithPassword({
       email: 'carrygo.reviewer@gmail.com',
-      password: 'CarryGo@Review2026!',
+      password: 'CaryGoo@Review2026!',
     })
 
     if (revError || !revData.user) {
@@ -103,7 +103,7 @@ export async function verifyOtp(
     // Role-based target redirect
     let target = nextPath || '/activity'
     if (existingProfile?.system_role === 'admin') {
-      const cmsUrl = process.env.NEXT_PUBLIC_CMS_URL || 'https://carrygo.averiq.in'
+      const cmsUrl = process.env.NEXT_PUBLIC_CMS_URL || 'https://cms.carygoo.in'
       target = `${cmsUrl}/dashboard`
     }
 
@@ -121,7 +121,7 @@ export async function reviewerLogin(nextPath?: string) {
 
   const { error } = await supabase.auth.signInWithPassword({
     email: 'carrygo.reviewer@gmail.com',
-    password: 'CarryGo@Review2026!',
+    password: 'CaryGoo@Review2026!',
   })
 
   if (error) {

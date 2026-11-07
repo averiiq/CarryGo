@@ -7,12 +7,13 @@ import { FontSize, FontWeight, BorderRadius, ThemeColors, TouchTarget } from '@/
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
 export interface RequestCardProps {
   request: Request;
   type: 'incoming' | 'outgoing';
   currentUserId?: string;
+  isPaid?: boolean;
   onPress?: () => void;
   onAccept?: () => void;
   onReject?: () => void;
@@ -76,10 +77,10 @@ export function getContextBanner(
       } else {
         return {
           title: 'Action Needed: Carry Offer Received',
-          message: `${otherName} offered to deliver your parcel for ₹${request.price}! Chat to coordinate or accept to proceed to escrow.`,
+          message: `${otherName} offered to deliver your parcel for ₹${request.price}! Chat to coordinate or accept to proceed to book.`,
           bg: '#ECFDF5',
           border: '#A7F3D0',
-          iconBg: '#059669',
+          iconBg: '#008B48',
           iconColor: '#FFFFFF',
           titleColor: '#065F46',
           textColor: '#047857',
@@ -118,8 +119,8 @@ export function getContextBanner(
   if (request.status === 'accepted') {
     if (isSender) {
       return {
-        title: 'Step 2: Deposit Escrow Payment',
-        message: `Traveler accepted! Deposit ₹${request.price} in secure escrow to generate your pickup & handover OTP.`,
+        title: 'Step 2: Confirm & Book Delivery',
+        message: `Traveler accepted! Pay ₹${request.price} to book and generate your pickup & handover OTP.`,
         bg: '#FEF3C7',
         border: '#FDE68A',
         iconBg: '#D97706',
@@ -130,8 +131,8 @@ export function getContextBanner(
       };
     } else {
       return {
-        title: 'Step 2: Waiting for Sender Escrow',
-        message: `Delivery accepted! Coordinate pickup in chat. Handover OTP will unlock once the sender deposits escrow.`,
+        title: 'Step 2: Waiting for Sender Booking',
+        message: `Delivery accepted! Coordinate pickup in chat. Handover OTP will unlock once the sender confirms booking.`,
         bg: '#EFF6FF',
         border: '#BFDBFE',
         iconBg: '#2563EB',
@@ -145,11 +146,11 @@ export function getContextBanner(
 
   if (request.status === 'completed') {
     return {
-      title: 'Delivery Complete & Escrow Released',
+      title: 'Delivery Complete & Payout Released',
       message: `Parcel safely delivered and verified via OTP. Thank you for building trusted community logistics!`,
       bg: '#ECFDF5',
       border: '#A7F3D0',
-      iconBg: '#059669',
+      iconBg: '#008B48',
       iconColor: '#FFFFFF',
       titleColor: '#065F46',
       textColor: '#047857',
@@ -192,11 +193,13 @@ export function getRequestCardViewModel({
   request,
   type,
   currentUserId,
+  isPaid,
   C,
 }: {
   request: Request;
   type: 'incoming' | 'outgoing';
   currentUserId?: string;
+  isPaid?: boolean;
   C: ThemeColors;
 }) {
   const isIncoming = type === 'incoming';
@@ -210,13 +213,13 @@ export function getRequestCardViewModel({
 
   const isOffer = request.createdBy ? request.createdBy === request.travellerId : false;
 
-  const personName = currentUserId
+  const personName = (currentUserId
     ? (isSender ? request.travellerName : request.senderName)
     : (request.createdBy
         ? (isIncoming
             ? (request.createdBy === request.senderId ? request.senderName : request.travellerName)
             : (request.createdBy === request.senderId ? request.travellerName : request.senderName))
-        : (isIncoming ? request.senderName : request.travellerName));
+        : (isIncoming ? request.senderName : request.travellerName))) || 'User';
 
   const roleLabel = currentUserId
     ? (isSender ? 'Traveler' : 'Sender')
@@ -227,8 +230,8 @@ export function getRequestCardViewModel({
         : (isIncoming ? 'Sender' : 'Traveler'));
 
   const rawAvatar = isSender
-    ? ((request as any).travellerSelfieUrl || request.travellerAvatar)
-    : ((request as any).senderSelfieUrl || request.senderAvatar);
+    ? ((request as any)?.travellerSelfieUrl || request?.travellerAvatar)
+    : ((request as any)?.senderSelfieUrl || request?.senderAvatar);
   const personAvatar = resolveImageUrl(rawAvatar);
 
   const showSwipeHint = !isRequester && request.status === 'pending';
@@ -247,16 +250,19 @@ export function getRequestCardViewModel({
 
   const showAcceptDecline = !isRequester && request.status === 'pending';
   const showCancel = isRequester && request.status === 'pending';
-  const showPayButton = isSender && request.status === 'accepted';
-  const showDeliveryButton = request.status === 'accepted';
+  const showPayButton = isSender && request.status === 'accepted' && isPaid !== true;
+  const showDeliveryButton = request.status === 'accepted' && (!isSender || isPaid !== false);
   const showReceiptReview = request.status === 'completed';
 
   const contextBanner = getContextBanner(request, isSender, isTraveller, isRequester, personName, C);
 
-  const formattedDate = new Date(request.createdAt).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-  });
+  let formattedDate = 'Recent';
+  try {
+    const rawTime = request.createdAt ? Date.parse(request.createdAt) : NaN;
+    const d = isNaN(rawTime) ? new Date() : new Date(rawTime);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    formattedDate = `${d.getDate()} ${months[d.getMonth()] || 'Jan'}`;
+  } catch {}
 
   const isPending = request.status === 'pending';
   const isAccepted = request.status === 'accepted';
@@ -277,8 +283,8 @@ export function getRequestCardViewModel({
     done: isCompleted,
     active: isAccepted,
     label: isCompleted
-      ? 'Escrow Safe'
-      : (isAccepted ? (isSender ? 'Escrow Due' : 'Escrow Pending') : 'Escrow'),
+      ? 'Booked'
+      : (isAccepted ? (isSender ? 'Booking Due' : 'Booking Pending') : 'Book'),
     icon: (isCompleted
       ? 'shield-checkmark'
       : (isAccepted ? (isSender ? 'lock-closed' : 'shield-outline') : 'lock-closed-outline')) as keyof typeof Ionicons.glyphMap,
@@ -323,6 +329,7 @@ export const RequestCard = React.memo(function RequestCard({
   request,
   type,
   currentUserId,
+  isPaid,
   onPress,
   onAccept,
   onReject,
@@ -337,12 +344,13 @@ export const RequestCard = React.memo(function RequestCard({
   const translateX = useRef(new Animated.Value(0)).current;
   const [avatarError, setAvatarError] = React.useState(false);
 
-  const sc = STATUS_CONFIG(C)[request.status] || STATUS_CONFIG(C).pending;
+  const sc = STATUS_CONFIG(C)[request?.status || 'pending'] || STATUS_CONFIG(C).pending;
 
   const vm = getRequestCardViewModel({
     request,
     type,
     currentUserId,
+    isPaid,
     C,
   });
 
@@ -372,12 +380,6 @@ export const RequestCard = React.memo(function RequestCard({
       }
     },
   })).current;
-
-  const bgColor = translateX.interpolate({
-    inputRange: [-200, -80, 0, 80, 200],
-    outputRange: [C.errorSubtle, '#F8FAFC', '#FFFFFF', '#F8FAFC', C.successSubtle],
-    extrapolate: 'clamp',
-  });
 
   const rejectOpacity = translateX.interpolate({ inputRange: [-80, 0], outputRange: [1, 0], extrapolate: 'clamp' });
   const acceptOpacity = translateX.interpolate({ inputRange: [0, 80], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -422,7 +424,7 @@ export const RequestCard = React.memo(function RequestCard({
           styles.card,
           S.card,
           isTablet && styles.cardTablet,
-          { backgroundColor: vm.showSwipeHint ? bgColor : C.card, borderColor: C.cardBorder },
+          { backgroundColor: C.card, borderColor: C.cardBorder },
           { transform: [{ translateX }] },
         ]}
         {...(vm.showSwipeHint ? panResponder.panHandlers : {})}
@@ -436,19 +438,13 @@ export const RequestCard = React.memo(function RequestCard({
           <View style={styles.topRow}>
             <View style={styles.userBlock}>
               <View style={[styles.avatar, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                {vm.personAvatar && !avatarError ? (
-                  <Image
-                    source={{ uri: vm.personAvatar }}
-                    style={{ width: '100%', height: '100%', borderRadius: 19 }}
-                    contentFit="cover"
-                    transition={200}
-                    onError={() => setAvatarError(true)}
-                  />
-                ) : (
-                  <Text style={[styles.avatarText, { color: C.primary }]}>
-                    {vm.personName.charAt(0).toUpperCase()}
-                  </Text>
-                )}
+                <Image
+                  source={avatarError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(vm.personAvatar, vm.personName)}
+                  style={{ width: '100%', height: '100%', borderRadius: 19 }}
+                  contentFit="cover"
+                  transition={200}
+                  onError={() => setAvatarError(true)}
+                />
                 <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.card }]} />
               </View>
               <View style={styles.userMeta}>
@@ -470,7 +466,7 @@ export const RequestCard = React.memo(function RequestCard({
               <Text style={[styles.priceSub, { color: C.primary }]}>
                 {request.status === 'completed'
                   ? (vm.isTraveller ? 'Earned' : 'Paid')
-                  : (vm.isTraveller ? 'You Earn' : 'Escrow')}
+                  : (vm.isTraveller ? 'You Earn' : 'Book')}
               </Text>
             </View>
           </View>
@@ -532,7 +528,9 @@ export const RequestCard = React.memo(function RequestCard({
               hitSlop={TouchTarget.smallHitSlop}
               style={styles.detailsBtn}
             >
-              <Text style={[styles.detailsBtnText, { color: C.textMuted }]}>Details</Text>
+              <Text style={[styles.detailsBtnText, { color: C.textMuted }]}>
+                {request.status === 'accepted' ? 'Live Tracking' : (request.tripId ? 'Trip Details' : 'Parcel Details')}
+              </Text>
               <Ionicons name="chevron-forward" size={12} color={C.textMuted} />
             </Pressable>
 
@@ -626,10 +624,10 @@ export const RequestCard = React.memo(function RequestCard({
                   hitSlop={TouchTarget.smallHitSlop}
                   accessible={true}
                   accessibilityRole="button"
-                  accessibilityLabel="Pay Escrow"
+                  accessibilityLabel="Pay & Book"
                 >
                   <MaterialIcons name="lock" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.payBtnText}>Pay Escrow (₹{request.price})</Text>
+                  <Text style={styles.payBtnText}>Pay & Book (₹{request.price})</Text>
                 </Pressable>
               ) : null}
 

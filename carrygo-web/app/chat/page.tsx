@@ -129,7 +129,7 @@ export default function ChatInboxPage() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-border-subtle">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-subtle text-primary text-xs font-semibold tracking-wide border border-primary/20">
-                <AnimatedChatBubble size={20} color="#059669" interactive={false} />
+                <AnimatedChatBubble size={20} color="#008B48" interactive={false} />
                 <span>Private Journey Lounge</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-heading font-extrabold text-foreground tracking-tight">
@@ -285,7 +285,7 @@ export default function ChatInboxPage() {
 
               <div className="flex items-center justify-center">
                 <InteractiveIconBadge tone="emerald" className="w-16 h-16">
-                  <AnimatedChatBubble size={44} color="#059669" />
+                  <AnimatedChatBubble size={44} color="#008B48" />
                 </InteractiveIconBadge>
               </div>
 
@@ -345,7 +345,7 @@ export default function ChatInboxPage() {
                   >
                     {/* Unread Glow Accent Bar */}
                     {isUnread && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-primary to-emerald-400 shadow-[0_0_12px_rgba(5,150,105,0.6)]" />
+                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-primary to-emerald-400 shadow-[0_0_12px_rgba(0,139,72,0.6)]" />
                     )}
 
                     <div className="flex items-center justify-between gap-4">

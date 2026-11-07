@@ -5,7 +5,7 @@ import { recreateUserAccount } from '@/services/account.service';
 import { checkUserPanStatus } from '@/services/kyc.service';
 
 const PROFILE_SELECT =
-  'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, city, profile_completed_at, is_deleted, deleted_at, avatar_url';
+  'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status, role, city, profile_completed_at, is_deleted, deleted_at, avatar_url, status';
 
 const LEGACY_PROFILE_SELECT =
   'id, full_name, username, email, phone, rating, total_ratings, total_deliveries, total_trips, joined_at, created_at, verified, push_token, kyc_status';
@@ -39,6 +39,7 @@ interface ProfileRow {
   deleted_at?: string | null;
   is_pan_verified?: boolean | null;
   pan_masked?: string | null;
+  status?: string | null;
 }
 
 function mapProfileRow(data: ProfileRow): User {
@@ -69,6 +70,7 @@ function mapProfileRow(data: ProfileRow): User {
     deletedAt: data.deleted_at || undefined,
     isPanVerified: Boolean(data.is_pan_verified),
     panMasked: data.pan_masked || undefined,
+    status: (data.status as User['status']) || 'active',
   };
 }
 

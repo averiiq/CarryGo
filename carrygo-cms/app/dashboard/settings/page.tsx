@@ -34,7 +34,7 @@ export default async function SettingsPage() {
     maxWeightKg: Number(configMap['max_weight_kg'] || '30'),
     maxPricePerKg: Number(configMap['max_price_per_kg'] || '5000'),
     minPricePerKg: Number(configMap['min_price_per_kg'] || '10'),
-    supportEmail: configMap['support_email'] || 'support@carrygo.in',
+    supportEmail: configMap['support_email'] || 'support@carygoo.in',
     supportPhone: configMap['support_phone'] || '+91-9876543210',
     maintenanceMode: configMap['maintenance_mode'] === 'true',
     newUserSignups: configMap['new_user_signups'] !== 'false',

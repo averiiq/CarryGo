@@ -182,9 +182,12 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
     }
   }
 
+  const reviewerEnabled = process.env.NEXT_PUBLIC_ENABLE_REVIEWER_LOGIN === 'true'
+
   return (
     <div className="w-full max-w-md mx-auto space-y-6">
-      {/* Reviewer Quick Access Banner */}
+      {/* Reviewer Quick Access Banner — hidden unless explicitly enabled */}
+      {reviewerEnabled && (
       <div className="rounded-2xl border border-primary/20 bg-primary-subtle p-4 shadow-sm relative overflow-hidden">
         <div className="flex items-start gap-3.5">
           <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-md shadow-primary/25">
@@ -221,6 +224,7 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
           </div>
         </div>
       </div>
+      )}
 
       <div className="glass-card p-6 md:p-8 space-y-6 border border-border/80 shadow-xl rounded-2xl bg-surface">
         {/* Top Header / Mode */}
@@ -232,7 +236,7 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
           </div>
 
           <a
-            href={process.env.NEXT_PUBLIC_CMS_URL ? `${process.env.NEXT_PUBLIC_CMS_URL}/login` : 'https://carrygo.averiq.in/login'}
+            href={process.env.NEXT_PUBLIC_CMS_URL ? `${process.env.NEXT_PUBLIC_CMS_URL}/login` : 'https://cms.carygoo.in/login'}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-medium px-2.5 py-1 rounded-lg border border-border text-muted hover:text-primary hover:border-primary/40 transition-colors inline-flex items-center gap-1"
@@ -244,7 +248,7 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
 
         {/* Feedback Banners */}
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2.5 leading-relaxed">
+          <div className="p-3.5 rounded-xl bg-danger-subtle border border-danger/20 text-danger text-xs flex items-start gap-2.5 leading-relaxed">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{errorMsg}</span>
           </div>
@@ -309,7 +313,7 @@ export function LoginForm({ initialError, nextPath = '' }: Props) {
 
             <div className="pt-2 text-center">
               <p className="text-[11px] text-muted leading-normal">
-                By continuing, you agree to CarryGo&apos;s{' '}
+                By continuing, you agree to CaryGoo&apos;s{' '}
                 <a href="/terms-and-conditions" className="text-primary hover:underline">
                   Terms of Service
                 </a>{' '}

@@ -37,6 +37,7 @@ export interface User {
   panMasked?: string;
   selfieUrl?: string;
   isSelfieVerified?: boolean;
+  status?: 'active' | 'suspended' | 'banned' | 'deleted';
 }
 
 export type VehicleType = 'bike' | 'car' | 'bus' | 'train' | 'flight';
@@ -230,7 +231,7 @@ export interface FilterOptions {
   dateTo: string;
 }
 
-// Payment / Escrow
+// Payment & Booking Protection
 export type PaymentStatus = 'locked' | 'released' | 'refunded';
 
 export interface Payment {

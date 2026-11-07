@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { getSupabaseClient } from '@/template';
@@ -10,6 +10,7 @@ import {
   markMessagesRead,
   sendMessage,
 } from '@/services/conversations.service';
+import { fetchUserAvatars } from '@/services/avatar-enrichment.service';
 import { InfiniteData } from '@tanstack/react-query';
 import { ChatMessage, Conversation } from '@/types';
 
@@ -308,6 +309,37 @@ export function useSendMessageMutation(userId?: string) {
       if (error || !data) throw serviceError(error, 'Failed to send message');
       return data;
     },
+    onMutate: async (newMessage) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.conversations.messages(newMessage.conversationId) });
+      const previousMessages = queryClient.getQueryData<InfiniteData<ChatMessagesPage, string | null>>(
+        queryKeys.conversations.messages(newMessage.conversationId)
+      );
+
+      const optimisticMsg: ChatMessage = {
+        id: `optimistic_${Date.now()}`,
+        conversationId: newMessage.conversationId,
+        senderId: newMessage.senderId,
+        senderName: newMessage.senderName,
+        text: newMessage.text,
+        timestamp: new Date().toISOString(),
+        read: false,
+      };
+
+      queryClient.setQueryData<InfiniteData<ChatMessagesPage, string | null> | undefined>(
+        queryKeys.conversations.messages(newMessage.conversationId),
+        current => appendRealtimeMessage(current, optimisticMsg)
+      );
+
+      return { previousMessages, conversationId: newMessage.conversationId };
+    },
+    onError: (_err, _newMessage, context) => {
+      if (context?.previousMessages && context?.conversationId) {
+        queryClient.setQueryData(
+          queryKeys.conversations.messages(context.conversationId),
+          context.previousMessages
+        );
+      }
+    },
     onSuccess: sent => {
       queryClient.setQueryData<InfiniteData<ChatMessagesPage, string | null> | undefined>(
         queryKeys.conversations.messages(sent.conversationId),
@@ -320,7 +352,7 @@ export function useSendMessageMutation(userId?: string) {
           }
           const withoutDupes = current.pages.map(page => ({
             ...page,
-            items: page.items.filter(message => message.id !== sent.id),
+            items: page.items.filter(message => message.id !== sent.id && !message.id.startsWith('optimistic_')),
           }));
           return appendRealtimeMessage({ ...current, pages: withoutDupes }, sent);
         }
@@ -396,6 +428,19 @@ export function useDeleteConversationMutation(userId?: string) {
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
       queryClient.removeQueries({ queryKey: queryKeys.conversations.messages(deletedId) });
+    },
+  });
+}
+
+export function useUserAvatarsQuery(userIds: string[]) {
+  const sortedKey = useMemo(() => Array.from(new Set(userIds)).sort().join(','), [userIds]);
+
+  return useQuery<Record<string, string>>({
+    queryKey: ['user_avatars', sortedKey],
+    enabled: userIds.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      return fetchUserAvatars(userIds);
     },
   });
 }
