@@ -231,7 +231,7 @@ export interface FilterOptions {
   dateTo: string;
 }
 
-// Payment / Escrow
+// Payment & Booking Protection
 export type PaymentStatus = 'locked' | 'released' | 'refunded';
 
 export interface Payment {

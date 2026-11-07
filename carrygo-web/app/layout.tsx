@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Outfit } from "next/font/google";
 import { MaintenanceBanner } from "@/components/marketing/maintenance-banner";
+import { NotificationProvider } from "@/contexts/NotificationProvider";
+import { NotificationRealtimeBanner } from "@/components/notifications/realtime-banner";
 import "./globals.css";
 
 const sansFont = Plus_Jakarta_Sans({
@@ -53,8 +55,11 @@ export default function RootLayout({
       className={`${sansFont.variable} ${headingFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground selection:bg-emerald-500/20 selection:text-emerald-800">
-        <MaintenanceBanner />
-        {children}
+        <NotificationProvider>
+          <MaintenanceBanner />
+          <NotificationRealtimeBanner />
+          {children}
+        </NotificationProvider>
       </body>
     </html>
   );

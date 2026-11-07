@@ -241,6 +241,16 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                   suggestedPrice={trip.price_per_kg}
                   fromCity={trip.from_city}
                   toCity={trip.to_city}
+                  tripContext={{
+                    id: trip.id,
+                    userName: trip.user_name,
+                    fromCity: trip.from_city,
+                    toCity: trip.to_city,
+                    date: trip.date,
+                    time: trip.time ?? undefined,
+                    availableCapacity: trip.available_capacity,
+                    pricePerKg: trip.price_per_kg,
+                  }}
                 />
               </article>
             ))}

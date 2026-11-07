@@ -7,6 +7,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } fr
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 import { useResponsive } from '@/hooks/useResponsive';
+import { TrustTierBadge } from '@/components/ui/TrustTierBadge';
 
 export const VEHICLE_CONFIG: Record<
   string,
@@ -247,6 +248,11 @@ export const TripCard = React.memo(function TripCard({
                   <Text style={[styles.newBadgeText, { color: C.textMuted }]}>NEW</Text>
                 </View>
               )}
+              <TrustTierBadge
+                variant="compact"
+                rating={userRating}
+                isKycVerified={Boolean((trip as any).isKycVerified || (trip as any).userIsKycVerified)}
+              />
             </View>
           </View>
 

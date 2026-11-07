@@ -100,8 +100,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (result.data) {
-        setUser(result.data);
-        persistUser(result.data);
+        setUser(prev => {
+          if (prev && JSON.stringify(prev) === JSON.stringify(result.data)) {
+            return prev;
+          }
+          persistUser(result.data);
+          return result.data;
+        });
       } else {
         setUser(null);
         persistUser(null);
@@ -337,6 +342,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }, [user, persistUser, queryClient]);
 
+  const userRef = useRef<User | null>(user);
+  userRef.current = user;
+
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser(prev => {
       if (!prev) return null;
@@ -347,8 +355,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persistUser]);
 
   const refreshUser = useCallback(async () => {
-    if (user) await loadUser(user.id, user.email);
-  }, [user, loadUser]);
+    const u = userRef.current;
+    if (u) await loadUser(u.id, u.email);
+  }, [loadUser]);
 
   const contextValue = useMemo(() => ({
     user,

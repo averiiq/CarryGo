@@ -309,6 +309,37 @@ export function useSendMessageMutation(userId?: string) {
       if (error || !data) throw serviceError(error, 'Failed to send message');
       return data;
     },
+    onMutate: async (newMessage) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.conversations.messages(newMessage.conversationId) });
+      const previousMessages = queryClient.getQueryData<InfiniteData<ChatMessagesPage, string | null>>(
+        queryKeys.conversations.messages(newMessage.conversationId)
+      );
+
+      const optimisticMsg: ChatMessage = {
+        id: `optimistic_${Date.now()}`,
+        conversationId: newMessage.conversationId,
+        senderId: newMessage.senderId,
+        senderName: newMessage.senderName,
+        text: newMessage.text,
+        timestamp: new Date().toISOString(),
+        read: false,
+      };
+
+      queryClient.setQueryData<InfiniteData<ChatMessagesPage, string | null> | undefined>(
+        queryKeys.conversations.messages(newMessage.conversationId),
+        current => appendRealtimeMessage(current, optimisticMsg)
+      );
+
+      return { previousMessages, conversationId: newMessage.conversationId };
+    },
+    onError: (_err, _newMessage, context) => {
+      if (context?.previousMessages && context?.conversationId) {
+        queryClient.setQueryData(
+          queryKeys.conversations.messages(context.conversationId),
+          context.previousMessages
+        );
+      }
+    },
     onSuccess: sent => {
       queryClient.setQueryData<InfiniteData<ChatMessagesPage, string | null> | undefined>(
         queryKeys.conversations.messages(sent.conversationId),
@@ -321,7 +352,7 @@ export function useSendMessageMutation(userId?: string) {
           }
           const withoutDupes = current.pages.map(page => ({
             ...page,
-            items: page.items.filter(message => message.id !== sent.id),
+            items: page.items.filter(message => message.id !== sent.id && !message.id.startsWith('optimistic_')),
           }));
           return appendRealtimeMessage({ ...current, pages: withoutDupes }, sent);
         }

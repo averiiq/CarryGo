@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { optimizeImage } from '@/lib/imageOptimizer';
+import { validateImageUpload } from '@/lib/fileSecurity';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAlert } from '@/template';
 import { Spacing, BorderRadius, FontSize, FontWeight } from '@/constants/theme';
@@ -73,7 +74,14 @@ export function ParcelImagePicker({
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      await processAndAddImage(result.assets[0].uri, replaceIndex);
+      const asset = result.assets[0];
+      const validation = validateImageUpload(asset);
+      if (!validation.valid) {
+        Haptic.warning();
+        showAlert('Invalid Photo', validation.error || 'The selected file cannot be accepted.');
+        return;
+      }
+      await processAndAddImage(asset.uri, replaceIndex);
     }
   };
 
@@ -96,7 +104,14 @@ export function ParcelImagePicker({
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      await processAndAddImage(result.assets[0].uri, replaceIndex);
+      const asset = result.assets[0];
+      const validation = validateImageUpload(asset);
+      if (!validation.valid) {
+        Haptic.warning();
+        showAlert('Invalid Photo', validation.error || 'The selected file cannot be accepted.');
+        return;
+      }
+      await processAndAddImage(asset.uri, replaceIndex);
     }
   };
 

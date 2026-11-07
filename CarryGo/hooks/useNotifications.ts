@@ -14,6 +14,7 @@ import {
   markNotificationsRead,
   registerForPushNotifications,
   savePushToken,
+  sendLocalNotification,
   setPendingNotificationRoute,
   consumePendingNotificationRoute,
 } from '@/services/notifications.service';
@@ -74,6 +75,7 @@ export function useNotifications() {
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
   const lastHandledResponseRef = useRef<string | null>(null);
+  const registeredPushUserIdRef = useRef<string | null>(null);
 
   const { data: notifications = [], isLoading: loading, refetch } = useQuery({
     queryKey: ['notifications', user?.id],
@@ -169,13 +171,20 @@ export function useNotifications() {
 
   // ── Push Token Registration & OS Rotation Listener ─────────────────────────
   useEffect(() => {
-    if (!user) return;
+    const userId = user?.id;
+    if (!userId) {
+      registeredPushUserIdRef.current = null;
+      return;
+    }
+    if (registeredPushUserIdRef.current === userId) return;
+    registeredPushUserIdRef.current = userId;
+
     let mounted = true;
 
     (async () => {
       try {
         const token = await registerForPushNotifications();
-        if (mounted && token) await savePushToken(user.id, token);
+        if (mounted && token) await savePushToken(userId, token);
       } catch (err) {
         captureException(err, { context: 'useNotifications.registerPush' });
       }
@@ -185,7 +194,7 @@ export function useNotifications() {
     const tokenSub = Notifications.addPushTokenListener((tokenData) => {
       if (tokenData?.data && mounted) {
         console.log('[Notifications] Push token rotated by OS, updating registration...');
-        void savePushToken(user.id, tokenData.data);
+        void savePushToken(userId, tokenData.data);
       }
     });
 
@@ -193,21 +202,21 @@ export function useNotifications() {
       mounted = false;
       tokenSub.remove();
     };
-  }, [user]);
+  }, [user?.id]);
 
   // ── Pending Route Consumption On Auth State Change ─────────────────────────
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     const pendingRoute = consumePendingNotificationRoute();
     if (pendingRoute) {
       console.log('[Notifications] Authenticated. Navigating to pending notification destination:', pendingRoute);
       setTimeout(() => router.push(pendingRoute as Href), 400);
     }
-  }, [user, router]);
+  }, [user?.id, router]);
 
   // ── Realtime & Foreground Listeners (Authenticated User Only) ──────────────
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     let channelMounted = true;
     const sb = getSupabaseClient();
@@ -242,6 +251,27 @@ export function useNotifications() {
                     relatedId: newNotif.related_id,
                     deepLink: newNotif.deep_link,
                   });
+
+                  // Trigger system status bar notification with sound/vibration (crucial for Expo Go & active sessions)
+                  const channel = newNotif.type === 'chat_message'
+                    ? 'messages'
+                    : (newNotif.type?.startsWith('delivery') || newNotif.type?.startsWith('request') || newNotif.type === 'new_request')
+                      ? 'deliveries'
+                      : newNotif.type?.startsWith('payment')
+                        ? 'payments'
+                        : 'default';
+
+                  void sendLocalNotification(
+                    newNotif.title,
+                    newNotif.body,
+                    {
+                      notificationId: newNotif.id || '',
+                      type: newNotif.type || 'general',
+                      relatedId: newNotif.related_id || '',
+                      deepLink: newNotif.deep_link || '',
+                    },
+                    channel
+                  ).catch(() => {});
                 }
               }
             }
@@ -288,7 +318,7 @@ export function useNotifications() {
         }
       }
     };
-  }, [notifCtx, queryClient, user]);
+  }, [notifCtx, queryClient, user?.id]);
 
   const markAllRead = async () => {
     if (!user) return;

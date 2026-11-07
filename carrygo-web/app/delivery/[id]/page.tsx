@@ -1019,6 +1019,33 @@ export default function DeliveryTrackingPage({
                   </p>
                 </div>
               )}
+
+              {typeof delivery?.traveller_lat === 'number' &&
+                typeof delivery?.traveller_lng === 'number' && (
+                  <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider">
+                        Live traveller location
+                      </span>
+                      {delivery.location_updated_at && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Updated {new Date(delivery.location_updated_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-mono text-foreground">
+                      {delivery.traveller_lat.toFixed(4)}°, {delivery.traveller_lng.toFixed(4)}°
+                    </p>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${delivery.traveller_lat},${delivery.traveller_lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
+                    >
+                      View on Google Maps →
+                    </a>
+                  </div>
+                )}
             </div>
           </div>
 

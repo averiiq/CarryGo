@@ -673,18 +673,21 @@ export async function dispatchNotification(payload: DispatchNotificationPayload)
         const pushResult = await pushResponse.json().catch(() => null);
         console.log('[dispatchNotification] Expo push response:', pushResponse.status, JSON.stringify(pushResult));
 
-        // Auto-cleanup dead tokens when Expo reports DeviceNotRegistered
+        // Auto-cleanup dead tokens when Expo reports DeviceNotRegistered and report error tickets
         if (pushResult && Array.isArray(pushResult.data)) {
           for (let i = 0; i < pushResult.data.length; i++) {
             const ticket = pushResult.data[i];
-            if (ticket?.status === 'error' && ticket?.details?.error === 'DeviceNotRegistered') {
-              const deadToken = tokens[i];
-              if (deadToken) {
-                console.log('[dispatchNotification] Pruning dead token:', deadToken);
-                void sb
-                  .from('user_devices')
-                  .update({ invalidated_at: new Date().toISOString() })
-                  .eq('expo_push_token', deadToken);
+            if (ticket?.status === 'error') {
+              console.warn('[dispatchNotification] Expo push ticket error for token:', tokens[i]?.substring(0, 20), ticket.message, ticket.details);
+              if (ticket?.details?.error === 'DeviceNotRegistered') {
+                const deadToken = tokens[i];
+                if (deadToken) {
+                  console.log('[dispatchNotification] Pruning dead token:', deadToken);
+                  void sb
+                    .from('user_devices')
+                    .update({ invalidated_at: new Date().toISOString() })
+                    .eq('expo_push_token', deadToken);
+                }
               }
             }
           }

@@ -28,6 +28,7 @@ import { HeroRouteSearch } from '@/components/marketing/hero-route-search'
 import { HeroRouteSimulator } from '@/components/marketing/hero-route-simulator'
 import { HeroTransitVectors } from '@/components/marketing/hero-transit-vectors'
 import { HeroSplitExperience } from '@/components/marketing/hero-split-experience'
+import { PromotionalBannerCarousel } from '@/components/marketing/promotional-banner-carousel'
 import { CorridorsMarketplace } from '@/components/marketing/corridors-marketplace'
 import { CourierComparison } from '@/components/marketing/courier-comparison'
 import { RateCalculator } from '@/components/marketing/rate-calculator'
@@ -167,6 +168,8 @@ export default async function LandingPage() {
               </p>
             </Reveal>
           </div>
+
+          <PromotionalBannerCarousel />
 
           {/* Responsive Split Experience: Desktop side-by-side | Mobile segmented toggle */}
           <Reveal delay={0.12}>

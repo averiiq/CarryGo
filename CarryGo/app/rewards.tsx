@@ -368,6 +368,40 @@ export default function RewardsScreen() {
           </View>
         ) : null}
 
+        {/* ── Refer & Earn Banner ─────────────────────────────────── */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open referral and affiliate program"
+          onPress={() => {
+            Haptic.select();
+            router.push('/referral');
+          }}
+          style={({ pressed }) => [
+            styles.referralBanner,
+            {
+              backgroundColor: C.primarySubtle,
+              borderColor: C.primary + '55',
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <View style={[styles.referralIconWrap, { backgroundColor: C.primary }]}>
+            <MaterialIcons name="card-giftcard" size={24} color="#FFFFFF" />
+          </View>
+          <View style={styles.referralContent}>
+            <View style={styles.referralTitleRow}>
+              <Text style={[styles.referralTitle, { color: C.textPrimary }]}>Refer & Earn ₹100</Text>
+              <View style={[styles.referralBadge, { backgroundColor: C.primary }]}>
+                <Text style={styles.referralBadgeText}>NEW</Text>
+              </View>
+            </View>
+            <Text style={[styles.referralSub, { color: C.textSecondary }]}>
+              Invite friends to CaryGoo. Give ₹50 off, get ₹100 credit on their first delivery.
+            </Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={C.primary} />
+        </Pressable>
+
         {/* ── Unlocked & Available CaryGoo Vouchers ──────────────────── */}
         <View style={[styles.sectionContainer, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
           <View style={styles.sectionHeader}>
@@ -1009,6 +1043,48 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     gap: Spacing.sm,
+  },
+  referralBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    gap: Spacing.sm,
+  },
+  referralIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  referralContent: {
+    flex: 1,
+    gap: 3,
+  },
+  referralTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  referralTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  referralBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: BorderRadius.full,
+  },
+  referralBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+  },
+  referralSub: {
+    fontSize: FontSize.xs,
+    lineHeight: 16,
   },
   creditIconWrap: {
     width: 36,

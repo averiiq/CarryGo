@@ -39,6 +39,8 @@ export function isMeaningfulDraft(data: unknown): boolean {
   return false;
 }
 
+export type AutosaveStatus = 'idle' | 'saving' | 'saved';
+
 export function useFormDraft<T extends Record<string, unknown>>(
   key: string,
   currentValues: T,
@@ -50,6 +52,8 @@ export function useFormDraft<T extends Record<string, unknown>>(
   const hasRestoredRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   // Restore on mount
   useEffect(() => {
@@ -69,6 +73,8 @@ export function useFormDraft<T extends Record<string, unknown>>(
         if (isMeaningfulDraft(parsed)) {
           setValues(parsed);
           setIsDraftRestored(true);
+          setAutosaveStatus('saved');
+          setLastSavedAt(new Date());
           options?.onRestore?.(parsed);
         } else {
           // Clean up empty/boilerplate draft
@@ -82,19 +88,31 @@ export function useFormDraft<T extends Record<string, unknown>>(
     });
   }, [storageKey, legacyStorageKey, setValues, options]);
 
-  // Debounced auto-save
+  // Debounced auto-save with state transitions
   useEffect(() => {
     if (!hasRestoredRef.current) return;
+
+    if (isMeaningfulDraft(currentValues)) {
+      setAutosaveStatus('saving');
+    }
 
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       if (isMeaningfulDraft(currentValues)) {
-        AsyncStorage.setItem(storageKey, JSON.stringify(currentValues)).catch(() => {});
+        AsyncStorage.setItem(storageKey, JSON.stringify(currentValues))
+          .then(() => {
+            setAutosaveStatus('saved');
+            setLastSavedAt(new Date());
+          })
+          .catch(() => {
+            setAutosaveStatus('idle');
+          });
       } else {
         // If user cleared out all meaningful fields, remove the saved draft
         AsyncStorage.removeItem(storageKey).catch(() => {});
+        setAutosaveStatus('idle');
       }
-    }, 800);
+    }, 700);
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -105,6 +123,7 @@ export function useFormDraft<T extends Record<string, unknown>>(
     AsyncStorage.removeItem(storageKey).catch(() => {});
     AsyncStorage.removeItem(legacyStorageKey).catch(() => {});
     setIsDraftRestored(false);
+    setAutosaveStatus('idle');
   }, [storageKey, legacyStorageKey]);
 
   const hasDraft = useCallback(async () => {
@@ -118,5 +137,5 @@ export function useFormDraft<T extends Record<string, unknown>>(
     }
   }, [storageKey]);
 
-  return { clearDraft, hasDraft, isDraftRestored, setIsDraftRestored };
+  return { clearDraft, hasDraft, isDraftRestored, setIsDraftRestored, autosaveStatus, lastSavedAt };
 }

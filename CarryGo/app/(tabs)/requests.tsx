@@ -9,7 +9,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert, getSupabaseClient } from '@/template';
 import { fetchUserPayments } from '@/services/payments.service';
-import { AsyncStateCard, OfflineBanner, RequestCard, LottieAnimation } from '@/components';
+import { AsyncStateCard, OfflineBanner, RequestCard, LottieAnimation, RequestCardSkeleton } from '@/components';
 import { AppErrorBoundary } from '@/components/ui/AppErrorBoundary';
 import { RatingModal } from '@/components/feature/RatingModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -746,12 +746,9 @@ function RequestsScreenContent() {
               </View>
             ) : requestsQuery.isLoading ? (
               <View style={styles.feedbackWrap}>
-                <AsyncStateCard
-                  C={C}
-                  icon="sync"
-                  title="Loading requests"
-                  message="Checking your incoming and outgoing delivery requests."
-                />
+                <RequestCardSkeleton />
+                <RequestCardSkeleton />
+                <RequestCardSkeleton />
               </View>
             ) : (
               <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 

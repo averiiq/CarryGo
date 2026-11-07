@@ -100,6 +100,7 @@ function ParityCreateFormInner({ mode }: Props) {
   const [priceOffer, setPriceOffer] = useState(searchParams.get('price') || '450')
   const [isFragile, setIsFragile] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imageUploading, setImageUploading] = useState(false)
 
   // Route Intelligence & Suggestions
   const routeEstimate = useMemo(() => {
@@ -206,21 +207,48 @@ function ParityCreateFormInner({ mode }: Props) {
     setCurrentStep((s) => Math.max(0, s - 1))
   }
 
-  // Handle file selection with Base64 Data URL conversion
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file selection: immediate base64 preview + background upload to Cloudinary
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setSubmitState({ kind: 'error', message: 'Image file size exceeds 5MB limit.' })
-        return
-      }
-      const reader = new FileReader()
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setImageUrl(reader.result)
-        }
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitState({ kind: 'error', message: 'Image file size exceeds 5MB limit.' })
+      return
+    }
+
+    // Instant local preview
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setImageUrl(reader.result)
+    }
+    reader.readAsDataURL(file)
+
+    // Background upload — replace preview with CDN URL on success
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const { uploadBlobToCloudinary, fileToBlob } = await import('@/services/storage.service')
+      setImageUploading(true)
+      const result = await uploadBlobToCloudinary(
+        fileToBlob(file),
+        'parcels',
+        user.id,
+        `parcel_${Date.now()}`,
+      )
+      setImageUrl(result.cdnUrl)
+    } catch (err) {
+      setSubmitState({
+        kind: 'error',
+        message:
+          err instanceof Error
+            ? `Image upload failed: ${err.message}`
+            : 'Image upload failed. You can still submit without a photo.',
+      })
+    } finally {
+      setImageUploading(false)
     }
   }
 
@@ -743,9 +771,19 @@ function ParityCreateFormInner({ mode }: Props) {
                 <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-slate-200 group shadow-xs">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imageUrl} alt="Package preview" className="w-full h-full object-cover" />
+                  {imageUploading && (
+                    <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-white bg-slate-900/70 px-2 py-0.5 rounded-full">
+                        Uploading…
+                      </span>
+                    </div>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setImageUrl(null)}
+                    onClick={() => {
+                      setImageUrl(null)
+                      setImageUploading(false)
+                    }}
                     className="absolute top-1.5 right-1.5 p-1 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 transition"
                     title="Remove photo"
                   >

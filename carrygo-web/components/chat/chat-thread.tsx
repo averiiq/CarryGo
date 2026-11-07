@@ -2,8 +2,19 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, SendHorizonal, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ImagePlus, Loader2, SendHorizonal, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
+import { fileToBlob, uploadBlobToCloudinary } from '@/services/storage.service'
+
+const IMAGE_URL_PATTERN =
+  /^https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s]*)?$/i
+
+function extractImageUrl(text: string): string | null {
+  const trimmed = text.trim()
+  if (trimmed.startsWith('[img]')) return trimmed.slice(5).trim() || null
+  if (IMAGE_URL_PATTERN.test(trimmed)) return trimmed
+  return null
+}
 
 type Message = {
   id: string
@@ -18,6 +29,13 @@ type Conversation = {
   route: string | null
   parcel_description: string | null
   participant_ids: string[] | null
+  request_id: string | null
+}
+
+type DeliveryContext = {
+  requestId: string
+  status: string
+  price: number | null
 }
 
 type Props = {
@@ -33,6 +51,9 @@ export function ChatThread({ conversationId }: Props) {
   const [currentUserName, setCurrentUserName] = useState<string>('Me')
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [deliveryContext, setDeliveryContext] = useState<DeliveryContext | null>(null)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -58,7 +79,7 @@ export function ChatThread({ conversationId }: Props) {
       const [conversationRes, messagesRes] = await Promise.all([
         supabase
           .from('conversations')
-          .select('id, route, parcel_description, participant_ids')
+          .select('id, route, parcel_description, participant_ids, request_id')
           .eq('id', conversationId)
           .maybeSingle(),
         supabase
@@ -79,9 +100,26 @@ export function ChatThread({ conversationId }: Props) {
         return
       }
 
-      setConversation(conversationRes.data as Conversation)
+      const conv = conversationRes.data as Conversation
+      setConversation(conv)
       setMessages((messagesRes.data ?? []) as Message[])
       setError(null)
+
+      // Fetch linked request for delivery context pill
+      if (conv?.request_id) {
+        const { data: req } = await supabase
+          .from('requests')
+          .select('id, status, price')
+          .eq('id', conv.request_id)
+          .maybeSingle()
+        if (req) {
+          setDeliveryContext({
+            requestId: req.id as string,
+            status: req.status as string,
+            price: (req.price as number | null) ?? null,
+          })
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load chat')
     } finally {
@@ -135,49 +173,69 @@ export function ChatThread({ conversationId }: Props) {
     }
   }, [conversationId])
 
+  const sendText = async (textBody: string) => {
+    const supabase = createClient()
+    const { error: rpcError } = await supabase.rpc('send_chat_message_command', {
+      p_conversation_id: conversationId,
+      p_text: textBody,
+    })
+    if (rpcError) {
+      const { error: insertError } = await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_id: currentUserId,
+        sender_name: currentUserName,
+        text: textBody,
+      })
+      if (insertError) throw insertError
+    }
+    await supabase
+      .from('conversations')
+      .update({
+        last_message_text: textBody,
+        last_message_sender_id: currentUserId,
+        last_message_at: new Date().toISOString(),
+      })
+      .eq('id', conversationId)
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const text = input.trim()
     if (!text) return
-
     setIsSending(true)
     setError(null)
-
     try {
-      const supabase = createClient()
-
-      // Try RPC first if available, or direct insert
-      const { data, error: rpcError } = await supabase.rpc('send_chat_message_command', {
-        p_conversation_id: conversationId,
-        p_text: text,
-      })
-
-      if (rpcError) {
-        // Fallback: direct table insert
-        const { error: insertError } = await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          sender_id: currentUserId,
-          sender_name: currentUserName,
-          text,
-        })
-        if (insertError) throw insertError
-      }
-
-      // Update conversation's last message
-      await supabase
-        .from('conversations')
-        .update({
-          last_message_text: text,
-          last_message_sender_id: currentUserId,
-          last_message_at: new Date().toISOString(),
-        })
-        .eq('id', conversationId)
-
+      await sendText(text)
       setInput('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to send message')
     } finally {
       setIsSending(false)
+    }
+  }
+
+  async function onAttachImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file || !currentUserId) return
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image is too large (max 10 MB).')
+      return
+    }
+    setIsUploadingImage(true)
+    setError(null)
+    try {
+      const uploaded = await uploadBlobToCloudinary(
+        fileToBlob(file),
+        'chat-attachments',
+        currentUserId,
+        `msg_${Date.now()}`,
+      )
+      await sendText(`[img]${uploaded.cdnUrl}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Image send failed.')
+    } finally {
+      setIsUploadingImage(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -204,9 +262,21 @@ export function ChatThread({ conversationId }: Props) {
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-          <ShieldCheck className="w-3.5 h-3.5" /> End-to-End Booking
-        </span>
+        <div className="flex items-center gap-1.5">
+          {deliveryContext && (
+            <Link
+              href={`/delivery/${deliveryContext.requestId}`}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 hover:bg-indigo-100 transition"
+              title="Open delivery tracking"
+            >
+              <span className="uppercase tracking-wider">{deliveryContext.status.replace(/_/g, ' ')}</span>
+              {deliveryContext.price != null && <span>· ₹{deliveryContext.price}</span>}
+            </Link>
+          )}
+          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+            <ShieldCheck className="w-3.5 h-3.5" /> Secured
+          </span>
+        </div>
       </div>
 
       {error && (
@@ -231,16 +301,19 @@ export function ChatThread({ conversationId }: Props) {
             ) : (
               messages.map((message) => {
                 const mine = currentUserId && message.sender_id === currentUserId
+                const imageUrl = extractImageUrl(message.text)
                 return (
                   <div
                     key={message.id}
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs sm:text-sm shadow-xs ${
+                    className={`max-w-[80%] rounded-2xl ${
+                      imageUrl ? 'p-1.5' : 'px-4 py-2.5'
+                    } text-xs sm:text-sm shadow-xs ${
                       mine
                         ? 'ml-auto bg-emerald-600 text-white rounded-tr-none'
                         : 'mr-auto bg-white text-slate-800 border border-slate-200 rounded-tl-none'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-3 text-[10px] opacity-75 mb-0.5 font-semibold">
+                    <div className={`flex items-center justify-between gap-3 text-[10px] opacity-75 ${imageUrl ? 'px-2 pt-1' : 'mb-0.5'} font-semibold`}>
                       <span>{mine ? 'You' : message.sender_name}</span>
                       <span>
                         {new Date(message.created_at).toLocaleTimeString('en-IN', {
@@ -249,7 +322,16 @@ export function ChatThread({ conversationId }: Props) {
                         })}
                       </span>
                     </div>
-                    <p className="leading-relaxed break-words">{message.text}</p>
+                    {imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={imageUrl}
+                        alt="attachment"
+                        className="mt-1 max-w-full max-h-72 rounded-xl object-cover"
+                      />
+                    ) : (
+                      <p className="leading-relaxed break-words">{message.text}</p>
+                    )}
                   </div>
                 )
               })
@@ -258,6 +340,27 @@ export function ChatThread({ conversationId }: Props) {
           </div>
 
           <form onSubmit={onSubmit} className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingImage}
+              className="shrink-0 w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-emerald-700 hover:border-emerald-300 flex items-center justify-center disabled:opacity-50"
+              aria-label="Attach image"
+              title="Attach image"
+            >
+              {isUploadingImage ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ImagePlus className="w-4 h-4" />
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => void onAttachImage(e)}
+            />
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}

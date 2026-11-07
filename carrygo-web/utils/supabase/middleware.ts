@@ -68,15 +68,21 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
 
   if (user) {
     let systemRole: string = request.cookies.get(ROLE_COOKIE_NAME)?.value ?? ''
+    let needsProfileSetup = false
 
     if (!systemRole) {
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('system_role')
+        .select('system_role, full_name, phone, city')
         .eq('id', user.id)
         .single()
 
       systemRole = profile?.system_role || 'user'
+      needsProfileSetup =
+        !profile ||
+        !profile.full_name ||
+        !profile.phone ||
+        !profile.city
 
       supabaseResponse.cookies.set(ROLE_COOKIE_NAME, systemRole, {
         httpOnly: true,
@@ -85,6 +91,30 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
         maxAge: ROLE_COOKIE_MAX_AGE,
         path: '/',
       })
+
+      // Redirect new users without a filled profile to /profile, but allow
+      // /profile, /kyc, /notifications, /notification-settings, /delete-account,
+      // and /logout endpoints so they can complete setup or exit.
+      const SETUP_EXEMPT_PREFIXES = [
+        '/profile',
+        '/kyc',
+        '/notifications',
+        '/notification-settings',
+        '/delete-account',
+        '/api/',
+      ]
+      const pathname = request.nextUrl.pathname
+      if (
+        needsProfileSetup &&
+        systemRole !== 'admin' &&
+        isCustomerProtectedRoute &&
+        !SETUP_EXEMPT_PREFIXES.some((p) => pathname.startsWith(p))
+      ) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/profile'
+        url.searchParams.set('setup', '1')
+        return NextResponse.redirect(url)
+      }
     }
 
     if (systemRole !== 'admin' && isDashboardRoute) {

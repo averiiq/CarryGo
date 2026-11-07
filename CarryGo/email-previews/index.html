@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CaryGoo Email Templates Preview Gallery</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; height: 100vh; background: #0F172A; color: #F8FAFC; overflow: hidden; }
+    #sidebar { width: 340px; background: #1E293B; border-right: 1px solid #334155; display: flex; flex-direction: column; flex-shrink: 0; }
+    #sidebar-header { padding: 18px 20px; border-bottom: 1px solid #334155; background: #0F172A; }
+    #sidebar-header h1 { font-size: 18px; font-weight: 800; color: #004AAD; }
+    #sidebar-header h1 span { color: #008B48; }
+    #sidebar-header p { font-size: 12px; color: #94A3B8; margin-top: 4px; }
+    #template-list { flex: 1; overflow-y: auto; padding: 12px 10px; }
+    .category-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748B; margin: 14px 10px 6px 10px; }
+    .template-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; border: none; background: transparent; color: #CBD5E1; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; margin-bottom: 2px; }
+    .template-item:hover { background: #334155; color: #FFFFFF; }
+    .template-item.active { background: #004AAD; color: #FFFFFF; font-weight: 600; }
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #0B1120; }
+    #toolbar { padding: 12px 20px; background: #1E293B; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    #toolbar-meta h2 { font-size: 15px; font-weight: 700; color: #FFFFFF; }
+    #toolbar-meta p { font-size: 12px; color: #94A3B8; margin-top: 2px; }
+    #toolbar-actions { display: flex; align-items: center; gap: 8px; }
+    .viewport-btn { background: #334155; border: 1px solid #475569; color: #CBD5E1; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; }
+    .viewport-btn.active { background: #008B48; border-color: #008B48; color: #FFFFFF; }
+    .open-tab-btn { background: #004AAD; border: none; color: #FFFFFF; padding: 6px 14px; border-radius: 6px; font-size: 12px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+    #preview-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: auto; background: #0F172A; }
+    #preview-frame { border: 1px solid #334155; border-radius: 12px; background: #FFFFFF; width: 620px; height: 100%; transition: width 0.25s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>Cary<span>Goo</span> Email Preview Gallery</h1>
+      <p>25 Production Templates &bull; Verified 0 Escrow Phrasing</p>
+    </div>
+    <div id="template-list">
+      <!-- Generated items -->
+      
+        <button class="template-item active" data-file="01_account_verification_otp.html" data-subject="849201 is your CaryGoo verification code" data-name="🔑 01. Account Verification OTP">
+          🔑 01. Account Verification OTP
+        </button>
+      
+        <button class="template-item " data-file="02_account_confirmed.html" data-subject="Welcome to CaryGoo — Your account is active!" data-name="✅ 02. Account Confirmed & Active">
+          ✅ 02. Account Confirmed & Active
+        </button>
+      
+        <button class="template-item " data-file="03_welcome_onboarding.html" data-subject="Welcome to CaryGoo, Rahul Verma! 🚀 Getting started guide" data-name="👋 03. Welcome & Onboarding Guide">
+          👋 03. Welcome & Onboarding Guide
+        </button>
+      
+        <button class="template-item " data-file="04_delivery_request_received.html" data-subject="New Delivery Request: Delhi → Jaipur (₹450)" data-name="📦 04. Delivery Request Received">
+          📦 04. Delivery Request Received
+        </button>
+      
+        <button class="template-item " data-file="05_delivery_request_accepted.html" data-subject="Request Accepted! Vikram Singh will carry your parcel to Jaipur" data-name="🤝 05. Delivery Request Accepted">
+          🤝 05. Delivery Request Accepted
+        </button>
+      
+        <button class="template-item " data-file="06_delivery_pickup_confirmed.html" data-subject="Parcel Picked Up! Your delivery to Jaipur is on the way" data-name="🚗 06. Pickup Confirmed & Secret OTP">
+          🚗 06. Pickup Confirmed & Secret OTP
+        </button>
+      
+        <button class="template-item " data-file="07_delivery_in_transit.html" data-subject="Transit Update: Parcel moving from Delhi towards Jaipur" data-name="📍 07. Delivery In-Transit Milestone">
+          📍 07. Delivery In-Transit Milestone
+        </button>
+      
+        <button class="template-item " data-file="08_delivery_completed.html" data-subject="Delivered! Your parcel in Jaipur has been handed over successfully" data-name="🎉 08. Delivery Handover Complete">
+          🎉 08. Delivery Handover Complete
+        </button>
+      
+        <button class="template-item " data-file="09_delivery_payout_released.html" data-subject="Payout Released: ₹450 transferred for delivery to Jaipur" data-name="💰 09. Delivery Payout Released">
+          💰 09. Delivery Payout Released
+        </button>
+      
+        <button class="template-item " data-file="10_delivery_rejected.html" data-subject="Delivery Update: Traveller unavailable for Delhi → Jaipur" data-name="❌ 10. Delivery Request Declined">
+          ❌ 10. Delivery Request Declined
+        </button>
+      
+        <button class="template-item " data-file="11_parcel_listed.html" data-subject="Parcel Listed: &quot;Artisan Handicrafts&quot; (Jaipur → Delhi)" data-name="🏷️ 11. Parcel Listed Successfully">
+          🏷️ 11. Parcel Listed Successfully
+        </button>
+      
+        <button class="template-item " data-file="12_parcel_match_found.html" data-subject="Route Match: Kunal Roy is travelling from Jaipur to Delhi!" data-name="🎯 12. Smart Route Match Found">
+          🎯 12. Smart Route Match Found
+        </button>
+      
+        <button class="template-item " data-file="13_parcel_status_update.html" data-subject="Status Update: &quot;Artisan Handicrafts&quot; is now Handed Over to Recipient" data-name="📋 13. Parcel Status Milestone Update">
+          📋 13. Parcel Status Milestone Update
+        </button>
+      
+        <button class="template-item " data-file="14_kyc_submitted.html" data-subject="KYC Verification Submitted — Under Review" data-name="⏳ 14. KYC Submitted & Under Review">
+          ⏳ 14. KYC Submitted & Under Review
+        </button>
+      
+        <button class="template-item " data-file="15_kyc_approved.html" data-subject="Congratulations! Your CaryGoo KYC is Approved" data-name="🛡️ 15. KYC Approved & Verified Badge">
+          🛡️ 15. KYC Approved & Verified Badge
+        </button>
+      
+        <button class="template-item " data-file="16_kyc_action_needed.html" data-subject="Action Required: Update your CaryGoo KYC Documents" data-name="⚠️ 16. KYC Action Needed / Resubmit">
+          ⚠️ 16. KYC Action Needed / Resubmit
+        </button>
+      
+        <button class="template-item " data-file="17_promotional_referral.html" data-subject="Give ₹50, Get 150 Coins with code DEEPAK50 — Share CaryGoo!" data-name="🎁 17. Referral Code & Bonus Coins">
+          🎁 17. Referral Code & Bonus Coins
+        </button>
+      
+        <button class="template-item " data-file="18_promotional_corridor_discount.html" data-subject="Special Offer: Flat ₹50 OFF on Delhi ↔ Chandigarh!" data-name="🎟️ 18. Corridor Discount (₹50 OFF)">
+          🎟️ 18. Corridor Discount (₹50 OFF)
+        </button>
+      
+        <button class="template-item " data-file="19_promotional_tier_upgrade.html" data-subject="You've reached Gold Tier on CaryGoo! 🌟" data-name="⭐ 19. Reward Tier Upgrade (Gold)">
+          ⭐ 19. Reward Tier Upgrade (Gold)
+        </button>
+      
+        <button class="template-item " data-file="20_update_app_feature.html" data-subject="CaryGoo Update: Smart Corridor Matching & Offline OTP (v1.3.0) 🚀" data-name="🚀 20. App Feature Release (v1.3.0)">
+          🚀 20. App Feature Release (v1.3.0)
+        </button>
+      
+        <button class="template-item " data-file="21_update_policy.html" data-subject="Important Notice: Updates to CaryGoo Community Safety Guidelines" data-name="📄 21. Policy & Terms of Service Update">
+          📄 21. Policy & Terms of Service Update
+        </button>
+      
+        <button class="template-item " data-file="22_update_system_maintenance.html" data-subject="Notice: Scheduled Maintenance on CaryGoo (Sunday 12:00 AM IST)" data-name="🛠️ 22. Scheduled System Maintenance">
+          🛠️ 22. Scheduled System Maintenance
+        </button>
+      
+        <button class="template-item " data-file="23_security_new_device_login.html" data-subject="Security Alert: New sign-in from OnePlus 12" data-name="🛡️ 23. New Device Sign-in Security Alert">
+          🛡️ 23. New Device Sign-in Security Alert
+        </button>
+      
+        <button class="template-item " data-file="24_security_password_reset.html" data-subject="Reset your CaryGoo password" data-name="🔒 24. Password Reset Request">
+          🔒 24. Password Reset Request
+        </button>
+      
+        <button class="template-item " data-file="25_security_payment_reserved.html" data-subject="Payment Receipt: ₹500 reserved for Delhi → Manali [#CG-2026-9901]" data-name="🧾 25. Payment Reserved Confirmation">
+          🧾 25. Payment Reserved Confirmation
+        </button>
+      
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="toolbar">
+      <div id="toolbar-meta">
+        <h2 id="current-name">🔑 01. Account Verification OTP</h2>
+        <p id="current-subject">849201 is your CaryGoo verification code</p>
+      </div>
+      <div id="toolbar-actions">
+        <button class="viewport-btn" data-width="375px">📱 Mobile (375px)</button>
+        <button class="viewport-btn active" data-width="620px">💻 Desktop (600px)</button>
+        <button class="viewport-btn" data-width="100%">🖥️ Full Width</button>
+        <a id="open-tab" class="open-tab-btn" href="01_account_verification_otp.html" target="_blank">Open Full Page &rarr;</a>
+      </div>
+    </div>
+    <div id="preview-container">
+      <iframe id="preview-frame" src="01_account_verification_otp.html"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const items = document.querySelectorAll('.template-item');
+    const frame = document.getElementById('preview-frame');
+    const nameEl = document.getElementById('current-name');
+    const subjectEl = document.getElementById('current-subject');
+    const openTabBtn = document.getElementById('open-tab');
+    const viewportBtns = document.querySelectorAll('.viewport-btn');
+
+    items.forEach(btn => {
+      btn.addEventListener('click', () => {
+        items.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const file = btn.dataset.file;
+        frame.src = file;
+        nameEl.textContent = btn.dataset.name;
+        subjectEl.textContent = btn.dataset.subject;
+        openTabBtn.href = file;
+      });
+    });
+
+    viewportBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewportBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        frame.style.width = btn.dataset.width;
+      });
+    });
+  </script>
+</body>
+</html>

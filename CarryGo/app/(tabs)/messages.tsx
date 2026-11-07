@@ -34,7 +34,7 @@ import {
 } from '@/features/conversations/queries';
 import { getCachedAvatar } from '@/services/avatar-enrichment.service';
 import { useRequestsQuery } from '@/features/requests/queries';
-import { AsyncStateCard, OfflineBanner, LottieAnimation } from '@/components';
+import { AsyncStateCard, OfflineBanner, LottieAnimation, ConversationItemSkeleton } from '@/components';
 import { useAlert } from '@/template';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -846,15 +846,13 @@ export default function MessagesScreen() {
           <View
             style={[
               styles.stateWrap,
-              { paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) },
+              { paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet), paddingHorizontal: Spacing.md },
             ]}
           >
-            <AsyncStateCard
-              C={C}
-              icon="sync"
-              title="Loading messages..."
-              message="Fetching your encrypted delivery conversations."
-            />
+            <ConversationItemSkeleton />
+            <ConversationItemSkeleton />
+            <ConversationItemSkeleton />
+            <ConversationItemSkeleton />
           </View>
         ) : filteredRows.length === 0 ? (
           <View

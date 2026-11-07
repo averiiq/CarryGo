@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ArrowRight,
+  Bell,
   ChevronDown,
   Compass,
   FileText,
@@ -32,6 +33,7 @@ import { primaryNavLinks, secondaryNavLinks } from '@/components/marketing/site-
 import { TrackingLookupModal } from '@/components/marketing/tracking-lookup-modal'
 import { createClient } from '@/utils/supabase/client'
 import { logout } from '@/app/login/actions'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 
 import { ScrollProgressBar } from '@/components/marketing/parallax-wrapper'
 
@@ -290,6 +292,8 @@ export function SiteHeader() {
               </a>
             )}
 
+            {currentUser && <NotificationBell />}
+
             {currentUser ? (
               /* User Menu Dropdown */
               <div className="relative" ref={userMenuRef}>
@@ -362,6 +366,15 @@ export function SiteHeader() {
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-sky-600" />
                         <span>Messages</span>
+                      </Link>
+
+                      <Link
+                        href="/notifications"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 rounded-xl hover:bg-slate-50 hover:text-slate-900 transition"
+                      >
+                        <Bell className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Notifications</span>
                       </Link>
 
                       <Link

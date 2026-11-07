@@ -89,7 +89,6 @@ function AppShell() {
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <StatusBar
         style={C.statusBarStyle}
-        backgroundColor="transparent"
         translucent
         animated
       />
@@ -126,14 +125,7 @@ function AppStack() {
   } as const;
 
   return (
-    <>
-      <StatusBar
-        style={C.statusBarStyle}
-        backgroundColor="transparent"
-        translucent
-        animated
-      />
-      <Stack
+    <Stack
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
@@ -167,7 +159,6 @@ function AppStack() {
         <Stack.Screen name="legal/shipping-policy" options={{ headerShown: false }} />
         <Stack.Screen name="rewards" options={{ headerShown: false }} />
       </Stack>
-    </>
   );
 }
 

@@ -34,7 +34,7 @@ import { useRequestsQuery } from '@/features/requests/queries';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useFadeIn } from '@/hooks/useAnimations';
 import { useAppUpdates } from '@/hooks/useAppUpdates';
-import { AnimatedIcon, type AnimatedIconName, type AnimatedIconRef } from '@/components';
+import { AnimatedIcon, type AnimatedIconName, type AnimatedIconRef, TrustTierBadge } from '@/components';
 import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 import { getUserCoinSummary } from '@/services/rewards.service';
 
@@ -235,10 +235,16 @@ export default function ProfileScreen() {
     applyUpdate,
   } = useAppUpdates();
 
-  // Refresh user data & coin summary on focus
+  const lastFocusRefreshRef = useRef<number>(0);
+
+  // Refresh user data & coin summary on focus (throttled to at most once per 10s)
   useFocusEffect(
     useCallback(() => {
-      refreshUser();
+      const now = Date.now();
+      if (now - lastFocusRefreshRef.current < 10_000) return;
+      lastFocusRefreshRef.current = now;
+
+      void refreshUser();
       void getUserCoinSummary().then((res) => {
         if (res.data) {
           setCoinBalance(res.data.balance);
@@ -609,6 +615,17 @@ export default function ProfileScreen() {
           </Pressable>
         ) : null}
 
+        {/* ── Trust Tier Card ────────────────────────────────────────── */}
+        <View style={{ marginVertical: Spacing.xs }}>
+          <TrustTierBadge
+            variant="card"
+            completedDeliveries={completed}
+            rating={user.rating || 5.0}
+            isKycVerified={isKycApproved}
+            onPress={() => router.push('/rewards')}
+          />
+        </View>
+
         {/* ── Settings Groups ─────────────────────────────────────────── */}
         <Animated.View style={[styles.sectionsWrap, { opacity: sectionsEntrance.opacity, transform: sectionsEntrance.transform }]}>
           {/* Group 1: Identity & Trust */}
@@ -738,6 +755,28 @@ export default function ProfileScreen() {
                   ) : undefined
                 }
                 onPress={() => router.push('/rewards' as any)}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="card-giftcard" size={18} color={C.primary} />}
+                label="Refer & Earn"
+                subtitle="Give ₹50 off, get ₹100 for each friend"
+                right={
+                  <View
+                    style={{
+                      backgroundColor: C.primarySubtle,
+                      paddingHorizontal: Spacing.xs + 4,
+                      paddingVertical: 2,
+                      borderRadius: BorderRadius.full,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: FontWeight.bold, color: C.primary }}>
+                      ₹100
+                    </Text>
+                  </View>
+                }
+                onPress={() => router.push('/referral')}
               />
             </View>
           </View>

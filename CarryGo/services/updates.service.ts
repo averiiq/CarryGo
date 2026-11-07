@@ -1,4 +1,5 @@
 import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import { captureException } from '@/lib/monitoring';
 
 export interface UpdateStatus {
@@ -18,6 +19,10 @@ export interface AppVersionInfo {
   isUpdatesEnabled: boolean;
 }
 
+const isExpoGo =
+  Constants.appOwnership === 'expo' ||
+  (Constants as any).executionEnvironment === 'storeClient';
+
 /**
  * Returns current OTA update metadata and runtime environment.
  */
@@ -28,7 +33,7 @@ export function getAppVersionInfo(): AppVersionInfo {
     runtimeVersion: typeof Updates.runtimeVersion === 'string' ? Updates.runtimeVersion : null,
     isEmbeddedLaunch: Updates.isEmbeddedLaunch,
     createdAt: Updates.createdAt,
-    isUpdatesEnabled: Updates.isEnabled,
+    isUpdatesEnabled: Updates.isEnabled && !isExpoGo && !__DEV__,
   };
 }
 
@@ -41,8 +46,9 @@ export async function checkForAppUpdate(): Promise<{
   manifest?: Updates.Manifest;
   error?: string;
 }> {
-  if (!Updates.isEnabled) {
-    return { isAvailable: false, error: 'Updates disabled in current build' };
+  // In Expo Go or development mode, OTA updates are not supported by Expo
+  if (isExpoGo || !Updates.isEnabled || __DEV__) {
+    return { isAvailable: false };
   }
 
   try {
@@ -53,7 +59,9 @@ export async function checkForAppUpdate(): Promise<{
     return { isAvailable: false };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to check for updates';
-    captureException(err, { source: 'checkForAppUpdate' });
+    if (!message.includes('not supported in Expo Go')) {
+      captureException(err, { source: 'checkForAppUpdate' });
+    }
     return { isAvailable: false, error: message };
   }
 }
@@ -66,8 +74,8 @@ export async function fetchAppUpdate(): Promise<{
   manifest?: Updates.Manifest;
   error?: string;
 }> {
-  if (!Updates.isEnabled) {
-    return { success: false, error: 'Updates disabled in current build' };
+  if (isExpoGo || !Updates.isEnabled || __DEV__) {
+    return { success: false, error: 'Updates not supported in Expo Go or dev mode' };
   }
 
   try {
@@ -78,7 +86,9 @@ export async function fetchAppUpdate(): Promise<{
     return { success: false, error: 'Fetched update was not marked as new' };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to download update';
-    captureException(err, { source: 'fetchAppUpdate' });
+    if (!message.includes('not supported in Expo Go')) {
+      captureException(err, { source: 'fetchAppUpdate' });
+    }
     return { success: false, error: message };
   }
 }
@@ -87,7 +97,7 @@ export async function fetchAppUpdate(): Promise<{
  * Reloads the app to apply the newly downloaded OTA bundle.
  */
 export async function reloadAppToApplyUpdate(): Promise<void> {
-  if (!Updates.isEnabled) return;
+  if (isExpoGo || !Updates.isEnabled || __DEV__) return;
 
   try {
     await Updates.reloadAsync();

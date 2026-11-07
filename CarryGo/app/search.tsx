@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { TripCard, ParcelCard, BlaBlaTripCard, MatchDiagnosticCard, LottieAnimation, KeyboardAwareScrollView } from '@/components';
+import { TripCard, ParcelCard, BlaBlaTripCard, MatchDiagnosticCard, LottieAnimation, KeyboardAwareScrollView, AdvancedFilterModal, type AdvancedFilterState, DEFAULT_FILTERS } from '@/components';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 import { Trip, Parcel, Request } from '@/types';
 import { INDIAN_CITIES } from '@/constants/indian-cities';
@@ -97,6 +97,8 @@ export default function SearchScreen({ hideBackBtn = false }: { hideBackBtn?: bo
   const [subscribing, setSubscribing] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('date_nearest');
   const [showFilters, setShowFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilterState>(DEFAULT_FILTERS);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const fromInputRef = useRef<TextInput>(null);
   const toInputRef = useRef<TextInput>(null);
@@ -185,9 +187,14 @@ export default function SearchScreen({ hideBackBtn = false }: { hideBackBtn?: bo
       fromCity,
       toCity,
       vehicleType,
+      vehicleTypes: advancedFilters.vehicleTypes,
+      minCapacityKg: advancedFilters.minCapacityKg,
+      dateWindow: advancedFilters.dateWindow,
+      verifiedOnly: advancedFilters.verifiedOnly,
+      maxPrice: advancedFilters.maxPrice,
       excludeUserId: user?.id,
     });
-  }, [trips, parcels, fromCity, toCity, vehicleType, user?.id]);
+  }, [trips, parcels, fromCity, toCity, vehicleType, advancedFilters, user?.id]);
 
   const allResults: SearchItem[] = useMemo(() => {
     return sortSearchResults(
@@ -537,16 +544,30 @@ export default function SearchScreen({ hideBackBtn = false }: { hideBackBtn?: bo
                 <Text style={[localStyles.resultsCount, { color: C.textSecondary }]}>
                   {displayResults.length} result{displayResults.length !== 1 ? 's' : ''}
                 </Text>
-                <Pressable
-                  style={[localStyles.sortBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
-                  onPress={toggleFilters}
-                >
-                  <MaterialIcons name="sort" size={14} color={C.textMuted} />
-                  <Text style={[localStyles.sortBtnText, { color: C.textMuted }]}>
-                    {SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}
-                  </Text>
-                  <MaterialIcons name={showFilters ? 'expand-less' : 'expand-more'} size={14} color={C.textMuted} />
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Pressable
+                    style={[localStyles.sortBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+                    onPress={() => { Haptic.select(); setIsFilterModalOpen(true); }}
+                  >
+                    <MaterialIcons name="tune" size={14} color={C.textMuted} />
+                    <Text style={[localStyles.sortBtnText, { color: C.textMuted }]}>
+                      Filter
+                    </Text>
+                    {(advancedFilters.vehicleTypes.length > 0 || advancedFilters.dateWindow !== 'all' || advancedFilters.minCapacityKg > 0 || advancedFilters.verifiedOnly) ? (
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary }} />
+                    ) : null}
+                  </Pressable>
+                  <Pressable
+                    style={[localStyles.sortBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+                    onPress={toggleFilters}
+                  >
+                    <MaterialIcons name="sort" size={14} color={C.textMuted} />
+                    <Text style={[localStyles.sortBtnText, { color: C.textMuted }]}>
+                      {SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}
+                    </Text>
+                    <MaterialIcons name={showFilters ? 'expand-less' : 'expand-more'} size={14} color={C.textMuted} />
+                  </Pressable>
+                </View>
               </View>
 
               {/* Collapsible sort options */}
@@ -791,6 +812,15 @@ export default function SearchScreen({ hideBackBtn = false }: { hideBackBtn?: bo
             </View>
           )}
         </KeyboardAwareScrollView>
+        <AdvancedFilterModal
+          visible={isFilterModalOpen}
+          initialFilters={advancedFilters}
+          onClose={() => setIsFilterModalOpen(false)}
+          onApply={(f) => {
+            setAdvancedFilters(f);
+            if (f.sortBy) setSortBy(f.sortBy);
+          }}
+        />
       </View>
     </KeyboardAvoidingView>
   );

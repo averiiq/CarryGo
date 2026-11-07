@@ -520,6 +520,16 @@ export default function SmartMatchingPage() {
                           suggestedPrice={priceOffer}
                           fromCity={fromCity}
                           toCity={toCity}
+                          tripContext={{
+                            id: t.id,
+                            userName: 'Traveller',
+                            fromCity: t.fromCity,
+                            toCity: t.toCity,
+                            date: t.date,
+                            time: t.time,
+                            availableCapacity: t.availableCapacity,
+                            pricePerKg: t.pricePerKg,
+                          }}
                         />
                       </div>
                     </div>

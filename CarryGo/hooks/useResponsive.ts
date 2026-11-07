@@ -62,6 +62,12 @@ export function useResponsive() {
   const horizontalPadding = isSmallDevice ? 12 : isTablet ? 24 : 16;
   const cardPadding = isSmallDevice ? 12 : 16;
 
+  // Multi-column grid calculations for large phones & tablets
+  const gridColumns = isTablet ? 2 : 1;
+  const getGridColumns = (itemMinWidth: number = 280): number => {
+    return Math.max(1, Math.floor(width / itemMinWidth));
+  };
+
   return {
     width,
     height,
@@ -87,6 +93,8 @@ export function useResponsive() {
     swipeThreshold,
     horizontalPadding,
     cardPadding,
+    gridColumns,
+    getGridColumns,
     TouchTarget,
   };
 }
