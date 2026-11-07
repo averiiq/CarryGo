@@ -24,7 +24,7 @@ export function HeroSplitExperience() {
             {mobileTab === 'search' && (
               <motion.span
                 layoutId="heroMobileViewTab"
-                className="absolute inset-0 rounded-xl bg-emerald-700"
+                className="absolute inset-0 rounded-xl bg-[#004AAD]"
                 transition={{ type: 'spring', stiffness: 450, damping: 32 }}
               />
             )}
@@ -42,7 +42,7 @@ export function HeroSplitExperience() {
             {mobileTab === 'radar' && (
               <motion.span
                 layoutId="heroMobileViewTab"
-                className="absolute inset-0 rounded-xl bg-emerald-700"
+                className="absolute inset-0 rounded-xl bg-[#004AAD]"
                 transition={{ type: 'spring', stiffness: 450, damping: 32 }}
               />
             )}

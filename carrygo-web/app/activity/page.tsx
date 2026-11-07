@@ -297,13 +297,13 @@ export default function CustomerActivityPage() {
             </button>
             <Link
               href="/create-parcel"
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition"
+              className="px-4 py-2 rounded-xl bg-[#004AAD] hover:bg-[#003580] text-white text-xs font-bold shadow-xs transition"
             >
               + Send Parcel
             </Link>
             <Link
               href="/create-trip"
-              className="px-4 py-2 rounded-xl border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold transition"
+              className="px-4 py-2 rounded-xl border border-[#004AAD] text-[#004AAD] hover:bg-[#EEF5FF] text-xs font-bold transition"
             >
               + Offer Trip
             </Link>
@@ -323,18 +323,18 @@ export default function CustomerActivityPage() {
           </div>
         )}
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2 border-b border-slate-200 mt-6 pb-2">
+        {/* Tab Navigation matching Mobile Segments */}
+        <div className="flex items-center gap-2 border-b border-slate-200 mt-6 pb-2 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab('parcels')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition cursor-pointer whitespace-nowrap ${
               activeTab === 'parcels'
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                ? 'bg-[#EEF5FF] text-[#004AAD] border border-[#BBD8FF]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Package className="w-4 h-4 text-emerald-600" />
+            <Package className="w-4 h-4 text-[#004AAD]" />
             <span>My Parcels (Sender)</span>
             <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-slate-200 font-bold text-slate-700">
               {parcels.length}
@@ -344,13 +344,13 @@ export default function CustomerActivityPage() {
           <button
             type="button"
             onClick={() => setActiveTab('trips')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition cursor-pointer whitespace-nowrap ${
               activeTab === 'trips'
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                ? 'bg-[#EEF5FF] text-[#004AAD] border border-[#BBD8FF]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <Plane className="w-4 h-4 text-sky-600" />
+            <Plane className="w-4 h-4 text-[#004AAD]" />
             <span>My Trips (Traveler)</span>
             <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-slate-200 font-bold text-slate-700">
               {trips.length}
@@ -360,14 +360,14 @@ export default function CustomerActivityPage() {
           <button
             type="button"
             onClick={() => setActiveTab('payments')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition cursor-pointer whitespace-nowrap ${
               activeTab === 'payments'
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                ? 'bg-[#EEF5FF] text-[#004AAD] border border-[#BBD8FF]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <CreditCard className="w-4 h-4 text-indigo-600" />
-            <span>Transactions</span>
+            <CreditCard className="w-4 h-4 text-[#004AAD]" />
+            <span>Payment Vault</span>
             <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-slate-200 font-bold text-slate-700">
               {payments.length}
             </span>
