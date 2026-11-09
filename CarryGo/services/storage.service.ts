@@ -189,8 +189,14 @@ async function uploadToCloudinary(
       try {
         await FileSystem.deleteAsync(optimized.uri, { idempotent: true });
       } catch {}
-      const data = JSON.parse(result.body);
-      return { cdnUrl: data.secure_url, publicId: data.public_id };
+      try {
+        const data = JSON.parse(result.body);
+        if (data && data.secure_url) {
+          return { cdnUrl: data.secure_url, publicId: data.public_id };
+        }
+      } catch {
+        throw new Error('Unexpected non-JSON response from upload service. If you are connected to a public Wi-Fi hotspot, please log in first.');
+      }
     }
 
     lastError = `${result.status}: ${result.body?.slice(0, 200) ?? 'unknown'}`;

@@ -6,11 +6,12 @@ import type { Trip } from '@/types';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
+import { useResponsive } from '@/hooks/useResponsive';
 import {
   getRouteTimelineMeta,
   formatBlaBlaPrice,
 } from './matching/blaBlaHelpers';
-import { resolveImageUrl, getVehicleImage } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
 const VEHICLE_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   bike: 'two-wheeler',
@@ -23,6 +24,8 @@ const VEHICLE_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
 export interface BlaBlaTripCardProps {
   trip: Trip;
   price?: number;
+  currentUserAvatar?: string;
+  isOwner?: boolean;
   onPress?: () => void;
   showLightning?: boolean;
   showAcUnit?: boolean;
@@ -32,23 +35,27 @@ export interface BlaBlaTripCardProps {
 export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
   trip,
   price,
+  currentUserAvatar,
+  isOwner = false,
   onPress,
   showLightning = true,
   showAcUnit,
   testID,
 }: BlaBlaTripCardProps) {
   const { C, isDark } = useThemeColors();
+  const { isSmallDevice } = useResponsive();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [avatarError, setAvatarError] = React.useState(false);
 
   const rawAvatar =
+    (isOwner && currentUserAvatar ? currentUserAvatar : undefined) ||
     trip.userAvatar ||
     (trip as any).avatar ||
     (trip as any).avatar_url ||
     (trip as any).user_avatar ||
     (trip as any).selfieUrl ||
     (trip as any).userSelfieUrl;
-  const resolvedAvatar = resolveImageUrl(rawAvatar);
+  const avatarSource = getUserAvatarSource(rawAvatar, trip.userId || trip.id || trip.userName);
 
   const timeline = getRouteTimelineMeta(trip);
   const effectivePrice = typeof price === 'number' && price > 0 ? price : (trip.pricePerKg * 2 || 180);
@@ -94,6 +101,7 @@ export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
         onPress={handlePress}
         style={({ pressed }) => [
           styles.card,
+          isSmallDevice && { paddingHorizontal: Spacing.sm, paddingVertical: 12 },
           {
             backgroundColor: C.surface,
             borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E6EAF0',
@@ -104,20 +112,20 @@ export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
         {/* ── Top Section: Timeline & Route & Price ── */}
         <View style={styles.topSection}>
           {/* Time column + duration */}
-          <View style={styles.timesCol}>
-            <Text style={[styles.timeText, { color: C.textPrimary }]}>
+          <View style={[styles.timesCol, isSmallDevice && { width: 44 }]}>
+            <Text style={[styles.timeText, isSmallDevice && { fontSize: 13 }, { color: C.textPrimary }]}>
               {timeline.departureTime}
             </Text>
-            <Text style={[styles.durationText, { color: C.textMuted }]}>
+            <Text style={[styles.durationText, isSmallDevice && { fontSize: 10 }, { color: C.textMuted }]}>
               {timeline.durationLabel}
             </Text>
-            <Text style={[styles.timeText, { color: C.textPrimary }]}>
+            <Text style={[styles.timeText, isSmallDevice && { fontSize: 13 }, { color: C.textPrimary }]}>
               {timeline.arrivalTime}
             </Text>
           </View>
 
           {/* Vertical route line */}
-          <View style={styles.timelineAxis}>
+          <View style={[styles.timelineAxis, isSmallDevice && { marginHorizontal: 3 }]}>
             <View style={[styles.timelineRing, { borderColor: isDark ? '#94A3B8' : '#334155' }]} />
             <View style={[styles.timelineTrack, { backgroundColor: isDark ? '#475569' : '#CBD5E1' }]} />
             <View style={[styles.timelineRing, { borderColor: isDark ? '#94A3B8' : '#334155' }]} />
@@ -125,20 +133,20 @@ export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
 
           {/* Cities column */}
           <View style={styles.citiesCol}>
-            <Text style={[styles.cityText, { color: C.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.cityText, isSmallDevice && { fontSize: 14 }, { color: C.textPrimary }]} numberOfLines={1}>
               {trip.fromCity}
             </Text>
             <View style={{ flex: 1 }} />
-            <Text style={[styles.cityText, { color: C.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.cityText, isSmallDevice && { fontSize: 14 }, { color: C.textPrimary }]} numberOfLines={1}>
               {trip.toCity}
             </Text>
           </View>
 
           {/* Price block */}
-          <View style={styles.priceContainer}>
-            <Text style={[styles.priceCurrency, { color: C.textPrimary }]}>₹ </Text>
-            <Text style={[styles.priceAmount, { color: C.textPrimary }]}>{priceMeta.amount}</Text>
-            <Text style={[styles.priceDecimal, { color: C.textPrimary }]}>{priceMeta.decimal}</Text>
+          <View style={[styles.priceContainer, isSmallDevice && { paddingLeft: 4 }]}>
+            <Text style={[styles.priceCurrency, isSmallDevice && { fontSize: 14 }, { color: C.textPrimary }]}>₹ </Text>
+            <Text style={[styles.priceAmount, isSmallDevice && { fontSize: 19 }, { color: C.textPrimary }]}>{priceMeta.amount}</Text>
+            <Text style={[styles.priceDecimal, isSmallDevice && { fontSize: 11 }, { color: C.textPrimary }]}>{priceMeta.decimal}</Text>
           </View>
         </View>
 
@@ -148,32 +156,15 @@ export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
         {/* ── Bottom Section: Traveler Info & Indicators ── */}
         <View style={styles.bottomSection}>
           <View style={styles.travelerRow}>
-            {/* Mode of travel thumbnail or icon */}
-            <View style={styles.vehicleIconWrap}>
-              <Image
-                source={getVehicleImage(trip.vehicleType)}
-                style={styles.vehicleThumbnail}
-                contentFit="cover"
-              />
-            </View>
-
             {/* Avatar with verified badge */}
-            <View style={styles.avatarWrap}>
-              {resolvedAvatar && !avatarError ? (
-                <Image
-                  source={{ uri: resolvedAvatar }}
-                  style={styles.avatarImage}
-                  contentFit="cover"
-                  transition={200}
-                  onError={() => setAvatarError(true)}
-                />
-              ) : (
-                <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]}>
-                  <Text style={[styles.avatarInitials, { color: C.textPrimary }]}>
-                    {(trip.userName || 'T').charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
+            <View style={[styles.avatarWrap, isSmallDevice && { marginRight: 8 }]}>
+              <Image
+                source={avatarError ? DEFAULT_AVATAR_ASSET : avatarSource}
+                style={[styles.avatarImage, isSmallDevice && { width: 34, height: 34, borderRadius: 17 }]}
+                contentFit="cover"
+                transition={200}
+                onError={() => setAvatarError(true)}
+              />
               {/* Verified checkmark badge */}
               <View style={[styles.verifiedBadge, { backgroundColor: '#10B981', borderColor: C.surface }]}>
                 <MaterialIcons name="check" size={9} color="#FFFFFF" />
@@ -182,9 +173,12 @@ export const BlaBlaTripCard = React.memo(function BlaBlaTripCard({
 
             {/* Traveler name & rating */}
             <View style={styles.travelerMeta}>
-              <Text style={[styles.travelerName, { color: C.textPrimary }]} numberOfLines={1}>
-                {trip.userName || 'Verified Traveler'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmallDevice ? 4 : 6 }}>
+                <Text style={[styles.travelerName, isSmallDevice && { fontSize: 13 }, { color: C.textPrimary }]} numberOfLines={1}>
+                  {trip.userName || 'Verified Traveler'}
+                </Text>
+                <MaterialIcons name={vehicleIcon} size={isSmallDevice ? 13 : 14} color={C.textMuted} />
+              </View>
               <View style={styles.ratingRow}>
                 <MaterialIcons name="star" size={13} color="#F59E0B" style={styles.starIcon} />
                 <Text style={[styles.ratingText, { color: C.textSecondary }]}>
@@ -312,20 +306,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     marginRight: Spacing.sm,
-  },
-  vehicleIconWrap: {
-    marginRight: 10,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.06)',
-  },
-  vehicleThumbnail: {
-    width: '100%',
-    height: '100%',
   },
   avatarWrap: {
     position: 'relative',

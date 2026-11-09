@@ -15,7 +15,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
-import { resolveImageUrl } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
 export function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
@@ -195,18 +195,12 @@ export function SendRequestModal({
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={[styles.avatarWrap, { backgroundColor: C.primarySubtle }]}>
-              {resolvedAvatar && !avatarError ? (
-                <Image
-                  source={{ uri: resolvedAvatar }}
-                  style={styles.avatarImage}
-                  contentFit="cover"
-                  onError={() => setAvatarError(true)}
-                />
-              ) : (
-                <Text style={[styles.avatarText, { color: C.primary }]}>
-                  {trip.userName ? trip.userName.charAt(0).toUpperCase() : 'T'}
-                </Text>
-              )}
+              <Image
+                source={avatarError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(rawAvatar, trip.userId || trip.id || trip.userName)}
+                style={styles.avatarImage}
+                contentFit="cover"
+                onError={() => setAvatarError(true)}
+              />
               <View style={styles.verifiedDot} />
             </View>
             <View style={{ flex: 1 }}>
@@ -496,14 +490,14 @@ export function SendRequestModal({
             </View>
           )}
 
-          {/* Pricing & Escrow Trust Guarantee */}
+          {/* Pricing & Booking Trust Guarantee */}
           <View style={[styles.pricingCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
             <View style={styles.pricingLeft}>
-              <View style={styles.escrowHeaderRow}>
-                <MaterialIcons name="verified-user" size={16} color="#059669" />
-                <Text style={styles.escrowTitle}>100% Escrow Protected</Text>
+              <View style={styles.trustHeaderRow}>
+                <MaterialIcons name="verified-user" size={16} color="#008B48" />
+                <Text style={styles.trustTitle}>100% Booking Protected</Text>
               </View>
-              <Text style={styles.escrowSub}>
+              <Text style={styles.trustSub}>
                 Funds are held safely and only released after delivery OTP is verified.
               </Text>
             </View>
@@ -830,18 +824,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 10,
   },
-  escrowHeaderRow: {
+  trustHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginBottom: 2,
   },
-  escrowTitle: {
+  trustTitle: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
     color: '#065F46',
   },
-  escrowSub: {
+  trustSub: {
     fontSize: 10,
     color: '#047857',
     lineHeight: 14,

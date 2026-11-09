@@ -582,7 +582,7 @@ export default function SupportTable({
                       <div className="flex items-center gap-1.5">
                         {selectedTicket.email && (
                           <a
-                            href={`mailto:${selectedTicket.email}?subject=Re:%20CarryGo%20Support%20Ticket%20%23${selectedTicket.id.slice(0, 8)}&body=Hi%20${encodeURIComponent(selectedTicket.user)},%0A%0ARegarding%20your%20support%20ticket%20(${encodeURIComponent(selectedTicket.subject)}):%0A%0A`}
+                            href={`mailto:${selectedTicket.email}?subject=Re:%20CaryGoo%20Support%20Ticket%20%23${selectedTicket.id.slice(0, 8)}&body=Hi%20${encodeURIComponent(selectedTicket.user)},%0A%0ARegarding%20your%20support%20ticket%20(${encodeURIComponent(selectedTicket.subject)}):%0A%0A`}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary text-white text-[11px] font-semibold hover:bg-primary-dark transition"
                           >
                             <Mail className="w-3 h-3" /> Reply Email

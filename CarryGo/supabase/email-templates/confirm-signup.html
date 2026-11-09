@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Your CaryGoo Signup</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0F172A;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F8FAFC;">
+    <tr>
+      <td align="center" style="padding: 24px 12px 36px 12px;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; width: 100%;">
+          <!-- Branding -->
+          <tr>
+            <td align="center" style="padding: 16px 20px 24px 20px;">
+              <span style="font-size: 26px; font-weight: 800; color: #004AAD;">Cary<span style="color: #008B48;">Goo</span></span>
+              <div style="font-size: 12px; color: #64748B; font-weight: 500; letter-spacing: 0.5px; margin-top: 3px;">PEER-TO-PEER PARCEL COURIER</div>
+            </td>
+          </tr>
+          <!-- Main Card -->
+          <tr>
+            <td style="background-color: #FFFFFF; border-radius: 16px; border: 1px solid #E2E8F0; overflow: hidden; padding: 36px;">
+              <div style="margin-bottom: 16px;">
+                <span style="background-color: #EEF5FF; color: #004AAD; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 5px 12px; border-radius: 20px;">
+                  Verify Email
+                </span>
+              </div>
+              <h1 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 700; color: #0F172A;">Confirm Your Signup</h1>
+              <p style="font-size: 15px; line-height: 1.6; color: #334155;">
+                Welcome to <strong>CaryGoo</strong>! Tap the button below to confirm your email address and activate your account:
+              </p>
+
+              {{ if .Token }}
+              <div style="background-color: #EEF5FF; border: 1.5px dashed #004AAD; border-radius: 12px; padding: 18px; text-align: center; margin: 24px 0;">
+                <div style="font-size: 12px; font-weight: 700; color: #004AAD; text-transform: uppercase; margin-bottom: 6px;">Your Verification Code</div>
+                <div style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #004AAD; font-family: monospace;">{{ .Token }}</div>
+              </div>
+              {{ end }}
+
+              <div style="margin: 28px 0;">
+                <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; background-color: #004AAD; color: #FFFFFF; padding: 14px 28px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 10px;">
+                  Confirm My Account &rarr;
+                </a>
+              </div>
+
+              <p style="font-size: 13px; color: #64748B; margin-top: 24px; padding-top: 16px; border-top: 1px solid #F1F5F9;">
+                If you did not sign up for CaryGoo, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding: 20px; font-size: 12px; color: #94A3B8;">
+              &copy; 2026 CaryGoo. All rights reserved. Operates under Averiq Technologies Private Limited.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+

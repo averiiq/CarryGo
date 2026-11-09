@@ -7,11 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
-import { useAlert } from '@/template';
-import { AsyncStateCard, OfflineBanner, RequestCard, RequestDetailModal, LottieAnimation } from '@/components';
+import { useAlert, getSupabaseClient } from '@/template';
+import { fetchUserPayments } from '@/services/payments.service';
+import { AsyncStateCard, OfflineBanner, RequestCard, LottieAnimation, RequestCardSkeleton } from '@/components';
+import { AppErrorBoundary } from '@/components/ui/AppErrorBoundary';
 import { RatingModal } from '@/components/feature/RatingModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, TouchTarget, TabBarGeometry, StatusBarGeometry } from '@/constants/theme';
 import { createDelivery } from '@/services/deliveries.service';
 import { Haptic } from '@/services/haptics.service';
 import { useConversationsQuery, useCreateConversationMutation } from '@/features/conversations/queries';
@@ -19,19 +21,19 @@ import { flattenInfiniteData, useParcelsQuery, useParcelsByIdsQuery } from '@/fe
 import { useRequestsQuery, useUpdateRequestStatusMutation, useUserRatedRequestIdsQuery } from '@/features/requests/queries';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useFadeIn, useStaggeredList } from '@/hooks/useAnimations';
+import { useFadeIn } from '@/hooks/useAnimations';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { Request } from '@/types';
 import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
 
-type ActionTab = 'needs_action' | 'active' | 'history';
-type HistoryFilterKey = 'all' | 'waiting' | 'completed' | 'closed';
+type MainTab = 'requests' | 'active';
+type RequestFilter = 'all' | 'received' | 'sent';
 
 const RequestListItem = React.memo(function RequestListItem({
   item,
   isTablet,
   currentUserId,
-  anim,
+  isPaid,
   onPress,
   onAccept,
   onReject,
@@ -44,7 +46,7 @@ const RequestListItem = React.memo(function RequestListItem({
   item: Request;
   isTablet: boolean;
   currentUserId?: string;
-  anim?: { opacity: Animated.Value; translateY: Animated.Value };
+  isPaid?: boolean;
   onPress: (req: Request) => void;
   onAccept: (id: string, req: Request) => void;
   onReject: (id: string, req: Request) => void;
@@ -65,12 +67,13 @@ const RequestListItem = React.memo(function RequestListItem({
 
   const cardType = isRequestIncoming(item, currentUserId) ? 'incoming' : 'outgoing';
 
-  const content = (
+  return (
     <View style={isTablet ? styles.tabletContainer : undefined}>
       <RequestCard
         request={item}
         type={cardType}
         currentUserId={currentUserId}
+        isPaid={isPaid}
         onPress={handlePress}
         onAccept={handleAccept}
         onReject={handleReject}
@@ -82,19 +85,9 @@ const RequestListItem = React.memo(function RequestListItem({
       />
     </View>
   );
-
-  if (anim) {
-    return (
-      <Animated.View style={{ opacity: anim.opacity, transform: [{ translateY: anim.translateY }] }}>
-        {content}
-      </Animated.View>
-    );
-  }
-
-  return content;
 });
 
-export default function RequestsScreen() {
+function RequestsScreenContent() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const router = useRouter();
@@ -110,14 +103,12 @@ export default function RequestsScreen() {
   const updateRequestStatusMutation = useUpdateRequestStatusMutation(user?.id);
   const createConversationMutation = useCreateConversationMutation(user?.id);
 
-  const [tab, setTab] = useState<ActionTab>('needs_action');
-  const [historyFilter, setHistoryFilter] = useState<HistoryFilterKey>('all');
+  const [tab, setTab] = useState<MainTab>('requests');
+  const [requestFilter, setRequestFilter] = useState<RequestFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<Request | null>(null);
-  const [detailRequest, setDetailRequest] = useState<Request | null>(null);
   const [openingChatRequestId, setOpeningChatRequestId] = useState<string | null>(null);
   const slideAnim = React.useRef(new Animated.Value(0)).current;
-  const pendingPulse = React.useRef(new Animated.Value(1)).current;
 
   const requestsRefetchRef = React.useRef(requestsQuery.refetch);
   requestsRefetchRef.current = requestsQuery.refetch;
@@ -126,32 +117,82 @@ export default function RequestsScreen() {
   const parcelsRefetchRef = React.useRef(parcelsQuery.refetch);
   parcelsRefetchRef.current = parcelsQuery.refetch;
 
+  // Track which accepted requests are already paid (booked)
+  const [paidRequestIds, setPaidRequestIds] = useState<Set<string>>(new Set());
+  const refreshPaidRequests = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetchUserPayments(user.id);
+      const data = res?.data;
+      if (!Array.isArray(data)) return;
+      const locked = new Set(
+        data
+          .filter((p: any) => p && (p.status === 'locked' || p.status === 'released') && p.requestId)
+          .map((p: any) => p.requestId as string),
+      );
+      setPaidRequestIds(locked);
+    } catch {}
+  }, [user?.id]);
+  useEffect(() => {
+    void refreshPaidRequests();
+  }, [refreshPaidRequests]);
+
   useFocusEffect(
     useCallback(() => {
       if (user?.id) {
         void requestsRefetchRef.current();
+        void refreshPaidRequests();
       }
-    }, [user?.id])
+    }, [user?.id, refreshPaidRequests])
   );
 
-  const rawRequests = user ? requestsQuery.data ?? [] : [];
-  const conversations = user ? conversationsQuery.data ?? [] : [];
+  // Realtime subscription — refetch requests when a related row changes
+  useEffect(() => {
+    if (!user?.id) return;
+    const sb = getSupabaseClient();
+    const channel = sb
+      .channel(`requests:realtime:${user.id}:${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'requests' },
+        (payload) => {
+          const row: any = payload.new || payload.old;
+          if (!row) return;
+          const touchesUser = row.sender_id === user.id || row.traveller_id === user.id;
+          if (touchesUser) {
+            void requestsRefetchRef.current();
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      try { void sb.removeChannel(channel); } catch {}
+    };
+  }, [user?.id]);
+
+  const rawRequests = user && Array.isArray(requestsQuery.data) ? requestsQuery.data : [];
+  const conversations = user && Array.isArray(conversationsQuery.data) ? conversationsQuery.data : [];
   const marketplaceParcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
 
   const requestedParcelIds = useMemo(() => {
-    return Array.from(new Set(rawRequests.map(r => r.parcelId).filter(Boolean)));
+    if (!Array.isArray(rawRequests)) return [];
+    return Array.from(new Set(rawRequests.map(r => r?.parcelId).filter(Boolean)));
   }, [rawRequests]);
 
   const requestedParcelsQuery = useParcelsByIdsQuery(requestedParcelIds);
-  const requestedParcels = requestedParcelsQuery.data ?? [];
+  const requestedParcels = Array.isArray(requestedParcelsQuery.data) ? requestedParcelsQuery.data : [];
   const requestedParcelsRefetchRef = React.useRef(requestedParcelsQuery.refetch);
   requestedParcelsRefetchRef.current = requestedParcelsQuery.refetch;
 
   // Parcel lookup map prioritizing requestedParcelsQuery, then marketplace parcels
   const parcelMap = useMemo(() => {
     const map = new Map<string, typeof marketplaceParcels[0]>();
-    marketplaceParcels.forEach(p => map.set(p.id, p));
-    requestedParcels.forEach(p => map.set(p.id, p));
+    if (Array.isArray(marketplaceParcels)) {
+      marketplaceParcels.forEach(p => { if (p?.id) map.set(p.id, p); });
+    }
+    if (Array.isArray(requestedParcels)) {
+      requestedParcels.forEach(p => { if (p?.id) map.set(p.id, p); });
+    }
     return map;
   }, [marketplaceParcels, requestedParcels]);
 
@@ -159,66 +200,55 @@ export default function RequestsScreen() {
   const requests = useMemo(() => {
     return rawRequests
       .filter(req => {
+        if (!req || !req.id) return false;
         if (req.status === 'completed' && ratedRequestIds.has(req.id)) {
           return false;
         }
         return true;
       })
       .map(req => {
-        const p = parcelMap.get(req.parcelId);
+        const p = req.parcelId ? parcelMap.get(req.parcelId) : undefined;
         return {
           ...req,
-          fromCity: req.fromCity || p?.fromCity,
-          toCity: req.toCity || p?.toCity,
-          parcelCategory: req.parcelCategory || p?.category,
-          parcelWeight: req.parcelWeight || p?.weight,
+          fromCity: req.fromCity || p?.fromCity || '',
+          toCity: req.toCity || p?.toCity || '',
+          parcelCategory: req.parcelCategory || p?.category || 'documents',
+          parcelWeight: req.parcelWeight || p?.weight || 1,
         };
       });
   }, [rawRequests, ratedRequestIds, parcelMap]);
 
-  // 1. Needs Action:
-  // - Incoming pending requests (someone asked you to carry, or offered to carry your parcel)
-  // - Accepted requests where current user is sender (needs to pay escrow!)
-  const needsActionList = useMemo(() => {
-    return requests.filter(r => {
-      const incomingPending = isRequestIncoming(r, user?.id) && r.status === 'pending';
-      const senderNeedsEscrow = r.senderId === user?.id && r.status === 'accepted';
-      return incomingPending || senderNeedsEscrow;
-    });
+  // Received pending requests (action needed: Accept / Reject / Chat)
+  const receivedRequests = useMemo(() => {
+    return requests.filter(r => r && isRequestIncoming(r, user?.id) && r.status === 'pending');
   }, [requests, user?.id]);
 
-  // 2. Active Deliveries:
-  // - Matched & in-transit deliveries
+  // Sent pending requests (awaiting counterparty: Status / Cancel / Chat)
+  const sentRequests = useMemo(() => {
+    return requests.filter(r => r && isRequestOutgoing(r, user?.id) && r.status === 'pending');
+  }, [requests, user?.id]);
+
+  // All pending requests (received first for immediate action visibility, then sent)
+  const allPendingRequests = useMemo(() => {
+    return [...receivedRequests, ...sentRequests];
+  }, [receivedRequests, sentRequests]);
+
+  // Active in-progress deliveries (accepted)
   const activeList = useMemo(() => {
-    return requests.filter(r => r.status === 'accepted');
+    return requests.filter(r => r && r.status === 'accepted');
   }, [requests]);
 
-  // 3. Outgoing & History:
-  // - Outgoing pending requests (waiting for counterparty to accept)
-  // - Completed, rejected, cancelled
-  const historyList = useMemo(() => {
-    return requests.filter(r => {
-      const outgoingPending = isRequestOutgoing(r, user?.id) && r.status === 'pending';
-      const isPast = r.status === 'completed' || r.status === 'rejected' || r.status === 'cancelled' || r.status === 'failed';
-      return outgoingPending || isPast;
-    });
-  }, [requests, user?.id]);
-
   const displayed = useMemo(() => {
-    if (tab === 'needs_action') return needsActionList;
     if (tab === 'active') return activeList;
-    if (historyFilter === 'waiting') return historyList.filter(r => r.status === 'pending');
-    if (historyFilter === 'completed') return historyList.filter(r => r.status === 'completed');
-    if (historyFilter === 'closed') return historyList.filter(r => r.status === 'rejected' || r.status === 'cancelled');
-    return historyList;
-  }, [tab, needsActionList, activeList, historyList, historyFilter]);
+    if (requestFilter === 'received') return receivedRequests;
+    if (requestFilter === 'sent') return sentRequests;
+    return allPendingRequests;
+  }, [tab, requestFilter, activeList, receivedRequests, sentRequests, allPendingRequests]);
 
-  const cardAnims = useStaggeredList(Math.max(displayed.length, 14), 70);
-
-  const switchTab = (nextTab: ActionTab) => {
+  const switchTab = (nextTab: MainTab) => {
     if (nextTab === tab) return;
     Haptic.select();
-    const direction = nextTab === 'history' ? -1 : 1;
+    const direction = nextTab === 'active' ? 1 : -1;
     Animated.sequence([
       Animated.timing(slideAnim, {
         toValue: direction * 16,
@@ -234,21 +264,6 @@ export default function RequestsScreen() {
     ]).start();
     setTab(nextTab);
   };
-
-  useEffect(() => {
-    if (needsActionList.length <= 0) {
-      pendingPulse.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pendingPulse, { toValue: 1.08, duration: 620, useNativeDriver: true }),
-        Animated.timing(pendingPulse, { toValue: 1, duration: 620, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [needsActionList.length, pendingPulse]);
 
   const handleRefresh = useCallback(async () => {
     if (!user) return;
@@ -317,17 +332,9 @@ export default function RequestsScreen() {
             Haptic.success();
 
             if (isSender) {
-              showAlert(
-                'Offer Accepted! 💳',
-                `You matched with ${otherUserName}. Deposit ₹${req.price} in secure escrow to unlock your handover OTP.`,
-                [
-                  { text: 'Later', style: 'cancel' },
-                  {
-                    text: 'Pay Escrow Now',
-                    onPress: () => router.push({ pathname: '/payment/[id]', params: { id: requestId } }),
-                  },
-                ]
-              );
+              // Auto-route to payment screen — the Pay Now banner on this tab will
+              // keep the sender nudged if they back out without paying.
+              router.push({ pathname: '/payment/[id]', params: { id: requestId } });
             } else {
               showAlert(
                 'Request Accepted! 📦',
@@ -504,15 +511,28 @@ export default function RequestsScreen() {
 
   const handleOpenDetail = useCallback((req: Request) => {
     Haptic.tap();
-    setDetailRequest(req);
-  }, []);
+    if (req.status === 'accepted' || req.status === 'completed') {
+      const isSender = user?.id ? user.id === req.senderId : false;
+      if (req.status === 'accepted' && isSender && !paidRequestIds.has(req.id)) {
+        router.push({ pathname: '/payment/[id]', params: { id: req.id } });
+        return;
+      }
+      router.push({ pathname: '/delivery/[id]', params: { id: req.id } });
+      return;
+    }
+    if (req.tripId) {
+      router.push({ pathname: '/trip/[id]', params: { id: req.tripId } });
+    } else if (req.parcelId) {
+      router.push({ pathname: '/parcel/[id]', params: { id: req.parcelId } });
+    }
+  }, [router, user?.id, paidRequestIds]);
 
-  const renderRequestItem = useCallback(({ item, index }: { item: Request; index: number }) => (
+  const renderRequestItem = useCallback(({ item }: { item: Request }) => (
     <RequestListItem
       item={item}
       isTablet={isTablet}
       currentUserId={user?.id}
-      anim={cardAnims[index]}
+      isPaid={paidRequestIds.has(item.id)}
       onPress={handleOpenDetail}
       onAccept={handleAccept}
       onReject={handleReject}
@@ -522,50 +542,40 @@ export default function RequestsScreen() {
       onPayment={handlePayment}
       onReview={handleReview}
     />
-  ), [isTablet, user?.id, cardAnims, handleOpenDetail, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
+  ), [isTablet, user?.id, paidRequestIds, handleOpenDetail, handleAccept, handleReject, handleCancel, handleChat, handleDelivery, handlePayment, handleReview]);
 
   const renderItemSeparator = useCallback(() => <View style={{ height: Spacing.md }} />, []);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      <View style={[styles.headerTop, { paddingTop: insets.top + Spacing.sm }, isTablet && styles.tabletContainer]}>
+      <View style={[styles.headerTop, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.sm) }, isTablet && styles.tabletContainer]}>
         <View style={styles.titleWrap}>
-          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Deliveries & Requests</Text>
+          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Requests</Text>
           <Text style={[styles.pageSubtitle, { color: C.textMuted }]}>
-            {needsActionList.length > 0
-              ? `${needsActionList.length} request${needsActionList.length > 1 ? 's' : ''} awaiting your action`
+            {tab === 'requests'
+              ? receivedRequests.length > 0
+                ? `${receivedRequests.length} incoming request${receivedRequests.length > 1 ? 's' : ''} awaiting action`
+                : sentRequests.length > 0
+                ? `${sentRequests.length} sent request${sentRequests.length > 1 ? 's' : ''} awaiting response`
+                : 'Manage incoming and sent delivery requests'
               : activeList.length > 0
-              ? `${activeList.length} active delivery in progress`
-              : 'Track and manage your community deliveries'}
+              ? `${activeList.length} active deliver${activeList.length > 1 ? 'ies' : 'y'} in progress`
+              : 'Track ongoing deliveries and handover OTPs'}
           </Text>
         </View>
 
-        <View style={styles.headerActionRow}>
-          {needsActionList.length > 0 ? (
-            <Animated.View style={[styles.pulsePill, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', transform: [{ scale: pendingPulse }] }]}>
-              <View style={[styles.liveDot, { backgroundColor: '#EF4444' }]} />
-              <Text style={[styles.pulsePillText, { color: '#B91C1C' }]}>{needsActionList.length} Action{needsActionList.length > 1 ? 's' : ''}</Text>
-            </Animated.View>
-          ) : (
-            <View style={[styles.pulsePill, { backgroundColor: C.primarySubtle, borderColor: C.primary + '33' }]}>
-              <MaterialIcons name="check-circle" size={13} color={C.primary} />
-              <Text style={[styles.pulsePillText, { color: C.primary }]}>Synced</Text>
-            </View>
-          )}
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.refreshBtn,
-              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
-            ]}
-            onPress={handleRefresh}
-            hitSlop={TouchTarget.smallHitSlop}
-            accessibilityLabel="Refresh requests"
-          >
-            <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
-          </Pressable>
-        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.refreshBtn,
+            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+          ]}
+          onPress={handleRefresh}
+          hitSlop={TouchTarget.smallHitSlop}
+          accessibilityLabel="Refresh requests"
+        >
+          <MaterialIcons name="refresh" size={20} color={C.textPrimary} />
+        </Pressable>
       </View>
 
       {!isOnline ? (
@@ -574,12 +584,11 @@ export default function RequestsScreen() {
         </View>
       ) : null}
 
-      {/* Minimal 3-Action Tab Switcher: Needs Action vs Active vs History */}
+      {/* 2 Main Tabs: Requests vs Active Deliveries */}
       <View style={[styles.segmentedWrap, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
         {[
-          { key: 'needs_action' as const, label: 'Action Needed', icon: 'bolt', count: needsActionList.length, alert: needsActionList.length > 0 },
+          { key: 'requests' as const, label: 'Requests', icon: 'swap-horizontal-circle', count: allPendingRequests.length, alert: receivedRequests.length > 0 },
           { key: 'active' as const, label: 'Active', icon: 'local-shipping', count: activeList.length, alert: false },
-          { key: 'history' as const, label: 'History', icon: 'history', count: historyList.length, alert: false },
         ].map((t) => {
           const active = tab === t.key;
           return (
@@ -595,7 +604,7 @@ export default function RequestsScreen() {
             >
               <MaterialIcons
                 name={t.icon as any}
-                size={14}
+                size={15}
                 color={active ? '#FFFFFF' : C.textSecondary}
               />
               <Text
@@ -641,21 +650,16 @@ export default function RequestsScreen() {
         })}
       </View>
 
-      {/* History Sub-Filter Bar */}
-      {tab === 'history' && historyList.length > 0 ? (
+      {/* Requests Direction Filter: All | Received | Sent */}
+      {tab === 'requests' && allPendingRequests.length > 0 ? (
         <View style={[styles.filtersContainer, isTablet && styles.tabletContainer]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterChipRow}
-          >
+          <View style={styles.filterChipRow}>
             {[
-              { key: 'all' as const, label: 'All', icon: 'apps' as const, count: historyList.length },
-              { key: 'waiting' as const, label: 'Awaiting Response', icon: 'hourglass-empty' as const, count: historyList.filter(r => r.status === 'pending').length },
-              { key: 'completed' as const, label: 'Delivered', icon: 'task-alt' as const, count: historyList.filter(r => r.status === 'completed').length },
-              { key: 'closed' as const, label: 'Closed', icon: 'cancel' as const, count: historyList.filter(r => r.status === 'rejected' || r.status === 'cancelled').length },
+              { key: 'all' as const, label: 'All', count: allPendingRequests.length, alert: false },
+              { key: 'received' as const, label: 'Received', count: receivedRequests.length, alert: receivedRequests.length > 0 },
+              { key: 'sent' as const, label: 'Sent', count: sentRequests.length, alert: false },
             ].map((st) => {
-              const active = historyFilter === st.key;
+              const active = requestFilter === st.key;
               return (
                 <Pressable
                   key={st.key}
@@ -670,11 +674,10 @@ export default function RequestsScreen() {
                   hitSlop={TouchTarget.smallHitSlop}
                   onPress={() => {
                     Haptic.select();
-                    setHistoryFilter(st.key);
+                    setRequestFilter(st.key);
                   }}
                   disabled={st.count === 0 && st.key !== 'all'}
                 >
-                  <MaterialIcons name={st.icon} size={13} color={active ? C.primary : C.textSecondary} />
                   <Text
                     style={[
                       styles.statusChipText,
@@ -683,13 +686,31 @@ export default function RequestsScreen() {
                   >
                     {st.label}
                   </Text>
-                  <View style={[styles.statusChipBadge, { backgroundColor: active ? C.primary : C.surfaceBorder }]}>
-                    <Text style={[styles.statusChipCount, { color: active ? '#fff' : C.textSecondary }]}>{st.count}</Text>
+                  <View
+                    style={[
+                      styles.statusChipBadge,
+                      {
+                        backgroundColor: active
+                          ? C.primary
+                          : st.alert
+                          ? '#EF4444'
+                          : C.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusChipCount,
+                        { color: active || st.alert ? '#fff' : C.textSecondary },
+                      ]}
+                    >
+                      {st.count}
+                    </Text>
                   </View>
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
       ) : null}
 
@@ -702,7 +723,7 @@ export default function RequestsScreen() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={renderItemSeparator}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 108 }}
+          contentContainerStyle={{ paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet) }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing || requestsQuery.isRefetching}
@@ -725,40 +746,37 @@ export default function RequestsScreen() {
               </View>
             ) : requestsQuery.isLoading ? (
               <View style={styles.feedbackWrap}>
-                <AsyncStateCard
-                  C={C}
-                  icon="sync"
-                  title="Loading requests"
-                  message="Checking your incoming and outgoing delivery requests."
-                />
+                <RequestCardSkeleton />
+                <RequestCardSkeleton />
+                <RequestCardSkeleton />
               </View>
             ) : (
               <View style={[styles.empty, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}> 
                 <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
                   <LottieAnimation
-                    name={tab === 'needs_action' ? 'successCheck' : tab === 'active' ? 'deliveryCar' : 'packageBox'}
+                    name={tab === 'requests' ? 'emptyActivity' : 'deliveryCar'}
                     style={{ width: 140, height: 110 }}
                   />
                 </View>
 
                 <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-                  {tab === 'needs_action'
-                    ? 'All Caught Up! 🎉'
-                    : tab === 'active'
-                    ? 'No Active Deliveries 🚚'
-                    : historyFilter !== 'all'
-                    ? `No ${historyFilter} requests`
-                    : 'No Requests in History'}
+                  {tab === 'requests'
+                    ? requestFilter === 'received'
+                      ? 'No Received Requests'
+                      : requestFilter === 'sent'
+                      ? 'No Sent Requests'
+                      : 'No Pending Requests'
+                    : 'No Active Deliveries'}
                 </Text>
 
                 <Text style={[styles.emptySubtext, { color: C.textMuted }]}> 
-                  {tab === 'needs_action'
-                    ? 'No pending carry offers or delivery requests require your action right now.'
-                    : tab === 'active'
-                    ? 'Matched and funded deliveries will appear here with live tracking & OTP handover.'
-                    : historyFilter !== 'all'
-                    ? 'Try selecting "All" to view all requests in your history.'
-                    : 'Requests you sent awaiting response, or past delivered packages will be listed here.'}
+                  {tab === 'requests'
+                    ? requestFilter === 'received'
+                      ? 'You have no incoming delivery requests or carry offers waiting for your action.'
+                      : requestFilter === 'sent'
+                      ? 'You have no outgoing requests awaiting response from travelers.'
+                      : 'When you send a request or someone requests your trip, it will appear here.'
+                    : 'Matched deliveries in transit will appear here with live tracking, confirmed booking, and handover OTP.'}
                 </Text>
 
                 <View style={styles.emptyActionRow}>
@@ -772,8 +790,8 @@ export default function RequestsScreen() {
                       router.push('/(tabs)');
                     }}
                   >
-                    <MaterialIcons name="explore" size={15} color="#fff" />
-                    <Text style={styles.emptyCTAText}>Explore Marketplace</Text>
+                    <MaterialIcons name="search" size={15} color="#fff" />
+                    <Text style={styles.emptyCTAText}>Browse Listings</Text>
                   </Pressable>
 
                   <Pressable
@@ -817,64 +835,15 @@ export default function RequestsScreen() {
           }}
         />
       ) : null}
-
-      <RequestDetailModal
-        visible={Boolean(detailRequest)}
-        onClose={() => setDetailRequest(null)}
-        request={detailRequest}
-        currentUserId={user?.id}
-        onAccept={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleAccept(req.id, req);
-          }
-        }}
-        onReject={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleReject(req.id, req);
-          }
-        }}
-        onCancel={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleCancel(req.id, req);
-          }
-        }}
-        onChat={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleChat(req);
-          }
-        }}
-        onPayment={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handlePayment(req);
-          }
-        }}
-        onDelivery={() => {
-          if (detailRequest) {
-            const req = detailRequest;
-            setDetailRequest(null);
-            handleDelivery(req);
-          }
-        }}
-        onViewParcelListing={(parcelId) => {
-          setDetailRequest(null);
-          router.push({ pathname: '/parcel/[id]', params: { id: parcelId } });
-        }}
-        onViewTripListing={(tripId) => {
-          setDetailRequest(null);
-          router.push({ pathname: '/trip/[id]', params: { id: tripId } });
-        }}
-      />
     </View>
+  );
+}
+
+export default function RequestsScreen() {
+  return (
+    <AppErrorBoundary>
+      <RequestsScreenContent />
+    </AppErrorBoundary>
   );
 }
 
@@ -904,29 +873,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
-  headerActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs + 2,
-  },
-  pulsePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  pulsePillText: {
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
   refreshBtn: {
     width: 38,
     height: 38,
@@ -944,6 +890,33 @@ const styles = StyleSheet.create({
     maxWidth: 620,
     width: '100%',
     alignSelf: 'center',
+  },
+
+  payNowBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  payNowIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payNowTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  payNowSub: {
+    fontSize: FontSize.xs,
+    marginTop: 1,
   },
 
   segmentedWrap: {
@@ -982,26 +955,12 @@ const styles = StyleSheet.create({
   },
 
   filtersContainer: {
-    marginVertical: 4,
+    marginVertical: 6,
   },
   filterChipRow: {
     flexDirection: 'row',
-    gap: 6,
-    paddingRight: Spacing.sm,
-  },
-  roleChip: {
-    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
-    minHeight: 32,
-    gap: 5,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  roleChipText: {
-    fontSize: 11,
-    letterSpacing: -0.1,
   },
   statusChip: {
     flexDirection: 'row',

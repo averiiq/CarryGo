@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { PageHero } from '@/components/marketing/page-hero'
 import { ParityCreateForm } from '@/components/marketing/parity-create-form'
@@ -6,7 +8,7 @@ import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
 export const metadata = createMarketingMetadata(
   'Create Parcel',
-  'Create parcel requests on CarryGo web with app-style workflow and validations.',
+  'Create parcel requests on CaryGoo web with app-style workflow and validations.',
   '/create-parcel'
 )
 
@@ -29,7 +31,16 @@ export default function CreateParcelPage() {
       </ScrollLinkedSection>
 
       <ScrollLinkedSection className='px-6 pb-24 md:pb-28'>
-        <ParityCreateForm mode='parcel' />
+        <Suspense
+          fallback={
+            <div className="glass-card mx-auto max-w-3xl rounded-3xl p-12 flex flex-col items-center justify-center text-center">
+              <Loader2 className="w-8 h-8 text-[#004AAD] animate-spin" />
+              <p className="mt-3 text-sm text-slate-500 font-medium">Loading parcel creation form...</p>
+            </div>
+          }
+        >
+          <ParityCreateForm mode='parcel' />
+        </Suspense>
       </ScrollLinkedSection>
     </MarketingShell>
   )

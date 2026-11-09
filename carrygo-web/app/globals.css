@@ -1,65 +1,99 @@
 @import "tailwindcss";
 
 :root {
+  /* ─── Mobile parity: ported from CarryGo/constants/theme.ts LightColors ─── */
   --background: #F8FAFC;
   --foreground: #0F172A;
   --surface: #FFFFFF;
   --surface-elevated: #F1F5F9;
+  --surface-high: #E2E8F0;
   --surface-solid: #FFFFFF;
   --border: #E2E8F0;
   --border-subtle: #F1F5F9;
   --border-strong: #CBD5E1;
   --muted: #64748B;
   --muted-foreground: #94A3B8;
+  --text-secondary: #475569;
 
-  --primary: #059669;
-  --primary-hover: #047857;
+  /* Cobalt primary — matches mobile exactly */
+  --primary: #004AAD;
+  --primary-dark: #003580;
+  --primary-light: #1E65D6;
+  --primary-hover: #003580;
   --primary-foreground: #FFFFFF;
-  --primary-subtle: rgba(5, 150, 105, 0.08);
-  --primary-glow: rgba(5, 150, 105, 0.2);
+  --primary-subtle: #EEF5FF;
+  --primary-border: #BBD8FF;
+  --primary-glow: rgba(0, 74, 173, 0.16);
 
-  --accent: #0284C7;
-  --accent-hover: #0369A1;
+  /* Emerald accent — matches mobile exactly */
+  --accent: #008B48;
+  --accent-dark: #006836;
+  --accent-light: #10A85B;
+  --accent-hover: #006836;
   --accent-foreground: #FFFFFF;
-  --accent-subtle: rgba(2, 132, 199, 0.08);
+  --accent-subtle: #E8F8F0;
+  --accent-border: #A3E7C1;
+  --accent-glow: rgba(0, 139, 72, 0.16);
 
-  --success: #059669;
-  --success-hover: #047857;
-  --success-subtle: rgba(5, 150, 105, 0.1);
-  --warning: #D97706;
-  --warning-hover: #B45309;
-  --warning-subtle: rgba(217, 119, 6, 0.1);
-  --danger: #DC2626;
-  --danger-hover: #B91C1C;
-  --danger-subtle: rgba(220, 38, 38, 0.1);
+  --success: #008B48;
+  --success-hover: #006836;
+  --success-subtle: #E8F8F0;
+  --success-border: #A3E7C1;
+
+  --warning: #F59E0B;
+  --warning-hover: #D97706;
+  --warning-subtle: #FFFBEB;
+  --warning-border: #FDE68A;
+
+  --danger: #EF4444;
+  --danger-hover: #DC2626;
+  --danger-subtle: #FEF2F2;
+  --danger-border: #FECACA;
+
+  --info: #004AAD;
+  --info-subtle: #EEF5FF;
+  --info-border: #BBD8FF;
+
+  --overlay: rgba(15, 23, 42, 0.55);
+  --overlay-light: rgba(15, 23, 42, 0.15);
+  --overlay-medium: rgba(15, 23, 42, 0.35);
 
   --glass-bg: rgba(255, 255, 255, 0.88);
   --glass-border: rgba(15, 23, 42, 0.08);
-  --glass-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.05);
+  --glass-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
   --glass-blur: 24px;
 
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.5rem;
-  --radius-3xl: 2rem;
+  /* Mobile BorderRadius: xs:8, sm:12, md:14, lg:20, xl:24, xxl:30, full */
+  --radius-xs: 0.5rem;      /* 8px */
+  --radius-sm: 0.75rem;     /* 12px */
+  --radius-md: 0.875rem;    /* 14px — buttons, inputs */
+  --radius-lg: 1.25rem;     /* 20px — cards */
+  --radius-xl: 1.5rem;      /* 24px */
+  --radius-2xl: 1.875rem;   /* 30px — large surfaces */
+  --radius-3xl: 2rem;       /* 32px — hero */
   --radius-full: 9999px;
 
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 4px 14px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
-  --shadow-lg: 0 12px 32px -4px rgba(15, 23, 42, 0.07), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
-  --shadow-xl: 0 24px 48px -8px rgba(15, 23, 42, 0.09), 0 8px 16px -4px rgba(15, 23, 42, 0.03);
-  --shadow-sturdy: none;
-  --shadow-lift: none;
-  --shadow-glow: none;
-  --shadow-bento: none;
+  /* Mobile BoxShadow — soft, cool, 15/23/42 tint */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.03);
+  --shadow-card: 0 4px 14px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 6px 16px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 24px rgba(15, 23, 42, 0.08);
+  --shadow-xl: 0 18px 38px rgba(15, 23, 42, 0.10);
+  --shadow-glow-primary: 0 6px 16px rgba(0, 74, 173, 0.18);
+  --shadow-glow-accent:  0 6px 16px rgba(0, 139, 72, 0.18);
+  --shadow-sturdy: var(--shadow-card);
+  --shadow-lift:   var(--shadow-md);
+  --shadow-bento:  var(--shadow-card);
 
+  /* Mobile Motion: pressScale 0.968, cardScale 0.978, springs 180/20 */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 220ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 450ms cubic-bezier(0.21, 0.47, 0.32, 0.98);
+  --transition-spring: 450ms cubic-bezier(0.21, 1.1, 0.32, 1.02);
+
+  --press-scale: 0.968;
+  --card-scale: 0.985;
 }
 
 @theme inline {
@@ -95,6 +129,54 @@
   --color-glass-border: var(--glass-border);
   --font-sans: var(--font-sans), system-ui, -apple-system, sans-serif;
   --font-heading: var(--font-heading), var(--font-sans), sans-serif;
+
+  /* Brand remap: emerald/teal/green → CaryGoo emerald #008B48 */
+  --color-emerald-50:  #E8F8F0;
+  --color-emerald-100: #D1F0DF;
+  --color-emerald-200: #A3E7C1;
+  --color-emerald-300: #74DAA1;
+  --color-emerald-400: #3FC27B;
+  --color-emerald-500: #10A85B;
+  --color-emerald-600: #008B48;
+  --color-emerald-700: #006836;
+  --color-emerald-800: #004224;
+  --color-emerald-900: #002715;
+  --color-emerald-950: #001709;
+
+  --color-teal-50:  #E8F8F0;
+  --color-teal-100: #D1F0DF;
+  --color-teal-200: #A3E7C1;
+  --color-teal-300: #74DAA1;
+  --color-teal-400: #3FC27B;
+  --color-teal-500: #10A85B;
+  --color-teal-600: #008B48;
+  --color-teal-700: #006836;
+  --color-teal-800: #004224;
+  --color-teal-900: #002715;
+
+  --color-green-50:  #E8F8F0;
+  --color-green-100: #D1F0DF;
+  --color-green-500: #10A85B;
+  --color-green-600: #008B48;
+  --color-green-700: #006836;
+
+  /* Brand remap: sky/cyan → CaryGoo cobalt #004AAD */
+  --color-sky-50:  #EEF5FF;
+  --color-sky-100: #D9E7FF;
+  --color-sky-200: #BBD8FF;
+  --color-sky-300: #8FBAFF;
+  --color-sky-400: #4E90F2;
+  --color-sky-500: #1E65D6;
+  --color-sky-600: #004AAD;
+  --color-sky-700: #003580;
+  --color-sky-800: #002861;
+  --color-sky-900: #001A3F;
+
+  --color-cyan-50:  #EEF5FF;
+  --color-cyan-100: #D9E7FF;
+  --color-cyan-500: #1E65D6;
+  --color-cyan-600: #004AAD;
+  --color-cyan-700: #003580;
 }
 
 html {
@@ -150,16 +232,16 @@ body {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--border);
-  box-shadow: none;
-  border-radius: var(--radius-2xl);
-  transition: all var(--transition-base);
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
   position: relative;
   overflow: hidden;
 }
 
 .glass-card:hover {
-  border-color: rgba(5, 150, 105, 0.35);
-  box-shadow: none;
+  border-color: var(--primary-border);
+  box-shadow: var(--shadow-md);
 }
 
 /* Interactive Glow Card in Light Mode */
@@ -167,14 +249,19 @@ body {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition-base);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
 }
 
 .glow-card:hover {
-  border-color: rgba(5, 150, 105, 0.3);
+  border-color: var(--primary-border);
   box-shadow: var(--shadow-md);
+}
+
+.glow-card:active {
+  transform: scale(var(--card-scale));
+  transition-duration: 120ms;
 }
 
 /* Minimal Soft Background Tinting */
@@ -190,10 +277,10 @@ body {
 /* Animations */
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.2);
+    box-shadow: 0 0 0 0 rgba(0, 139, 72, 0.2);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(5, 150, 105, 0);
+    box-shadow: 0 0 0 6px rgba(0, 139, 72, 0);
   }
 }
 
@@ -233,7 +320,7 @@ body {
 
 /* Minimal Soft Heading & Accent Text */
 .text-gradient-emerald {
-  color: #047857;
+  color: #006836;
 }
 
 .text-gradient-heading {
@@ -251,7 +338,7 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #059669;
+  background: #008B48;
 }
 
 .status-beacon::after {
@@ -259,7 +346,7 @@ body {
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  background: rgba(5, 150, 105, 0.35);
+  background: rgba(0, 139, 72, 0.35);
   animation: pulse-ring 2s ease-in-out infinite;
 }
 
@@ -291,8 +378,8 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(5, 150, 105, 0.18);
-  color: #065F46;
+  background: rgba(0, 139, 72, 0.18);
+  color: #004224;
 }
 
 /* Reusable UI Utility Classes for Light Theme */
@@ -301,37 +388,268 @@ body {
   align-items: center;
   gap: 0.5rem;
   border-radius: 9999px;
-  border: 1px solid rgba(5, 150, 105, 0.25);
-  background: #ECFDF5;
+  border: 1px solid rgba(0, 74, 173, 0.25);
+  background: var(--primary-subtle);
   padding: 0.4rem 0.95rem;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #047857;
+  color: var(--primary);
 }
 
+.badge-pill-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 139, 72, 0.25);
+  background: #E8F8F0;
+  padding: 0.4rem 0.95rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent-hover);
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Card primitive — mirrors CarryGo/components/ui/Card.tsx
+   borderRadius 20px (--radius-lg), 1px border, 20px padding, soft shadow
+   ────────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
+}
+
+.card:hover {
+  border-color: var(--primary-border);
+  box-shadow: var(--shadow-card);
+}
+
+.card-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.card-interactive {
+  cursor: pointer;
+}
+.card-interactive:active {
+  transform: scale(var(--card-scale));
+  transition-duration: 120ms;
+}
+
+.card-compact {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Input primitive — mirrors CarryGo/components/ui/Input.tsx
+   56px min height, 14px radius, 1.2px border, focus glow at 8% opacity
+   ────────────────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  min-height: 3rem; /* mobile uses 56; web slightly tighter but comfy */
+  border: 1.2px solid var(--border);
+  background: #F8FAFC; /* mobile inputBg */
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--foreground);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.input::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.input:hover {
+  border-color: var(--border-strong);
+}
+
+.input:focus,
+.input:focus-visible {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--primary);
+  box-shadow: 0 5px 12px rgba(0, 74, 173, 0.08);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-subtle);
+}
+
+.input-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+  margin-left: 0.125rem;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Chip (selectable pill) — mobile pill geometry
+   ────────────────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.4rem 0.875rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chip:hover {
+  border-color: var(--primary-border);
+  color: var(--primary);
+  background: var(--primary-subtle);
+}
+
+.chip[aria-pressed="true"],
+.chip.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-glow-primary);
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Status pills — exact mobile tone mapping
+   Pending=amber, Accepted=cobalt, InTransit=cobalt, Delivered=emerald,
+   Cancelled=slate, Failed/Rejected=rose
+   ────────────────────────────────────────────────────────────────────── */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  border: 1px solid transparent;
+  line-height: 1.4;
+}
+
+.status-pending   { background: var(--warning-subtle); color: var(--warning-hover); border-color: var(--warning-border); }
+.status-accepted  { background: var(--primary-subtle); color: var(--primary); border-color: var(--primary-border); }
+.status-transit,
+.status-in-transit { background: var(--primary-subtle); color: var(--primary); border-color: var(--primary-border); }
+.status-delivered { background: var(--accent-subtle); color: var(--accent-hover); border-color: var(--accent-border); }
+.status-completed { background: var(--accent-subtle); color: var(--accent-hover); border-color: var(--accent-border); }
+.status-open      { background: var(--primary-subtle); color: var(--primary-dark); border-color: var(--primary-border); }
+.status-matched   { background: var(--accent-subtle); color: var(--accent-hover); border-color: var(--accent-border); }
+.status-cancelled { background: var(--surface-elevated); color: var(--muted); border-color: var(--border); }
+.status-rejected,
+.status-failed    { background: var(--danger-subtle); color: var(--danger-hover); border-color: var(--danger-border); }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Buttons — mirror mobile Button.tsx
+   Primary: cobalt gradient #1E65D6 → #004AAD with glow shadow
+   Accent:  emerald gradient #10A85B → #008B48
+   52px min-height, 14px radius, semibold, letterSpacing 0.2
+   Press: scale(0.968) with spring-ish transition
+   ────────────────────────────────────────────────────────────────────── */
 .button-primary {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.85rem;
-  border-radius: 1rem;
+  min-height: 3rem;
+  border-radius: var(--radius-md);
   padding: 0.75rem 1.5rem;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  background: #047857;
-  color: #FFFFFF;
-  box-shadow: var(--shadow-xs);
-  transition: all var(--transition-fast);
+  letter-spacing: 0.01em;
+  color: var(--primary-foreground);
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+  box-shadow: var(--shadow-glow-primary);
+  transition: transform 120ms ease, box-shadow var(--transition-fast), filter var(--transition-fast);
   cursor: pointer;
+  overflow: hidden;
+  border: 0;
 }
 
 .button-primary:hover {
-  background: #065F46;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  filter: brightness(1.05);
+  box-shadow: 0 10px 22px rgba(0, 74, 173, 0.28);
+}
+
+.button-primary:active {
+  transform: scale(var(--press-scale));
+  box-shadow: 0 3px 8px rgba(0, 74, 173, 0.16);
+  filter: brightness(0.98);
+}
+
+.button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+.button-accent {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--accent-foreground);
+  background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent) 100%);
+  box-shadow: var(--shadow-glow-accent);
+  transition: transform 120ms ease, box-shadow var(--transition-fast), filter var(--transition-fast);
+  cursor: pointer;
+  overflow: hidden;
+  border: 0;
+}
+
+.button-accent:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 22px rgba(0, 139, 72, 0.28);
+}
+
+.button-accent:active {
+  transform: scale(var(--press-scale));
+  box-shadow: 0 3px 8px rgba(0, 139, 72, 0.16);
+  filter: brightness(0.98);
+}
+
+.button-accent:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
 }
 
 .button-secondary {
@@ -339,23 +657,116 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.85rem;
-  border-radius: 1rem;
+  min-height: 3rem;
+  border-radius: var(--radius-md);
   padding: 0.75rem 1.5rem;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  border: 1px solid #E2E8F0;
-  background: #FFFFFF;
-  color: #0F172A;
-  box-shadow: var(--shadow-xs);
+  letter-spacing: 0.01em;
+  border: 1.2px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast);
   cursor: pointer;
 }
 
 .button-secondary:hover {
-  border-color: rgba(5, 150, 105, 0.4);
-  background: #F8FAFC;
-  color: #059669;
+  border-color: var(--primary-border);
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+
+.button-secondary:active {
+  transform: scale(var(--press-scale));
+}
+
+.button-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1.2px solid var(--primary-dark);
+  background: transparent;
+  color: var(--primary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.button-outline:hover {
+  background: var(--primary-subtle);
+}
+
+.button-outline:active {
+  transform: scale(var(--press-scale));
+}
+
+.button-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--primary-subtle);
+  color: var(--primary-dark);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border: 0;
+}
+
+.button-ghost:hover {
+  background: var(--primary-border);
+}
+
+.button-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--danger);
+  color: #FFFFFF;
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.18);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border: 0;
+}
+
+.button-danger:hover {
+  background: var(--danger-hover);
+}
+
+.button-danger:active {
+  transform: scale(var(--press-scale));
+}
+
+/* Button sizes (mirrors mobile sm/md/lg) */
+.button-sm { min-height: 2.75rem; padding: 0.625rem 1rem; font-size: 0.8125rem; }
+.button-md { min-height: 3rem;    padding: 0.75rem 1.5rem; font-size: 0.9375rem; }
+.button-lg { min-height: 3.75rem; padding: 1rem 2rem;      font-size: 1.0625rem; }
+
+/* Pressable micro-interaction — add to any clickable block */
+.pressable {
+  transition: transform 120ms ease;
+}
+.pressable:active {
+  transform: scale(var(--press-scale));
 }
 
 .inline-link {
@@ -364,12 +775,12 @@ body {
   gap: 0.4rem;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #059669;
+  color: var(--primary);
   transition: all var(--transition-fast);
 }
 
 .inline-link:hover {
-  color: #047857;
+  color: var(--primary-hover);
 }
 
 .section-shell {
@@ -393,13 +804,13 @@ body {
 }
 
 .card-hover-elevate:hover {
-  border-color: rgba(5, 150, 105, 0.3);
+  border-color: rgba(0, 139, 72, 0.3);
   box-shadow: none;
 }
 
 .gradient-border-emerald {
   position: relative;
-  border: 1px solid rgba(5, 150, 105, 0.25);
+  border: 1px solid rgba(0, 139, 72, 0.25);
   background: var(--surface);
 }
 
@@ -444,7 +855,7 @@ body {
 }
 
 .boarding-pass-card:hover {
-  border-color: rgba(5, 150, 105, 0.4);
+  border-color: rgba(0, 139, 72, 0.4);
   box-shadow: none;
 }
 
@@ -459,16 +870,16 @@ body {
 }
 
 .sturdy-card:hover {
-  border-color: rgba(5, 150, 105, 0.4);
+  border-color: rgba(0, 139, 72, 0.4);
   box-shadow: none;
 }
 
 /* Soft ambient mesh for hero backgrounds */
 .ambient-mesh-subtle {
   background-image: 
-    radial-gradient(at 10% 15%, rgba(5, 150, 105, 0.05) 0px, transparent 50%),
-    radial-gradient(at 90% 20%, rgba(2, 132, 199, 0.04) 0px, transparent 50%),
-    radial-gradient(at 50% 85%, rgba(5, 150, 105, 0.03) 0px, transparent 60%);
+    radial-gradient(at 10% 15%, rgba(0, 139, 72, 0.05) 0px, transparent 50%),
+    radial-gradient(at 90% 20%, rgba(0, 74, 173, 0.04) 0px, transparent 50%),
+    radial-gradient(at 50% 85%, rgba(0, 139, 72, 0.03) 0px, transparent 60%);
 }
 
 /* Shimmer Button Keyframes */
@@ -510,7 +921,7 @@ body {
   border-radius: inherit;
   background: radial-gradient(
     500px circle at var(--mouse-x, -500px) var(--mouse-y, -500px),
-    rgba(5, 150, 105, 0.07),
+    rgba(0, 139, 72, 0.07),
     transparent 40%
   );
   opacity: 0;
@@ -529,7 +940,7 @@ body {
 }
 
 .pattern-dots-emerald {
-  background-image: radial-gradient(circle at 1px 1px, rgba(5, 150, 105, 0.1) 1.2px, transparent 0);
+  background-image: radial-gradient(circle at 1px 1px, rgba(0, 139, 72, 0.1) 1.2px, transparent 0);
   background-size: 20px 20px;
 }
 
@@ -596,16 +1007,16 @@ body {
 .gradient-mesh-aurora {
   background-color: #F8FAFC;
   background-image: 
-    radial-gradient(ellipse 90% 60% at 50% -15%, rgba(5, 150, 105, 0.08), transparent 70%),
-    radial-gradient(ellipse 60% 45% at 90% 20%, rgba(2, 132, 199, 0.06), transparent 60%),
+    radial-gradient(ellipse 90% 60% at 50% -15%, rgba(0, 139, 72, 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 45% at 90% 20%, rgba(0, 74, 173, 0.06), transparent 60%),
     radial-gradient(ellipse 50% 40% at 10% 30%, rgba(16, 185, 129, 0.05), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(5, 150, 105, 0.04), transparent 70%);
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(0, 139, 72, 0.04), transparent 70%);
 }
 
 .gradient-mesh-section {
   background-image: 
-    radial-gradient(ellipse 60% 50% at 20% 0%, rgba(5, 150, 105, 0.04), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(2, 132, 199, 0.035), transparent 60%);
+    radial-gradient(ellipse 60% 50% at 20% 0%, rgba(0, 139, 72, 0.04), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(0, 74, 173, 0.035), transparent 60%);
 }
 
 .card-surface-luxury {
@@ -630,6 +1041,6 @@ body {
 
 .divider-gradient {
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(226, 232, 240, 0.9) 20%, rgba(5, 150, 105, 0.3) 50%, rgba(226, 232, 240, 0.9) 80%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(226, 232, 240, 0.9) 20%, rgba(0, 139, 72, 0.3) 50%, rgba(226, 232, 240, 0.9) 80%, transparent 100%);
 }
 

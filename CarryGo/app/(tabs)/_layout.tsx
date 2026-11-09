@@ -1,24 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, Pressable, Animated, StyleSheet, Easing } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRef, useEffect, useMemo, useState } from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Haptic } from '@/services/haptics.service';
 import { useConversationsQuery } from '@/features/conversations/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
-import { ThemeColors, TouchTarget } from '@/constants/theme';
+import { ThemeColors, TouchTarget, TabBarGeometry, BorderRadius } from '@/constants/theme';
+import { isRequestIncoming } from '@/services/requests.service';
 
 import { AnimatedIcon, type AnimatedIconName } from '@/components';
 
-function TabBadge({ count, C, isFocused }: { count: number; C: ThemeColors; isFocused?: boolean }) {
+function TabBadge({
+  count,
+  C,
+  isFocused,
+  isSmallDevice,
+  isDark,
+}: {
+  count: number;
+  C: ThemeColors;
+  isFocused?: boolean;
+  isSmallDevice?: boolean;
+  isDark?: boolean;
+}) {
   if (count === 0) return null;
   return (
-    <View style={[styles.badge, { backgroundColor: C.error, borderColor: isFocused ? C.primary : C.card }]}>
-      <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
+    <View
+      style={[
+        styles.badge,
+        {
+          backgroundColor: C.error,
+          borderColor: isDark ? '#0F172A' : '#FFFFFF',
+          minWidth: isSmallDevice ? 15 : 17,
+          height: isSmallDevice ? 15 : 17,
+          top: isSmallDevice ? -4 : -5,
+          right: isSmallDevice ? -7 : -9,
+        },
+      ]}
+      accessibilityLabel={`${count} unread`}
+    >
+      <Text
+        style={[styles.badgeText, { fontSize: isSmallDevice ? 8.5 : 9.5 }]}
+        maxFontSizeMultiplier={1.0}
+      >
+        {count > 9 ? '9+' : count}
+      </Text>
     </View>
   );
 }
@@ -47,6 +84,190 @@ function getTabMeta(routeName: string, pendingRequests: number, unreadMessages: 
   }
 }
 
+interface TabButtonProps {
+  route: BottomTabBarProps['state']['routes'][number];
+  index: number;
+  isFocused: boolean;
+  options: BottomTabBarProps['descriptors'][string]['options'];
+  navigation: BottomTabBarProps['navigation'];
+  isSmallDevice: boolean;
+  isDark: boolean;
+  C: ThemeColors;
+  pendingRequests: number;
+  unreadMessages: number;
+  kycPending: boolean;
+}
+
+function TabButton({
+  route,
+  index,
+  isFocused,
+  options,
+  navigation,
+  isSmallDevice,
+  isDark,
+  C,
+  pendingRequests,
+  unreadMessages,
+  kycPending,
+}: TabButtonProps) {
+  const meta = getTabMeta(route.name, pendingRequests, unreadMessages, kycPending);
+  const activeProgress = useSharedValue(isFocused ? 1 : 0);
+
+  useEffect(() => {
+    activeProgress.value = withTiming(isFocused ? 1 : 0, {
+      duration: 180,
+    });
+  }, [isFocused, activeProgress]);
+
+  const activeLayerStyle = useAnimatedStyle(() => ({
+    opacity: activeProgress.value,
+  }));
+
+  const inactiveLayerStyle = useAnimatedStyle(() => ({
+    opacity: 1 - activeProgress.value,
+  }));
+
+  const onPress = () => {
+    Haptic.select();
+    const event = navigation.emit({
+      type: 'tabPress',
+      target: route.key,
+      canPreventDefault: true,
+    });
+
+    if (!isFocused && !event.defaultPrevented) {
+      navigation.navigate(route.name, route.params);
+    }
+  };
+
+  const onLongPress = () => {
+    navigation.emit({ type: 'tabLongPress', target: route.key });
+  };
+
+  return (
+    <Pressable
+      key={route.key}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isFocused }}
+      accessibilityLabel={options.tabBarAccessibilityLabel || `${meta.label} tab`}
+      accessibilityHint={isFocused ? `Current screen: ${meta.label}` : `Navigates to ${meta.label}`}
+      testID={options.tabBarButtonTestID}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      hitSlop={TouchTarget.smallHitSlop}
+      android_ripple={{
+        color: 'rgba(255, 255, 255, 0.16)',
+        borderless: true,
+        radius: isSmallDevice ? 24 : 28,
+      }}
+      style={({ pressed }) => [
+        styles.tabButton,
+        pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+      ]}
+    >
+      <View style={styles.tabItem}>
+        {/* Inactive Layer: Slate Gray */}
+        <Animated.View style={[styles.tabContentLayer, inactiveLayerStyle]} pointerEvents="none">
+          <View style={styles.iconContainer}>
+            <AnimatedIcon
+              name={meta.animatedIcon}
+              size={isSmallDevice ? 19 : 22}
+              color={C.textSecondary}
+            />
+            {(meta.badge ?? 0) > 0 ? (
+              <TabBadge
+                count={meta.badge ?? 0}
+                C={C}
+                isFocused={false}
+                isSmallDevice={isSmallDevice}
+                isDark={isDark}
+              />
+            ) : null}
+            {meta.dotAlert && (meta.badge ?? 0) === 0 ? (
+              <View
+                style={[
+                  styles.alertDot,
+                  {
+                    backgroundColor: C.warning,
+                    borderColor: isDark ? '#0F172A' : '#FFFFFF',
+                    top: isSmallDevice ? -1 : -2,
+                    right: isSmallDevice ? -2 : -3,
+                  },
+                ]}
+              />
+            ) : null}
+          </View>
+          <Text
+            style={[
+              styles.tabLabel,
+              {
+                color: C.textSecondary,
+                fontSize: isSmallDevice ? 9.5 : 10.5,
+              },
+            ]}
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.15}
+          >
+            {meta.label}
+          </Text>
+        </Animated.View>
+
+        {/* Active Layer: Crisp White */}
+        <Animated.View
+          style={[styles.tabContentLayer, styles.tabContentLayerActive, activeLayerStyle]}
+          pointerEvents="none"
+        >
+          <View style={styles.iconContainer}>
+            <AnimatedIcon
+              name={meta.animatedIcon}
+              size={isSmallDevice ? 19 : 22}
+              color="#FFFFFF"
+              playOnTrigger={isFocused}
+            />
+            {(meta.badge ?? 0) > 0 ? (
+              <TabBadge
+                count={meta.badge ?? 0}
+                C={C}
+                isFocused={true}
+                isSmallDevice={isSmallDevice}
+                isDark={isDark}
+              />
+            ) : null}
+            {meta.dotAlert && (meta.badge ?? 0) === 0 ? (
+              <View
+                style={[
+                  styles.alertDot,
+                  {
+                    backgroundColor: C.warning,
+                    borderColor: C.primary,
+                    top: isSmallDevice ? -1 : -2,
+                    right: isSmallDevice ? -2 : -3,
+                  },
+                ]}
+              />
+            ) : null}
+          </View>
+          <Text
+            style={[
+              styles.tabLabel,
+              styles.tabLabelActive,
+              {
+                color: '#FFFFFF',
+                fontSize: isSmallDevice ? 9.5 : 10.5,
+              },
+            ]}
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.15}
+          >
+            {meta.label}
+          </Text>
+        </Animated.View>
+      </View>
+    </Pressable>
+  );
+}
+
 function FloatingCapsuleTabBar({
   state,
   descriptors,
@@ -55,24 +276,25 @@ function FloatingCapsuleTabBar({
   unreadMessages,
   kycPending,
   C,
+  isDark,
   insetsBottom,
 }: BottomTabBarProps & {
   pendingRequests: number;
   unreadMessages: number;
   kycPending: boolean;
   C: ThemeColors;
+  isDark: boolean;
   insetsBottom: number;
 }) {
   const { isSmallDevice, isTablet, isLandscape, width: screenWidth } = useResponsive();
-  const indexAnim = useRef(new Animated.Value(state.index)).current;
 
-  // Responsive geometry calculations across device classes
+  // Responsive geometry calculations across device classes using standard TabBarGeometry
   const isConstrained = isTablet || isLandscape;
-  const barHeight = isSmallDevice ? 58 : isTablet ? 66 : 64;
-  const bottomOffset = insetsBottom > 0 ? insetsBottom + (isSmallDevice ? 2 : 4) : (isSmallDevice ? 10 : 14);
-  const horizontalMargin = isSmallDevice ? 12 : 16;
+  const barHeight = TabBarGeometry.getHeight(isSmallDevice, isTablet);
+  const bottomOffset = TabBarGeometry.getBottomOffset(insetsBottom, isSmallDevice);
+  const horizontalMargin = isSmallDevice ? 10 : 16;
   const targetBarWidth = isConstrained
-    ? Math.min(500, screenWidth - 48)
+    ? Math.min(520, screenWidth - 48)
     : screenWidth - horizontalMargin * 2;
 
   const [measuredBarWidth, setMeasuredBarWidth] = useState(targetBarWidth);
@@ -83,40 +305,59 @@ function FloatingCapsuleTabBar({
     setMeasuredBarWidth(targetBarWidth);
   }, [targetBarWidth]);
 
-  useEffect(() => {
-    Animated.timing(indexAnim, {
-      toValue: state.index,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [indexAnim, state.index]);
-
-  const tabCount = state.routes.length;
-  const H_PAD = 6;
-  const usableWidth = Math.max(0, barWidth - 2 * H_PAD);
-  const slotWidth = tabCount > 0 ? usableWidth / tabCount : 0;
-  const sliderWidth = Math.max(isSmallDevice ? 52 : 58, Math.min(slotWidth - 6, isTablet ? 96 : 76));
-  const sliderHeight = barHeight - (isSmallDevice ? 12 : 14);
-  const sliderTop = Math.round((barHeight - sliderHeight) / 2);
-
-  // Exact pixel-perfect horizontal translation range for each tab
-  const outputRange = useMemo(
-    () =>
-      state.routes.map((_, i) =>
-        Math.round(H_PAD + i * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2))
-      ),
-    [sliderWidth, slotWidth, state.routes]
+  // Filter visible tabs (excluding hidden routes like requests and profile where href: null)
+  const visibleRoutes = useMemo(
+    () => state.routes.filter((route) => (descriptors[route.key]?.options as any)?.href !== null),
+    [state.routes, descriptors]
   );
 
-  const sliderTranslateX =
-    outputRange.length > 1
-      ? indexAnim.interpolate({
-          inputRange: state.routes.map((_, i) => i),
-          outputRange,
-          extrapolate: 'clamp',
-        })
-      : new Animated.Value(0);
+  const activeVisibleIndex = visibleRoutes.findIndex(
+    (route) => route.key === state.routes[state.index]?.key
+  );
+
+  const tabCount = visibleRoutes.length;
+  const H_PAD = isSmallDevice ? 4 : 6;
+  const usableWidth = Math.max(0, barWidth - 2 * H_PAD);
+  const slotWidth = tabCount > 0 ? usableWidth / tabCount : 0;
+  const sliderWidth = Math.max(
+    isSmallDevice ? 48 : 54,
+    Math.round(slotWidth - (isSmallDevice ? 4 : 8))
+  );
+  const sliderHeight = barHeight - (isSmallDevice ? 8 : 10);
+  const sliderTop = Math.round((barHeight - sliderHeight) / 2);
+
+  const isMountedRef = useRef(false);
+  const initialTargetX = useMemo(() => {
+    if (activeVisibleIndex < 0 || slotWidth <= 0) return 0;
+    return Math.round(
+      H_PAD + activeVisibleIndex * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2)
+    );
+  }, [activeVisibleIndex, slotWidth, sliderWidth, H_PAD]);
+
+  const translateX = useSharedValue(initialTargetX);
+
+  useEffect(() => {
+    if (activeVisibleIndex >= 0 && slotWidth > 0) {
+      const targetX = Math.round(
+        H_PAD + activeVisibleIndex * slotWidth + Math.max(0, (slotWidth - sliderWidth) / 2)
+      );
+      if (!isMountedRef.current) {
+        translateX.value = targetX;
+        isMountedRef.current = true;
+      } else {
+        translateX.value = withSpring(targetX, {
+          damping: 24,
+          stiffness: 280,
+          mass: 0.75,
+          overshootClamping: false,
+        });
+      }
+    }
+  }, [activeVisibleIndex, slotWidth, sliderWidth, H_PAD, translateX]);
+
+  const animatedSliderStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   const containerStyle = useMemo(() => {
     if (isConstrained) {
@@ -137,12 +378,15 @@ function FloatingCapsuleTabBar({
 
   return (
     <View
+      accessibilityRole="tablist"
       style={[
         styles.tabBarContainer,
         containerStyle,
         {
-          backgroundColor: C.card,
-          borderColor: C.cardBorder,
+          backgroundColor: isDark ? 'rgba(15, 23, 42, 0.94)' : C.card,
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : C.cardBorder,
+          shadowColor: isDark ? '#000000' : '#0B192C',
+          shadowOpacity: isDark ? 0.48 : 0.08,
         },
       ]}
       onLayout={(event) => {
@@ -160,89 +404,30 @@ function FloatingCapsuleTabBar({
             top: sliderTop,
             height: sliderHeight,
             width: sliderWidth,
-            transform: [{ translateX: sliderTranslateX }],
             backgroundColor: C.primary,
+            opacity: activeVisibleIndex >= 0 ? 1 : 0,
           },
+          animatedSliderStyle,
         ]}
       />
 
-      <View style={styles.tabRow}>
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
-          const tintColor = isFocused ? '#FFFFFF' : C.textSecondary;
-          const meta = getTabMeta(route.name, pendingRequests, unreadMessages, kycPending);
-
-          const onPress = () => {
-            Haptic.select();
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
-            }
-          };
-
-          const onLongPress = () => {
-            navigation.emit({ type: 'tabLongPress', target: route.key });
-          };
-
-          return (
-            <Pressable
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel}
-              testID={options.tabBarButtonTestID}
-              onPress={onPress}
-              onLongPress={onLongPress}
-              hitSlop={TouchTarget.smallHitSlop}
-              android_ripple={{ color: C.primarySubtle, borderless: true, radius: 28 }}
-              style={({ pressed }) => [
-                styles.tabButton,
-                pressed && { opacity: 0.85, transform: [{ scale: 0.93 }] },
-              ]}
-            >
-              <View style={styles.tabItem}>
-                <View style={styles.iconContainer}>
-                  <AnimatedIcon
-                    name={meta.animatedIcon}
-                    size={isSmallDevice ? 20 : 22}
-                    color={tintColor}
-                    playOnTrigger={isFocused}
-                  />
-                  {(meta.badge ?? 0) > 0 ? (
-                    <TabBadge count={meta.badge ?? 0} C={C} isFocused={isFocused} />
-                  ) : null}
-                  {meta.dotAlert && (meta.badge ?? 0) === 0 ? (
-                    <View
-                      style={[
-                        styles.alertDot,
-                        { backgroundColor: C.error, borderColor: isFocused ? C.primary : C.card },
-                      ]}
-                    />
-                  ) : null}
-                </View>
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    {
-                      color: tintColor,
-                      fontSize: isSmallDevice ? 9.5 : 10.5,
-                    },
-                    isFocused && styles.tabLabelActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {meta.label}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        })}
+      <View style={[styles.tabRow, { paddingHorizontal: H_PAD }]}>
+        {visibleRoutes.map((route, index) => (
+          <TabButton
+            key={route.key}
+            route={route}
+            index={index}
+            isFocused={activeVisibleIndex === index}
+            options={descriptors[route.key]?.options || {}}
+            navigation={navigation}
+            isSmallDevice={isSmallDevice}
+            isDark={isDark}
+            C={C}
+            pendingRequests={pendingRequests}
+            unreadMessages={unreadMessages}
+            kycPending={kycPending}
+          />
+        ))}
       </View>
     </View>
   );
@@ -251,18 +436,18 @@ function FloatingCapsuleTabBar({
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { user, isLoading, requiresProfileSetup } = useAuth();
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const requestsQuery = useRequestsQuery(user?.id);
   const conversationsQuery = useConversationsQuery(user?.id);
 
   if (isLoading) return null;
   if (!user) return <Redirect href={'/login'} />;
-  if (requiresProfileSetup) return <Redirect href={'/profile-setup'} />;
+  if (requiresProfileSetup) return <Redirect href={'/kyc'} />;
 
   const requests = requestsQuery.data ?? [];
   const conversations = conversationsQuery.data ?? [];
   const pendingRequests = requests.filter(
-    (request) => request.travellerId === user.id && request.status === 'pending',
+    (request) => isRequestIncoming(request, user.id) && request.status === 'pending',
   ).length;
   const unreadMessages = conversations.filter(
     (conversation) => conversation.lastMessage && !conversation.lastMessage.read && conversation.lastMessage.senderId !== user.id,
@@ -282,6 +467,7 @@ export default function TabLayout() {
           unreadMessages={unreadMessages}
           kycPending={kycPending}
           C={C}
+          isDark={isDark}
           insetsBottom={insets.bottom}
         />
       )}
@@ -298,11 +484,9 @@ const styles = StyleSheet.create({
   tabBarContainer: {
     position: 'absolute',
     borderWidth: 1,
-    elevation: 8,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
+    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 20,
     borderRadius: 999,
   },
   tabRow: {
@@ -314,12 +498,7 @@ const styles = StyleSheet.create({
   },
   activeSlider: {
     position: 'absolute',
-    borderRadius: 999,
-    shadowColor: '#1A4CA2',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
-    elevation: 3,
+    borderRadius: BorderRadius.full,
   },
   tabButton: {
     flex: 1,
@@ -331,9 +510,22 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
     width: '100%',
     height: '100%',
+    position: 'relative',
+  },
+  tabContentLayer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    width: '100%',
+  },
+  tabContentLayerActive: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   iconContainer: {
     position: 'relative',
@@ -351,6 +543,7 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     fontWeight: '700',
+    color: '#FFFFFF',
   },
   badge: {
     position: 'absolute',
@@ -363,6 +556,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
     borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 1,
   },
   badgeText: {
     color: '#fff',

@@ -14,6 +14,8 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { getUserAvatarSource } from '@/constants/images';
 import DeliveryMap from '@/components/feature/DeliveryMap';
 import { AppErrorBoundary } from '@/components/ui/AppErrorBoundary';
 import { useAuth } from '@/hooks/useAuth';
@@ -58,6 +60,7 @@ import { getCurrentLocation, updateDeliveryLocation, fetchDeliveryLocation } fro
 import { Delivery } from '@/types';
 import { Haptic } from '@/services/haptics.service';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
+import { useResponsive } from '@/hooks/useResponsive';
 
 function DeliveryScreenInner() {
   const rawParams = useLocalSearchParams<{ id?: string | string[]; travelerFlow?: string }>();
@@ -65,6 +68,7 @@ function DeliveryScreenInner() {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const { C, S } = useThemeColors();
+  const { isSmallDevice, isTablet } = useResponsive();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -772,7 +776,7 @@ function DeliveryScreenInner() {
         {/* TOP FLOATING NAV BAR */}
         {/* ========================================================================= */}
         <View style={[styles.topNavBar, { paddingTop: insets.top + (Platform.OS === 'ios' ? 8 : 12), backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
-          <View style={styles.topNavRow}>
+          <View style={[styles.topNavRow, isTablet && styles.tabletCentered]}>
             {/* Back Button */}
             <Pressable
               accessibilityRole="button"
@@ -823,6 +827,8 @@ function DeliveryScreenInner() {
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: insets.bottom + Spacing.xxl },
+            isTablet && styles.tabletCentered,
+            isSmallDevice && { paddingHorizontal: Spacing.md },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -877,10 +883,12 @@ function DeliveryScreenInner() {
             {/* Counterparty Strip */}
             <View style={styles.heroCounterpartyRow}>
               <View style={styles.heroUserLeft}>
-                <View style={[styles.heroAvatar, { backgroundColor: C.primarySubtle }]}>
-                  <Text style={[styles.heroAvatarText, { color: C.primary }]}>
-                    {counterpartyInitial}
-                  </Text>
+                <View style={[styles.heroAvatar, { backgroundColor: C.surfaceElevated, overflow: 'hidden' }]}>
+                  <Image
+                    source={getUserAvatarSource(isSender ? request.travellerAvatar : request.senderAvatar, counterpartyName)}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                  />
                 </View>
                 <View style={styles.heroUserInfo}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -940,7 +948,7 @@ function DeliveryScreenInner() {
           {/* ========================================================================= */}
           {/* 2. PROGRESS TIMELINE (HORIZONTAL STEPPER) */}
           {/* ========================================================================= */}
-          <DeliveryTimeline step={step} C={C} isTraveller={isTraveller} />
+          <DeliveryTimeline step={step} C={C} isTraveller={isTraveller} etaText={delivery?.etaText || undefined} />
 
           {/* ========================================================================= */}
           {/* 3. ACTIVE FOCUSED ACTION CARD (ROLE-BASED) */}
@@ -956,6 +964,9 @@ function DeliveryScreenInner() {
                   onRefresh={handleRefreshPickupOtp}
                   loading={pickupOtpLoading}
                   C={C}
+                  travellerName={request.travellerName}
+                  fromCity={request.fromCity}
+                  toCity={request.toCity}
                 />
               )}
 
@@ -991,6 +1002,9 @@ function DeliveryScreenInner() {
                     onGenerate={handleIssueDeliveryOtp}
                     loading={loading}
                     C={C}
+                    travellerName={request.travellerName}
+                    fromCity={request.fromCity}
+                    toCity={request.toCity}
                   />
                 </>
               )}
@@ -1029,7 +1043,7 @@ function DeliveryScreenInner() {
                     currentEta={delivery?.etaText || ''}
                     onUpdateTrip={handleUpdateTripDetails}
                     locationSharing={locationSharing}
-                    onToggleLocation={handleToggleLocationSharing}
+                    onToggleLocation={handleToggleLocation}
                     loading={tripUpdateLoading}
                     C={C}
                   />
@@ -1107,7 +1121,7 @@ function DeliveryScreenInner() {
               </View>
 
               <View style={[styles.specItem, { borderBottomColor: C.surfaceBorder }]}>
-                <Text style={[styles.specKey, { color: C.textMuted }]}>Security Escrow</Text>
+                <Text style={[styles.specKey, { color: C.textMuted }]}>Booking Protection</Text>
                 <Text style={[styles.specVal, { color: C.success }]}>Active & Protected</Text>
               </View>
 
@@ -1124,7 +1138,7 @@ function DeliveryScreenInner() {
           <View style={styles.supportFooter}>
             <Feather name="lock" size={12} color={C.textMuted} />
             <Text style={[styles.supportFooterText, { color: C.textMuted }]}>
-              CarryGo 2-Factor OTP verification guarantees safe handoff and payout release.
+              CaryGoo 2-Factor OTP verification guarantees safe handoff and payout release.
             </Text>
           </View>
         </Animated.ScrollView>
@@ -1149,6 +1163,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
     gap: Spacing.md,
+  },
+  tabletCentered: {
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   // Top Nav Bar

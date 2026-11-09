@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Outfit } from "next/font/google";
 import { MaintenanceBanner } from "@/components/marketing/maintenance-banner";
+import { NotificationProvider } from "@/contexts/NotificationProvider";
+import { NotificationRealtimeBanner } from "@/components/notifications/realtime-banner";
 import "./globals.css";
 
 const sansFont = Plus_Jakarta_Sans({
@@ -18,24 +20,24 @@ const headingFont = Outfit({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://carrygo.in'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.carygoo.in'),
   title: {
-    default: "CarryGo — Intercity Parcel Delivery at the Speed of Real Travel",
-    template: "%s — CarryGo",
+    default: "CaryGoo — Intercity Parcel Delivery at the Speed of Real Travel",
+    template: "%s — CaryGoo",
   },
   description:
-    "CarryGo connects verified intercity travelers with senders for secure, same-day, and 60% cheaper parcel deliveries across India.",
+    "CaryGoo connects verified intercity travelers with senders for secure, same-day, and 60% cheaper parcel deliveries across India.",
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
-    siteName: 'CarryGo',
-    title: 'CarryGo — Intercity Parcel Delivery at the Speed of Real Travel',
+    siteName: 'CaryGoo',
+    title: 'CaryGoo — Intercity Parcel Delivery at the Speed of Real Travel',
     description: 'Send urgent parcels in hours or monetize empty luggage space with verified travelers across India.',
     url: '/',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CarryGo — Intercity Parcel Delivery at the Speed of Real Travel',
+    title: 'CaryGoo — Intercity Parcel Delivery at the Speed of Real Travel',
     description: 'Send urgent parcels in hours or monetize empty luggage space with verified travelers across India.',
   },
 };
@@ -53,8 +55,11 @@ export default function RootLayout({
       className={`${sansFont.variable} ${headingFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground selection:bg-emerald-500/20 selection:text-emerald-800">
-        <MaintenanceBanner />
-        {children}
+        <NotificationProvider>
+          <MaintenanceBanner />
+          <NotificationRealtimeBanner />
+          {children}
+        </NotificationProvider>
       </body>
     </html>
   );

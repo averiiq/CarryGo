@@ -2,13 +2,13 @@
 
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
-export const metadata = createMarketingMetadata('Privacy Policy', 'Read how CarryGo collects, uses, and protects personal information.', '/privacy-policy')
+export const metadata = createMarketingMetadata('Privacy Policy', 'Read how CaryGoo collects, uses, and protects personal information.', '/privacy-policy')
 
 const sections = [
   {
     title: 'Information We Collect',
     paragraphs: [
-      'We collect account details, parcel details, payment details, device identifiers, and support messages needed to run CarryGo services.',
+      'We collect account details, parcel details, payment details, device identifiers, and support messages needed to run CaryGoo services.',
       'We also collect usage and security logs to prevent fraud, enforce platform safety, and improve reliability.',
     ],
   },
@@ -30,7 +30,7 @@ const sections = [
     title: 'Data Retention and Rights',
     paragraphs: [
       'We retain information only as long as needed for legal, security, and operational purposes.',
-      'You can request access, correction, or deletion of personal data by emailing support@carrygo.in.',
+      'You can request access, correction, or deletion of personal data by emailing support@carygoo.in.',
     ],
   },
 ]
@@ -39,7 +39,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalPage
       title='Privacy Policy'
-      summary='This policy explains how CarryGo collects, uses, and protects data while operating our peer-to-peer delivery platform.'
+      summary='This policy explains how CaryGoo collects, uses, and protects data while operating our peer-to-peer delivery platform.'
       lastUpdated='August 27, 2026'
       sections={sections}
       relatedLinks={[

@@ -7,7 +7,9 @@ import {
   verifyRazorpayPayment,
   createRazorpayPaymentLink,
   checkRazorpayPaymentLinkStatus,
+  confirmMockBookingPayment,
 } from '@/services/payments.service';
+import { FeatureFlags } from '@/constants/featureFlags';
 import { useAlert } from '@/template';
 
 interface CheckoutState {
@@ -101,6 +103,30 @@ export function useRazorpayCheckout({
     onSuccess(data.paymentId);
   }, [requestId, onSuccess, onFailure, clearPolling, showAlert]);
 
+  const confirmDemoBooking = useCallback(async (amount?: number) => {
+    clearPolling();
+    setState({ isCreatingOrder: false, isProcessing: true, isVerifying: false, error: null });
+    try {
+      const res = await confirmMockBookingPayment({
+        requestId,
+        amount: Number(amount) || 100,
+        senderId: senderEmail,
+      });
+
+      if (res.error || !res.data) {
+        throw new Error(res.error || 'Failed to complete demo booking');
+      }
+
+      setState({ isCreatingOrder: false, isProcessing: false, isVerifying: false, error: null });
+      onSuccess(res.data.id);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to complete demo booking';
+      setState({ isCreatingOrder: false, isProcessing: false, isVerifying: false, error: msg });
+      showAlert('Booking Error', msg);
+      onFailure?.(msg);
+    }
+  }, [clearPolling, requestId, senderEmail, onSuccess, onFailure, showAlert]);
+
   const openRazorpayWeb = useCallback(async (order: RazorpayOrder) => {
     try {
       await ensureRazorpayWebSdkLoaded();
@@ -115,7 +141,7 @@ export function useRazorpayCheckout({
       key: order.keyId,
       amount: order.amount,
       currency: order.currency,
-      name: 'CarryGo',
+      name: 'CaryGoo',
       description: 'Delivery Payment',
       order_id: order.orderId,
       prefill: {
@@ -146,37 +172,47 @@ export function useRazorpayCheckout({
   }, [senderName, senderEmail, senderPhone, onFailure, handlePaymentSuccess]);
 
   const openRazorpayNative = useCallback(async (order: RazorpayOrder) => {
-    // 1. If running in a standalone binary with native RNRazorpayCheckout module:
+    // 1. Check if native SDK is compiled with both checkout module AND event emitter
     const hasNativeOpener = Boolean(
       NativeModules?.RNRazorpayCheckout &&
+      NativeModules?.RazorpayEventEmitter &&
       typeof NativeModules.RNRazorpayCheckout?.open === 'function'
     );
 
     if (hasNativeOpener) {
       try {
-        const RazorpayCheckout = (await import('react-native-razorpay')).default;
-        const options = {
-          key: order.keyId,
-          amount: order.amount,
-          currency: order.currency,
-          name: 'CarryGo',
-          description: 'Delivery Payment',
-          order_id: order.orderId,
-          prefill: {
-            name: senderName ?? '',
-            email: senderEmail ?? '',
-            contact: senderPhone ?? '',
-          },
-          theme: { color: '#059669' },
-        };
+        let RazorpayCheckout: any = null;
+        try {
+          // Dynamic require guarded inside try-catch to prevent Metro bundle crash
+          RazorpayCheckout = require('react-native-razorpay').default || require('react-native-razorpay');
+        } catch (reqErr) {
+          console.warn('[RazorpayCheckout] Native SDK require error:', reqErr);
+        }
 
-        const result = await RazorpayCheckout.open(options);
-        await handlePaymentSuccess({
-          razorpay_order_id: result.razorpay_order_id,
-          razorpay_payment_id: result.razorpay_payment_id,
-          razorpay_signature: result.razorpay_signature,
-        });
-        return;
+        if (RazorpayCheckout && typeof RazorpayCheckout.open === 'function') {
+          const options = {
+            key: order.keyId,
+            amount: order.amount,
+            currency: order.currency,
+            name: 'CaryGoo',
+            description: 'Delivery Payment',
+            order_id: order.orderId,
+            prefill: {
+              name: senderName ?? '',
+              email: senderEmail ?? '',
+              contact: senderPhone ?? '',
+            },
+            theme: { color: '#004AAD' },
+          };
+
+          const result = await RazorpayCheckout.open(options);
+          await handlePaymentSuccess({
+            razorpay_order_id: result.razorpay_order_id,
+            razorpay_payment_id: result.razorpay_payment_id,
+            razorpay_signature: result.razorpay_signature,
+          });
+          return;
+        }
       } catch (nativeErr: unknown) {
         console.warn('[RazorpayCheckout] Native SDK error, falling back to in-app payment link:', nativeErr);
       }
@@ -189,13 +225,24 @@ export function useRazorpayCheckout({
       const linkRes = await createRazorpayPaymentLink({
         requestId,
         amount: amountInRupees,
-        description: `CarryGo Delivery Escrow - ₹${amountInRupees}`,
+        description: `CaryGoo Delivery Booking - ₹${amountInRupees}`,
         customerName: senderName,
         customerEmail: senderEmail,
         customerPhone: senderPhone,
       });
 
       if (linkRes.error || !linkRes.data?.shortUrl) {
+        if (FeatureFlags.isDemoMode) {
+          showAlert(
+            'Demo Gateway Fallback',
+            'Live gateway link is unavailable. Would you like to confirm and lock this booking in Demo Mode?',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => onFailure?.('Payment link unavailable') },
+              { text: 'Confirm & Book (Demo)', onPress: () => void confirmDemoBooking(amountInRupees) },
+            ]
+          );
+          return;
+        }
         throw new Error(linkRes.error || 'Failed to generate Razorpay gateway checkout link');
       }
 
@@ -204,35 +251,39 @@ export function useRazorpayCheckout({
 
       clearPolling();
 
-      // Poll Razorpay API for live payment capture while user pays on Razorpay
+      // Poll Razorpay API for live payment capture while user pays on Razorpay (5s interval, max 8 checks to protect rate limits)
+      let pollCount = 0;
       pollTimerRef.current = setInterval(async () => {
-        if (isVerified) {
+        if (isVerified || pollCount >= 8) {
           clearPolling();
           return;
         }
+        pollCount += 1;
 
-        const pollResult = await checkRazorpayPaymentLinkStatus(paymentLinkId);
-        if (pollResult.paid && pollResult.paymentId) {
-          isVerified = true;
-          clearPolling();
-          try {
-            await WebBrowser.dismissBrowser();
-          } catch {
-            // Browser might already be dismissed
+        try {
+          const pollResult = await checkRazorpayPaymentLinkStatus(paymentLinkId);
+          if (pollResult.paid && pollResult.paymentId) {
+            isVerified = true;
+            clearPolling();
+            if (Platform.OS === 'ios') {
+              try {
+                await WebBrowser.dismissBrowser();
+              } catch {}
+            }
+            await handlePaymentSuccess({
+              razorpay_order_id: paymentLinkId,
+              razorpay_payment_id: pollResult.paymentId,
+              razorpay_signature: '',
+            });
           }
-          await handlePaymentSuccess({
-            razorpay_order_id: paymentLinkId,
-            razorpay_payment_id: pollResult.paymentId,
-            razorpay_signature: '',
-          });
-        }
-      }, 2500);
+        } catch {}
+      }, 5000);
 
       // Open the real Razorpay payment gateway
       try {
         await WebBrowser.openBrowserAsync(shortUrl, {
           presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-          toolbarColor: '#059669',
+          toolbarColor: '#004AAD',
           controlsColor: '#FFFFFF',
           showTitle: true,
         });
@@ -245,26 +296,55 @@ export function useRazorpayCheckout({
       clearPolling();
       if (!isVerified) {
         setState(s => ({ ...s, isProcessing: false, isVerifying: true }));
-        const finalStatus = await checkRazorpayPaymentLinkStatus(paymentLinkId);
-        if (finalStatus.paid && finalStatus.paymentId) {
-          isVerified = true;
-          await handlePaymentSuccess({
-            razorpay_order_id: paymentLinkId,
-            razorpay_payment_id: finalStatus.paymentId,
-            razorpay_signature: '',
-          });
-        } else {
-          setState(s => ({ ...s, isProcessing: false, isVerifying: false, error: 'Payment was not completed.' }));
+        try {
+          const finalStatus = await checkRazorpayPaymentLinkStatus(paymentLinkId);
+          if (finalStatus.paid && finalStatus.paymentId) {
+            isVerified = true;
+            await handlePaymentSuccess({
+              razorpay_order_id: paymentLinkId,
+              razorpay_payment_id: finalStatus.paymentId,
+              razorpay_signature: '',
+            });
+            return;
+          }
+        } catch {}
+
+        if (FeatureFlags.isDemoMode) {
+          setState(s => ({ ...s, isProcessing: false, isVerifying: false }));
           showAlert(
-            'Payment Incomplete',
-            'No payment was captured by Razorpay. If you closed the browser or cancelled, tap "Pay & Lock in Escrow" anytime to retry.'
+            'Payment Confirmation',
+            'No captured live payment was detected. In Demo Mode, you can confirm this booking directly.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => onFailure?.('Payment not completed') },
+              { text: 'Confirm & Book (Demo)', onPress: () => void confirmDemoBooking(amountInRupees) },
+            ]
           );
-          onFailure?.('Payment not completed');
+          return;
         }
+
+        setState(s => ({ ...s, isProcessing: false, isVerifying: false, error: 'Payment was not completed.' }));
+        showAlert(
+          'Payment Incomplete',
+          'No payment was captured by Razorpay. If you closed the browser or cancelled, tap "Pay & Book" anytime to retry.'
+        );
+        onFailure?.('Payment not completed');
       }
     } catch (err: unknown) {
       clearPolling();
       const message = err instanceof Error ? err.message : 'Failed to launch Razorpay gateway';
+
+      if (FeatureFlags.isDemoMode) {
+        showAlert(
+          'Demo Booking Fallback',
+          'Could not complete gateway checkout. Confirm booking in Demo Mode?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => onFailure?.(message) },
+            { text: 'Confirm & Book (Demo)', onPress: () => void confirmDemoBooking() },
+          ]
+        );
+        return;
+      }
+
       setState(s => ({ ...s, isProcessing: false, error: message }));
       showAlert('Payment Failed', message);
       onFailure?.(message);
@@ -275,31 +355,71 @@ export function useRazorpayCheckout({
     senderPhone,
     requestId,
     handlePaymentSuccess,
+    confirmDemoBooking,
     onFailure,
     showAlert,
     clearPolling,
   ]);
 
-  const startCheckout = useCallback(async () => {
-    setState({ isCreatingOrder: true, isProcessing: false, isVerifying: false, error: null });
-
-    const { data: order, error: orderError } = await createRazorpayOrder(requestId);
-    if (orderError || !order) {
-      const msg = orderError ?? 'Failed to create order';
-      setState(s => ({ ...s, isCreatingOrder: false, error: msg }));
-      showAlert('Order Creation Failed', msg);
-      onFailure?.(msg);
+  const startCheckout = useCallback(async (options?: { forceDemo?: boolean; fallbackAmount?: number }) => {
+    if (options?.forceDemo) {
+      await confirmDemoBooking(options.fallbackAmount);
       return;
     }
 
-    setState(s => ({ ...s, isCreatingOrder: false, isProcessing: true }));
+    setState({ isCreatingOrder: true, isProcessing: false, isVerifying: false, error: null });
 
-    if (Platform.OS === 'web') {
-      await openRazorpayWeb(order);
-    } else {
-      await openRazorpayNative(order);
+    try {
+      const { data: order, error: orderError } = await createRazorpayOrder(requestId);
+      if (orderError || !order) {
+        const msg = orderError ?? 'Failed to create order';
+        console.warn('[useRazorpayCheckout] createRazorpayOrder note:', msg);
+
+        // If in Demo Mode or Payment Provider unconfigured, fallback to Demo Booking smoothly
+        if (FeatureFlags.isDemoMode || msg.toLowerCase().includes('not configured')) {
+          setState(s => ({ ...s, isCreatingOrder: false, error: null }));
+          showAlert(
+            'Demo Booking Mode',
+            'Live payment gateway is unconfigured or in demo mode. Would you like to confirm and lock this booking in Demo Mode?',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => onFailure?.('Cancelled') },
+              { text: 'Confirm & Book (Demo)', onPress: () => void confirmDemoBooking(options?.fallbackAmount) },
+            ]
+          );
+          return;
+        }
+
+        setState(s => ({ ...s, isCreatingOrder: false, error: msg }));
+        showAlert('Order Creation Failed', msg);
+        onFailure?.(msg);
+        return;
+      }
+
+      setState(s => ({ ...s, isCreatingOrder: false, isProcessing: true }));
+
+      if (Platform.OS === 'web') {
+        await openRazorpayWeb(order);
+      } else {
+        await openRazorpayNative(order);
+      }
+    } catch (checkoutErr: any) {
+      const errMsg = checkoutErr?.message || 'Checkout failed to start';
+      if (FeatureFlags.isDemoMode) {
+        showAlert(
+          'Demo Booking Fallback',
+          'Could not start gateway checkout. Confirm booking in Demo Mode?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => onFailure?.(errMsg) },
+            { text: 'Confirm & Book (Demo)', onPress: () => void confirmDemoBooking(options?.fallbackAmount) },
+          ]
+        );
+        return;
+      }
+      setState({ isCreatingOrder: false, isProcessing: false, isVerifying: false, error: errMsg });
+      showAlert('Payment Error', errMsg);
+      onFailure?.(errMsg);
     }
-  }, [requestId, onFailure, openRazorpayWeb, openRazorpayNative, showAlert]);
+  }, [confirmDemoBooking, requestId, onFailure, openRazorpayWeb, openRazorpayNative, showAlert]);
 
   const isLoading = state.isCreatingOrder || state.isProcessing || state.isVerifying;
 
@@ -307,6 +427,6 @@ export function useRazorpayCheckout({
     ...state,
     isLoading,
     startCheckout,
+    confirmDemoBooking,
   };
 }
-

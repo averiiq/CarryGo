@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ArrowRight,
+  Bell,
   ChevronDown,
   Compass,
   FileText,
@@ -32,6 +33,7 @@ import { primaryNavLinks, secondaryNavLinks } from '@/components/marketing/site-
 import { TrackingLookupModal } from '@/components/marketing/tracking-lookup-modal'
 import { createClient } from '@/utils/supabase/client'
 import { logout } from '@/app/login/actions'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 
 import { ScrollProgressBar } from '@/components/marketing/parallax-wrapper'
 
@@ -132,17 +134,14 @@ export function SiteHeader() {
           {/* Brand Logo */}
           <div className="flex items-center gap-6">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white transition-transform group-hover:scale-105 shadow-xs">
-                <Navigation className="h-4 w-4" />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-heading font-extrabold tracking-tight text-slate-900">
-                  CarryGo<span className="text-emerald-600">.</span>
-                </span>
-                <span className="hidden min-[420px]:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200/70">
-                  Peer-to-Peer
-                </span>
-              </div>
+              <img
+                src="/logo-horizontal.png"
+                alt="CaryGoo"
+                className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+              />
+              <span className="hidden min-[420px]:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200/70">
+                Peer-to-Peer
+              </span>
             </Link>
 
             {/* Desktop Navigation Links */}
@@ -268,6 +267,13 @@ export function SiteHeader() {
 
           {/* Right-Side Action Hub */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Transit Hub Selector Pill (Mobile Parity) */}
+            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#004AAD]/20 bg-[#EEF5FF] text-slate-800 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-[#004AAD] animate-pulse" />
+              <span className="text-[#004AAD] font-bold">Corridor:</span>
+              <span>Haryana &amp; NCR</span>
+            </div>
+
             {/* Quick Track Button */}
             <button
               type="button"
@@ -293,22 +299,32 @@ export function SiteHeader() {
               </a>
             )}
 
+            {currentUser && <NotificationBell />}
+
             {currentUser ? (
-              /* User Menu Dropdown */
+              /* User Menu Dropdown with App Parity */
               <div className="relative" ref={userMenuRef}>
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen((prev) => !prev)}
-                  className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition cursor-pointer"
+                  className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition cursor-pointer shadow-xs"
                 >
-                  <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center justify-center font-bold text-[11px]">
-                    {currentUser.name?.[0]?.toUpperCase() || 'U'}
+                  <div className="relative">
+                    <div className="w-7 h-7 rounded-full bg-[#EEF5FF] text-[#004AAD] border border-[#BBD8FF] flex items-center justify-center font-bold text-xs uppercase">
+                      {currentUser.name?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#008B48] border-2 border-white" />
                   </div>
-                  <span className="text-xs font-semibold text-slate-800 max-w-[85px] truncate hidden min-[480px]:inline">
-                    {currentUser.name}
-                  </span>
+                  <div className="hidden min-[480px]:flex flex-col text-left">
+                    <span className="text-xs font-bold text-slate-800 max-w-[90px] truncate leading-tight">
+                      {currentUser.name}
+                    </span>
+                    <span className="text-[10px] text-slate-400 leading-tight">
+                      {currentUser.isKycVerified ? 'Verified' : 'Member'}
+                    </span>
+                  </div>
                   {currentUser.isKycVerified && (
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#008B48] shrink-0" />
                   )}
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </button>
@@ -368,6 +384,15 @@ export function SiteHeader() {
                       </Link>
 
                       <Link
+                        href="/notifications"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 rounded-xl hover:bg-slate-50 hover:text-slate-900 transition"
+                      >
+                        <Bell className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Notifications</span>
+                      </Link>
+
+                      <Link
                         href="/kyc"
                         onClick={() => setUserMenuOpen(false)}
                         className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 rounded-xl hover:bg-slate-50 hover:text-slate-900 transition"
@@ -412,11 +437,21 @@ export function SiteHeader() {
               </Link>
             )}
 
-            {/* Primary Action Button */}
+            {/* Secondary Action: Post Trip (Desktop) */}
+            <Link
+              href="/create-trip"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all active:scale-95 cursor-pointer shrink-0"
+            >
+              <Plane className="h-3.5 w-3.5 text-[#004AAD]" />
+              <span>Post Trip</span>
+            </Link>
+
+            {/* Primary Action Button: Send Parcel (Brand Cobalt Blue) */}
             <Link
               href="/create-parcel"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold rounded-full bg-emerald-700 hover:bg-emerald-800 text-white transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold rounded-full bg-[#004AAD] hover:bg-[#003580] text-white shadow-[0_2px_8px_rgba(0,74,173,0.24)] transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
             >
+              <Package className="h-3.5 w-3.5" />
               <span>Send<span className="hidden min-[360px]:inline"> Parcel</span></span>
               <ArrowRight className="h-3 w-3 hidden sm:inline" />
             </Link>

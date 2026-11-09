@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID') || 'rzp_test_RuhXVSCs94jL0c';
-const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET') || '0Z27VMXyp4zIfvdMthsqZw09';
+const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID') ?? '';
+const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET') ?? '';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       const linkPayload = {
         amount: amountInPaise,
         currency: 'INR',
-        description: `CarryGo Delivery Escrow for Request #${request.id.slice(0, 8)}`,
+        description: `CaryGoo Delivery Booking Guarantee for Request #${request.id.slice(0, 8)}`,
         customer: {
           name: customer?.name || user.email || 'CarryGo Customer',
           email: customer?.email || user.email || 'customer@carrygo.com',

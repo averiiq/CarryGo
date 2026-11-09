@@ -194,20 +194,20 @@ export function InteractiveRouteFlow() {
               {/* Gradient definition */}
               <defs>
                 <linearGradient id="routeLaserGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#059669" />
+                  <stop offset="0%" stopColor="#008B48" />
                   <stop offset="50%" stopColor="#0284c7" />
-                  <stop offset="100%" stopColor="#059669" />
+                  <stop offset="100%" stopColor="#008B48" />
                 </linearGradient>
                 <radialGradient id="pulseGlowLight" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#059669" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#059669" stopOpacity="0" />
+                  <stop offset="0%" stopColor="#008B48" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#008B48" stopOpacity="0" />
                 </radialGradient>
               </defs>
 
               {/* Origin Node */}
               <g transform="translate(40, 45)">
                 <circle r="16" fill="url(#pulseGlowLight)" />
-                <circle r="6" fill="#059669" />
+                <circle r="6" fill="#008B48" />
                 <circle r="2.5" fill="#ffffff" />
                 <text
                   x="0"
@@ -271,7 +271,7 @@ export function InteractiveRouteFlow() {
           <div className="relative z-10 grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/80 text-xs">
             <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200/90">
               <div className="flex items-center justify-between text-emerald-800 text-[11px] mb-1 font-semibold">
-                <span>CarryGo Commuter</span>
+                <span>CaryGoo Commuter</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-200/70 text-emerald-900 font-bold text-[10px]">
                   Same-Day
                 </span>

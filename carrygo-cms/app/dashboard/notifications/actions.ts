@@ -1,7 +1,9 @@
 ﻿'use server'
 
-import { requireAdmin } from '@/utils/admin-guard'
+import { requireAdmin, logAdminAction } from '@/utils/admin-guard'
 import { revalidatePath } from 'next/cache'
+
+const CITY_PATTERN = /^[a-zA-Zऀ-ॿ][a-zA-Z0-9ऀ-ॿ .\-']{1,63}$/
 
 export type BroadcastAudience =
   | { type: 'all' }
@@ -31,6 +33,20 @@ export async function sendAdminBroadcast(input: SendBroadcastInput) {
   if (!body || body.length < 5) return { error: 'Body must be at least 5 characters.' }
   if (title.length > 100) return { error: 'Title must be 100 characters or fewer.' }
   if (body.length > 500) return { error: 'Body must be 500 characters or fewer.' }
+
+  // Validate audience city — prevents injection of arbitrary strings into
+  // the user_profiles.city equality match.
+  if (input.audience.type === 'city') {
+    const city = input.audience.city?.trim()
+    if (!city || !CITY_PATTERN.test(city)) {
+      return { error: 'Invalid city filter — use letters, spaces, hyphens only.' }
+    }
+    input.audience = { type: 'city', city }
+  }
+  if (input.audience.type === 'role' &&
+      !['sender', 'traveller', 'both'].includes(input.audience.role)) {
+    return { error: 'Invalid role filter.' }
+  }
 
   // Get target user IDs
   let userQuery = supabase.from('user_profiles').select('id').eq('is_deleted', false)
@@ -96,9 +112,27 @@ export async function sendAdminBroadcast(input: SendBroadcastInput) {
     .update({ total_sent: totalSent })
     .eq('id', broadcast.id)
 
+  await logAdminAction(supabase, userId, 'admin_send_broadcast', {
+    broadcast_id: broadcast.id,
+    audience: input.audience,
+    category: input.category,
+    priority: input.priority,
+    total_targeted: targetUsers.length,
+    total_sent: totalSent,
+  })
+
   revalidatePath('/dashboard/notifications')
 
-  return { success: true, broadcastId: broadcast.id, totalSent }
+  const partial = totalSent < targetUsers.length
+  return {
+    success: true,
+    broadcastId: broadcast.id,
+    totalSent,
+    totalTargeted: targetUsers.length,
+    error: partial
+      ? `Queued ${totalSent} of ${targetUsers.length} recipients — some chunks failed to enqueue.`
+      : undefined,
+  }
 }
 
 export async function getBroadcastHistory(limit = 20) {

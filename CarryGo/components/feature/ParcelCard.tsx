@@ -2,12 +2,12 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Parcel, Request } from '@/types';
 import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
-import { resolveImageUrl, getCategoryFallbackImage } from '@/constants/images';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const categoryConfig: Record<string, { icon: keyof typeof MaterialIcons.glyphMap; color: string; bg: string; border: string }> = {
   documents: { icon: 'description', color: '#D97706', bg: '#FEF3C7', border: '#FDE68A' },
@@ -26,6 +26,7 @@ interface ParcelCardProps {
   showCarryButton?: boolean;
   onCarry?: () => void;
   isOwner?: boolean;
+  currentUserAvatar?: string;
   existingRequest?: Request | null;
   onTrackDelivery?: (requestId: string) => void;
   onViewRequest?: (requestId: string) => void;
@@ -39,13 +40,14 @@ export const ParcelCard = React.memo(function ParcelCard({
   showCarryButton,
   onCarry,
   isOwner,
+  currentUserAvatar,
   existingRequest,
   onTrackDelivery,
   onViewRequest,
 }: ParcelCardProps) {
   const { C, S, isDark } = useThemeColors();
+  const { isSmallDevice } = useResponsive();
   const [avatarError, setAvatarError] = useState(false);
-  const [mediaError, setMediaError] = useState(false);
 
   const baseCMeta = categoryConfig[parcel.category] || categoryConfig.other;
   const cMeta = {
@@ -57,7 +59,6 @@ export const ParcelCard = React.memo(function ParcelCard({
 
   const rawName = parcel.userName || 'User';
   const userName = rawName.trim();
-  const avatarLetter = (userName.charAt(0) || 'U').toUpperCase();
 
   const onPressIn = () =>
     Animated.spring(scale, { toValue: 0.985, useNativeDriver: true, ...Motion.springFast }).start();
@@ -91,6 +92,7 @@ export const ParcelCard = React.memo(function ParcelCard({
   ].filter(Boolean).join(', ');
 
   const parcelAvatarUri =
+    (isOwner && currentUserAvatar ? currentUserAvatar : undefined) ||
     parcel.userAvatar ||
     (parcel as any).avatar ||
     (parcel as any).avatar_url ||
@@ -99,11 +101,7 @@ export const ParcelCard = React.memo(function ParcelCard({
     (parcel as any).userSelfieUrl;
   const isSelfieVerified = Boolean((parcel as any).selfieUrl || (parcel as any).userSelfieUrl || (parcel as any).isSelfieVerified);
 
-  const rawParcelPhoto = parcel.imageUri || parcel.imageUris?.[0];
-  const parcelPhoto = resolveImageUrl(rawParcelPhoto);
-  const fallbackCatImage = getCategoryFallbackImage(parcel.category);
-  const hasMultipleImages = Boolean(parcel.imageUris && parcel.imageUris.length > 1);
-  const resolvedAvatar = resolveImageUrl(parcelAvatarUri);
+  const avatarSource = getUserAvatarSource(parcelAvatarUri, parcel.userId || parcel.id || userName);
 
   return (
     <Pressable
@@ -119,6 +117,7 @@ export const ParcelCard = React.memo(function ParcelCard({
       <Animated.View
         style={[
           styles.card,
+          isSmallDevice && { padding: Spacing.sm, gap: Spacing.sm },
           S.card,
           {
             backgroundColor: C.card,
@@ -135,19 +134,13 @@ export const ParcelCard = React.memo(function ParcelCard({
                 { backgroundColor: C.surfaceElevated, borderColor: isSelfieVerified ? C.success : C.surfaceBorder, borderWidth: 1.5 }
               ]}
             >
-              {resolvedAvatar && !avatarError ? (
-                <Image
-                  source={{ uri: resolvedAvatar }}
-                  style={{ width: '100%', height: '100%', borderRadius: 18 }}
-                  contentFit="cover"
-                  transition={200}
-                  onError={() => setAvatarError(true)}
-                />
-              ) : (
-                <Text style={[styles.avatarLetter, { color: C.primary }]}>
-                  {avatarLetter}
-                </Text>
-              )}
+              <Image
+                source={avatarError ? DEFAULT_AVATAR_ASSET : avatarSource}
+                style={styles.avatarImage}
+                contentFit="cover"
+                transition={200}
+                onError={() => setAvatarError(true)}
+              />
               {isSelfieVerified ? (
                 <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.card }]} />
               ) : null}
@@ -173,7 +166,7 @@ export const ParcelCard = React.memo(function ParcelCard({
                 ) : null}
               </View>
               <Text style={[styles.categorySubtitle, { color: C.textMuted }]}>
-                {parcel.category.toUpperCase()}
+                SENDER
               </Text>
             </View>
           </View>
@@ -186,51 +179,19 @@ export const ParcelCard = React.memo(function ParcelCard({
           </View>
         </View>
 
-        {/* Parcel Visual Media Container */}
-        <View style={[styles.mediaCardContainer, { borderColor: C.surfaceBorder }]}>
-          <Image
-            source={parcelPhoto && !mediaError ? { uri: parcelPhoto } : fallbackCatImage}
-            style={styles.mediaCardImage}
-            contentFit="cover"
-            transition={200}
-            onError={() => setMediaError(true)}
-          />
-          <LinearGradient
-            colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.6)']}
-            style={StyleSheet.absoluteFillObject}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-          <View style={styles.mediaCardTopRow}>
-            <View style={[styles.mediaCategoryBadge, { backgroundColor: cMeta.bg, borderColor: cMeta.border }]}>
-              <MaterialIcons name={cMeta.icon} size={12} color={cMeta.color} />
-              <Text style={[styles.mediaCategoryBadgeText, { color: cMeta.color }]}>
-                {parcel.category.toUpperCase()}
-              </Text>
-            </View>
-            {hasMultipleImages ? (
-              <View style={styles.photoCounterBadge}>
-                <MaterialIcons name="photo-camera" size={11} color="#FFFFFF" />
-                <Text style={styles.photoCounterText}>
-                  {parcel.imageUris?.length} Photos
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-
+        {/* Route Corridor */}
         <View style={[styles.routeContainer, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
           <View style={styles.cityBlock}>
             <View style={styles.cityIndicatorRow}>
               <View style={[styles.routeDot, { backgroundColor: C.primary }]} />
               <Text style={[styles.cityLabel, { color: C.textMuted }]}>FROM</Text>
             </View>
-            <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.cityName, isSmallDevice && { fontSize: 15 }, { color: C.textPrimary }]} numberOfLines={1}>
               {parcel.fromCity}
             </Text>
           </View>
 
-          <View style={styles.arrowBlock}>
+          <View style={[styles.arrowBlock, isSmallDevice && { width: 44, paddingHorizontal: 2 }]}>
             <View style={[styles.arrowLine, { borderColor: C.surfaceBorder }]} />
             <View style={[styles.arrowIconCircle, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MaterialIcons name="east" size={13} color={C.primary} />
@@ -242,7 +203,7 @@ export const ParcelCard = React.memo(function ParcelCard({
               <Text style={[styles.cityLabel, { color: C.textMuted }]}>TO</Text>
               <MaterialIcons name="place" size={11} color={C.primary} style={{ marginLeft: 2 }} />
             </View>
-            <Text style={[styles.cityName, { color: C.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.cityName, isSmallDevice && { fontSize: 15 }, { color: C.textPrimary }]} numberOfLines={1}>
               {parcel.toCity}
             </Text>
           </View>
@@ -435,16 +396,16 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  avatarLetter: {
-    color: '#FFFFFF',
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   senderMeta: {
     gap: 2,
@@ -660,54 +621,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
     letterSpacing: LetterSpacing.wide,
-  },
-  mediaCardContainer: {
-    height: 112,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.xs,
-    borderWidth: 1,
-    position: 'relative',
-    justifyContent: 'space-between',
-  },
-  mediaCardImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  mediaCardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.xs + 2,
-    zIndex: 2,
-  },
-  mediaCategoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  mediaCategoryBadgeText: {
-    fontSize: 10,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.4,
-  },
-  photoCounterBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(15, 23, 42, 0.72)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.full,
-  },
-  photoCounterText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: FontWeight.bold,
   },
   verifiedSelfieDot: {
     position: 'absolute',

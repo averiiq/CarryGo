@@ -2,13 +2,13 @@
 
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
-export const metadata = createMarketingMetadata('Terms and Conditions', 'Read the terms governing use of CarryGo services.', '/terms-and-conditions')
+export const metadata = createMarketingMetadata('Terms and Conditions', 'Read the terms governing use of CaryGoo services.', '/terms-and-conditions')
 
 const sections = [
   {
     title: 'Acceptance of Terms',
     paragraphs: [
-      'By using CarryGo websites, apps, and related services, you agree to these Terms and all applicable platform policies.',
+      'By using CaryGoo websites, apps, and related services, you agree to these Terms and all applicable platform policies.',
       'If you do not agree, you must stop using the service.',
     ],
   },
@@ -16,13 +16,13 @@ const sections = [
     title: 'Accounts and Eligibility',
     paragraphs: [
       'You must provide accurate account information and keep credentials secure.',
-      'CarryGo may suspend or restrict accounts involved in fraud, abuse, or policy violations.',
+      'CaryGoo may suspend or restrict accounts involved in fraud, abuse, or policy violations.',
     ],
   },
   {
     title: 'Platform Role and Transactions',
     paragraphs: [
-      'CarryGo enables sender and traveler coordination, communication, and payment workflows.',
+      'CaryGoo enables sender and traveler coordination, communication, and payment workflows.',
       'Pricing, delivery timing, and acceptance are subject to route availability, verification checks, and platform rules.',
     ],
   },
@@ -36,8 +36,8 @@ const sections = [
   {
     title: 'Liability and Governing Law',
     paragraphs: [
-      'CarryGo is provided on an as-is and as-available basis to the maximum extent permitted by law.',
-      'These Terms are governed by applicable laws of India, and disputes are handled by competent courts where CarryGo is registered.',
+      'CaryGoo is provided on an as-is and as-available basis to the maximum extent permitted by law.',
+      'These Terms are governed by applicable laws of India, and disputes are handled by competent courts where CaryGoo is registered.',
     ],
   },
 ]
@@ -46,7 +46,7 @@ export default function TermsAndConditionsPage() {
   return (
     <LegalPage
       title='Terms & Conditions'
-      summary='These terms define acceptable use, account responsibilities, and legal boundaries for using the CarryGo platform.'
+      summary='These terms define acceptable use, account responsibilities, and legal boundaries for using the CaryGoo platform.'
       lastUpdated='August 27, 2026'
       sections={sections}
       relatedLinks={[

@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { Parcel, Request } from '@/types';
 import { Haptic } from '@/services/haptics.service';
+import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
 
 const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   documents: 'description', electronics: 'devices', clothing: 'checkroom',
@@ -117,18 +118,11 @@ function ParcelRow({ parcel, requests, onPress, onDelete, onRepost, C }: {
 }
 
 function EmptyActivity({ onCta, C }: { onCta: () => void; C: ThemeColors }) {
-  const bounceAnim = useRef(new Animated.Value(1)).current;
-  React.useEffect(() => {
-    Animated.loop(Animated.sequence([
-      Animated.timing(bounceAnim, { toValue: 1.08, duration: 800, useNativeDriver: true }),
-      Animated.timing(bounceAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-    ])).start();
-  }, [bounceAnim]);
   return (
     <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-      <Animated.View style={[styles.emptyIcon, { backgroundColor: C.primarySubtle, transform: [{ scale: bounceAnim }] }]}>
-        <MaterialIcons name="inventory-2" size={36} color={C.primary} />
-      </Animated.View>
+      <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
+        <LottieAnimation name="noParcel" style={{ width: 140, height: 110 }} />
+      </View>
       <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No parcels yet</Text>
       <Text style={[styles.emptySub, { color: C.textMuted }]}>
         List your first parcel to find travellers on your route.

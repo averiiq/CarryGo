@@ -49,7 +49,7 @@ const SENDER_STEPS = [
     step: 4,
     title: 'Delivery Confirmation & Safe Release',
     desc: 'Recipient inspects package and enters delivery code. Funds safely held in SafeVault™ are instantly settled to the traveler.',
-    tag: 'Escrow Guarantee',
+    tag: 'Booking Guarantee',
     icon: Lock,
     color: 'amber',
   },

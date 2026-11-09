@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 
 /**
- * CarryGo enforces a pure light theme across the entire application.
+ * CaryGoo enforces a pure light theme across the entire application.
  * This component ensures data-theme="light" and clears dark mode preferences.
  */
 export default function ThemeToggle() {

@@ -81,7 +81,7 @@ export function ParcelReviewStep({ form, C, onEdit, hasKyc }: ParcelReviewStepPr
       >
         <MaterialIcons name="security" size={20} color={C.primary} style={{ marginTop: 2 }} />
         <Text style={[styles.infoText, { color: C.textSecondary }]}>
-          Your parcel offer is held securely in CarryGo Escrow until successful delivery verification.
+          Your parcel offer is held securely in CaryGoo Booking until successful delivery verification.
         </Text>
       </View>
     </KeyboardAwareScrollView>

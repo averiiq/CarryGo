@@ -1,5 +1,13 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Animated, ActivityIndicator } from 'react-native';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Animated,
+  ActivityIndicator,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -7,18 +15,28 @@ import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, TouchTarget } from '@/constants/theme';
+import {
+  FontSize,
+  FontWeight,
+  Spacing,
+  BorderRadius,
+  ThemeColors,
+  TouchTarget,
+  TabBarGeometry,
+  StatusBarGeometry,
+} from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { LinearGradient } from 'expo-linear-gradient';
-import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
+import { FeatureFlags } from '@/constants/featureFlags';
 import { flattenInfiniteData, useParcelsQuery, useTripsQuery } from '@/features/listings/queries';
 import { useRequestsQuery } from '@/features/requests/queries';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useFadeIn, useBreathing, useHeartbeat } from '@/hooks/useAnimations';
+import { useFadeIn } from '@/hooks/useAnimations';
 import { useAppUpdates } from '@/hooks/useAppUpdates';
-import { AnimatedIcon, type AnimatedIconName, type AnimatedIconRef } from '@/components';
-import { resolveImageUrl } from '@/constants/images';
+import { AnimatedIcon, type AnimatedIconName, type AnimatedIconRef, TrustTierBadge } from '@/components';
+import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
+import { getUserCoinSummary } from '@/services/rewards.service';
 
 interface MenuItemProps {
   icon?: React.ReactNode;
@@ -32,7 +50,17 @@ interface MenuItemProps {
   subtitle?: string;
 }
 
-function MenuItem({ icon, animatedIconName, animatedIconColor, label, onPress, danger, right, C, subtitle }: MenuItemProps) {
+function MenuItem({
+  icon,
+  animatedIconName,
+  animatedIconColor,
+  label,
+  onPress,
+  danger,
+  right,
+  C,
+  subtitle,
+}: MenuItemProps) {
   const iconRef = useRef<AnimatedIconRef>(null);
 
   const handlePress = () => {
@@ -47,18 +75,23 @@ function MenuItem({ icon, animatedIconName, animatedIconColor, label, onPress, d
     <Pressable
       style={({ pressed }) => [
         styles.menuItem,
-        pressed && { backgroundColor: C.primarySubtle, opacity: 0.9, transform: [{ scale: 0.98 }] },
+        pressed && { backgroundColor: C.primarySubtle, opacity: 0.9 },
       ]}
       hitSlop={TouchTarget.smallHitSlop}
       onPress={handlePress}
       disabled={!onPress && !right}
     >
-      <View style={[styles.menuIconWrap, { backgroundColor: danger ? C.errorSubtle : C.surfaceElevated }]}>
+      <View
+        style={[
+          styles.menuIconWrap,
+          { backgroundColor: danger ? C.errorSubtle : C.surfaceElevated },
+        ]}
+      >
         {animatedIconName ? (
           <AnimatedIcon
             ref={iconRef}
             name={animatedIconName}
-            size={19}
+            size={18}
             color={animatedIconColor || (danger ? C.error : C.primary)}
           />
         ) : (
@@ -66,83 +99,104 @@ function MenuItem({ icon, animatedIconName, animatedIconColor, label, onPress, d
         )}
       </View>
       <View style={styles.menuLabelWrap}>
-        <Text style={[styles.menuLabel, { color: danger ? C.error : C.textPrimary }]}>{label}</Text>
-        {subtitle ? <Text style={[styles.menuSubtitle, { color: C.textMuted }]}>{subtitle}</Text> : null}
+        <Text style={[styles.menuLabel, { color: danger ? C.error : C.textPrimary }]}>
+          {label}
+        </Text>
+        {subtitle ? (
+          <Text style={[styles.menuSubtitle, { color: C.textMuted }]} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
       {right ?? null}
       {onPress && !right ? (
-        <View style={[styles.menuChevronWrap, { backgroundColor: C.surfaceElevated }]}>
-          <MaterialIcons name="chevron-right" size={16} color={C.textMuted} />
-        </View>
+        <MaterialIcons name="chevron-right" size={18} color={C.textMuted} style={{ opacity: 0.6 }} />
       ) : null}
     </Pressable>
   );
 }
 
-function BentoStatCard({
-  label,
-  value,
-  sublabel,
-  icon,
-  color,
+function MetricsDeck({
+  rating,
+  totalRatings,
+  tripsCount,
+  parcelsCount,
+  deliveredCount,
   C,
-  onPress,
-  iconAnim,
   isSmallDevice,
+  onPressActivity,
+  onPressRating,
 }: {
-  label: string;
-  value: string;
-  sublabel?: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  color: string;
+  rating: number;
+  totalRatings: number;
+  tripsCount: number;
+  parcelsCount: number;
+  deliveredCount: number;
   C: ThemeColors;
-  onPress?: () => void;
-  iconAnim?: Animated.Value;
-  isSmallDevice?: boolean;
+  isSmallDevice: boolean;
+  onPressActivity: () => void;
+  onPressRating: () => void;
 }) {
+  const metrics = [
+    {
+      label: 'Rating',
+      value: totalRatings > 0 ? rating.toFixed(1) : 'New',
+      icon: 'star' as const,
+      color: '#F59E0B',
+      onPress: onPressRating,
+    },
+    {
+      label: 'Trips',
+      value: String(tripsCount),
+      icon: 'directions-car' as const,
+      color: C.primary,
+      onPress: onPressActivity,
+    },
+    {
+      label: 'Parcels',
+      value: String(parcelsCount),
+      icon: 'inventory-2' as const,
+      color: C.success,
+      onPress: onPressActivity,
+    },
+    {
+      label: 'Delivered',
+      value: String(deliveredCount),
+      icon: 'check-circle' as const,
+      color: '#0EA5E9',
+      onPress: onPressActivity,
+    },
+  ];
+
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.statCard,
-        isSmallDevice && styles.statCardSmall,
-        { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-        pressed && onPress && { opacity: 0.85, transform: [{ scale: 0.97 }] },
-      ]}
-      hitSlop={TouchTarget.smallHitSlop}
-      onPress={() => {
-        if (onPress) {
-          Haptic.select();
-          onPress();
-        }
-      }}
-      disabled={!onPress}
-    >
-      <Animated.View
-        style={[
-          styles.statCardIcon,
-          { backgroundColor: color + '16' },
-          iconAnim ? { transform: [{ scale: iconAnim }] } : undefined,
-        ]}
-      >
-        <MaterialIcons name={icon} size={isSmallDevice ? 14 : 16} color={color} />
-      </Animated.View>
-      <View style={styles.statCardContent}>
-        <Text
-          style={[styles.statCardVal, isSmallDevice && { fontSize: FontSize.md }, { color: C.textPrimary }]}
-          numberOfLines={1}
-        >
-          {value}
-        </Text>
-        <Text style={[styles.statCardLabel, { color: C.textMuted }]} numberOfLines={1}>
-          {label}
-        </Text>
-        {sublabel ? (
-          <Text style={[styles.statCardSublabel, { color: C.textMuted + 'AA' }]} numberOfLines={1}>
-            {sublabel}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+    <View style={[styles.metricsDeck, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      {metrics.map((m, idx) => (
+        <React.Fragment key={m.label}>
+          {idx > 0 && <View style={[styles.metricDivider, { backgroundColor: C.surfaceBorder }]} />}
+          <Pressable
+            style={({ pressed }) => [
+              styles.metricCell,
+              pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
+            ]}
+            onPress={() => {
+              Haptic.select();
+              m.onPress();
+            }}
+            hitSlop={TouchTarget.smallHitSlop}
+          >
+            <View style={[styles.metricIconWrap, { backgroundColor: m.color + '15' }]}>
+              <MaterialIcons name={m.icon} size={isSmallDevice ? 14 : 16} color={m.color} />
+            </View>
+            <Text style={[styles.metricValue, { color: C.textPrimary }]} numberOfLines={1}>
+              {m.value}
+            </Text>
+            <Text style={[styles.metricLabel, { color: C.textMuted }]} numberOfLines={1}>
+              {m.label}
+            </Text>
+          </Pressable>
+        </React.Fragment>
+      ))}
+    </View>
   );
 }
 
@@ -151,21 +205,22 @@ export default function ProfileScreen() {
   const { showAlert } = useAlert();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { C, isDark } = useThemeColors();
+  const { C } = useThemeColors();
   const { isSmallDevice, isTablet } = useResponsive();
-  const heroEntrance = useFadeIn(0, 520);
-  const statsEntrance = useFadeIn(120, 440);
-  const sectionsEntrance = useFadeIn(220, 440);
-  const avatarBreathing = useBreathing(0.97, 1, 4500);
-  const starHeartbeat = useHeartbeat(5000, 1.12);
+  const heroEntrance = useFadeIn(0, 300);
+  const statsEntrance = useFadeIn(80, 300);
+  const sectionsEntrance = useFadeIn(160, 300);
   const scrollY = useRef(new Animated.Value(0)).current;
+
   const [showKyc, setShowKyc] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const resolvedAvatar = resolveImageUrl(user?.avatar);
 
   useEffect(() => {
     setAvatarError(false);
   }, [user?.avatar]);
+
   const tripsQuery = useTripsQuery(Boolean(user));
   const parcelsQuery = useParcelsQuery(Boolean(user));
   const requestsQuery = useRequestsQuery(user?.id);
@@ -180,28 +235,46 @@ export default function ProfileScreen() {
     applyUpdate,
   } = useAppUpdates();
 
-  // Automatically refresh profile from database whenever returning to profile tab
+  const lastFocusRefreshRef = useRef<number>(0);
+
+  // Refresh user data & coin summary on focus (throttled to at most once per 10s)
   useFocusEffect(
     useCallback(() => {
-      refreshUser();
+      const now = Date.now();
+      if (now - lastFocusRefreshRef.current < 10_000) return;
+      lastFocusRefreshRef.current = now;
+
+      void refreshUser();
+      void getUserCoinSummary().then((res) => {
+        if (res.data) {
+          setCoinBalance(res.data.balance);
+        }
+      });
     }, [refreshUser])
   );
 
-  const trips = user ? flattenInfiniteData(tripsQuery.data) : [];
-  const parcels = user ? flattenInfiniteData(parcelsQuery.data) : [];
-  const requests = user ? requestsQuery.data ?? [] : [];
-  const myTrips = trips.filter(t => t.userId === user?.id);
-  const myParcels = parcels.filter(p => p.userId === user?.id);
-  const completed = requests.filter(r =>
-    (r.senderId === user?.id || r.travellerId === user?.id) && r.status === 'completed'
-  ).length;
+  const trips = useMemo(() => (user ? flattenInfiniteData(tripsQuery.data) : []), [tripsQuery.data, user]);
+  const parcels = useMemo(() => (user ? flattenInfiniteData(parcelsQuery.data) : []), [parcelsQuery.data, user]);
+  const requests = useMemo(() => (user ? requestsQuery.data ?? [] : []), [requestsQuery.data, user]);
+
+  const myTrips = useMemo(() => trips.filter((t) => t.userId === user?.id), [trips, user?.id]);
+  const myParcels = useMemo(() => parcels.filter((p) => p.userId === user?.id), [parcels, user?.id]);
+  const completed = useMemo(
+    () =>
+      requests.filter(
+        (r) =>
+          (r.senderId === user?.id || r.travellerId === user?.id) &&
+          r.status === 'completed'
+      ).length,
+    [requests, user?.id]
+  );
 
   const handleLogout = () => {
     Haptic.warning();
-    showAlert('Logout', 'Are you sure you want to logout?', [
+    showAlert('Sign Out', 'Are you sure you want to sign out of CaryGoo?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Logout',
+        text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
           await logout();
@@ -214,31 +287,21 @@ export default function ProfileScreen() {
   const handleDeleteAccount = () => {
     Haptic.warning();
     showAlert(
-      'Delete account?',
-      'This permanently removes your CarryGo account and signs you out. This action cannot be undone.',
+      'Delete Account?',
+      'This permanently removes your profile, listings, and history. This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete Account',
+          text: 'Delete Permanently',
           style: 'destructive',
-          onPress: () => {
-            Haptic.warning();
-            showAlert('Final confirmation', 'Please confirm you want to permanently delete this account.', [
-              { text: 'Keep Account', style: 'cancel' },
-              {
-                text: 'Delete Permanently',
-                style: 'destructive',
-                onPress: async () => {
-                  const result = await deleteAccount();
-                  if (result.error) {
-                    showAlert('Deletion failed', result.error);
-                    return;
-                  }
-                  showAlert('Account deleted', 'Your account has been deleted successfully.');
-                  router.replace('/login');
-                },
-              },
-            ]);
+          onPress: async () => {
+            const result = await deleteAccount();
+            if (result.error) {
+              showAlert('Deletion Failed', result.error);
+              return;
+            }
+            showAlert('Account Deleted', 'Your CaryGoo account has been deleted.');
+            router.replace('/login');
           },
         },
       ]
@@ -248,85 +311,86 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   const displayName = user.fullName || user.name || user.email?.split('@')[0] || 'User';
-  const isKycApproved = Boolean(user.kycStatus === 'approved' || user.verified);
+  const isKycApproved = Boolean(
+    user.kycStatus === 'approved' ||
+    user.verified ||
+    user.isAadhaarVerified
+  );
   const isKycSubmitted = !isKycApproved && user.kycStatus === 'submitted';
-  const isKycAvailable = FeatureFlags.kycProvider;
-  const canOpenKycBanner = isKycAvailable && !isKycApproved && !isKycSubmitted;
+  const isKycRejected = !isKycApproved && user.kycStatus === 'rejected';
 
-  const heroTranslateY = scrollY.interpolate({
-    inputRange: [0, 190],
-    outputRange: [0, -10],
-    extrapolate: 'clamp',
-  });
+  const handleOpenKyc = () => {
+    Haptic.tap();
+    if (isKycApproved) {
+      showAlert(
+        'Identity Verified ✓',
+        'Your identity has been verified with Aadhaar and face match. You have full access to send parcels, post trips, and carry deliveries on CaryGoo.',
+        [
+          { text: 'View Verification Details', onPress: () => router.push('/kyc' as never) },
+          { text: 'OK', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    if (isKycSubmitted) {
+      showAlert(
+        'KYC In Review ⏳',
+        'Your Aadhaar and selfie verification documents have been submitted and are currently being reviewed. You will receive an alert once approved.',
+        [
+          { text: 'Check Status', onPress: () => router.push('/kyc' as never) },
+          { text: 'OK', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    setShowKyc(true);
+  };
 
-  const heroScale = scrollY.interpolate({
-    inputRange: [0, 210],
-    outputRange: [1, 0.975],
-    extrapolate: 'clamp',
-  });
-
-  const kycColor = isKycApproved
-    ? C.success
-    : isKycSubmitted
-    ? C.warning
-    : !isKycAvailable
-    ? C.warning
-    : C.primary;
-
-  const kycBg = isKycApproved
-    ? C.successSubtle
-    : isKycSubmitted
-    ? C.warningSubtle
-    : !isKycAvailable
-    ? C.warningSubtle
-    : C.primarySubtle;
-
-  const kycBorder = isKycApproved
-    ? C.successBorder
-    : isKycSubmitted
-    ? C.warningBorder
-    : !isKycAvailable
-    ? C.warningBorder
-    : C.primaryBorder;
-
-  const kycTitle = isKycApproved
-    ? 'Identity Verified'
-    : isKycSubmitted
-    ? 'KYC Under Review'
-    : !isKycAvailable
-    ? 'Identity Verification Unavailable'
-    : 'Verify Your Identity';
-
-  const kycBody = isKycApproved
-    ? 'You are 100% verified to send and carry parcels freely.'
-    : isKycSubmitted
-    ? 'Usually approved within 24 hours.'
-    : !isKycAvailable
-    ? disabledFeatureMessage.kyc
-    : 'Needed to send or carry parcels - 2 min process.';
-
-  // Format joined date
   const joinedDateFormatted = user.joinedAt
     ? new Date(user.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     : 'Recent';
 
-  // Format phone display
-  const phoneDisplay = user.phone ? user.phone : null;
-
   return (
-    <>
+    <View style={[styles.container, { backgroundColor: C.background }]}>
       <KycOnboarding
         visible={showKyc}
         onClose={() => setShowKyc(false)}
-        onComplete={() => { setShowKyc(false); }}
+        onComplete={() => {
+          setShowKyc(false);
+          refreshUser();
+        }}
       />
+
+      {/* ── Top Header Bar ─────────────────────────────────────────── */}
+      <View style={[styles.headerBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.xs) }]}>
+        <Text style={[styles.screenHeaderTitle, { color: C.textPrimary }]}>Profile</Text>
+        <Pressable
+          onPress={() => {
+            Haptic.tap();
+            router.push('/edit-profile');
+          }}
+          style={({ pressed }) => [
+            styles.headerEditBtn,
+            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+          ]}
+          hitSlop={8}
+          accessibilityLabel="Edit profile"
+        >
+          <Feather name="edit-2" size={14} color={C.primary} />
+        </Pressable>
+      </View>
+
       <Animated.ScrollView
         ref={scrollRef}
         keyboardDismissMode="on-drag"
-        style={[styles.container, { backgroundColor: C.background }]}
+        style={{ flex: 1 }}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + Spacing.xs, paddingBottom: insets.bottom + 120 },
+          {
+            paddingTop: Spacing.xs,
+            paddingBottom: TabBarGeometry.getClearance(insets.bottom, isSmallDevice, isTablet),
+          },
           isTablet && styles.tabletContainer,
         ]}
         showsVerticalScrollIndicator={false}
@@ -336,13 +400,8 @@ export default function ProfileScreen() {
         )}
         scrollEventThrottle={16}
       >
-        {/* Executive Theme-Adaptive Identity Card */}
-        <Animated.View
-          style={{
-            opacity: heroEntrance.opacity,
-            transform: [...heroEntrance.transform, { translateY: heroTranslateY }, { scale: heroScale }],
-          }}
-        >
+        {/* ── Executive Identity Header Card ─────────────────────────── */}
+        <Animated.View style={{ opacity: heroEntrance.opacity, transform: heroEntrance.transform }}>
           <View
             style={[
               styles.heroCard,
@@ -350,74 +409,66 @@ export default function ProfileScreen() {
               isSmallDevice && styles.heroCardSmall,
             ]}
           >
-            {/* Theme-Adaptive Gradient Backing */}
-            <LinearGradient
-              colors={
-                isDark
-                  ? [C.surface, C.surfaceElevated, C.surface]
-                  : ['#FFFFFF', '#F8FAFC', '#F1F5F9']
-              }
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-
-            {/* Main Horizontal Identity Block */}
             <View style={styles.heroMainRow}>
-              {/* Avatar on Left with Breathing Pulse */}
-              <Animated.View style={[styles.avatarOuter, { transform: [{ scale: avatarBreathing }] }]}>
-                <LinearGradient
-                  colors={[C.primary, C.primaryLight]}
-                  style={styles.avatarGradientRing}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                />
-                <Pressable
-                  onPress={() => {
-                    Haptic.tap();
-                    router.push('/edit-profile');
-                  }}
-                  style={[styles.avatarInner, { backgroundColor: C.surface }]}
+              {/* Avatar on Left */}
+              <Pressable
+                onPress={() => {
+                  Haptic.tap();
+                  router.push('/edit-profile');
+                }}
+                style={styles.avatarWrap}
+                accessibilityRole="button"
+                accessibilityLabel="Edit profile avatar"
+              >
+                <View
+                  style={[
+                    styles.avatarCircle,
+                    { backgroundColor: C.primarySubtle, borderColor: C.surfaceBorder },
+                  ]}
                 >
-                  <View style={[styles.avatar, { backgroundColor: C.primarySubtle }]}>
-                    {resolvedAvatar && !avatarError ? (
-                      <Image
-                        source={{ uri: resolvedAvatar }}
-                        style={styles.avatarImage}
-                        contentFit="cover"
-                        onError={() => setAvatarError(true)}
-                      />
-                    ) : (
-                      <Text style={[styles.avatarText, { color: C.primary }]}>
-                        {displayName.charAt(0).toUpperCase()}
-                      </Text>
-                    )}
-                  </View>
-                </Pressable>
+                  <Image
+                    source={avatarError ? DEFAULT_AVATAR_ASSET : getUserAvatarSource(user?.avatar, user?.id || displayName)}
+                    style={styles.avatarImage}
+                    contentFit="cover"
+                    onError={() => setAvatarError(true)}
+                  />
+                </View>
                 {isKycApproved ? (
-                  <View style={[styles.verifiedBadge, { backgroundColor: C.primary, borderColor: C.surface }]}>
-                    <MaterialIcons name="check" size={10} color="#fff" />
+                  <View style={[styles.verifiedCheckBadge, { backgroundColor: C.success, borderColor: C.surface }]}>
+                    <MaterialIcons name="check" size={11} color="#FFFFFF" />
                   </View>
                 ) : (
-                  <View style={[styles.onlineDot, { backgroundColor: C.primary, borderColor: C.surface }]} />
+                  <View style={[styles.editCameraBadge, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                    <Feather name="edit-2" size={10} color={C.textPrimary} />
+                  </View>
                 )}
-              </Animated.View>
+              </Pressable>
 
               {/* User Identity Details */}
               <View style={styles.heroMetaWrap}>
-                <View style={styles.heroNameRow}>
+                <View style={styles.nameAndActionRow}>
                   <Text style={[styles.profileName, { color: C.textPrimary }]} numberOfLines={1}>
                     {displayName}
                   </Text>
-                  {isKycApproved ? (
-                    <View style={[styles.trustTag, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                      <MaterialIcons name="verified" size={11} color={C.primary} />
-                      <Text style={[styles.trustTagText, { color: C.primary }]}>Verified</Text>
-                    </View>
-                  ) : null}
+                  <Pressable
+                    onPress={() => {
+                      Haptic.tap();
+                      router.push('/edit-profile');
+                    }}
+                    style={({ pressed }) => [
+                      styles.quickEditBtn,
+                      { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                      pressed && { opacity: 0.8 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit profile details"
+                  >
+                    <Feather name="edit-2" size={11} color={C.primary} />
+                    <Text style={[styles.quickEditText, { color: C.primary }]}>Edit</Text>
+                  </Pressable>
                 </View>
 
-                {/* Email Row */}
+                {/* Email row */}
                 <View style={styles.infoRow}>
                   <Ionicons name="mail-outline" size={12} color={C.textMuted} />
                   <Text style={[styles.infoRowText, { color: C.textMuted }]} numberOfLines={1}>
@@ -425,19 +476,26 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
 
-                {/* Phone & City Row */}
+                {/* Status Chips */}
                 <View style={styles.chipsRow}>
+                  {isKycApproved ? (
+                    <View style={[styles.statusChip, { backgroundColor: C.successSubtle, borderColor: C.successBorder }]}>
+                      <MaterialIcons name="verified" size={11} color={C.success} />
+                      <Text style={[styles.statusChipText, { color: C.success }]}>Verified Member</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.statusChip, { backgroundColor: isKycSubmitted ? C.warningSubtle : C.primarySubtle, borderColor: isKycSubmitted ? C.warningBorder : C.primaryBorder }]}>
+                      <MaterialIcons name={isKycSubmitted ? 'hourglass-empty' : 'shield'} size={11} color={isKycSubmitted ? C.warning : C.primary} />
+                      <Text style={[styles.statusChipText, { color: isKycSubmitted ? C.warning : C.primary }]}>
+                        {isKycSubmitted ? 'KYC In Review' : 'KYC Pending'}
+                      </Text>
+                    </View>
+                  )}
+
                   {user.city ? (
                     <View style={[styles.locationChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                      <Ionicons name="location-outline" size={11} color={C.primary} />
+                      <Ionicons name="location-outline" size={11} color={C.textSecondary} />
                       <Text style={[styles.locationChipText, { color: C.textSecondary }]}>{user.city}</Text>
-                    </View>
-                  ) : null}
-
-                  {phoneDisplay ? (
-                    <View style={[styles.locationChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-                      <Ionicons name="call-outline" size={11} color={C.textMuted} />
-                      <Text style={[styles.locationChipText, { color: C.textSecondary }]}>{phoneDisplay}</Text>
                     </View>
                   ) : null}
 
@@ -450,176 +508,304 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </View>
-
-            {/* Bottom Quick Action Strip */}
-            <View style={[styles.heroBottomDivider, { backgroundColor: C.surfaceBorder + '88' }]} />
-            <Pressable
-              style={({ pressed }) => [
-                styles.editProfileFullBtn,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
-              ]}
-              hitSlop={TouchTarget.smallHitSlop}
-              onPress={() => {
-                Haptic.tap();
-                router.push('/edit-profile');
-              }}
-            >
-              <View style={styles.editBtnLeft}>
-                <View style={[styles.editIconCircle, { backgroundColor: C.primarySubtle, borderColor: C.primaryBorder }]}>
-                  <AnimatedIcon name="edit" size={15} color={C.primary} />
-                </View>
-                <View style={styles.editTextWrap}>
-                  <Text style={[styles.editProfileFullBtnText, { color: C.textPrimary }]}>Edit Profile</Text>
-                  <Text style={[styles.editProfileSubText, { color: C.textMuted }]}>
-                    Update name, phone number, and location
-                  </Text>
-                </View>
-              </View>
-              <View style={[styles.editChevronWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-                <MaterialIcons name="chevron-right" size={14} color={C.textMuted} />
-              </View>
-            </Pressable>
           </View>
         </Animated.View>
 
-        {/* Bento Stat Highlights */}
+        {/* ── Sleek Metrics Deck ───────────────────────────────────────── */}
         <Animated.View style={{ opacity: statsEntrance.opacity, transform: statsEntrance.transform }}>
-          <View style={styles.statsGrid}>
-            <BentoStatCard
-              label="Rating"
-              value={user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0).toFixed(1) : 'New'}
-              sublabel={user.totalRatings && user.totalRatings > 0 ? `${user.totalRatings} rev` : 'Member'}
-              icon="star"
-              color={C.warning}
-              C={C}
-              iconAnim={starHeartbeat}
-              isSmallDevice={isSmallDevice}
-              onPress={() => {
-                showAlert(
-                  'User Rating',
-                  user.totalRatings && user.totalRatings > 0
-                    ? `Current Rating: ${(user.rating || 5.0).toFixed(1)}/5.0 based on ${user.totalRatings} verified peer ${user.totalRatings === 1 ? 'review' : 'reviews'}.`
-                    : 'You have not received any delivery ratings yet. Complete delivery trips to build trust and increase match priority.'
-                );
-              }}
-            />
-            <BentoStatCard
-              label="Trips"
-              value={String(myTrips.length)}
-              sublabel="Active"
-              icon="directions-car"
-              color={C.primary}
-              C={C}
-              isSmallDevice={isSmallDevice}
-              onPress={() => router.push('/my-activity')}
-            />
-            <BentoStatCard
-              label="Parcels"
-              value={String(myParcels.length)}
-              sublabel="Listed"
-              icon="inventory-2"
-              color={C.success}
-              C={C}
-              isSmallDevice={isSmallDevice}
-              onPress={() => router.push('/my-activity')}
-            />
-            <BentoStatCard
-              label="Delivered"
-              value={String(completed)}
-              sublabel="Completed"
-              icon="check-circle"
-              color={C.info}
-              C={C}
-              isSmallDevice={isSmallDevice}
-              onPress={() => router.push('/my-activity')}
-            />
-          </View>
+          <MetricsDeck
+            rating={user.rating || 5.0}
+            totalRatings={user.totalRatings || 0}
+            tripsCount={myTrips.length}
+            parcelsCount={myParcels.length}
+            deliveredCount={completed}
+            C={C}
+            isSmallDevice={isSmallDevice}
+            onPressActivity={() => router.push('/my-activity')}
+            onPressRating={() => {
+              showAlert(
+                'Trust & Rating',
+                user.totalRatings && user.totalRatings > 0
+                  ? `Overall Rating: ${(user.rating || 5.0).toFixed(1)}/5.0 across ${user.totalRatings} verified peer reviews.`
+                  : 'You have not received ratings yet. Complete delivery trips to build verified trust.'
+              );
+            }}
+          />
         </Animated.View>
 
-        {/* Trust & KYC Verification Card */}
-        <Pressable
-          style={[styles.kycBanner, { backgroundColor: kycBg, borderColor: kycBorder }]}
-          hitSlop={TouchTarget.smallHitSlop}
-          onPress={canOpenKycBanner ? () => setShowKyc(true) : undefined}
-          disabled={!canOpenKycBanner}
-        >
-          <View style={[styles.kycIconWrap, { backgroundColor: kycColor + '18' }]}>
-            <MaterialIcons
-              name={isKycApproved ? 'verified-user' : isKycSubmitted ? 'hourglass-empty' : 'shield'}
-              size={18}
-              color={kycColor}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.kycTitle, { color: kycColor }]}>{kycTitle}</Text>
-            <Text style={[styles.kycBody, { color: C.textSecondary }]}>{kycBody}</Text>
-          </View>
-          {canOpenKycBanner ? (
-            <View style={[styles.kycCta, { backgroundColor: kycColor }]}>
-              <Text style={styles.kycCtaText}>Start</Text>
-              <MaterialIcons name="arrow-forward" size={11} color="#fff" />
+        {/* ── KYC Prompt Banner (When unverified or under review) ────────────────────────── */}
+        {!isKycApproved ? (
+          <Pressable
+            style={[
+              styles.kycBanner,
+              {
+                backgroundColor: isKycSubmitted
+                  ? C.warningSubtle
+                  : isKycRejected
+                  ? C.errorSubtle
+                  : C.primarySubtle,
+                borderColor: isKycSubmitted
+                  ? C.warningBorder
+                  : isKycRejected
+                  ? C.errorBorder
+                  : C.primaryBorder,
+              },
+            ]}
+            hitSlop={TouchTarget.smallHitSlop}
+            onPress={handleOpenKyc}
+          >
+            <View
+              style={[
+                styles.kycIconWrap,
+                {
+                  backgroundColor: isKycSubmitted
+                    ? C.warning + '22'
+                    : isKycRejected
+                    ? C.error + '22'
+                    : C.primary + '22',
+                },
+              ]}
+            >
+              <MaterialIcons
+                name={isKycSubmitted ? 'hourglass-empty' : isKycRejected ? 'error-outline' : 'shield'}
+                size={18}
+                color={isKycSubmitted ? C.warning : isKycRejected ? C.error : C.primary}
+              />
             </View>
-          ) : isKycApproved ? (
-            <MaterialIcons name="check-circle" size={22} color={C.success} />
-          ) : isKycSubmitted ? (
-            <View style={[styles.pendingChip, { backgroundColor: C.warning + '24' }]}>
-              <Text style={[styles.pendingChipText, { color: C.warning }]}>In Review</Text>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.kycTitle,
+                  {
+                    color: isKycSubmitted ? C.warning : isKycRejected ? C.error : C.primary,
+                  },
+                ]}
+              >
+                {isKycSubmitted
+                  ? 'KYC Under Review'
+                  : isKycRejected
+                  ? 'KYC Verification Required'
+                  : 'Verify Your Identity'}
+              </Text>
+              <Text style={[styles.kycBody, { color: C.textSecondary }]}>
+                {isKycSubmitted
+                  ? 'Your documents are being reviewed within 24 hours.'
+                  : isKycRejected
+                  ? 'Tap to resolve verification issues and re-submit.'
+                  : 'Complete instant Aadhaar KYC to unlock full parcel delivery features.'}
+              </Text>
             </View>
-          ) : null}
-        </Pressable>
+            <View
+              style={[
+                styles.kycCta,
+                {
+                  backgroundColor: isKycSubmitted
+                    ? C.warning
+                    : isKycRejected
+                    ? C.error
+                    : C.primary,
+                },
+              ]}
+            >
+              <Text style={styles.kycCtaText}>
+                {isKycSubmitted ? 'Status' : isKycRejected ? 'Re-try' : 'Verify'}
+              </Text>
+              <MaterialIcons name="arrow-forward" size={11} color="#FFFFFF" />
+            </View>
+          </Pressable>
+        ) : null}
 
-        {/* Organized Settings Groups */}
+        {/* ── Trust Tier Card ────────────────────────────────────────── */}
+        <View style={{ marginVertical: Spacing.xs }}>
+          <TrustTierBadge
+            variant="card"
+            completedDeliveries={completed}
+            rating={user.rating || 5.0}
+            isKycVerified={isKycApproved}
+            onPress={() => router.push('/rewards' as never)}
+          />
+        </View>
+
+        {/* ── Settings Groups ─────────────────────────────────────────── */}
         <Animated.View style={[styles.sectionsWrap, { opacity: sectionsEntrance.opacity, transform: sectionsEntrance.transform }]}>
-
-          {/* Group 1: Activity & History */}
+          {/* Group 1: Identity & Trust */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Activity & History</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Identity & Trust</Text>
+            <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <MenuItem
+                C={C}
+                icon={
+                  <MaterialIcons
+                    name={isKycApproved ? 'verified-user' : isKycSubmitted ? 'hourglass-empty' : 'shield'}
+                    size={18}
+                    color={isKycApproved ? C.success : isKycSubmitted ? C.warning : C.primary}
+                  />
+                }
+                label="Identity Verification (KYC)"
+                subtitle={
+                  isKycApproved
+                    ? 'Verified • Aadhaar & Selfie approved'
+                    : isKycSubmitted
+                    ? 'Under Review • Verification in progress'
+                    : isKycRejected
+                    ? 'Action Required • Please re-submit documents'
+                    : 'Instant Aadhaar OTP & biometric selfie match'
+                }
+                right={
+                  <View
+                    style={[
+                      styles.kycStatusBadge,
+                      {
+                        backgroundColor: isKycApproved
+                          ? C.successSubtle
+                          : isKycSubmitted
+                          ? C.warningSubtle
+                          : isKycRejected
+                          ? C.errorSubtle
+                          : C.primarySubtle,
+                        borderColor: isKycApproved
+                          ? C.successBorder
+                          : isKycSubmitted
+                          ? C.warningBorder
+                          : isKycRejected
+                          ? C.errorBorder
+                          : C.primaryBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.kycStatusBadgeText,
+                        {
+                          color: isKycApproved
+                            ? C.success
+                            : isKycSubmitted
+                            ? C.warning
+                            : isKycRejected
+                            ? C.error
+                            : C.primary,
+                        },
+                      ]}
+                    >
+                      {isKycApproved ? 'Verified' : isKycSubmitted ? 'Pending' : isKycRejected ? 'Action' : 'Verify'}
+                    </Text>
+                  </View>
+                }
+                onPress={handleOpenKyc}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
+              <MenuItem
+                C={C}
+                icon={<Feather name="user-check" size={18} color={C.primary} />}
+                label="Edit Profile Details"
+                subtitle="Full name, phone number, city & photo"
+                onPress={() => router.push('/edit-profile')}
+              />
+            </View>
+          </View>
+
+          {/* Group 2: Activity & Payments */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Activity & Payments</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
                 animatedIconName="activity"
                 animatedIconColor={C.primary}
                 label="My Activity"
-                subtitle={`${myTrips.length} trips • ${myParcels.length} parcels`}
+                subtitle={`${myTrips.length} trips • ${myParcels.length} parcels listed`}
                 onPress={() => router.push('/my-activity')}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
               <MenuItem
                 C={C}
                 icon={<MaterialIcons name="receipt-long" size={18} color={C.warning} />}
                 label="Transactions & Receipts"
-                subtitle={FeatureFlags.payments ? 'Escrow payment history and invoices' : 'Unavailable'}
-                onPress={() => router.push('/transactions')}
+                subtitle="Booking payments & invoices"
+                onPress={() => router.push('/my-activity?tab=transactions')}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="monetization-on" size={18} color="#F59E0B" />}
+                label="Coins & Rewards"
+                subtitle={
+                  coinBalance != null && coinBalance > 0
+                    ? `${coinBalance.toLocaleString()} Coins (≈ ₹${(coinBalance / 10).toFixed(0)} credit)`
+                    : 'Earn credits on completed deliveries'
+                }
+                right={
+                  coinBalance != null && coinBalance > 0 ? (
+                    <View
+                      style={{
+                        backgroundColor: '#FEF3C7',
+                        paddingHorizontal: Spacing.xs + 4,
+                        paddingVertical: 2,
+                        borderRadius: BorderRadius.full,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
+                      <MaterialIcons name="monetization-on" size={12} color="#D97706" />
+                      <Text style={{ fontSize: 11, fontWeight: FontWeight.bold, color: '#D97706' }}>
+                        {coinBalance}
+                      </Text>
+                    </View>
+                  ) : undefined
+                }
+                onPress={() => router.push('/rewards' as any)}
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
+              <MenuItem
+                C={C}
+                icon={<MaterialIcons name="card-giftcard" size={18} color={C.primary} />}
+                label="Refer & Earn"
+                subtitle="Give ₹50 off, get ₹100 for each friend"
+                right={
+                  <View
+                    style={{
+                      backgroundColor: C.primarySubtle,
+                      paddingHorizontal: Spacing.xs + 4,
+                      paddingVertical: 2,
+                      borderRadius: BorderRadius.full,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: FontWeight.bold, color: C.primary }}>
+                      ₹100
+                    </Text>
+                  </View>
+                }
+                onPress={() => router.push('/referral' as never)}
               />
             </View>
           </View>
 
-          {/* Group 2: Preferences & Alerts */}
+          {/* Group 3: Preferences */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Preferences & Alerts</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Preferences</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
                 animatedIconName="notification"
                 animatedIconColor={C.primary}
                 label="Route Alerts"
-                subtitle="Instant matches for preferred travel corridors"
+                subtitle="Corridor notifications for preferred routes"
                 onPress={() => router.push('/subscriptions')}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
               <MenuItem
                 C={C}
                 animatedIconName="settings"
                 animatedIconColor={C.info}
-                label="Notification Preferences"
-                subtitle="Manage push alerts, sounds, and order updates"
+                label="Notification Settings"
+                subtitle="Push alerts, sound, and SMS updates"
                 onPress={() => router.push('/notification-settings' as any)}
               />
             </View>
           </View>
 
-          {/* Group 3: Support & Legal */}
+          {/* Group 4: Support & Legal */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Support & Legal</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
@@ -628,93 +814,47 @@ export default function ProfileScreen() {
                 animatedIconName="phone"
                 animatedIconColor={C.primary}
                 label="Help & Support Desk"
-                subtitle="FAQs, 24/7 AI Chatbot, incident reporting"
+                subtitle="24/7 AI chatbot, FAQ, and incident reporting"
                 right={
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={styles.supportTagWrap}>
                     <View style={[styles.onlineTag, { backgroundColor: C.primarySubtle }]}>
                       <View style={[styles.liveDot, { backgroundColor: C.primary }]} />
                       <Text style={[styles.onlineTagText, { color: C.primary }]}>24/7</Text>
                     </View>
-                    <View style={[styles.menuChevronWrap, { backgroundColor: C.surfaceElevated }]}>
-                      <MaterialIcons name="chevron-right" size={16} color={C.textMuted} />
-                    </View>
+                    <MaterialIcons name="chevron-right" size={18} color={C.textMuted} style={{ opacity: 0.6 }} />
                   </View>
                 }
                 onPress={() => router.push('/support' as any)}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
               <MenuItem
                 C={C}
                 animatedIconName="shield"
                 animatedIconColor={C.info}
                 label="Terms of Service"
-                subtitle="Platform rules, escrow protocols & policies"
+                subtitle="Platform rules, booking terms & policies"
                 onPress={() => router.push('/legal/terms')}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
               <MenuItem
                 C={C}
                 animatedIconName="lock"
                 animatedIconColor={C.success}
                 label="Privacy Policy"
-                subtitle="Data protection and identity encryption"
+                subtitle="Data protection and privacy encryption"
                 onPress={() => router.push('/legal/privacy')}
-              />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
-              <MenuItem
-                C={C}
-                animatedIconName="activity"
-                animatedIconColor={C.warning}
-                label="Refund & Cancellation"
-                subtitle="Escrow refunds, cancellation rules & disputes"
-                onPress={() => router.push('/legal/refund-policy' as any)}
-              />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
-              <MenuItem
-                C={C}
-                animatedIconName="package"
-                animatedIconColor={C.primary}
-                label="Shipping & Delivery"
-                subtitle="Peer carriage scope, timelines & handovers"
-                onPress={() => router.push('/legal/shipping-policy' as any)}
               />
             </View>
           </View>
 
-          {/* Group 4: Account & App */}
+          {/* Group 5: App & Account */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Account & App</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>App & Account</Text>
             <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
               <MenuItem
                 C={C}
-                animatedIconName="shield"
-                animatedIconColor={
-                  isKycApproved
-                    ? C.success
-                    : isKycSubmitted
-                    ? C.warning
-                    : !isKycAvailable
-                    ? C.warning
-                    : C.error
-                }
-                label="KYC Verification"
-                subtitle={
-                  isKycApproved
-                    ? '100% Officially Verified'
-                    : isKycSubmitted
-                    ? 'Documents Under Review'
-                    : !isKycAvailable
-                    ? 'Verification provider unavailable'
-                    : 'Not started - Tap to verify'
-                }
-                right={isKycApproved ? <MaterialIcons name="check-circle" size={18} color={C.success} /> : undefined}
-                onPress={!isKycAvailable || isKycApproved ? undefined : () => setShowKyc(true)}
-              />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
-              <MenuItem
-                C={C}
                 icon={<Ionicons name="cloud-download-outline" size={18} color={C.primary} />}
-                label="Check for App Updates"
+                label="Check for Updates"
                 subtitle={
                   isCheckingUpdates
                     ? 'Checking update servers...'
@@ -722,7 +862,7 @@ export default function ProfileScreen() {
                     ? 'Downloading update...'
                     : isUpdateReady
                     ? 'Update ready! Tap to restart'
-                    : updateStatusMessage || 'Latest version active (OTA enabled)'
+                    : updateStatusMessage || 'Latest version active'
                 }
                 right={
                   isCheckingUpdates || isDownloadingUpdate ? (
@@ -735,45 +875,69 @@ export default function ProfileScreen() {
                 }
                 onPress={isUpdateReady ? applyUpdate : checkForUpdate}
               />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
+              <MenuItem
+                C={C}
+                icon={<Ionicons name="log-out-outline" size={18} color={C.error} />}
+                label="Sign Out"
+                subtitle="Sign out of your CaryGoo session"
+                onPress={handleLogout}
+                danger
+              />
+              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
               <MenuItem
                 C={C}
                 icon={<MaterialIcons name="delete-outline" size={18} color={C.error} />}
                 label="Delete Account"
-                subtitle="Permanently remove your profile and data"
+                subtitle="Permanently remove your account and data"
                 onPress={handleDeleteAccount}
-                danger
-              />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder + '88' }]} />
-              <MenuItem
-                C={C}
-                icon={<Ionicons name="log-out-outline" size={18} color={C.error} />}
-                label="Logout"
-                onPress={handleLogout}
                 danger
               />
             </View>
           </View>
 
-          {/* Footer */}
+          {/* Clean Footer Branding */}
           <View style={styles.footer}>
-            <View style={[styles.footerDivider, { backgroundColor: C.surfaceBorder + '66' }]} />
             <View style={styles.footerContent}>
-              <MaterialIcons name="local-shipping" size={13} color={C.textMuted + '99'} />
-              <Text style={[styles.footerText, { color: C.textMuted + '99' }]}>CarryGo v1.2.2</Text>
-              <View style={[styles.footerDot, { backgroundColor: C.textMuted + '55' }]} />
-              <Text style={[styles.footerText, { color: C.textMuted + '99' }]}>Peer-to-Peer Logistics</Text>
+              <Image
+                source={require('@/assets/images/logo-horizontal.png')}
+                style={{ width: 310, height: 68, opacity: 1.0 }}
+                contentFit="contain"
+              />
             </View>
           </View>
         </Animated.View>
       </Animated.ScrollView>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: Spacing.md, gap: Spacing.md + 2 },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  screenHeaderTitle: {
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.5,
+  },
+  headerEditBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  content: {
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+  },
   tabletContainer: {
     maxWidth: 620,
     width: '100%',
@@ -782,122 +946,99 @@ const styles = StyleSheet.create({
 
   // Hero Card
   heroCard: {
-    borderRadius: BorderRadius.xl + 4,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
-    paddingHorizontal: Spacing.md + 2,
-    gap: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
     borderWidth: 1,
-    overflow: 'hidden',
-    position: 'relative',
-    marginTop: Spacing.xs,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
   heroCardSmall: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
+    padding: Spacing.sm + 2,
   },
   heroMainRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: Spacing.md,
   },
 
   // Avatar
-  avatarOuter: {
+  avatarWrap: {
+    position: 'relative',
     width: 68,
     height: 68,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 2,
   },
-  avatarGradientRing: {
-    ...StyleSheet.absoluteFillObject,
+  avatarCircle: {
+    width: 68,
+    height: 68,
     borderRadius: 34,
-  },
-  avatarInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 1,
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: FontWeight.bold,
     letterSpacing: -0.5,
   },
-  verifiedBadge: {
+  verifiedCheckBadge: {
     position: 'absolute',
-    bottom: -1,
-    right: -1,
+    bottom: 0,
+    right: 0,
     width: 20,
     height: 20,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    elevation: 2,
   },
-  onlineDot: {
+  editCameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
 
   // Identity Meta
   heroMetaWrap: {
     flex: 1,
-    gap: 4,
+    gap: 3,
   },
-  heroNameRow: {
+  nameAndActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: Spacing.xs,
   },
   profileName: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
+    flex: 1,
   },
-  trustTag: {
+  quickEditBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 1.5,
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  trustTagText: {
-    fontSize: 10,
+  quickEditText: {
+    fontSize: 11,
     fontWeight: FontWeight.bold,
   },
   infoRow: {
@@ -912,16 +1053,29 @@ const styles = StyleSheet.create({
   chipsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     marginTop: 2,
     flexWrap: 'wrap',
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  statusChipText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
   },
   locationChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     paddingHorizontal: 7,
-    paddingVertical: 2.5,
+    paddingVertical: 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -934,7 +1088,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
     paddingHorizontal: 7,
-    paddingVertical: 2.5,
+    paddingVertical: 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -943,68 +1097,43 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
 
-  // Bottom action
-  heroBottomDivider: { height: 1, marginTop: Spacing.xs },
-  editProfileFullBtn: {
+  // Metrics Deck
+  metricsDeck: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: 4,
   },
-  editBtnLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  editIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  editTextWrap: { flex: 1, gap: 1 },
-  editProfileFullBtnText: { fontSize: FontSize.xs + 1, fontWeight: FontWeight.bold },
-  editProfileSubText: { fontSize: 10, fontWeight: FontWeight.regular },
-  editChevronWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-
-  // Stats Grid
-  statsGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  statCard: {
+  metricCell: {
     flex: 1,
-    flexDirection: 'column',
-    alignItems: 'center',
-    paddingVertical: Spacing.md - 2,
-    paddingHorizontal: Spacing.xs,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    gap: 4,
-  },
-  statCardSmall: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: 2,
-  },
-  statCardIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
   },
-  statCardContent: { alignItems: 'center', gap: 1 },
-  statCardVal: { fontSize: FontSize.md + 1, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
-  statCardLabel: { fontSize: 9, fontWeight: FontWeight.medium, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statCardSublabel: { fontSize: 8, fontWeight: FontWeight.regular },
+  metricDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 32,
+  },
+  metricIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 1,
+  },
+  metricValue: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+  },
+  metricLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.2,
+  },
 
   // KYC
   kycBanner: {
@@ -1012,12 +1141,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm + 2,
     padding: Spacing.md,
-    borderRadius: BorderRadius.lg + 2,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
   },
-  kycIconWrap: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  kycTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.bold, letterSpacing: -0.1 },
-  kycBody: { fontSize: FontSize.xs, lineHeight: 16, marginTop: 2 },
+  kycIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kycTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.1,
+  },
+  kycBody: {
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+    marginTop: 1,
+  },
   kycCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1026,82 +1169,106 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
   },
-  kycCtaText: { fontSize: FontSize.xs, color: '#fff', fontWeight: FontWeight.bold },
-  pendingChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full },
-  pendingChipText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  kycCtaText: {
+    fontSize: FontSize.xs,
+    color: '#FFFFFF',
+    fontWeight: FontWeight.bold,
+  },
+  pendingChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  pendingChipText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  kycStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  kycStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  },
 
   // Sections
-  sectionsWrap: { gap: Spacing.lg, marginTop: Spacing.xs },
-  section: { gap: Spacing.sm },
+  sectionsWrap: {
+    gap: Spacing.md,
+  },
+  section: {
+    gap: 6,
+  },
   sectionTitle: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
+    letterSpacing: 0.8,
     marginLeft: Spacing.xs,
   },
   menuCard: {
-    borderRadius: BorderRadius.lg + 2,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
     overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md - 2,
+    paddingVertical: Spacing.sm + 4,
     paddingHorizontal: Spacing.md,
-    gap: Spacing.md - 2,
-    minHeight: 56,
+    gap: Spacing.sm + 2,
+    minHeight: 52,
   },
   menuIconWrap: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuLabelWrap: { flex: 1 },
-  menuLabel: { fontSize: FontSize.md - 1, fontWeight: FontWeight.medium, letterSpacing: -0.1 },
-  menuSubtitle: { fontSize: FontSize.xs - 1, marginTop: 2, letterSpacing: 0.1 },
-  menuChevronWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
+  menuLabelWrap: {
+    flex: 1,
+    gap: 1,
   },
-  div: { height: StyleSheet.hairlineWidth, marginLeft: Spacing.md + 36 + Spacing.md - 2 },
+  menuLabel: {
+    fontSize: FontSize.sm + 0.5,
+    fontWeight: FontWeight.medium,
+    letterSpacing: -0.1,
+  },
+  menuSubtitle: {
+    fontSize: 11,
+    letterSpacing: 0.1,
+  },
+  div: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: Spacing.md + 34 + Spacing.sm + 2,
+  },
 
-  // Online Tag in Support
+  supportTagWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   onlineTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 7,
-    paddingVertical: 2.5,
+    paddingVertical: 2,
     borderRadius: BorderRadius.full,
   },
   liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   onlineTagText: {
     fontSize: 10,
     fontWeight: FontWeight.bold,
   },
 
-  // Footer
-  footer: { paddingTop: Spacing.sm, paddingBottom: Spacing.xs },
-  footerDivider: { height: StyleSheet.hairlineWidth, marginBottom: Spacing.md },
-  footerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  footerText: { fontSize: 10, fontWeight: FontWeight.medium, letterSpacing: 0.3 },
-  footerDot: { width: 3, height: 3, borderRadius: 1.5 },
   updateReadyBadge: {
     paddingHorizontal: Spacing.sm + 2,
     paddingVertical: Spacing.xs,
@@ -1111,5 +1278,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: FontSize.xs - 1,
     fontWeight: FontWeight.bold,
+  },
+
+  // Footer
+  footer: {
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.sm,
+  },
+  footerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  footerText: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+    opacity: 0.6,
   },
 });

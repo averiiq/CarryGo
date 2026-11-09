@@ -35,6 +35,8 @@ serve(async (req) => {
     const isServiceKey = Boolean(token && serviceRoleKey && token === serviceRoleKey);
     const isSecretMatch = Boolean(internalSecret && (req.headers.get('x-service-token') === internalSecret || req.headers.get('x-webhook-secret') === internalSecret));
 
+    let authenticatedUser: { id: string } | null = null;
+
     if (!isServiceKey && !isSecretMatch) {
       if (!token) {
         return new Response(JSON.stringify({ error: 'Authorization required' }), {
@@ -54,6 +56,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      authenticatedUser = user;
     }
 
     const payload = await req.json();
@@ -72,6 +75,23 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
+
+    // Enforce authorization: Non-service callers can only dispatch to themselves unless they have an admin role
+    if (authenticatedUser && authenticatedUser.id !== user_id) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('system_role')
+        .eq('id', authenticatedUser.id)
+        .maybeSingle();
+
+      const isAdmin = profile?.system_role === 'admin' || profile?.system_role === 'support_agent';
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: 'Forbidden: Cannot send push notification to another user' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     const { data: devices, error: devicesError } = await supabase
       .from('user_devices')

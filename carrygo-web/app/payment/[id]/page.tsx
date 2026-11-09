@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
+import Script from 'next/script'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -85,19 +86,13 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
   const [error, setError] = useState<string | null>(null)
   const [successNotice, setSuccessNotice] = useState<string | null>(null)
 
-  useEffect(() => {
-    // Load Razorpay Checkout script dynamically
-    const script = document.createElement('script')
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-    script.async = true
-    document.body.appendChild(script)
+  const [razorpayReady, setRazorpayReady] = useState(false)
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script)
-      }
-    }
-  }, [])
+  // Razorpay SDK is loaded via <Script> below. SRI is intentionally omitted
+  // because Razorpay serves the SDK from a non-versioned URL and does not
+  // publish integrity hashes — pinning a hash would silently break payments
+  // on their next release. The CSP in next.config.ts restricts the allowed
+  // script origin to checkout.razorpay.com.
 
   const loadData = async () => {
     setLoading(true)
@@ -167,7 +162,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
   const gst = Math.round(platformFee * 0.18) // 18% GST on convenience fee
   const totalAmount = baseFare + platformFee + gst
 
-  // Process Secure Escrow Payment via Razorpay
+  // Process Secure Booking Payment via Razorpay
   const handlePayment = async () => {
     setProcessing(true)
     setError(null)
@@ -196,19 +191,19 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
 
       // 2. Launch Razorpay modal with official order ID
       const options = {
-        key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RuhXVSCs94jL0c',
+        key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
         amount: orderData.amount, // paise
         currency: orderData.currency || 'INR',
-        name: 'CarryGo Logistics',
-        description: `Escrow Delivery Guarantee for Parcel #${requestId.slice(0, 8)}`,
+        name: 'CaryGoo Logistics',
+        description: `Booking Delivery Guarantee for Parcel #${(requestId || '').slice(0, 8) || 'PENDING'}`,
         image: '/favicon.ico',
         order_id: orderData.orderId,
         prefill: {
-          name: user.user_metadata?.full_name || 'CarryGo Customer',
-          email: user.email || 'customer@carrygo.in',
+          name: user.user_metadata?.full_name || 'CaryGoo Customer',
+          email: user.email || 'customer@carygoo.in',
         },
         theme: {
-          color: '#059669',
+          color: '#008B48',
         },
         modal: {
           ondismiss: () => {
@@ -246,7 +241,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
             if (recordedPay) {
               setPayment(recordedPay as PaymentRecord)
             }
-            setSuccessNotice('Payment successfully verified by gateway and locked in RBI-compliant escrow!')
+            setSuccessNotice('Payment successfully verified by gateway and locked in RBI-compliant booking!')
           } catch (verErr) {
             setError(verErr instanceof Error ? verErr.message : 'Verification failed.')
           } finally {
@@ -255,7 +250,11 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
         },
       }
 
-      const rzp = new window.Razorpay(options)
+      if (typeof window === 'undefined' || typeof (window as any).Razorpay === 'undefined') {
+        throw new Error('Payment gateway failed to load. If you are using an ad-blocker (like Brave Shields or uBlock), please disable it for this page and try again.')
+      }
+
+      const rzp = new (window as any).Razorpay(options)
       rzp.open()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Payment initialization failed.')
@@ -278,6 +277,13 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
 
   return (
     <MarketingShell>
+      <Script
+        src='https://checkout.razorpay.com/v1/checkout.js'
+        strategy='afterInteractive'
+        crossOrigin='anonymous'
+        referrerPolicy='no-referrer'
+        onLoad={() => setRazorpayReady(true)}
+      />
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 md:py-12">
         {/* Back Link */}
         <div className="mb-6">
@@ -310,10 +316,10 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                 <ShieldCheck className="w-9 h-9" />
               </div>
               <span className="inline-block text-[11px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
-                Escrow Protected &amp; Verified
+                Booking Protected &amp; Verified
               </span>
               <h1 className="text-2xl sm:text-3xl font-heading font-extrabold text-slate-900">
-                Funds Safely Held in Escrow
+                Funds Safely Held in Booking
               </h1>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
                 Payment of ₹{payment.amount} is secured. The traveler will receive payout only after you verify arrival and confirm delivery OTP.
@@ -324,7 +330,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
-                  <span className="text-xs font-extrabold text-slate-900">CARRYGO LOGISTICS TAX INVOICE</span>
+                  <span className="text-xs font-extrabold text-slate-900">CARYGOO LOGISTICS TAX INVOICE</span>
                   <p className="text-[11px] text-slate-500">Invoice #{payment.id.slice(0, 10).toUpperCase()}</p>
                 </div>
                 <button
@@ -381,7 +387,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <Link
-                href="/activity"
+                href={`/delivery/${requestId}`}
                 className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition text-center"
               >
                 Track Live Shipment Progress
@@ -405,7 +411,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                     <Lock className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-heading font-bold text-slate-900">Delivery Escrow Checkout</h2>
+                    <h2 className="text-lg font-heading font-bold text-slate-900">Delivery Booking Checkout</h2>
                     <p className="text-xs text-slate-500">Review package itinerary and lock funds securely.</p>
                   </div>
                 </div>
@@ -433,14 +439,14 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                   </div>
                 </div>
 
-                {/* Escrow Guarantee Callout */}
+                {/* Booking Guarantee Callout */}
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-1.5">
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-950">
                     <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                    <span>How CarryGo Escrow Protects You</span>
+                    <span>How CaryGoo Booking Protects You</span>
                   </div>
                   <ul className="text-[11px] text-emerald-800 space-y-1 list-disc pl-5 leading-relaxed">
-                    <li>Payment is locked in escrow — traveler cannot withdraw until delivery.</li>
+                    <li>Payment is booked & secured — traveler cannot withdraw until delivery.</li>
                     <li>Funds release only after you provide the verified Delivery OTP at arrival.</li>
                     <li>Full refund guarantee in case of traveler cancellation or route delay.</li>
                   </ul>
@@ -453,7 +459,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                   RBI Compliance &amp; Regulatory Disclosures
                 </span>
                 <p>
-                  CarryGo facilitates peer-to-peer peer delivery pursuant to applicable intermediary guidelines. All payment transactions are processed through RBI-authorized payment aggregators (Razorpay / Cashfree) under nodal escrow accounts.
+                  CaryGoo facilitates peer-to-peer peer delivery pursuant to applicable intermediary guidelines. All payment transactions are processed through RBI-authorized payment aggregators (Razorpay / Cashfree) under nodal booking accounts.
                 </p>
                 <div className="flex flex-wrap gap-3 pt-1 text-slate-600 font-medium">
                   <a href="/terms-and-conditions" className="hover:underline text-emerald-700">Terms &amp; Conditions</a>
@@ -508,7 +514,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-2 pt-2">
                   <button
                     type="button"
-                    disabled={processing}
+                    disabled={processing || !razorpayReady}
                     onClick={() => handlePayment()}
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-md shadow-emerald-600/25 hover:brightness-105 active:scale-98 transition disabled:opacity-50 cursor-pointer"
                   >
@@ -523,17 +529,6 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                         Pay ₹{totalAmount} with Razorpay
                       </>
                     )}
-                  </button>
-
-                  {/* Surveyor One-Click Test Checkout */}
-                  <button
-                    type="button"
-                    disabled={processing}
-                    onClick={() => handlePayment('simulated')}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition active:scale-98 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                    Reviewer Demo: Instant Escrow Test
                   </button>
                 </div>
 

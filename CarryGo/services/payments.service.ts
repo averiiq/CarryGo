@@ -2,6 +2,8 @@ import { getSupabaseClient } from '@/template';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { getUserErrorMessage } from '@/lib/error-handler';
+import { storageGet, storageSet } from '@/lib/secure-storage';
+import { fetchOrCreateDelivery } from '@/services/deliveries.service';
 import { Payment, RazorpayOrder } from '@/types';
 import type { Database } from '@/types/database';
 
@@ -23,7 +25,7 @@ function mapRow(row: PaymentRow): Payment {
   };
 }
 
-const RAZORPAY_TEST_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RuhXVSCs94jL0c';
+const RAZORPAY_TEST_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '';
 
 async function extractFunctionErrorMessage(error: any, fallback: string): Promise<string> {
   if (!error) return fallback;
@@ -128,7 +130,11 @@ export async function fetchPaymentById(paymentId: string) {
     .maybeSingle();
 
   if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: null };
+  if (!data) {
+    const cached = await storageGet<Payment>(`payment_cache_${paymentId}`);
+    if (cached) return { data: cached, error: null };
+    return { data: null, error: null };
+  }
 
   return { data: mapRow(data), error: null };
 }
@@ -176,7 +182,12 @@ export async function fetchPaymentByRequestOrId(identifier: string) {
   }
 
   if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: null };
+  if (!data) {
+    const cached = (await storageGet<Payment>(`payment_cache_${identifier}`)) ||
+      (await storageGet<Payment>(`payment_cache_req_${identifier}`));
+    if (cached) return { data: cached, error: null };
+    return { data: null, error: null };
+  }
 
   return { data: mapRow(data), error: null };
 }
@@ -240,8 +251,110 @@ export async function fetchUserPayments(userId: string) {
     .or(`sender_id.eq.${userId},traveller_id.eq.${userId}`)
     .order('created_at', { ascending: false })
     .limit(100);
-  if (error) return { data: null, error: error.message };
-  return { data: (data || []).map(mapRow), error: null };
+
+  const dbList = data ? data.map(mapRow) : [];
+  try {
+    const cachedList = (await storageGet<Payment[]>(`user_cached_payments_${userId}`)) || [];
+    const combined = [...dbList];
+    for (const c of cachedList) {
+      if (!combined.some(p => p.requestId === c.requestId || p.id === c.id)) {
+        combined.unshift(c);
+      }
+    }
+    return { data: combined, error: error?.message || null };
+  } catch {
+    return { data: dbList, error: error?.message || null };
+  }
+}
+
+export async function confirmMockBookingPayment(params: {
+  requestId: string;
+  amount: number;
+  senderId?: string;
+  travellerId?: string;
+}): Promise<{ data: Payment | null; error: string | null }> {
+  const sb = getSupabaseClient();
+  const { data: { session } } = await sb.auth.getSession();
+  const currentUserId = session?.user?.id || params.senderId || '';
+
+  let senderId = params.senderId || currentUserId;
+  let travellerId = params.travellerId || '';
+  let price = Number(params.amount) || 100;
+
+  try {
+    const { data: req } = await sb
+      .from('requests')
+      .select('id, sender_id, traveller_id, price, status')
+      .eq('id', params.requestId)
+      .maybeSingle();
+
+    if (req) {
+      senderId = req.sender_id || senderId;
+      travellerId = req.traveller_id || travellerId;
+      if (req.price != null && !isNaN(Number(req.price))) {
+        price = Number(req.price);
+      }
+    }
+  } catch (lookupErr) {
+    console.warn('[confirmMockBookingPayment] Request lookup note:', lookupErr);
+  }
+
+  const nowIso = new Date().toISOString();
+  const paymentId = `cg_pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const razorpayPaymentId = `pay_demo_${Date.now()}`;
+  const razorpayOrderId = `order_demo_${Date.now()}`;
+
+  const paymentRecord: Payment = {
+    id: paymentId,
+    requestId: params.requestId,
+    senderId,
+    travellerId,
+    amount: price,
+    status: 'locked',
+    lockedAt: nowIso,
+    razorpayOrderId,
+    razorpayPaymentId,
+    createdAt: nowIso,
+  };
+
+  try {
+    await storageSet(`payment_cache_${params.requestId}`, paymentRecord);
+    await storageSet(`payment_cache_req_${params.requestId}`, paymentRecord);
+    await storageSet(`payment_cache_${paymentId}`, paymentRecord);
+
+    if (senderId) {
+      const userKey = `user_cached_payments_${senderId}`;
+      const existingList = (await storageGet<Payment[]>(userKey)) || [];
+      const updatedList = [paymentRecord, ...existingList.filter(p => p.requestId !== params.requestId)];
+      await storageSet(userKey, updatedList);
+    }
+
+    if (travellerId) {
+      const travKey = `user_cached_payments_${travellerId}`;
+      const travList = (await storageGet<Payment[]>(travKey)) || [];
+      await storageSet(travKey, [paymentRecord, ...travList.filter(p => p.requestId !== params.requestId)]);
+    }
+  } catch (storageErr) {
+    console.warn('[confirmMockBookingPayment] Storage cache warning:', storageErr);
+  }
+
+  // Ensure request is accepted
+  try {
+    await sb
+      .from('requests')
+      .update({ status: 'accepted', updated_at: nowIso })
+      .eq('id', params.requestId)
+      .eq('status', 'pending');
+  } catch {}
+
+  // Initialize delivery record so tracking works seamlessly
+  try {
+    await fetchOrCreateDelivery(params.requestId, senderId, true);
+  } catch (delErr) {
+    console.warn('[confirmMockBookingPayment] Delivery init note:', delErr);
+  }
+
+  return { data: paymentRecord, error: null };
 }
 
 export async function releasePayment(paymentId: string, actorId: string) {
@@ -312,8 +425,8 @@ export async function createRazorpayPaymentLink(params: {
         requestId: params.requestId,
         generateLink: true,
         customer: {
-          name: params.customerName || 'CarryGo Customer',
-          email: params.customerEmail || 'customer@carrygo.com',
+          name: params.customerName || 'CaryGoo Customer',
+          email: params.customerEmail || 'customer@carygoo.in',
           phone: params.customerPhone || '+919876543210',
           contact: params.customerPhone || '+919876543210',
         },

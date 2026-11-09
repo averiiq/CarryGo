@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '@/template';
-import { Trip } from '@/types';
+import { Trip, ParcelCategory } from '@/types';
 import type { Database } from '@/types/database';
 import { sanitizeLikeInput } from '@/lib/sanitize';
 import { validateUUID } from '@/lib/validation';
@@ -8,8 +8,24 @@ import { isAwsBackendEnabled } from '@/lib/backend/provider';
 import { awsApiRequest, AwsApiError } from '@/lib/aws/api';
 import { getUnmatchedListingCutoffIso } from '@/constants/listingFlow';
 import { expireStaleUnmatchedListings } from '@/services/listing-expiry.service';
+import { enrichMissingUserAvatars } from './avatar-enrichment.service';
 
 type TripRow = Database['public']['Tables']['trips']['Row'];
+
+function parseAllowedCategories(raw: any): ParcelCategory[] | undefined {
+  if (!raw) return undefined;
+  if (Array.isArray(raw)) return raw as ParcelCategory[];
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as ParcelCategory[];
+    } catch {
+      const items = raw.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+      if (items.length > 0) return items as ParcelCategory[];
+    }
+  }
+  return undefined;
+}
 
 function mapRow(row: any): Trip {
   return {
@@ -34,7 +50,7 @@ function mapRow(row: any): Trip {
     pricePerKg: Number(row.price_per_kg),
     status: row.status as Trip['status'],
     createdAt: row.created_at,
-    allowedCategories: Array.isArray(row.allowed_categories) ? row.allowed_categories : undefined,
+    allowedCategories: parseAllowedCategories(row.allowed_categories),
     stopovers: Array.isArray(row.stopovers) ? row.stopovers : undefined,
   };
 }
@@ -110,7 +126,8 @@ export async function fetchTrips(filters?: {
     if (t.date && t.date < todayStr) return false;
     return true;
   });
-  return { data: filtered, error: null, total: count ?? filtered.length };
+  const enriched = await enrichMissingUserAvatars(filtered);
+  return { data: enriched, error: null, total: count ?? enriched.length };
 }
 
 export async function fetchTripById(tripId: string) {
@@ -132,7 +149,9 @@ export async function fetchTripById(tripId: string) {
   const sb = getSupabaseClient();
   const { data, error } = await sb.from('trips').select('*').eq('id', tripId).single();
   if (error) return { data: null, error: error.message };
-  return { data: mapRow(data), error: null };
+  const mapped = mapRow(data);
+  const [enriched] = await enrichMissingUserAvatars([mapped]);
+  return { data: enriched || mapped, error: null };
 }
 
 export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {

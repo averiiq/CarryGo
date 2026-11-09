@@ -1,32 +1,30 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
-  Calendar,
+  Bell,
+  Camera,
   CheckCircle2,
-  Clock,
-  HelpCircle,
-  IdCard,
+  Copy,
+  Check,
+  Coins,
+  Gift,
   LifeBuoy,
   LogOut,
-  Mail,
   MapPin,
   Package,
-  Phone,
-  Plane,
   Save,
   ShieldAlert,
   ShieldCheck,
   Star,
-  User,
-  Copy,
-  Check,
+  Trash2,
 } from 'lucide-react'
 import { MarketingShell } from '@/components/marketing/marketing-shell'
 import { createClient } from '@/utils/supabase/client'
 import { logout } from '@/app/login/actions'
+import { uploadBlobToCloudinary, fileToBlob } from '@/services/storage.service'
 
 interface ProfileData {
   id: string
@@ -35,6 +33,7 @@ interface ProfileData {
   phone?: string
   city?: string
   bio?: string
+  avatar_url?: string | null
   is_verified?: boolean
   kyc_status?: string
   rating?: number
@@ -50,7 +49,7 @@ export default function CustomerProfilePage() {
 
   const handleCopyEmail = () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText('support@carrygo.in')
+      navigator.clipboard.writeText('support@carygoo.in')
       setCopiedEmail(true)
       setTimeout(() => setCopiedEmail(false), 2000)
     }
@@ -61,6 +60,11 @@ export default function CustomerProfilePage() {
   const [phone, setPhone] = useState('')
   const [city, setCity] = useState('')
   const [bio, setBio] = useState('')
+
+  // Avatar upload
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -78,17 +82,31 @@ export default function CustomerProfilePage() {
         .eq('id', user.id)
         .maybeSingle()
 
+      // Real rating aggregate — try `user_rating_stats`, fall back to null
+      let aggRating: number | undefined
+      let aggCount: number | undefined
+      const { data: stats } = await supabase
+        .from('user_rating_stats')
+        .select('average_rating, total_ratings')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (stats) {
+        aggRating = typeof stats.average_rating === 'number' ? stats.average_rating : undefined
+        aggCount = typeof stats.total_ratings === 'number' ? stats.total_ratings : undefined
+      }
+
       const userProfile: ProfileData = {
         id: user.id,
         email: user.email || '',
-        full_name: pData?.full_name || (user.user_metadata?.full_name as string) || 'CarryGo Member',
+        full_name: pData?.full_name || (user.user_metadata?.full_name as string) || 'CaryGoo Member',
         phone: pData?.phone || '',
-        city: pData?.city || 'India',
-        bio: pData?.bio || 'Verified CarryGo community member.',
+        city: pData?.city || '',
+        bio: pData?.bio || '',
+        avatar_url: pData?.avatar_url ?? null,
         is_verified: pData?.is_verified || pData?.kyc_status === 'approved',
         kyc_status: pData?.kyc_status || 'unverified',
-        rating: pData?.rating || 5.0,
-        reviews_count: pData?.reviews_count || 12,
+        rating: aggRating,
+        reviews_count: aggCount,
       }
 
       setProfile(userProfile)
@@ -101,6 +119,30 @@ export default function CustomerProfilePage() {
 
     void loadProfile()
   }, [])
+
+  const handleAvatarPick = () => fileInputRef.current?.click()
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+    setAvatarError(null)
+    setAvatarUploading(true)
+    try {
+      const blob = fileToBlob(file)
+      const result = await uploadBlobToCloudinary(blob, 'avatars', profile.id, 'profile')
+      const supabase = createClient()
+      await supabase
+        .from('user_profiles')
+        .update({ avatar_url: result.cdnUrl })
+        .eq('id', profile.id)
+      setProfile({ ...profile, avatar_url: result.cdnUrl })
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : 'Upload failed.')
+    } finally {
+      setAvatarUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -140,25 +182,62 @@ export default function CustomerProfilePage() {
           {/* Left Column: Avatar & Trust Badges */}
           <div className="space-y-6">
             <div className="glass-card rounded-3xl p-6 border border-slate-200 bg-white text-center space-y-4 shadow-sm">
-              <div className="relative mx-auto w-24 h-24 rounded-3xl bg-emerald-600 text-white flex items-center justify-center font-heading font-extrabold text-3xl shadow-lg shadow-emerald-600/25">
-                {fullName?.[0]?.toUpperCase() || 'U'}
+              <div className="relative mx-auto w-24 h-24">
+                {profile?.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.avatar_url}
+                    alt={fullName}
+                    className="w-24 h-24 rounded-3xl object-cover shadow-lg shadow-emerald-600/25"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-3xl bg-emerald-600 text-white flex items-center justify-center font-heading font-extrabold text-3xl shadow-lg shadow-emerald-600/25">
+                    {fullName?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
                 {profile?.is_verified && (
                   <div className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-white text-emerald-600 shadow-md">
                     <ShieldCheck className="w-5 h-5 fill-emerald-100" />
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={handleAvatarPick}
+                  disabled={avatarUploading}
+                  className="absolute -top-1 -left-1 w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-300 flex items-center justify-center shadow transition disabled:opacity-50"
+                  aria-label="Upload avatar"
+                  title="Upload avatar"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => void handleAvatarChange(e)}
+                />
               </div>
+              {avatarError && (
+                <p className="text-[11px] font-semibold text-rose-700">{avatarError}</p>
+              )}
 
               <div className="space-y-1">
                 <h2 className="text-lg font-heading font-extrabold text-slate-900">{fullName}</h2>
                 <p className="text-xs text-slate-500">{profile?.email}</p>
               </div>
 
-              <div className="flex items-center justify-center gap-1 text-amber-500 font-bold text-xs bg-amber-50 py-1.5 px-3 rounded-full border border-amber-200/80 w-fit mx-auto">
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                <span>5.0 / 5.0 Rating</span>
-                <span className="text-slate-400 font-normal">(12 reviews)</span>
-              </div>
+              {profile?.rating != null && profile?.reviews_count != null && profile.reviews_count > 0 ? (
+                <div className="flex items-center justify-center gap-1 text-amber-500 font-bold text-xs bg-amber-50 py-1.5 px-3 rounded-full border border-amber-200/80 w-fit mx-auto">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span>{profile.rating.toFixed(1)} / 5.0</span>
+                  <span className="text-slate-400 font-normal">
+                    ({profile.reviews_count} {profile.reviews_count === 1 ? 'review' : 'reviews'})
+                  </span>
+                </div>
+              ) : (
+                <div className="text-[11px] text-slate-500">No reviews yet</div>
+              )}
 
               {/* KYC Status Callout */}
               <div className="pt-2 border-t border-slate-100">
@@ -176,6 +255,57 @@ export default function CustomerProfilePage() {
                     Complete KYC Verification ➔
                   </Link>
                 )}
+              </div>
+
+              {/* Quick links */}
+              <div className="pt-3 border-t border-slate-100 text-left">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  Quick links
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold">
+                  <Link
+                    href="/notifications"
+                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                  >
+                    <Bell className="w-3.5 h-3.5 text-amber-600" /> Notifications
+                  </Link>
+                  <Link
+                    href="/notification-settings"
+                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                  >
+                    <Bell className="w-3.5 h-3.5 text-slate-500" /> Alerts
+                  </Link>
+                  <Link
+                    href="/rewards"
+                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                  >
+                    <Coins className="w-3.5 h-3.5 text-yellow-600" /> Rewards
+                  </Link>
+                  <Link
+                    href="/subscriptions"
+                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-indigo-600" /> Route alerts
+                  </Link>
+                  <Link
+                    href="/referral"
+                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                  >
+                    <Gift className="w-3.5 h-3.5 text-rose-600" /> Refer &amp; earn
+                  </Link>
+                  <Link
+                    href="/support"
+                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                  >
+                    <LifeBuoy className="w-3.5 h-3.5 text-emerald-600" /> Support
+                  </Link>
+                </div>
+                <Link
+                  href="/delete-account"
+                  className="mt-2 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-rose-200 bg-rose-50/50 text-rose-700 hover:bg-rose-50 text-[11px] font-semibold"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete account
+                </Link>
               </div>
 
               {/* Help & Support Callout */}
@@ -202,7 +332,7 @@ export default function CustomerProfilePage() {
                       Official Email
                     </span>
                     <span className="text-xs font-bold text-slate-800 truncate block">
-                      support@carrygo.in
+                      support@carygoo.in
                     </span>
                   </div>
                   <span
@@ -218,7 +348,7 @@ export default function CustomerProfilePage() {
                 </button>
 
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Have questions about OTP handovers, luggage limits, or escrow refunds?
+                  Have questions about OTP handovers, luggage limits, or booking refunds?
                 </p>
 
                 <div className="grid grid-cols-2 gap-2 pt-0.5">

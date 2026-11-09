@@ -18,11 +18,11 @@ import { uploadParcelImage } from '@/services/storage.service';
 import { notifyRouteSubscribers } from '@/services/subscriptions.service';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
-import { estimatePrice, PriceEstimate } from '@/services/price-estimator.service';
 import { useCreateParcelMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
+import { recordCorridorUsage } from '@/services/corridors.service';
 import {
   ParcelDraft,
   EMPTY_PARCEL_DRAFT,
@@ -74,48 +74,7 @@ export default function CreateParcelScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
   const [locationHint, setLocationHint] = useState<string | null>(null);
-  const [priceRecommendation, setPriceRecommendation] = useState<PriceEstimate | null>(null);
-  const [isEstimatingPrice, setIsEstimatingPrice] = useState(false);
   const { footerOffset } = useKeyboardPadding();
-
-  // Auto-calculate smart pricing recommendation when route, weight or category are specified
-  useEffect(() => {
-    if (!form.fromCity || !form.toCity) {
-      setPriceRecommendation(null);
-      return;
-    }
-
-    let isMounted = true;
-    const weightNum = Number(form.weight) || 1;
-    setIsEstimatingPrice(true);
-
-    const timer = setTimeout(() => {
-      estimatePrice({
-        fromCity: form.fromCity,
-        toCity: form.toCity,
-        weight: weightNum,
-        category: form.category,
-        deliveryDate: form.deliveryDate,
-      })
-        .then((est) => {
-          if (isMounted) {
-            setPriceRecommendation(est);
-            setIsEstimatingPrice(false);
-            if (est?.suggestedPrice) {
-              setForm((prev) => ({ ...prev, priceOffer: String(est.suggestedPrice) }));
-            }
-          }
-        })
-        .catch(() => {
-          if (isMounted) setIsEstimatingPrice(false);
-        });
-    }, 200);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [form.fromCity, form.toCity, form.weight, form.category, form.deliveryDate]);
 
   const { hasAgreed: hasSafetyAgreed, markAgreed: markSafetyAgreed } = useSafetyAgreement(user?.id);
 
@@ -236,6 +195,10 @@ export default function CreateParcelScreen() {
   useEffect(() => {
     if (isDraftRestored) {
       setShowDraftBanner(true);
+      const timer = setTimeout(() => {
+        setShowDraftBanner(false);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [isDraftRestored]);
 
@@ -386,7 +349,7 @@ export default function CreateParcelScreen() {
         description: parcelDescription,
         deliveryDate: prepared.deliveryDate,
         weight: Number(prepared.weight),
-        priceOffer: Number(prepared.priceOffer) || priceRecommendation?.suggestedPrice || 0,
+        priceOffer: Number(prepared.priceOffer) || 0,
         status: 'open',
         imageUris: uploadedUrls,
       });
@@ -399,8 +362,9 @@ export default function CreateParcelScreen() {
         body: `${user.name || 'Someone'} needs delivery from ${prepared.fromCity} to ${prepared.toCity} by ${formatScheduleDate(prepared.deliveryDate)}.`,
       });
       clearDraft();
+      void recordCorridorUsage(prepared.fromCity, prepared.toCity);
       Haptic.success();
-      router.replace({ pathname: '/matching', params: { mode: 'parcel', id: result.id } });
+      router.replace({ pathname: '/search', params: { mode: 'parcel', id: result.id } });
     } catch (error) {
       Haptic.error();
       showAlert(
@@ -484,8 +448,10 @@ export default function CreateParcelScreen() {
             updateField={updateField}
             fieldErrors={fieldErrors}
             C={C}
-            priceRecommendation={priceRecommendation}
-            isEstimatingPrice={isEstimatingPrice}
+            onEditRoute={() => {
+              setDirection('backward');
+              setStep(0);
+            }}
           />
         )}
         {step === 2 && (

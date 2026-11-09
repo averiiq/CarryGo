@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
 import { DELIVERY_OTP_LENGTH } from '@/constants/security';
+import { useResponsive } from '@/hooks/useResponsive';
 
 type DeliveryOtpEntryProps = {
   value: string;
@@ -12,21 +13,27 @@ type DeliveryOtpEntryProps = {
 
 export function DeliveryOtpEntry({ value, onChange, C, length = DELIVERY_OTP_LENGTH }: DeliveryOtpEntryProps) {
   const inputRef = useRef<TextInput>(null);
+  const { isSmallDevice } = useResponsive();
+
+  const boxWidth = isSmallDevice ? 38 : 44;
+  const boxHeight = isSmallDevice ? 50 : 56;
+  const digitFontSize = isSmallDevice ? 20 : 24;
 
   return (
     <Pressable style={styles.otpEntryWrap} onPress={() => inputRef.current?.focus()}>
-      <View style={styles.otpEntryDigits}>
+      <View style={[styles.otpEntryDigits, isSmallDevice && { gap: 6 }]}>
         {Array.from({ length }).map((_, i) => (
           <View
             key={i}
             style={[
               styles.otpEntryBox,
+              { width: boxWidth, height: boxHeight },
               { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
               value[i] ? { borderColor: C.primary, backgroundColor: C.primarySubtle } : null,
               i === value.length ? { borderColor: C.primary, borderWidth: 2 } : null,
             ]}
           >
-            <Text style={[styles.otpEntryDigitText, { color: C.primary }]}>
+            <Text style={[styles.otpEntryDigitText, { color: C.primary, fontSize: digitFontSize }]}>
               {value[i] || ''}
             </Text>
             {i === value.length && !value[i] ? (

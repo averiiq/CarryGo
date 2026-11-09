@@ -2,13 +2,13 @@
 
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
-export const metadata = createMarketingMetadata('Refund and Cancellation Policy', 'Review CarryGo cancellation eligibility and refund processing terms.', '/refund-cancellation')
+export const metadata = createMarketingMetadata('Refund and Cancellation Policy', 'Review CaryGoo cancellation eligibility and refund processing terms.', '/refund-cancellation')
 
 const sections = [
   {
     title: 'Cancellation Before Pickup',
     paragraphs: [
-      'If a sender cancels before parcel pickup is confirmed, CarryGo applies a full refund to the original payment method.',
+      'If a sender cancels before parcel pickup is confirmed, CaryGoo applies a full refund to the original payment method.',
       'Processing time depends on payment gateway and bank timelines.',
     ],
   },
@@ -16,7 +16,7 @@ const sections = [
     title: 'After Pickup and Disputes',
     paragraphs: [
       'After pickup, refunds are handled through dispute review based on delivery evidence, communication logs, and policy compliance.',
-      'CarryGo may issue full, partial, or no refund depending on case outcome.',
+      'CaryGoo may issue full, partial, or no refund depending on case outcome.',
     ],
   },
   {
@@ -29,7 +29,7 @@ const sections = [
   {
     title: 'How to Request Support',
     paragraphs: [
-      'For cancellation and refund support, contact support@carrygo.in with booking reference and issue details.',
+      'For cancellation and refund support, contact support@carygoo.in with booking reference and issue details.',
       'We aim to acknowledge refund-related requests within two business days.',
     ],
   },
@@ -39,7 +39,7 @@ export default function RefundCancellationPage() {
   return (
     <LegalPage
       title='Refund & Cancellation Policy'
-      summary='This policy outlines how cancellations, refund eligibility, and dispute resolution are handled on CarryGo.'
+      summary='This policy outlines how cancellations, refund eligibility, and dispute resolution are handled on CaryGoo.'
       lastUpdated='August 27, 2026'
       sections={sections}
       relatedLinks={[

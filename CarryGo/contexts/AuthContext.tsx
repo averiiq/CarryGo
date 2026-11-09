@@ -84,9 +84,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         result = await ensureProfile(userId, profileEmailFor(userId, email));
       }
 
+      // Admin-enforced account states — sign the user out so banned or
+      // suspended accounts can't keep making requests from a cached session.
+      if (result.data?.status === 'banned' || result.data?.status === 'suspended') {
+        const sb = getSupabaseClient();
+        await sb.auth.signOut().catch(() => {});
+        await persistUser(null);
+        setUser(null);
+        setSessionError(
+          result.data.status === 'banned'
+            ? 'This account has been banned. Contact support@carygoo.in to appeal.'
+            : 'This account is temporarily suspended. Contact support@carygoo.in for help.'
+        );
+        return { data: null, error: 'ACCOUNT_RESTRICTED' };
+      }
+
       if (result.data) {
-        setUser(result.data);
-        persistUser(result.data);
+        setUser(prev => {
+          if (prev && JSON.stringify(prev) === JSON.stringify(result.data)) {
+            return prev;
+          }
+          persistUser(result.data);
+          return result.data;
+        });
       } else {
         setUser(null);
         persistUser(null);
@@ -166,7 +186,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const sendOTP = useCallback(async (email: string): Promise<{ error: string | null }> => {
     try {
-      if (FeatureFlags.reviewerLogin && email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com') {
+      const reviewerEmail = (process.env.EXPO_PUBLIC_REVIEWER_EMAIL || '').trim().toLowerCase();
+      if (FeatureFlags.reviewerLogin && reviewerEmail && email.trim().toLowerCase() === reviewerEmail) {
         return { error: null };
       }
 
@@ -198,10 +219,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let authUser: any = null;
       let authError: any = null;
 
-      if (FeatureFlags.reviewerLogin && email.trim().toLowerCase() === 'carrygo.reviewer@gmail.com' && otp === '202611') {
+      const reviewerEmail = (process.env.EXPO_PUBLIC_REVIEWER_EMAIL || '').trim().toLowerCase();
+      const reviewerPassword = process.env.EXPO_PUBLIC_REVIEWER_PASSWORD || '';
+      const reviewerOtp = process.env.EXPO_PUBLIC_REVIEWER_OTP || '';
+
+      const isReviewerLogin =
+        FeatureFlags.reviewerLogin &&
+        Boolean(reviewerEmail && reviewerPassword && reviewerOtp) &&
+        email.trim().toLowerCase() === reviewerEmail &&
+        otp === reviewerOtp;
+
+      if (isReviewerLogin) {
         const { data, error } = await sb.auth.signInWithPassword({
-          email: 'carrygo.reviewer@gmail.com',
-          password: 'CarryGo@Review2026!',
+          email: reviewerEmail,
+          password: reviewerPassword,
         });
         authUser = data.user;
         authError = error;
@@ -311,6 +342,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }, [user, persistUser, queryClient]);
 
+  const userRef = useRef<User | null>(user);
+  userRef.current = user;
+
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser(prev => {
       if (!prev) return null;
@@ -321,8 +355,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persistUser]);
 
   const refreshUser = useCallback(async () => {
-    if (user) await loadUser(user.id, user.email);
-  }, [user, loadUser]);
+    const u = userRef.current;
+    if (u) await loadUser(u.id, u.email);
+  }, [loadUser]);
 
   const contextValue = useMemo(() => ({
     user,

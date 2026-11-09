@@ -71,9 +71,13 @@ export function ParityCreateForm({ mode }: Props) {
   )
 }
 
+const STEP_LABELS = ['Route', 'Details', 'Review'] as const
+const TOTAL_STEPS = STEP_LABELS.length
+
 function ParityCreateFormInner({ mode }: Props) {
   const searchParams = useSearchParams()
 
+  const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: 'idle' })
   const [authChecking, setAuthChecking] = useState(true)
@@ -96,6 +100,7 @@ function ParityCreateFormInner({ mode }: Props) {
   const [priceOffer, setPriceOffer] = useState(searchParams.get('price') || '450')
   const [isFragile, setIsFragile] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imageUploading, setImageUploading] = useState(false)
 
   // Route Intelligence & Suggestions
   const routeEstimate = useMemo(() => {
@@ -165,21 +170,85 @@ function ParityCreateFormInner({ mode }: Props) {
     return null
   }
 
-  // Handle file selection with Base64 Data URL conversion
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setSubmitState({ kind: 'error', message: 'Image file size exceeds 5MB limit.' })
-        return
-      }
-      const reader = new FileReader()
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setImageUrl(reader.result)
+  // Per-step validation — only guards forward nav, not the final submit which
+  // re-runs full validation in handleSubmit.
+  const validateStep = (step: number): string | null => {
+    if (step === 0) return validateBase()
+    if (step === 1) {
+      if (mode === 'trip') {
+        if (!date || !time) return 'Travel date and departure time are required.'
+        if (Number(availableCapacity) <= 0 || Number(pricePerKg) < 0) {
+          return 'Available capacity must be > 0 and price cannot be negative.'
+        }
+      } else {
+        if (!deliveryDate || !description.trim()) {
+          return 'Expected delivery date and description are required.'
+        }
+        if (Number(weight) <= 0 || Number(priceOffer) < 0) {
+          return 'Weight must be > 0 and reward offer cannot be negative.'
         }
       }
-      reader.readAsDataURL(file)
+    }
+    return null
+  }
+
+  const goNext = () => {
+    const err = validateStep(currentStep)
+    if (err) {
+      setSubmitState({ kind: 'error', message: err })
+      return
+    }
+    setSubmitState({ kind: 'idle' })
+    setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1))
+  }
+
+  const goBack = () => {
+    setSubmitState({ kind: 'idle' })
+    setCurrentStep((s) => Math.max(0, s - 1))
+  }
+
+  // Handle file selection: immediate base64 preview + background upload to Cloudinary
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitState({ kind: 'error', message: 'Image file size exceeds 5MB limit.' })
+      return
+    }
+
+    // Instant local preview
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setImageUrl(reader.result)
+    }
+    reader.readAsDataURL(file)
+
+    // Background upload — replace preview with CDN URL on success
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const { uploadBlobToCloudinary, fileToBlob } = await import('@/services/storage.service')
+      setImageUploading(true)
+      const result = await uploadBlobToCloudinary(
+        fileToBlob(file),
+        'parcels',
+        user.id,
+        `parcel_${Date.now()}`,
+      )
+      setImageUrl(result.cdnUrl)
+    } catch (err) {
+      setSubmitState({
+        kind: 'error',
+        message:
+          err instanceof Error
+            ? `Image upload failed: ${err.message}`
+            : 'Image upload failed. You can still submit without a photo.',
+      })
+    } finally {
+      setImageUploading(false)
     }
   }
 
@@ -263,7 +332,7 @@ function ParityCreateFormInner({ mode }: Props) {
         userName ||
         (user.user_metadata?.full_name as string | undefined) ||
         user.email?.split('@')[0] ||
-        'CarryGo Member'
+        'CaryGoo Member'
 
       if (mode === 'trip') {
         const { data: tripData, error } = await supabase
@@ -405,7 +474,7 @@ function ParityCreateFormInner({ mode }: Props) {
         </div>
 
         <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          <ShieldCheck className="w-3.5 h-3.5" /> Escrow Protected
+          <ShieldCheck className="w-3.5 h-3.5" /> Booking Protected
         </span>
       </div>
 
@@ -438,8 +507,46 @@ function ParityCreateFormInner({ mode }: Props) {
         </div>
       )}
 
+      {/* Step indicator */}
+      <div className='flex items-center gap-2'>
+        {STEP_LABELS.map((label, idx) => {
+          const isDone = idx < currentStep
+          const isActive = idx === currentStep
+          return (
+            <div key={label} className='flex flex-1 items-center gap-2'>
+              <div
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${
+                  isDone
+                    ? 'bg-primary text-white'
+                    : isActive
+                      ? 'bg-primary-subtle text-primary ring-2 ring-primary'
+                      : 'bg-surface-elevated text-muted border border-border'
+                }`}
+              >
+                {isDone ? <CheckCircle2 className='h-4 w-4' /> : idx + 1}
+              </div>
+              <span
+                className={`text-xs font-semibold ${
+                  isActive ? 'text-foreground' : 'text-muted'
+                }`}
+              >
+                {label}
+              </span>
+              {idx < TOTAL_STEPS - 1 && (
+                <div
+                  className={`mx-1 h-px flex-1 ${
+                    isDone ? 'bg-primary' : 'bg-border'
+                  }`}
+                />
+              )}
+            </div>
+          )
+        })}
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Route Section with Autocomplete */}
+        {/* STEP 0 — Route */}
+        {currentStep === 0 && (
         <div className="space-y-3">
           <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-emerald-600" />
@@ -483,10 +590,11 @@ function ParityCreateFormInner({ mode }: Props) {
             </div>
           )}
         </div>
+        )}
 
-        {/* TRIP MODE SPECIFIC FIELDS */}
-        {mode === 'trip' && (
-          <div className="space-y-4 pt-2 border-t border-slate-100">
+        {/* STEP 1 — Trip details */}
+        {currentStep === 1 && mode === 'trip' && (
+          <div className="space-y-4">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-emerald-600" />
               Travel Itinerary &amp; Capacity
@@ -569,9 +677,9 @@ function ParityCreateFormInner({ mode }: Props) {
           </div>
         )}
 
-        {/* PARCEL MODE SPECIFIC FIELDS */}
-        {mode === 'parcel' && (
-          <div className="space-y-4 pt-2 border-t border-slate-100">
+        {/* STEP 1 — Parcel details */}
+        {currentStep === 1 && mode === 'parcel' && (
+          <div className="space-y-4">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
               <Package2 className="w-3.5 h-3.5 text-emerald-600" />
               Package Details &amp; Reward
@@ -663,9 +771,19 @@ function ParityCreateFormInner({ mode }: Props) {
                 <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-slate-200 group shadow-xs">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imageUrl} alt="Package preview" className="w-full h-full object-cover" />
+                  {imageUploading && (
+                    <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-white bg-slate-900/70 px-2 py-0.5 rounded-full">
+                        Uploading…
+                      </span>
+                    </div>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setImageUrl(null)}
+                    onClick={() => {
+                      setImageUrl(null)
+                      setImageUploading(false)
+                    }}
                     className="absolute top-1.5 right-1.5 p-1 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 transition"
                     title="Remove photo"
                   >
@@ -684,34 +802,152 @@ function ParityCreateFormInner({ mode }: Props) {
           </div>
         )}
 
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-          <div className="text-xs text-slate-500">
-            {mode === 'trip' ? (
-              <span>Potential Earnings: <strong className="text-slate-900 font-mono">₹{Number(availableCapacity || 0) * Number(pricePerKg || 0)}</strong></span>
-            ) : (
-              <span>Estimated Delivery Reward: <strong className="text-slate-900 font-mono">₹{priceOffer}</strong></span>
-            )}
-          </div>
+        {/* STEP 2 — Review */}
+        {currentStep === 2 && (
+          <div className='space-y-4'>
+            <label className='text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-1.5'>
+              <CheckCircle2 className='w-3.5 h-3.5 text-primary' />
+              Review &amp; Publish
+            </label>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-xs active:scale-95 transition disabled:opacity-50 cursor-pointer"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Publishing...</span>
-              </>
-            ) : (
-              <>
-                <span>{mode === 'trip' ? 'Publish Travel Plan' : 'Publish Parcel Request'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+            <div className='rounded-2xl border border-border bg-surface p-5 space-y-3 text-sm'>
+              <ReviewRow label='Route' value={`${fromCity}  →  ${toCity}`} />
+              {mode === 'trip' ? (
+                <>
+                  <ReviewRow label='Date & time' value={`${date} · ${time}`} />
+                  <ReviewRow
+                    label='Vehicle'
+                    value={
+                      VEHICLE_TYPES.find((v) => v.value === vehicleType)?.label || vehicleType
+                    }
+                  />
+                  <ReviewRow label='Capacity' value={`${availableCapacity} kg`} />
+                  <ReviewRow label='Price per kg' value={`₹${pricePerKg}`} />
+                  <ReviewRow
+                    label='Est. earnings'
+                    value={`₹${Number(availableCapacity || 0) * Number(pricePerKg || 0)}`}
+                    emphasize
+                  />
+                </>
+              ) : (
+                <>
+                  <ReviewRow
+                    label='Category'
+                    value={
+                      PARCEL_CATEGORIES.find((c) => c.value === category)?.label || category
+                    }
+                  />
+                  <ReviewRow label='Description' value={description || '—'} />
+                  <ReviewRow label='Weight' value={`${weight} kg`} />
+                  <ReviewRow label='Deliver by' value={deliveryDate} />
+                  <ReviewRow label='Fragile' value={isFragile ? 'Yes' : 'No'} />
+                  <ReviewRow
+                    label='Reward offer'
+                    value={`₹${priceOffer}`}
+                    emphasize
+                  />
+                </>
+              )}
+            </div>
+
+            <p className='text-[11px] text-muted leading-relaxed'>
+              By publishing, you confirm the listing details are accurate and you accept the{' '}
+              <Link href='/terms-and-conditions' className='text-primary hover:underline'>
+                Terms of Service
+              </Link>
+              .
+            </p>
+          </div>
+        )}
+
+        {/* Stepper footer */}
+        <div className='pt-4 border-t border-border flex items-center justify-between gap-3'>
+          {currentStep > 0 ? (
+            <button
+              type='button'
+              onClick={goBack}
+              disabled={isSubmitting}
+              className='button-secondary'
+            >
+              <ArrowLeftIcon />
+              Back
+            </button>
+          ) : (
+            <div />
+          )}
+
+          {currentStep < TOTAL_STEPS - 1 ? (
+            <button
+              type='button'
+              onClick={goNext}
+              className='button-primary'
+            >
+              Continue
+              <ArrowRight className='h-4 w-4' />
+            </button>
+          ) : (
+            <button
+              type='submit'
+              disabled={isSubmitting}
+              className='button-primary'
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                  Publishing…
+                </>
+              ) : (
+                <>
+                  {mode === 'trip' ? 'Publish trip' : 'Publish parcel'}
+                  <ArrowRight className='h-4 w-4' />
+                </>
+              )}
+            </button>
+          )}
         </div>
       </form>
     </section>
+  )
+}
+
+function ArrowLeftIcon() {
+  return (
+    <svg
+      xmlns='http://www.w3.org/2000/svg'
+      width='16'
+      height='16'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='2'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    >
+      <path d='M19 12H5' />
+      <path d='M12 19l-7-7 7-7' />
+    </svg>
+  )
+}
+
+function ReviewRow({
+  label,
+  value,
+  emphasize,
+}: {
+  label: string
+  value: string
+  emphasize?: boolean
+}) {
+  return (
+    <div className='flex items-start justify-between gap-4'>
+      <span className='text-xs font-semibold uppercase tracking-wider text-muted'>{label}</span>
+      <span
+        className={`text-right ${
+          emphasize ? 'text-base font-bold text-primary' : 'text-sm text-foreground'
+        }`}
+      >
+        {value}
+      </span>
+    </div>
   )
 }

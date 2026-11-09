@@ -138,6 +138,35 @@ export function useUpdateRequestStatusMutation(userId?: string) {
       if (error || !data) throw serviceError(error, 'Failed to update request');
       return data;
     },
+    onMutate: async ({ requestId, status }) => {
+      if (!userId) return;
+      await queryClient.cancelQueries({ queryKey: queryKeys.requests.byUser(userId) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.requests.detail(requestId) });
+
+      const prevList = queryClient.getQueryData<Request[]>(queryKeys.requests.byUser(userId));
+      const prevDetail = queryClient.getQueryData<Request | null>(queryKeys.requests.detail(requestId));
+
+      queryClient.setQueryData<Request[]>(queryKeys.requests.byUser(userId), current =>
+        (current ?? []).map(r => (r.id === requestId ? { ...r, status } : r))
+      );
+
+      if (prevDetail) {
+        queryClient.setQueryData<Request | null>(
+          queryKeys.requests.detail(requestId),
+          (old) => (old ? { ...old, status } : null)
+        );
+      }
+
+      return { prevList, prevDetail, requestId };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.prevList && userId) {
+        queryClient.setQueryData(queryKeys.requests.byUser(userId), context.prevList);
+      }
+      if (context?.prevDetail) {
+        queryClient.setQueryData(queryKeys.requests.detail(context.requestId), context.prevDetail);
+      }
+    },
     onSuccess: updated => {
       // Update detail cache in-place
       queryClient.setQueryData<Request | null>(queryKeys.requests.detail(updated.id), updated);

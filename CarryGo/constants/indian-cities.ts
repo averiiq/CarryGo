@@ -1,4 +1,4 @@
-// Haryana Cities Coordinate Database (CarryGo Haryana Launch)
+// Haryana Cities Coordinate Database (CaryGoo Haryana Launch)
 
 export type PopulationTier = 'metro' | 'tier1' | 'tier2' | 'tier3';
 
@@ -96,7 +96,7 @@ export const HARYANA_CITIES: readonly IndianCity[] = [
 ];
 
 /**
- * Primary exported city list. In this release, CarryGo is launching in Haryana only.
+ * Primary exported city list. In this release, CaryGoo is launching in Haryana only.
  */
 export const INDIAN_CITIES: readonly IndianCity[] = HARYANA_CITIES;
 

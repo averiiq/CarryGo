@@ -22,6 +22,40 @@ export interface RoutePopularity {
   demandScore: number;
 }
 
+/**
+ * Append a user-side audit row via the `log_user_event` RPC so the CMS
+ * audit log has visibility into mobile-originated actions that don't go
+ * through an existing security-definer RPC (support tickets, deep-link
+ * follows, profile edits). Best-effort — failures are swallowed so a
+ * missing log never blocks a user action.
+ */
+export async function logUserEvent(
+  eventType: string,
+  options?: {
+    entityType?: string;
+    entityId?: string;
+    payload?: Record<string, unknown>;
+  }
+): Promise<void> {
+  try {
+    const sb = getSupabaseClient();
+    // Cast: `log_user_event` is defined in migration 20261104130000 but the
+    // generated Database types are frozen at an earlier snapshot. Remove the
+    // cast once `supabase gen types` is re-run.
+    await (sb.rpc as unknown as (
+      name: string,
+      args: Record<string, unknown>
+    ) => Promise<unknown>)('log_user_event', {
+      p_event_type: eventType,
+      p_entity_type: options?.entityType ?? null,
+      p_entity_id: options?.entityId ?? null,
+      p_payload: options?.payload ?? {},
+    });
+  } catch {
+    // intentionally silent — audit is best-effort
+  }
+}
+
 export interface ActivityEvent {
   id: string;
   type: 'trip_created' | 'parcel_created' | 'request_sent' | 'request_accepted' | 'delivery_completed' | 'rating_received';

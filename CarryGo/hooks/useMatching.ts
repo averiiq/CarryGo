@@ -235,10 +235,11 @@ export function useMatchingTripsOnRoute(params: MatchTripsOnRouteParams | null) 
         fetchTrips({ toCity: params.toCity, limit: 40, offset: 0, includeCount: false }),
       ]);
 
-      const firstError = exact.error || fromCandidates.error || toCandidates.error;
-      if (firstError) throw new Error(firstError);
-
       const allTrips = [...(exact.data ?? []), ...(fromCandidates.data ?? []), ...(toCandidates.data ?? [])];
+      if (allTrips.length === 0 && exact.error && fromCandidates.error && toCandidates.error) {
+        throw new Error(exact.error || 'Failed to load trips');
+      }
+
       const dedupedTrips = Array.from(new Map(allTrips.map(trip => [trip.id, trip])).values());
 
       const scoringParcel: Parcel = {
@@ -259,14 +260,26 @@ export function useMatchingTripsOnRoute(params: MatchTripsOnRouteParams | null) 
         match => match.trip,
       );
 
+      // Always guarantee exact corridor matches are included even if smart scoring dropped them
+      const normFrom = (params.fromCity || '').trim().toLowerCase();
+      const normTo = (params.toCity || '').trim().toLowerCase();
+      const exactCorridorTrips = dedupedTrips.filter(t =>
+        t.status === 'active' &&
+        (!params.excludeUserId || t.userId !== params.excludeUserId) &&
+        (t.fromCity || '').trim().toLowerCase() === normFrom &&
+        (t.toCity || '').trim().toLowerCase() === normTo
+      );
+
+      let finalMatches = Array.from(new Map([...exactCorridorTrips, ...rankedTrips].map(t => [t.id, t])).values());
+
       if (params.excludeUserId) {
-        rankedTrips = rankedTrips.filter(trip => trip.userId !== params.excludeUserId);
+        finalMatches = finalMatches.filter(trip => trip.userId !== params.excludeUserId);
       }
 
       const diagnostic = diagnoseParcelTripMatching(scoringParcel, dedupedTrips);
 
       return {
-        matches: rankedTrips,
+        matches: finalMatches,
         candidateCount: dedupedTrips.length,
         diagnostic,
       };

@@ -41,7 +41,7 @@ export default function BroadcastComposer({ cities, onSuccess }: BroadcastCompos
   const [deepLink, setDeepLink] = useState('')
   const [audienceType, setAudienceType] = useState<AudienceOption>('all')
   const [selectedCity, setSelectedCity] = useState('')
-  const [result, setResult] = useState<{ success?: true; error?: string; totalSent?: number } | null>(null)
+  const [result, setResult] = useState<{ success?: true; error?: string; totalSent?: number; warning?: string } | null>(null)
 
   const buildAudience = (): BroadcastAudience => {
     if (audienceType === 'role_sender') return { type: 'role', role: 'sender' }
@@ -62,12 +62,17 @@ export default function BroadcastComposer({ cities, onSuccess }: BroadcastCompos
         audience: buildAudience(),
       })
       if ('success' in res && res.success) {
-        setResult({ success: true, totalSent: res.totalSent })
+        // Partial-success: server returned success but a warning string in `error`
+        // (e.g. "Queued 400 of 500 recipients" — some chunks failed to enqueue).
+        setResult({
+          success: true,
+          totalSent: res.totalSent,
+          warning: (res as { error?: string }).error,
+        })
         onSuccess?.(res.broadcastId, res.totalSent)
-        // reset form
         setTitle(''); setBody(''); setDeepLink('')
       } else {
-        setResult({ error: res.error })
+        setResult({ error: res.error ?? 'Unknown error' })
       }
     })
   }
@@ -202,14 +207,20 @@ export default function BroadcastComposer({ cities, onSuccess }: BroadcastCompos
 
       {/* Result banner */}
       {result?.success && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-500 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-600 text-sm">
           <CheckCircle className="w-4 h-4 flex-shrink-0" />
-          <span>Broadcast sent to <strong>{result.totalSent}</strong> users successfully!</span>
+          <span>Broadcast sent to <strong>{result.totalSent}</strong> users.</span>
+        </div>
+      )}
+      {result?.warning && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-warning-subtle border border-warning/30 text-warning-hover text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <span>{result.warning}</span>
         </div>
       )}
       {result?.error && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-danger-subtle border border-danger/30 text-danger text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>{result.error}</span>
         </div>
       )}

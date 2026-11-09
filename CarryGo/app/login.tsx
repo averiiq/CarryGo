@@ -13,6 +13,7 @@ import { FontSize, FontWeight, Spacing, Gradients } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { Haptic } from '@/services/haptics.service';
 import { StatusBar } from 'expo-status-bar';
 import { AUTH_OTP_LENGTH } from '@/constants/security';
@@ -21,6 +22,7 @@ import { useBreathing, useFadeIn } from '@/hooks/useAnimations';
 import { LoginEmailForm } from '@/components/feature/LoginEmailForm';
 import { LoginOtpForm } from '@/components/feature/LoginOtpForm';
 import { KeyboardAwareScrollView } from '@/components';
+import { useResponsive } from '@/hooks/useResponsive';
 
 type Step = 'email' | 'otp';
 const OTP_LENGTH = AUTH_OTP_LENGTH;
@@ -28,6 +30,7 @@ const RESEND_COOLDOWN = 60;
 
 export default function LoginScreen() {
   const { width: W } = useWindowDimensions();
+  const { isSmallDevice, isTablet } = useResponsive();
   const { sendOTP, verifyOTP } = useAuth();
   const { showAlert } = useAlert();
   const { C } = useThemeColors();
@@ -163,7 +166,7 @@ export default function LoginScreen() {
     }
     Haptic.success(); pulseSuccess();
     const pendingRoute = consumePendingNotificationRoute();
-    const destination = (requiresProfileSetup ? '/profile-setup' : (pendingRoute || '/(tabs)')) as Href;
+    const destination = (requiresProfileSetup ? '/kyc' : (pendingRoute || '/(tabs)')) as Href;
     router.replace(destination);
   }, [email, operationLoading, otpStr, pulseSuccess, router, shake, showAlert, verifyOTP]);
 
@@ -233,29 +236,28 @@ export default function LoginScreen() {
           extraScrollHeight={60}
         >
           {/* Hero */}
-          <Animated.View style={[styles.hero, { paddingTop: insets.top + Spacing.lg, opacity: heroFade.opacity, transform: heroFade.transform }]}>
+          <Animated.View style={[styles.hero, { paddingTop: insets.top + Spacing.lg, opacity: heroFade.opacity, transform: heroFade.transform }, isTablet && styles.tabletFormWrap]}>
             <LinearGradient
               colors={[C.primarySubtle, 'transparent']}
               style={StyleSheet.absoluteFillObject}
             />
             <View style={styles.brandRow}>
-              <Animated.View style={[styles.logoBox, { overflow: 'hidden', transform: [{ scale: logoBreathing }] }]}>
-                <LinearGradient colors={Gradients.primaryVibrant} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-                <MaterialIcons name="local-shipping" size={26} color="#fff" />
+              <Animated.View>
+                <Image
+                  source={require('@/assets/images/logo-horizontal.png')}
+                  style={{ width: 180, height: 56 }}
+                  contentFit="contain"
+                />
               </Animated.View>
-              <View>
-                <Text style={[styles.brandName, { color: C.textPrimary }]}>CarryGo</Text>
-                <Text style={[styles.brandTag, { color: C.textMuted }]}>Trusted community logistics</Text>
-              </View>
             </View>
             <View style={styles.heroText}>
-              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Welcome to CarryGo</Text>
+              <Text style={[styles.heroTitle, { color: C.textPrimary }]}>Welcome to CaryGoo</Text>
               <Text style={[styles.heroSub, { color: C.textSecondary }]}>Route-matched deliveries with verified travelers. Fast, secure, and fully tracked.</Text>
             </View>
           </Animated.View>
 
           {/* Sliding Form */}
-          <Animated.View style={[styles.formOuter, { transform: [{ translateX: shakeAnim }], opacity: formFade.opacity }]}>
+          <Animated.View style={[styles.formOuter, { transform: [{ translateX: shakeAnim }], opacity: formFade.opacity }, isTablet && styles.tabletFormWrap]}>
             <Animated.View style={[styles.formSlide, { transform: [{ translateX: emailSlideX }] }]}>
               <LoginEmailForm
                 email={email}
@@ -290,8 +292,8 @@ export default function LoginScreen() {
             </Animated.View>
           </Animated.View>
 
-          <View style={[styles.terms, { marginTop: Spacing.md }]}>
-            <Text style={{ color: C.textMuted, fontSize: FontSize.xs }}>By continuing you agree to CarryGo&apos;s</Text>
+          <View style={[styles.terms, { marginTop: Spacing.md }, isTablet && styles.tabletFormWrap]}>
+            <Text style={{ color: C.textMuted, fontSize: FontSize.xs }}>By continuing you agree to CaryGoo&apos;s</Text>
             <View style={styles.legalLinks}>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/terms')}>
                 <Text style={[styles.legalLink, { color: C.primary }]}>Terms of Service</Text>
@@ -311,6 +313,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flexGrow: 1 },
+  tabletFormWrap: {
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
+  },
   hero: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md, gap: Spacing.md, overflow: 'hidden' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   logoBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

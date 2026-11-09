@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { Haptic } from '@/services/haptics.service';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import type { Trip } from '@/types';
 import { ParcelDraft, PARCEL_CATEGORIES } from './types';
+import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
 
 interface ParcelAvailableTripsStepProps {
   form: ParcelDraft;
@@ -65,6 +66,26 @@ export function ParcelAvailableTripsStep({
 
   const parcelWeightNum = Number(form.weight) || 1;
   const isLoading = browseTripsQuery.isLoading;
+
+  const autoListTriggered = useRef(false);
+
+  // If no matching trips are found on the corridor, smoothly auto-list to the marketplace
+  useEffect(() => {
+    if (
+      !isLoading &&
+      sortedTrips.length === 0 &&
+      !isPostingOpenRequest &&
+      !autoListTriggered.current &&
+      form.fromCity &&
+      form.toCity
+    ) {
+      autoListTriggered.current = true;
+      const timer = setTimeout(() => {
+        onPostOpenRequest();
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, sortedTrips.length, isPostingOpenRequest, onPostOpenRequest, form.fromCity, form.toCity]);
 
   return (
     <View style={styles.container}>
@@ -180,21 +201,25 @@ export function ParcelAvailableTripsStep({
       {/* ── Content: Trip List or Empty State ── */}
       {isLoading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={C.primary} />
+          <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
+            <LottieAnimation name="matching" style={{ width: 140, height: 110 }} />
+          </View>
           <Text style={[styles.loadingText, { color: C.textSecondary }]}>
             Searching trips on this route...
           </Text>
         </View>
       ) : sortedTrips.length === 0 ? (
         <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
-          <View style={[styles.emptyIconWrap, { backgroundColor: C.primarySubtle }]}>
-            <MaterialIcons name="directions-car" size={32} color={C.primary} />
+          <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
+            <LottieAnimation name="locationFetch" style={{ width: 140, height: 110 }} />
           </View>
           <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-            No trips on this route yet
+            {isPostingOpenRequest ? 'Listing on Marketplace...' : 'No Trips on This Route Yet'}
           </Text>
           <Text style={[styles.emptySubtitle, { color: C.textMuted }]}>
-            Post your parcel request so travelers can send you offers.
+            {isPostingOpenRequest
+              ? 'Automatically listing your parcel so nearby travellers can discover and send delivery proposals.'
+              : 'No active travellers heading this way right now. Automatically listing your parcel to the open marketplace!'}
           </Text>
 
           <Pressable
@@ -210,11 +235,14 @@ export function ParcelAvailableTripsStep({
             ]}
           >
             {isPostingOpenRequest ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.postRequestBtnText}>Publishing Parcel...</Text>
+              </View>
             ) : (
               <>
-                <MaterialIcons name="send" size={16} color="#FFFFFF" />
-                <Text style={styles.postRequestBtnText}>Post Parcel Request</Text>
+                <MaterialIcons name="campaign" size={16} color="#FFFFFF" />
+                <Text style={styles.postRequestBtnText}>List on Marketplace Now</Text>
               </>
             )}
           </Pressable>
@@ -237,23 +265,64 @@ export function ParcelAvailableTripsStep({
           </Pressable>
         </View>
       ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        >
-          {sortedTrips.map((trip) => {
-            const calculatedPrice = calculateMatchPrice(trip.pricePerKg, parcelWeightNum);
-            return (
-              <View key={trip.id} style={styles.tripCardWrap}>
-                <BlaBlaTripCard
-                  trip={trip}
-                  price={calculatedPrice}
-                  onPress={() => onSelectTrip(trip)}
-                />
-              </View>
-            );
-          })}
-        </ScrollView>
+        <>
+          {/* Helper strip — clarifies the primary action */}
+          <View style={[styles.helperStrip, { backgroundColor: C.primarySubtle, borderColor: C.primary + '22' }]}>
+            <MaterialIcons name="touch-app" size={14} color={C.primary} />
+            <Text style={[styles.helperStripText, { color: C.textSecondary }]}>
+              Tap a trip to send your parcel request to that traveller.
+            </Text>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+          >
+            {sortedTrips.map((trip) => {
+              const calculatedPrice = calculateMatchPrice(trip.pricePerKg, parcelWeightNum);
+              return (
+                <View key={trip.id} style={styles.tripCardWrap}>
+                  <BlaBlaTripCard
+                    trip={trip}
+                    price={calculatedPrice}
+                    onPress={() => onSelectTrip(trip)}
+                  />
+                </View>
+              );
+            })}
+
+            {/* Fallback — list on marketplace instead of picking a trip */}
+            <View style={[styles.fallbackCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <Text style={[styles.fallbackTitle, { color: C.textPrimary }]}>
+                None of these fit?
+              </Text>
+              <Text style={[styles.fallbackSubtitle, { color: C.textMuted }]}>
+                List your parcel on the marketplace — other travellers can discover it and send you offers.
+              </Text>
+              <Pressable
+                disabled={isPostingOpenRequest}
+                onPress={() => {
+                  Haptic.confirm();
+                  onPostOpenRequest();
+                }}
+                style={({ pressed }) => [
+                  styles.fallbackBtn,
+                  { borderColor: C.primary },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                {isPostingOpenRequest ? (
+                  <ActivityIndicator size="small" color={C.primary} />
+                ) : (
+                  <>
+                    <MaterialIcons name="campaign" size={14} color={C.primary} />
+                    <Text style={[styles.fallbackBtnText, { color: C.primary }]}>List on Marketplace</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </ScrollView>
+        </>
       )}
     </View>
   );
@@ -435,5 +504,53 @@ const styles = StyleSheet.create({
   editDetailsBtnText: {
     fontSize: 12,
     fontWeight: FontWeight.semibold,
+  },
+  helperStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.sm,
+  },
+  helperStripText: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+    flex: 1,
+  },
+  fallbackCard: {
+    marginTop: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    gap: 6,
+    alignItems: 'center',
+  },
+  fallbackTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  fallbackSubtitle: {
+    fontSize: FontSize.xs,
+    textAlign: 'center',
+    lineHeight: 16,
+    maxWidth: 280,
+    marginBottom: 4,
+  },
+  fallbackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+  },
+  fallbackBtnText: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
   },
 });

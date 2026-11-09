@@ -1,5 +1,6 @@
 import { Trip, Parcel } from '@/types';
 import { areCitiesEquivalent, normalizeCityName } from './route-compatibility.service';
+import { enrichMissingUserAvatars } from './avatar-enrichment.service';
 
 /**
  * Service to evaluate and fetch live marketplace listings relevant to a user's registered home city.
@@ -148,6 +149,12 @@ export async function fetchCityMarketplaceTrips(
           id: row.id,
           userId: row.user_id,
           userName: row.user_name,
+          userAvatar:
+            row.user_avatar ||
+            row.avatar_url ||
+            row.selfie_url ||
+            row.user_profiles?.avatar_url ||
+            undefined,
           userRating: parseFloat(String(row.user_rating || 4.5)),
           fromCity: row.from_city,
           toCity: row.to_city,
@@ -161,7 +168,8 @@ export async function fetchCityMarketplaceTrips(
         }))
         .filter((t: Trip) => MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(t, userCity));
 
-      return { data: fallbackTrips, total: fallbackRes.count ?? fallbackTrips.length, error: null };
+      const enrichedFallbackTrips = await enrichMissingUserAvatars(fallbackTrips);
+      return { data: enrichedFallbackTrips, total: fallbackRes.count ?? enrichedFallbackTrips.length, error: null };
     }
 
     const items = data || [];
@@ -172,6 +180,12 @@ export async function fetchCityMarketplaceTrips(
         id: row.id,
         userId: row.user_id,
         userName: row.user_name,
+        userAvatar:
+          row.user_avatar ||
+          row.avatar_url ||
+          row.selfie_url ||
+          row.user_profiles?.avatar_url ||
+          undefined,
         userRating: parseFloat(String(row.user_rating || 4.5)),
         fromCity: row.from_city,
         toCity: row.to_city,
@@ -185,7 +199,8 @@ export async function fetchCityMarketplaceTrips(
       }))
       .filter((t: Trip) => MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(t, userCity));
 
-    return { data: trips, total, error: null };
+    const enrichedTrips = await enrichMissingUserAvatars(trips);
+    return { data: enrichedTrips, total, error: null };
   } catch (err: any) {
     console.warn('fetchCityMarketplaceTrips error:', err);
     return { data: null, total: 0, error: err?.message || 'Failed to fetch city marketplace trips' };
@@ -235,6 +250,12 @@ export async function fetchCityMarketplaceParcels(
           id: row.id,
           userId: row.user_id,
           userName: row.user_name,
+          userAvatar:
+            row.user_avatar ||
+            row.avatar_url ||
+            row.selfie_url ||
+            row.user_profiles?.avatar_url ||
+            undefined,
           fromCity: row.from_city,
           toCity: row.to_city,
           category: row.category,
@@ -248,7 +269,8 @@ export async function fetchCityMarketplaceParcels(
         }))
         .filter((p: Parcel) => MarketplaceRelevanceService.isParcelEligibleForLiveMarketplace(p, userCity));
 
-      return { data: fallbackParcels, total: fallbackRes.count ?? fallbackParcels.length, error: null };
+      const enrichedFallbackParcels = await enrichMissingUserAvatars(fallbackParcels);
+      return { data: enrichedFallbackParcels, total: fallbackRes.count ?? enrichedFallbackParcels.length, error: null };
     }
 
     const items = data || [];
@@ -259,6 +281,12 @@ export async function fetchCityMarketplaceParcels(
         id: row.id,
         userId: row.user_id,
         userName: row.user_name,
+        userAvatar:
+          row.user_avatar ||
+          row.avatar_url ||
+          row.selfie_url ||
+          row.user_profiles?.avatar_url ||
+          undefined,
         fromCity: row.from_city,
         toCity: row.to_city,
         category: row.category,
@@ -272,7 +300,8 @@ export async function fetchCityMarketplaceParcels(
       }))
       .filter((p: Parcel) => MarketplaceRelevanceService.isParcelEligibleForLiveMarketplace(p, userCity));
 
-    return { data: parcels, total, error: null };
+    const enrichedParcels = await enrichMissingUserAvatars(parcels);
+    return { data: enrichedParcels, total, error: null };
   } catch (err: any) {
     console.warn('fetchCityMarketplaceParcels error:', err);
     return { data: null, total: 0, error: err?.message || 'Failed to fetch city marketplace parcels' };

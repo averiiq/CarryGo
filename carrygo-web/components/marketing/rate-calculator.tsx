@@ -36,7 +36,7 @@ export function RateCalculator() {
   const currentCat = CATEGORIES.find((c) => c.id === category) || CATEGORIES[0]
 
   const calculation = useMemo(() => {
-    // CarryGo Peer-to-Peer Cost
+    // CaryGoo Peer-to-Peer Cost
     const multiplier = urgency === 'express' ? 1.2 : 1.0
     const carrygoEst = Math.round((currentCat.baseFee + weight * currentCat.ratePerKg) * multiplier)
     const travelerPayout = Math.round(carrygoEst * 0.82)
@@ -204,11 +204,11 @@ export function RateCalculator() {
               </span>
             </div>
 
-            {/* CarryGo Price Card with Smooth Value Spring & Gradient */}
+            {/* CaryGoo Price Card with Smooth Value Spring & Gradient */}
             <div className="rounded-2xl bg-gradient-to-br from-white via-emerald-50/50 to-teal-50/30 border-2 border-emerald-500/40 p-4 sm:p-5 relative overflow-hidden">
               <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-emerald-600" /> CarryGo Peer-to-Peer
+                  <Sparkles className="w-4 h-4 text-emerald-600" /> CaryGoo Peer-to-Peer
                 </span>
                 <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] border border-emerald-200">
                   Same-Day Delivery
@@ -255,7 +255,7 @@ export function RateCalculator() {
               </div>
               <div className="flex items-center justify-between text-slate-600">
                 <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Escrow &amp; Insurance Protection:
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Booking &amp; Insurance Protection:
                 </span>
                 <span className="font-mono font-bold text-slate-900">₹{calculation.platformFee}</span>
               </div>

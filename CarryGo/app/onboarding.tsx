@@ -13,14 +13,19 @@ import {
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { Haptic } from '@/services/haptics.service';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ProductIllustration, ProductIllustrationVariant } from '@/components/illustrations';
 
-const ONBOARDING_KEY = 'carrygo_onboarding_seen';
+export const ONBOARDING_KEY = 'carrygo_onboarding_seen';
+export const USER_PERSONA_KEY = 'carrygo_user_persona';
+export const USER_HOME_CITY_KEY = 'carrygo_home_city';
+
+export type UserPersona = 'sender' | 'traveler' | 'both';
 
 const SLIDES = [
   {
@@ -28,7 +33,6 @@ const SLIDES = [
     eyebrow: 'Route matching',
     title: 'Send parcels with people already on that route.',
     body: 'Choose a trip, lock price up front, and follow each handoff in real time.',
-    icon: 'route' as const,
     illustration: 'route' as ProductIllustrationVariant,
     details: ['Match in seconds', 'Transparent pricing', 'Live updates'],
   },
@@ -37,7 +41,6 @@ const SLIDES = [
     eyebrow: 'Earn on your trip',
     title: 'Turn spare luggage space into extra income.',
     body: 'Post your trip once, accept what you can carry, and get paid after delivery proof.',
-    icon: 'payments' as const,
     illustration: 'payment' as ProductIllustrationVariant,
     details: ['You control capacity', 'No hidden fees', 'Fast payouts'],
   },
@@ -45,22 +48,51 @@ const SLIDES = [
     key: 'trust',
     eyebrow: 'Verified community',
     title: 'Every delivery is identity checked and trackable.',
-    body: 'CarryGo combines profile verification, delivery proof, and clear ratings.',
-    icon: 'verified-user' as const,
+    body: 'CaryGoo combines profile verification, delivery proof, and clear ratings.',
     illustration: 'profile' as ProductIllustrationVariant,
     details: ['Identity checks', 'Photo confirmation', 'Real ratings'],
   },
+  {
+    key: 'preferences',
+    eyebrow: 'Quick Setup',
+    title: 'Personalize your CaryGoo experience.',
+    body: 'Tell us how you want to use the platform so we can show relevant listings.',
+    illustration: 'profile' as ProductIllustrationVariant,
+    details: [],
+  },
+];
+
+const PERSONA_OPTIONS: { id: UserPersona; label: string; desc: string; icon: any }[] = [
+  { id: 'sender', label: 'Send Parcels', desc: 'Fast, secure peer delivery', icon: 'inventory-2' },
+  { id: 'traveler', label: 'Travel & Earn', desc: 'Carry parcels during your trips', icon: 'luggage' },
+  { id: 'both', label: 'Both', desc: 'Send items and earn on trips', icon: 'all-inclusive' },
+];
+
+const POPULAR_HUBS = [
+  'Gurugram',
+  'Delhi',
+  'Faridabad',
+  'Panipat',
+  'Ambala',
+  'Karnal',
+  'Rohtak',
+  'Hisar',
+  'Chandigarh',
 ];
 
 export default function OnboardingScreen() {
   const { width: W } = useWindowDimensions();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { C, G } = useThemeColors();
+  const { C, G, isDark } = useThemeColors();
   const scrollRef = useRef<ScrollView>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState(0);
   const [finishing, setFinishing] = useState(false);
+
+  // Preference capture state
+  const [selectedPersona, setSelectedPersona] = useState<UserPersona>('both');
+  const [selectedCity, setSelectedCity] = useState<string>('Gurugram');
 
   const isLast = activeIndex === SLIDES.length - 1;
 
@@ -85,16 +117,32 @@ export default function OnboardingScreen() {
     if (finishing) return;
     setFinishing(true);
     Haptic.success();
-    await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    try {
+      await AsyncStorage.multiSet([
+        [ONBOARDING_KEY, 'true'],
+        [USER_PERSONA_KEY, selectedPersona],
+        [USER_HOME_CITY_KEY, selectedCity],
+      ]);
+    } catch {
+      // Non-blocking fallback
+    }
     router.replace('/login');
   };
 
   return (
     <LinearGradient colors={G.hero} style={styles.root}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}> 
-        <Text style={[styles.logo, { color: C.textPrimary }]}>CarryGo</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image
+          source={require('@/assets/images/logo-horizontal.png')}
+          style={{ width: 120, height: 38 }}
+          contentFit="contain"
+        />
         {!isLast ? (
-          <Pressable onPress={() => void handleFinish()} style={[styles.skipBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]} hitSlop={14}>
+          <Pressable
+            onPress={() => void handleFinish()}
+            style={[styles.skipBtn, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+            hitSlop={14}
+          >
             <Text style={[styles.skipText, { color: C.textSecondary }]}>Skip</Text>
             <MaterialIcons name="arrow-forward" size={14} color={C.textSecondary} />
           </Pressable>
@@ -110,31 +158,132 @@ export default function OnboardingScreen() {
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: false })}
         scrollEventThrottle={16}
       >
-        {SLIDES.map((slide) => (
-          <View key={slide.key} style={[styles.slide, { width: W }]}>
-            <View style={styles.illustrationWrap}>
-              <ProductIllustration variant={slide.illustration} size={230} />
-            </View>
-
-            <View style={styles.textBlock}>
-              <Text style={[styles.eyebrow, { color: C.primary }]}>{slide.eyebrow}</Text>
-              <Text style={[styles.title, { color: C.textPrimary }]}>{slide.title}</Text>
-              <Text style={[styles.body, { color: C.textSecondary }]}>{slide.body}</Text>
-            </View>
-
-            <View style={styles.detailsList}>
-              {slide.details.map((detail) => (
-                <View key={detail} style={styles.detailRow}>
-                  <View style={[styles.detailDot, { backgroundColor: C.primary }]} />
-                  <Text style={[styles.detailText, { color: C.textSecondary }]}>{detail}</Text>
+        {SLIDES.map((slide) => {
+          if (slide.key === 'preferences') {
+            return (
+              <View key={slide.key} style={[styles.slide, { width: W }]}>
+                <View style={styles.textBlock}>
+                  <Text style={[styles.eyebrow, { color: C.primary }]}>{slide.eyebrow}</Text>
+                  <Text style={[styles.title, { color: C.textPrimary }]}>{slide.title}</Text>
+                  <Text style={[styles.body, { color: C.textSecondary }]}>{slide.body}</Text>
                 </View>
-              ))}
+
+                {/* Persona selector */}
+                <View style={styles.captureSection}>
+                  <Text style={[styles.captureLabel, { color: C.textSecondary }]}>YOUR MAIN GOAL</Text>
+                  <View style={styles.personaRow}>
+                    {PERSONA_OPTIONS.map((opt) => {
+                      const isSelected = selectedPersona === opt.id;
+                      return (
+                        <Pressable
+                          key={opt.id}
+                          onPress={() => {
+                            Haptic.select();
+                            setSelectedPersona(opt.id);
+                          }}
+                          style={[
+                            styles.personaCard,
+                            {
+                              backgroundColor: isSelected
+                                ? (isDark ? '#00332c' : '#E6F4F1')
+                                : C.surface,
+                              borderColor: isSelected ? C.primary : C.surfaceBorder,
+                            },
+                          ]}
+                        >
+                          <MaterialIcons
+                            name={opt.icon}
+                            size={20}
+                            color={isSelected ? C.primary : C.textSecondary}
+                          />
+                          <Text
+                            style={[
+                              styles.personaTitle,
+                              {
+                                color: isSelected ? C.primary : C.textPrimary,
+                                fontWeight: isSelected ? '700' : '600',
+                              },
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                          <Text style={[styles.personaDesc, { color: C.textMuted }]}>{opt.desc}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Home city selector */}
+                <View style={[styles.captureSection, { marginTop: Spacing.md }]}>
+                  <Text style={[styles.captureLabel, { color: C.textSecondary }]}>YOUR BASE CITY</Text>
+                  <View style={styles.cityChipsWrap}>
+                    {POPULAR_HUBS.map((city) => {
+                      const isSelected = selectedCity === city;
+                      return (
+                        <Pressable
+                          key={city}
+                          onPress={() => {
+                            Haptic.select();
+                            setSelectedCity(city);
+                          }}
+                          style={[
+                            styles.cityChip,
+                            {
+                              backgroundColor: isSelected
+                                ? (isDark ? '#00332c' : '#E6F4F1')
+                                : C.surface,
+                              borderColor: isSelected ? C.primary : C.surfaceBorder,
+                            },
+                          ]}
+                        >
+                          {isSelected && <MaterialIcons name="check" size={13} color={C.primary} />}
+                          <Text
+                            style={[
+                              styles.cityChipText,
+                              {
+                                color: isSelected ? C.primary : C.textPrimary,
+                                fontWeight: isSelected ? '700' : '500',
+                              },
+                            ]}
+                          >
+                            {city}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+            );
+          }
+
+          return (
+            <View key={slide.key} style={[styles.slide, { width: W }]}>
+              <View style={styles.illustrationWrap}>
+                <ProductIllustration variant={slide.illustration} size={230} />
+              </View>
+
+              <View style={styles.textBlock}>
+                <Text style={[styles.eyebrow, { color: C.primary }]}>{slide.eyebrow}</Text>
+                <Text style={[styles.title, { color: C.textPrimary }]}>{slide.title}</Text>
+                <Text style={[styles.body, { color: C.textSecondary }]}>{slide.body}</Text>
+              </View>
+
+              <View style={styles.detailsList}>
+                {slide.details.map((detail) => (
+                  <View key={detail} style={styles.detailRow}>
+                    <View style={[styles.detailDot, { backgroundColor: C.primary }]} />
+                    <Text style={[styles.detailText, { color: C.textSecondary }]}>{detail}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + 24 }]}> 
+      <View style={[styles.bottom, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.pagination}>
           {SLIDES.map((slide, idx) => {
             const inputRange = [(idx - 1) * W, idx * W, (idx + 1) * W];
@@ -154,7 +303,7 @@ export default function OnboardingScreen() {
           onPress={goNext}
           disabled={finishing}
         >
-          <Text style={[styles.ctaText, { color: '#FFFFFF' }]}>{isLast ? 'Get Started' : 'Continue'}</Text>
+          <Text style={[styles.ctaText, { color: '#FFFFFF' }]}>{isLast ? 'Complete & Start' : 'Continue'}</Text>
           <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
         </Pressable>
 
@@ -177,11 +326,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.sm,
   },
-  logo: {
-    fontSize: 20,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.5,
-  },
   skipBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -199,7 +343,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.xl + 4,
+    paddingHorizontal: Spacing.lg,
   },
   illustrationWrap: {
     minHeight: 190,
@@ -207,7 +351,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.lg,
   },
-  textBlock: { alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xl },
+  textBlock: { alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.lg },
   eyebrow: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
@@ -215,15 +359,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: FontWeight.bold,
-    lineHeight: 36,
+    lineHeight: 34,
     letterSpacing: -0.6,
     textAlign: 'center',
   },
   body: {
-    fontSize: FontSize.md,
-    lineHeight: 24,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
     textAlign: 'center',
     maxWidth: 320,
   },
@@ -231,6 +375,51 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   detailDot: { width: 6, height: 6, borderRadius: 3 },
   detailText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+  captureSection: {
+    width: '100%',
+    gap: 8,
+  },
+  captureLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.8,
+  },
+  personaRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  personaCard: {
+    flex: 1,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    gap: 4,
+  },
+  personaTitle: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  personaDesc: {
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  cityChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  cityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  cityChipText: {
+    fontSize: FontSize.xs,
+  },
   bottom: {
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.md,

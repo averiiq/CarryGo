@@ -39,8 +39,8 @@ const senderBenefits = [
     tone: 'text-primary bg-primary-subtle border-primary/20',
   },
   {
-    title: 'Protected Escrow Payments',
-    description: 'Your payment is safely locked in CarryGo escrow vault and only released when your recipient verifies delivery via OTP.',
+    title: 'Protected Booking Payments',
+    description: 'Your payment is safely locked in CaryGoo booking vault and only released when your recipient verifies delivery via OTP.',
     icon: Lock,
     tone: 'text-success bg-success-subtle border-success/20',
   },
@@ -83,7 +83,7 @@ const SENDER_FAQS = [
   },
   {
     q: 'What if the traveler cancels or delays their trip?',
-    a: 'Your escrow payment is never charged until delivery is completed. If a trip is cancelled before pickup, your locked funds are immediately 100% refunded with zero cancellation penalty.',
+    a: 'Your booking payment is never charged until delivery is completed. If a trip is cancelled before pickup, your locked funds are immediately 100% refunded with zero cancellation penalty.',
   },
   {
     q: 'How do I know my package will reach the right person?',
@@ -99,7 +99,7 @@ export default function ForSendersPage() {
         <PageHero
           badge="For Senders"
           title="Ship Packages Intercity in Hours, Not Days"
-          description="Connect directly with verified travelers on flights, trains, and highway routes. Get your urgent parcel to its destination with speed, full visibility, and escrow protection."
+          description="Connect directly with verified travelers on flights, trains, and highway routes. Get your urgent parcel to its destination with speed, full visibility, and booking protection."
           illustrationSrc="/images/abstract/sender-logistics.jpg"
           illustrationAlt="Abstract 3D parcel logistics network"
           illustrationLabel="Peer-to-peer delivery network"
@@ -113,9 +113,9 @@ export default function ForSendersPage() {
       {/* Benefits Grid */}
       <ScrollLinkedSection className="px-4 pb-12 sm:px-6">
         <SectionHeading
-          label="Why Senders Love CarryGo"
+          label="Why Senders Love CaryGoo"
           title="Designed for Speed, Security, and Peace of Mind"
-          description="Traditional couriers take 3 to 5 days with packages changing hands through dozens of depots. CarryGo connects you directly to the person traveling."
+          description="Traditional couriers take 3 to 5 days with packages changing hands through dozens of depots. CaryGoo connects you directly to the person traveling."
         />
 
         <div className="mx-auto mt-12 grid w-full max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -145,7 +145,7 @@ export default function ForSendersPage() {
         <div className="mx-auto max-w-6xl">
           <SectionHeading
             label="Safety Guidelines"
-            title="What Can You Send with CarryGo?"
+            title="What Can You Send with CaryGoo?"
             description="Clear compliance standards protect both senders and travelers across every transit corridor."
           />
 

@@ -2,13 +2,13 @@
 
 import { createMarketingMetadata } from '@/lib/marketing-metadata'
 
-export const metadata = createMarketingMetadata('Shipping and Delivery Policy', 'Review CarryGo delivery scope, timelines, and handover responsibilities.', '/shipping-delivery')
+export const metadata = createMarketingMetadata('Shipping and Delivery Policy', 'Review CaryGoo delivery scope, timelines, and handover responsibilities.', '/shipping-delivery')
 
 const sections = [
   {
     title: 'Service Scope',
     paragraphs: [
-      'CarryGo coordinates peer-to-peer parcel movement through verified travelers and route matching.',
+      'CaryGoo coordinates peer-to-peer parcel movement through verified travelers and route matching.',
       'Transport timelines vary by route availability, weather, travel constraints, and compliance checks.',
     ],
   },
@@ -29,7 +29,7 @@ const sections = [
   {
     title: 'Failed or Delayed Delivery',
     paragraphs: [
-      'If delivery is delayed or fails, CarryGo support guides next steps based on tracking history and policy rules.',
+      'If delivery is delayed or fails, CaryGoo support guides next steps based on tracking history and policy rules.',
       'Compensation, refunds, or disputes are handled according to the Refund & Cancellation Policy.',
     ],
   },
@@ -39,7 +39,7 @@ export default function ShippingDeliveryPage() {
   return (
     <LegalPage
       title='Shipping & Delivery Policy'
-      summary='This policy explains service scope, delivery expectations, and responsibilities for shipment handling on CarryGo.'
+      summary='This policy explains service scope, delivery expectations, and responsibilities for shipment handling on CaryGoo.'
       lastUpdated='August 27, 2026'
       sections={sections}
       relatedLinks={[

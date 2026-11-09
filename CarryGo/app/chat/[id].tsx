@@ -24,12 +24,16 @@ import {
   useDeleteConversationMutation,
   useMarkMessagesReadMutation,
   useSendMessageMutation,
+  useUserAvatarsQuery,
 } from '@/features/conversations/queries';
+import { getCachedAvatar } from '@/services/avatar-enrichment.service';
 import { useRequestQuery } from '@/features/requests/queries';
-import { AppErrorBoundary, AsyncStateCard } from '@/components';
+import { AppErrorBoundary, AsyncStateCard, LottieAnimation } from '@/components';
 import { formatTime } from '@/lib/dateFormat';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { useOptionalNotificationContext } from '@/contexts/NotificationContext';
+import { getUserAvatarSource } from '@/constants/images';
+import { useResponsive } from '@/hooks/useResponsive';
 
 function getDayLabel(ts: string): string {
   const d = new Date(ts);
@@ -85,12 +89,14 @@ const MessageBubble = React.memo(function MessageBubble({
     ]}>
       {!isMine ? (
         showAvatar ? (
-          <View style={[styles.avatarSmall, { backgroundColor: C.primarySubtle }]}>
-            {senderAvatar ? (
-              <Image source={{ uri: senderAvatar }} style={styles.avatarSmallImage} contentFit="cover" />
-            ) : (
-              <Text style={[styles.avatarSmallText, { color: C.primary }]}>{senderInitial}</Text>
-            )}
+          <View style={[styles.avatarSmall, { backgroundColor: C.primarySubtle, overflow: 'hidden' }]}>
+            <Image
+              source={getUserAvatarSource(senderAvatar, item.senderName || senderInitial)}
+              style={styles.avatarSmallImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={100}
+            />
           </View>
         ) : (
           <View style={{ width: 28 }} />
@@ -158,6 +164,7 @@ const ChatInputBar = React.memo(function ChatInputBar({
 }: ChatInputBarProps) {
   const [text, setText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const { isTablet } = useResponsive();
   const sendBtnScale = useRef(new Animated.Value(1)).current;
   const { bottomInset } = useKeyboardPadding({
     activePadding: Spacing.xs + 2,
@@ -221,6 +228,7 @@ const ChatInputBar = React.memo(function ChatInputBar({
       <View
         style={[
           styles.inputRow,
+          isTablet && styles.tabletCentered,
           {
             paddingBottom: bottomInset,
           },
@@ -297,6 +305,7 @@ export default function ChatScreen() {
   const { showAlert } = useAlert();
   const { C, isDark } = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { isSmallDevice, isTablet } = useResponsive();
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const flatListRef = useRef<FlatList<ListItem>>(null);
   const router = useRouter();
@@ -312,9 +321,22 @@ export default function ChatScreen() {
 
   const myId = user?.id || '';
   const otherUserId = useMemo(() => {
-    if (!conversation) return undefined;
-    return conversation.participants.find(p => p !== myId);
-  }, [conversation, myId]);
+    if (conversation) {
+      const fromParticipants = conversation.participants.find(p => p !== myId);
+      if (fromParticipants) return fromParticipants;
+      const fromNames = Object.keys(conversation.participantNames || {}).find(p => p !== myId);
+      if (fromNames) return fromNames;
+    }
+    if (requestQuery.data) {
+      if (myId === requestQuery.data.senderId) return requestQuery.data.travellerId;
+      if (myId === requestQuery.data.travellerId) return requestQuery.data.senderId;
+    }
+    return undefined;
+  }, [conversation, myId, requestQuery.data]);
+
+  const otherUserIds = useMemo(() => (otherUserId ? [otherUserId] : []), [otherUserId]);
+  const userAvatarsQuery = useUserAvatarsQuery(otherUserIds);
+  const avatarMap = userAvatarsQuery.data || {};
 
   const otherName = useMemo(() => {
     if (!conversation) return 'User';
@@ -322,12 +344,21 @@ export default function ChatScreen() {
   }, [conversation, myId]);
 
   const otherAvatar = useMemo(() => {
+    if (otherUserId && avatarMap[otherUserId]) {
+      return avatarMap[otherUserId];
+    }
+    if (otherUserId) {
+      const cached = getCachedAvatar(otherUserId);
+      if (cached) return cached;
+    }
     if (requestQuery.data) {
       if (myId === requestQuery.data.senderId) {
-        return (requestQuery.data as any).travellerSelfieUrl || requestQuery.data.travellerAvatar;
+        const url = (requestQuery.data as any).travellerSelfieUrl || requestQuery.data.travellerAvatar;
+        if (url) return url;
       }
       if (myId === requestQuery.data.travellerId) {
-        return (requestQuery.data as any).senderSelfieUrl || requestQuery.data.senderAvatar;
+        const url = (requestQuery.data as any).senderSelfieUrl || requestQuery.data.senderAvatar;
+        if (url) return url;
       }
     }
     const participantAvatars = (conversation as any)?.participantAvatars;
@@ -335,7 +366,7 @@ export default function ChatScreen() {
       return participantAvatars[otherUserId];
     }
     return undefined;
-  }, [requestQuery.data, myId, conversation, otherUserId]);
+  }, [otherUserId, avatarMap, requestQuery.data, myId, conversation]);
 
   const listItems = useMemo(() => buildListItems(chatMessages), [chatMessages]);
 
@@ -501,12 +532,12 @@ export default function ChatScreen() {
         isMine={isMine}
         showAvatar={showAvatar}
         senderInitial={msg.senderName?.charAt(0).toUpperCase() || 'U'}
-        senderAvatar={isMine ? (user?.selfieUrl || user?.avatar) : otherAvatar}
+        senderAvatar={isMine ? (user?.selfieUrl || user?.avatar || (user?.id ? getCachedAvatar(user.id) : undefined)) : otherAvatar}
         onLongPress={() => handleLongPress(msg)}
         C={C}
       />
     );
-  }, [myId, listItems, handleLongPress, C]);
+  }, [myId, listItems, handleLongPress, C, otherAvatar, user?.selfieUrl, user?.avatar, user?.id]);
 
   const keyExtractor = useCallback((item: ListItem) => {
     return item.type === 'day_label' ? item.id : item.data.id;
@@ -543,8 +574,8 @@ export default function ChatScreen() {
     }
     return (
       <View style={styles.emptyChat}>
-        <View style={[styles.emptyIconBox, { backgroundColor: C.surfaceElevated }]}>
-          <Ionicons name="chatbubbles-outline" size={40} color={C.textMuted} />
+        <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+          <LottieAnimation name="chat" style={{ width: 140, height: 110 }} />
         </View>
         <Text style={[styles.emptyChatText, { color: C.textSecondary }]}>Start the conversation!</Text>
         <Text style={[styles.emptyChatSubtext, { color: C.textMuted }]}>
@@ -569,28 +600,51 @@ export default function ChatScreen() {
           headerShown: true,
           headerTitle: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={[styles.avatarSmall, { width: 34, height: 34, borderRadius: 17, backgroundColor: C.primarySubtle }]}>
-                {otherAvatar ? (
-                  <Image
-                    source={{ uri: otherAvatar }}
-                    style={{ width: '100%', height: '100%', borderRadius: 17 }}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <Text style={[styles.avatarSmallText, { fontSize: 14, color: C.primary }]}>
-                    {otherName.charAt(0).toUpperCase()}
-                  </Text>
-                )}
+              <View style={[styles.avatarSmall, { width: 34, height: 34, borderRadius: 17, backgroundColor: C.primarySubtle, overflow: 'hidden' }]}>
+                <Image
+                  source={getUserAvatarSource(otherAvatar, otherName)}
+                  style={{ width: '100%', height: '100%', borderRadius: 17 }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={100}
+                />
               </View>
-              <View style={{ maxWidth: 190 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ maxWidth: 220 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                   <Text style={{ fontSize: 15, fontWeight: '700', color: C.textPrimary }} numberOfLines={1}>
                     {otherName}
                   </Text>
                   <MaterialIcons name="verified" size={14} color={C.success} />
+                  {requestQuery.data ? (
+                    <View
+                      style={[
+                        styles.headerRolePill,
+                        {
+                          backgroundColor:
+                            myId === requestQuery.data.senderId
+                              ? C.primarySubtle
+                              : C.successSubtle,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.headerRoleText,
+                          {
+                            color:
+                              myId === requestQuery.data.senderId
+                                ? C.primary
+                                : C.success,
+                          },
+                        ]}
+                      >
+                        {myId === requestQuery.data.senderId ? 'Traveler' : 'Sender'}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Text style={{ fontSize: 11, color: C.textMuted }} numberOfLines={1}>
-                  {conversation?.route || 'Verified CarryGo Delivery'}
+                  {conversation?.route || 'Verified CaryGoo Delivery'}
                 </Text>
               </View>
             </View>
@@ -616,6 +670,7 @@ export default function ChatScreen() {
         <Pressable
           style={[
             styles.deliveryCTA,
+            isTablet && styles.tabletCentered,
             {
               backgroundColor: isDeliveryCompleted
                 ? C.successSubtle
@@ -689,12 +744,13 @@ export default function ChatScreen() {
         <View
           style={[
             styles.preAcceptTrustBanner,
+            isTablet && styles.tabletCentered,
             { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
           ]}
         >
           <MaterialIcons name="shield" size={14} color={C.primary} />
           <Text style={[styles.preAcceptTrustText, { color: C.textSecondary }]}>
-            Pre-acceptance inquiry • Coordinate details safely. Payments and handover OTP remain protected in CarryGo escrow.
+            Pre-acceptance inquiry • Coordinate details safely. Payments and handover OTP remain protected in CaryGoo booking.
           </Text>
         </View>
       ) : null}
@@ -706,7 +762,7 @@ export default function ChatScreen() {
           extraData={listItems}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          contentContainerStyle={[styles.messageList, { paddingBottom: 16 }]}
+          contentContainerStyle={[styles.messageList, { paddingBottom: 16 }, isTablet && styles.tabletCentered]}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={64}
@@ -817,6 +873,20 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  tabletCentered: {
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  headerRolePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BorderRadius.full,
+  },
+  headerRoleText: {
+    fontSize: 9.5,
+    fontWeight: FontWeight.bold,
+  },
   deliveryCTA: {
     flexDirection: 'row',
     alignItems: 'center',

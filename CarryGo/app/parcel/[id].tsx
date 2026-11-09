@@ -1,14 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Pressable,
   ActivityIndicator,
   RefreshControl,
   Share,
   Modal,
+  StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import {
   useParcelQuery,
   useUpdateParcelStatusMutation,
   useTripsQuery,
+  useTripQuery,
   useCreateTripMutation,
   flattenInfiniteData,
 } from '@/features/listings/queries';
@@ -33,68 +34,95 @@ import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/Car
 import { TravelerCounterOfferSheet } from '@/components/feature/parcel/TravelerCounterOfferSheet';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { Request, Parcel, Trip } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors } from '@/constants/theme';
+import { Request, Parcel, Trip, ParcelCategory } from '@/types';
+import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, StatusBarGeometry } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { getUserErrorMessage } from '@/lib/error-handler';
+import { findCity, getDistance } from '@/constants/indian-cities';
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
-import { resolveImageUrl, getCategoryFallbackImage } from '@/constants/images';
+import { getUserAvatarSource, getCategoryFallbackImage, resolveImageUrl } from '@/constants/images';
+import { useResponsive } from '@/hooks/useResponsive';
+import { styles } from '@/styles/parcel/[id].styles';
 
-const CATEGORY_META: Record<
-  string,
-  { label: string; icon: keyof typeof MaterialIcons.glyphMap; color: string; bg: string }
-> = {
-  documents: { label: 'Documents', icon: 'description', color: '#D97706', bg: '#FEF3C7' },
-  electronics: { label: 'Electronics', icon: 'devices', color: '#0284C7', bg: '#E0F2FE' },
-  clothing: { label: 'Clothing', icon: 'checkroom', color: '#7C3AED', bg: '#F5F3FF' },
-  food: { label: 'Food', icon: 'restaurant', color: '#EA580C', bg: '#FFEDD5' },
-  medicine: { label: 'Medicine', icon: 'medical-services', color: '#DC2626', bg: '#FEE2E2' },
-  other: { label: 'Box / General', icon: 'inventory-2', color: '#104BB9', bg: '#EEF4FF' },
+interface CategoryConfig {
+  label: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  color: string;
+  bg: string;
+}
+
+const CATEGORY_CONFIGS: Record<string, CategoryConfig> = {
+  documents: { label: 'Documents', icon: 'description', color: '#004AAD', bg: 'rgba(0, 74, 173, 0.12)' },
+  electronics: { label: 'Electronics', icon: 'devices', color: '#0284C7', bg: 'rgba(2, 132, 199, 0.12)' },
+  clothing: { label: 'Clothing', icon: 'checkroom', color: '#9333EA', bg: 'rgba(147, 51, 234, 0.12)' },
+  food: { label: 'Food & Edibles', icon: 'restaurant', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.12)' },
+  medicine: { label: 'Medicine', icon: 'local-pharmacy', color: '#008B48', bg: 'rgba(0, 139, 72, 0.12)' },
+  other: { label: 'General Goods', icon: 'inventory-2', color: '#008B48', bg: 'rgba(0, 139, 72, 0.12)' },
 };
 
-type TabFilter = 'all' | 'pending' | 'active' | 'done';
+const CATEGORY_GRADIENTS: Record<string, [string, string]> = {
+  documents: ['#004AAD', '#002B66'],
+  electronics: ['#0284C7', '#0369A1'],
+  clothing: ['#9333EA', '#581C87'],
+  food: ['#EA580C', '#9A3412'],
+  medicine: ['#008B48', '#004D28'],
+  other: ['#004AAD', '#008B48'],
+};
 
 interface ProposalCardProps {
   request: Request;
-  viewerRole: 'sender' | 'traveller' | 'observer';
+  parcelCategory?: string;
+  isSender: boolean;
   onAccept?: () => void;
   onDecline?: () => void;
-  onCancel: () => void;
   onChat: () => void;
   onTrack: () => void;
-  onPayment: () => void;
+  onPayment?: () => void;
   C: ThemeColors;
 }
 
 function ProposalCard({
   request,
-  viewerRole,
+  parcelCategory,
+  isSender,
   onAccept,
   onDecline,
-  onCancel,
   onChat,
   onTrack,
   onPayment,
   C,
 }: ProposalCardProps) {
-  const isSender = viewerRole === 'sender';
   const isPending = request.status === 'pending';
   const isAccepted = request.status === 'accepted';
   const isCompleted = request.status === 'completed';
 
+  const tripQuery = useTripQuery(isSender && isPending ? request.tripId : undefined);
+  const allowed = tripQuery.data?.allowedCategories;
+  const categoryMismatch = Boolean(
+    isSender && isPending && parcelCategory && allowed && allowed.length > 0 && !allowed.includes(parcelCategory as any)
+  );
+
+  const dateStr = useMemo(() => {
+    const d = request.createdAt ? new Date(request.createdAt) : null;
+    return d && !isNaN(d.getTime())
+      ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+      : 'Recently';
+  }, [request.createdAt]);
+
   return (
     <View style={[styles.proposalCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      {/* Carrier Info Header */}
       <View style={styles.carrierHeader}>
         <View style={styles.carrierLeft}>
-          <View style={[styles.carrierAvatar, { backgroundColor: C.primarySubtle }]}>
-            <Text style={[styles.carrierAvatarText, { color: C.primary }]}>
-              {(request.travellerName || 'U').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Image
+            source={getUserAvatarSource((request as any).travellerAvatar, request.travellerId || request.travellerName)}
+            style={[styles.carrierAvatar, { borderColor: C.surfaceBorder }]}
+            contentFit="cover"
+          />
           <View style={styles.carrierMeta}>
             <View style={styles.carrierNameRow}>
               <Text style={[styles.carrierName, { color: C.textPrimary }]}>
-                {request.travellerName}
+                {request.travellerName || 'Traveler'}
               </Text>
               <View style={[styles.verifiedPill, { backgroundColor: C.successSubtle }]}>
                 <MaterialIcons name="verified" size={11} color={C.success} />
@@ -102,113 +130,148 @@ function ProposalCard({
               </View>
             </View>
             <Text style={[styles.carrierDate, { color: C.textMuted }]}>
-              Offered on {new Date(request.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              Offered {dateStr}
             </Text>
           </View>
         </View>
 
         <View style={styles.bidAmountBox}>
-          <Text style={[styles.bidAmount, { color: C.success }]}>₹{request.price}</Text>
-          <Text style={[styles.bidLabel, { color: C.textMuted }]}>Proposed</Text>
+          <Text style={[styles.bidAmount, { color: C.primary }]}>₹{request.price}</Text>
+          <Text style={[styles.bidLabel, { color: C.textMuted }]}>Offered Fare</Text>
         </View>
       </View>
 
+      {/* Message from Carrier */}
       {request.message ? (
         <View style={[styles.carrierMessageBox, { backgroundColor: C.surfaceElevated }]}>
-          <Ionicons name="chatbubble-ellipses-outline" size={14} color={C.primary} />
           <Text style={[styles.carrierMessageText, { color: C.textSecondary }]}>
-            {`"${request.message}"`}
+            "{request.message}"
           </Text>
         </View>
       ) : null}
 
+      {/* Carrier Can Carry Pills */}
+      {isSender && isPending && allowed && allowed.length > 0 ? (
+        <View style={styles.carrierCanCarryRow}>
+          <MaterialIcons name="inventory-2" size={12} color={C.textMuted} />
+          <Text style={[styles.carrierCanCarryLabel, { color: C.textMuted }]}>CAN CARRY:</Text>
+          <View style={styles.carrierCanCarryPills}>
+            {allowed.map((cat) => {
+              const isMatch = parcelCategory === cat;
+              return (
+                <View
+                  key={cat}
+                  style={[
+                    styles.carrierCanCarryPill,
+                    {
+                      backgroundColor: isMatch ? C.successSubtle : C.surfaceElevated,
+                      borderColor: isMatch ? C.successBorder : C.surfaceBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.carrierCanCarryPillText, { color: isMatch ? C.success : C.textSecondary }]}>
+                    {CATEGORY_CONFIGS[cat]?.label || cat}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {categoryMismatch ? (
+        <View style={[styles.carrierMismatchBox, { backgroundColor: C.errorSubtle, borderColor: C.errorBorder }]}>
+          <MaterialIcons name="warning-amber" size={14} color={C.error} />
+          <Text style={[styles.carrierMismatchText, { color: C.error }]}>
+            This carrier usually carries other categories. Review carefully before accepting.
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Sender Actions for Pending Offer */}
       {isSender && isPending ? (
         <View style={styles.proposalActionsRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.cancelOfferBtn,
-              { borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.7 },
-            ]}
-            onPress={onDecline || onCancel}
-          >
-            <MaterialIcons name="close" size={15} color={C.error} />
-            <Text style={[styles.cancelOfferText, { color: C.error }]}>Decline</Text>
-          </Pressable>
+          {onDecline ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionBtnSecondary,
+                { borderColor: C.errorBorder, backgroundColor: C.surfaceElevated },
+                pressed && { opacity: 0.75 },
+              ]}
+              onPress={onDecline}
+            >
+              <MaterialIcons name="close" size={14} color={C.error} />
+              <Text style={[styles.actionBtnText, { color: C.error }]}>Decline</Text>
+            </Pressable>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [
-              styles.chatOfferBtn,
-              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              styles.actionBtnSecondary,
+              { borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated },
               pressed && { opacity: 0.75 },
             ]}
             onPress={onChat}
           >
-            <Ionicons name="chatbubble-outline" size={15} color={C.textPrimary} />
-            <Text style={[styles.chatOfferText, { color: C.textPrimary }]}>Chat</Text>
+            <Ionicons name="chatbubble-outline" size={14} color={C.textPrimary} />
+            <Text style={[styles.actionBtnText, { color: C.textPrimary }]}>Chat</Text>
           </Pressable>
 
           {onAccept ? (
             <Pressable
               style={({ pressed }) => [
-                styles.acceptOfferBtn,
+                styles.actionBtnPrimary,
                 { backgroundColor: C.primary },
-                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                pressed && { opacity: 0.9 },
               ]}
               onPress={onAccept}
             >
               <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-              <Text style={styles.acceptOfferText}>Accept</Text>
+              <Text style={styles.actionBtnPrimaryText}>Accept Offer</Text>
             </Pressable>
           ) : null}
         </View>
       ) : null}
 
+      {/* Accepted Status Actions */}
       {isAccepted ? (
         <View style={styles.proposalActionsRow}>
           <Pressable
             style={({ pressed }) => [
-              styles.chatOfferBtn,
-              { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+              styles.actionBtnSecondary,
+              { borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated },
               pressed && { opacity: 0.75 },
             ]}
             onPress={onChat}
           >
             <Ionicons name="chatbubble-outline" size={15} color={C.textPrimary} />
-            <Text style={[styles.chatOfferText, { color: C.textPrimary }]}>Chat</Text>
+            <Text style={[styles.actionBtnText, { color: C.textPrimary }]}>Open Chat</Text>
           </Pressable>
 
-          {isSender ? (
+          {isSender && onPayment ? (
             <Pressable
               style={({ pressed }) => [
-                styles.escrowBtn,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                styles.actionBtnSecondary,
+                { borderColor: C.warning, backgroundColor: C.surfaceElevated },
                 pressed && { opacity: 0.75 },
               ]}
               onPress={onPayment}
             >
               <MaterialIcons name="account-balance-wallet" size={15} color={C.warning} />
-              <Text style={[styles.escrowBtnText, { color: C.warning }]}>Escrow</Text>
+              <Text style={[styles.actionBtnText, { color: C.warning }]}>Escrow</Text>
             </Pressable>
           ) : null}
 
           <Pressable
             style={({ pressed }) => [
-              styles.trackLiveBtn,
+              styles.actionBtnPrimary,
+              { backgroundColor: C.success },
               pressed && { opacity: 0.9 },
             ]}
             onPress={onTrack}
           >
-            <LinearGradient
-              colors={[C.primary, C.primaryDark]}
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            />
-            <MaterialIcons name={isSender ? 'radar' : 'fact-check'} size={16} color="#fff" />
-            <Text style={styles.trackLiveText}>
-              {isSender ? 'Track Delivery' : 'Process Shipment'}
-            </Text>
+            <MaterialIcons name="radar" size={16} color="#FFFFFF" />
+            <Text style={styles.actionBtnPrimaryText}>Track Delivery</Text>
           </Pressable>
         </View>
       ) : null}
@@ -217,7 +280,7 @@ function ProposalCard({
         <View style={styles.deliveryCompletedBadge}>
           <Ionicons name="checkmark-circle" size={16} color={C.success} />
           <Text style={[styles.deliveryCompletedText, { color: C.success }]}>
-            Successfully Delivered
+            Delivered Successfully
           </Text>
         </View>
       ) : null}
@@ -231,7 +294,8 @@ export default function ParcelDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { C, S } = useThemeColors();
+  const { C } = useThemeColors();
+  const { isSmallDevice, isTablet } = useResponsive();
 
   const parcelQuery = useParcelQuery(id);
   const requestsQuery = useRequestsByParcelQuery(id);
@@ -244,53 +308,52 @@ export default function ParcelDetailScreen() {
   const createTripMutation = useCreateTripMutation();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<TabFilter>('all');
   const [showImageModal, setShowImageModal] = useState(false);
   const [showCarryModal, setShowCarryModal] = useState(false);
   const [showCounterSheet, setShowCounterSheet] = useState(false);
   const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
-  const [imgError, setImgError] = useState(false);
 
   const parcel = (parcelQuery.data ?? undefined) as Parcel | undefined;
   const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   const allTrips = flattenInfiniteData(tripsQuery.data);
-  const userTrips = useMemo(
-    () => allTrips.filter((t: Trip) => t.userId === user?.id && t.status === 'active'),
-    [allTrips, user?.id]
-  );
-  const myRequest = useMemo(
-    () => requests.find((r) => r.travellerId === user?.id && ['pending', 'accepted'].includes(r.status)),
-    [requests, user?.id]
-  );
+  const userTrips = useMemo(() => allTrips.filter(t => t.userId === user?.id && t.status === 'active'), [allTrips, user?.id]);
+  const myRequest = useMemo(() => requests.find(r => r.travellerId === user?.id && ['pending', 'accepted'].includes(r.status)), [requests, user?.id]);
   const loading = parcelQuery.isLoading || requestsQuery.isLoading;
 
   const isSender = parcel?.userId === user?.id;
-
-  // Dedicated Traveler Flow condition
+  const isParcelOpen = parcel?.status === 'open';
   const isTravelerMode = travelerFlow === 'true' || (!isSender && Boolean(user));
 
+  // Visible requests: sender sees all proposals; traveler sees only their own
   const visibleRequests = useMemo(() => {
     if (isSender) return requests;
-    return requests.filter((request) => request.travellerId === user?.id);
+    return requests.filter(request => request.travellerId === user?.id);
   }, [isSender, requests, user?.id]);
 
-  const viewerRole: 'sender' | 'traveller' | 'observer' = isSender
-    ? 'sender'
-    : visibleRequests.length > 0
-      ? 'traveller'
-      : 'observer';
+  const catConfig = useMemo(() => {
+    const key = (parcel?.category || 'other').toLowerCase();
+    return CATEGORY_CONFIGS[key] || CATEGORY_CONFIGS.other;
+  }, [parcel?.category]);
 
-  const catMeta = parcel ? (CATEGORY_META[parcel.category] || CATEGORY_META.other) : CATEGORY_META.other;
+  const catGradient = useMemo((): [string, string] => {
+    const key = (parcel?.category || 'other').toLowerCase();
+    return CATEGORY_GRADIENTS[key] || ['#004AAD', '#002B66'];
+  }, [parcel?.category]);
 
-  const rawPhoto = parcel?.imageUri || parcel?.imageUris?.[0];
-  const resolvedPhoto = resolveImageUrl(rawPhoto);
-  const fallbackImage = parcel ? getCategoryFallbackImage(parcel.category) : undefined;
+  const distanceKm = useMemo(() => {
+    if (!parcel?.fromCity || !parcel?.toCity) return null;
+    const c1 = findCity(parcel.fromCity);
+    const c2 = findCity(parcel.toCity);
+    if (!c1 || !c2) return null;
+    const dist = getDistance(c1, c2);
+    return dist > 0 ? Math.round(dist) : null;
+  }, [parcel?.fromCity, parcel?.toCity]);
 
-  const formattedDeliveryDate = parcel?.deliveryDate
-    ? formatScheduleDate(parcel.deliveryDate)
-    : 'Flexible Timeline';
+  const resolvedImage = useMemo(() => {
+    return resolveImageUrl(parcel?.imageUri);
+  }, [parcel?.imageUri]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -303,7 +366,7 @@ export default function ParcelDetailScreen() {
     setRefreshing(false);
   };
 
-  // Helper to resolve or auto-create trip for parcel route
+  // Helper to resolve or auto-create trip for parcel route (for traveler flow)
   const getOrCreateTripForRoute = async (targetParcel: Parcel): Promise<Trip> => {
     if (!user) throw new Error('Authentication required');
 
@@ -425,10 +488,10 @@ export default function ParcelDetailScreen() {
     }
     if (!parcel) return;
 
-    Haptic.confirm();
     setIsSubmittingOffer(true);
     try {
       const trip = await getOrCreateTripForRoute(parcel);
+
       const result = await createRequestAsync({
         parcelId: parcel.id,
         tripId: trip.id,
@@ -438,26 +501,29 @@ export default function ParcelDetailScreen() {
         travellerName: user.fullName || user.name || 'Traveler',
         status: 'pending',
         price: parcel.priceOffer,
-        message: `Hi ${parcel.userName}! I accepted your delivery offer for ₹${parcel.priceOffer} and can deliver your ${parcel.category} package (${parcel.weight}kg) from ${parcel.fromCity} to ${parcel.toCity}.`,
+        message: `I accept your delivery offer of ₹${parcel.priceOffer}. I will pick up on the scheduled date and carry it safely to ${parcel.toCity}.`,
       });
 
       if (result) {
         Haptic.success();
         showAlert(
-          'Offer Accepted! 🎉',
-          `You agreed to carry this parcel for the sender's expected budget of ₹${parcel.priceOffer}. We notified ${parcel.userName}!`,
+          'Offer Submitted! 🎉',
+          `Your offer of ₹${parcel.priceOffer} has been submitted to ${parcel.userName}. They will review and confirm pickup.`,
           [
-            { text: 'Chat with Sender', onPress: handleChatWithSender },
-            { text: 'OK', style: 'cancel' },
+            {
+              text: 'View My Deliveries',
+              onPress: () => router.push('/(tabs)/requests'),
+            },
+            { text: 'Great!', style: 'cancel' },
           ]
         );
         await requestsQuery.refetch();
       } else {
-        showAlert('Error', 'Could not send offer. Please try again.');
+        showAlert('Error', 'Could not submit your offer. Please try again.');
       }
     } catch (err: any) {
       Haptic.error();
-      showAlert('Error', err?.message || 'Could not send offer. Please try again.');
+      showAlert('Delivery Offer', getUserErrorMessage(err, 'Could not accept this parcel offer.'));
     } finally {
       setIsSubmittingOffer(false);
     }
@@ -474,6 +540,7 @@ export default function ParcelDetailScreen() {
     setIsSubmittingOffer(true);
     try {
       const trip = await getOrCreateTripForRoute(parcel);
+
       const result = await createRequestAsync({
         parcelId: parcel.id,
         tripId: trip.id,
@@ -485,18 +552,21 @@ export default function ParcelDetailScreen() {
         price: counterPrice,
         message:
           counterNote ||
-          `Hi ${parcel.userName}! I proposed a counter offer of ₹${counterPrice} to carry your ${parcel.category} package (${parcel.weight}kg) from ${parcel.fromCity} to ${parcel.toCity}.`,
+          `Counter Offer: ₹${counterPrice}. I am travelling along ${parcel.fromCity} → ${parcel.toCity} and can carry this parcel safely.`,
       });
 
       if (result) {
         setShowCounterSheet(false);
         Haptic.success();
         showAlert(
-          'Counter Offer Sent! 🎉',
-          `Your counter offer of ₹${counterPrice} was sent to ${parcel.userName}. You will be notified when they respond.`,
+          'Counter Offer Sent! 🚀',
+          `Your counter offer of ₹${counterPrice} has been sent to ${parcel.userName}. You will be notified when they respond.`,
           [
-            { text: 'Chat with Sender', onPress: handleChatWithSender },
-            { text: 'OK', style: 'cancel' },
+            {
+              text: 'View Requests',
+              onPress: () => router.push('/(tabs)/requests'),
+            },
+            { text: 'Done', style: 'cancel' },
           ]
         );
         await requestsQuery.refetch();
@@ -505,17 +575,183 @@ export default function ParcelDetailScreen() {
       }
     } catch (err: any) {
       Haptic.error();
-      showAlert('Error', err?.message || 'Could not send counter offer. Please try again.');
+      showAlert('Counter Offer', getUserErrorMessage(err, 'Could not submit counter offer.'));
     } finally {
       setIsSubmittingOffer(false);
     }
+  };
+
+  const handleConfirmCarry = async (tripId: string, targetParcel: Parcel) => {
+    if (!user) return;
+    const chosenTrip = userTrips.find(t => t.id === tripId);
+    if (!chosenTrip) return;
+
+    try {
+      const result = await createRequestAsync({
+        parcelId: targetParcel.id,
+        tripId: chosenTrip.id,
+        senderId: targetParcel.userId,
+        senderName: targetParcel.userName,
+        travellerId: user.id,
+        travellerName: user.name || 'Traveller',
+        status: 'pending',
+        price: targetParcel.priceOffer,
+        message: `Hi ${targetParcel.userName}! I am travelling on ${chosenTrip.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
+      });
+
+      if (result) {
+        setShowCarryModal(false);
+        Haptic.success();
+        showAlert(
+          'Offer Sent! 🎉',
+          `Your offer to carry this parcel for ₹${targetParcel.priceOffer} was sent to ${targetParcel.userName}.`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await requestsQuery.refetch();
+      } else {
+        showAlert('Error', 'Could not send offer. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Could not send offer. Please try again.');
+    }
+  };
+
+  const handlePostTripForParcel = (fromCity: string, toCity: string, minCapacity: number) => {
+    router.push({
+      pathname: '/create-trip',
+      params: { fromCity, toCity, capacity: String(minCapacity) },
+    });
+  };
+
+  const handleQuickCreateAndCarry = async (quickParams: QuickCarryTripParams, targetParcel: Parcel) => {
+    if (!user) return;
+    try {
+      const newTrip = await createTripMutation.mutateAsync({
+        userId: user.id,
+        userName: user.fullName || user.name || 'Traveller',
+        userRating: user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0) : 0,
+        fromCity: targetParcel.fromCity,
+        toCity: targetParcel.toCity,
+        date: quickParams.date,
+        time: quickParams.time,
+        vehicleType: quickParams.vehicleType,
+        availableCapacity: quickParams.capacity,
+        pricePerKg: Math.max(50, Math.round(targetParcel.priceOffer / Math.max(1, targetParcel.weight))),
+        status: 'active',
+      });
+
+      const result = await createRequestAsync({
+        parcelId: targetParcel.id,
+        tripId: newTrip.id,
+        senderId: targetParcel.userId,
+        senderName: targetParcel.userName,
+        travellerId: user.id,
+        travellerName: user.name || 'Traveller',
+        status: 'pending',
+        price: targetParcel.priceOffer,
+        message: `Hi ${targetParcel.userName}! I am travelling from ${targetParcel.fromCity} to ${targetParcel.toCity} on ${quickParams.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
+      });
+
+      if (result) {
+        setShowCarryModal(false);
+        Haptic.success();
+        showAlert(
+          'Trip Posted & Offer Sent! 🎉',
+          `Your trip was posted and your offer (₹${targetParcel.priceOffer}) was sent to ${targetParcel.userName}.`,
+          [
+            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        await Promise.all([requestsQuery.refetch(), tripsQuery.refetch()]);
+      } else {
+        showAlert('Error', 'Could not send carry offer. Please try again.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Could not post trip and send offer.');
+    }
+  };
+
+  const handleAcceptProposal = (req: Request) => {
+    showAlert('Accept Offer?', `Accept ${req.travellerName}'s offer to carry this parcel for ₹${req.price}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Accept Offer',
+        onPress: async () => {
+          try {
+            await updateRequestStatusAsync({ requestId: req.id, status: 'accepted' });
+            Haptic.success();
+            await Promise.all([requestsQuery.refetch(), parcelQuery.refetch()]);
+            showAlert('Offer Accepted! 🎉', 'You can now coordinate pickup details directly in chat.');
+          } catch (error) {
+            Haptic.error();
+            showAlert('Could Not Accept', getUserErrorMessage(error, 'Failed to accept offer.'));
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeclineProposal = (req: Request) => {
+    showAlert('Decline Offer?', `Decline ${req.travellerName}'s offer to carry this parcel?`, [
+      { text: 'Keep Offer', style: 'cancel' },
+      {
+        text: 'Decline',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await updateRequestStatusAsync({ requestId: req.id, status: 'rejected' });
+            Haptic.tap();
+            await requestsQuery.refetch();
+          } catch (error) {
+            Haptic.error();
+            showAlert('Could Not Decline', getUserErrorMessage(error, 'Failed to decline offer.'));
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleChat = (req: Request) => {
+    const conv = conversations.find(c => c.requestId === req.id);
+    if (conv?.id) {
+      router.push(`/chat/${encodeURIComponent(String(conv.id))}` as never);
+    } else {
+      showAlert('Chat', 'Chat is ready once the request is accepted.');
+    }
+  };
+
+  const handleCancelParcel = () => {
+    if (!parcel || !isSender) return;
+    showAlert('Cancel Parcel?', 'This will remove your parcel listing from the marketplace.', [
+      { text: 'Keep Listing', style: 'cancel' },
+      {
+        text: 'Cancel Parcel',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await updateParcelStatusMutation.mutateAsync({ parcelId: parcel.id, status: 'cancelled' });
+            Haptic.success();
+            showAlert('Parcel Cancelled', 'Your parcel listing has been cancelled.');
+          } catch (error) {
+            Haptic.error();
+            showAlert('Error', getUserErrorMessage(error, 'Could not cancel parcel. Please try again.'));
+          }
+        },
+      },
+    ]);
   };
 
   const handleShareParcel = async () => {
     if (!parcel) return;
     try {
       await Share.share({
-        message: `CarryGo Shipment: ${parcel.description} from ${parcel.fromCity} to ${parcel.toCity}! Weight: ${parcel.weight}kg, Reward: ₹${parcel.priceOffer}. Connect with me on CarryGo.`,
+        message: `CaryGoo Parcel: ${parcel.description} from ${parcel.fromCity} to ${parcel.toCity} (${parcel.weight}kg, ₹${parcel.priceOffer}).`,
       });
     } catch {
       // Ignored
@@ -523,36 +759,81 @@ export default function ParcelDetailScreen() {
   };
 
   if (!parcel) {
+    if (parcelQuery.isLoading) {
+      return (
+        <View style={[styles.center, { backgroundColor: C.background }]}>
+          <ActivityIndicator color={C.primary} size="large" />
+        </View>
+      );
+    }
+
     return (
-      <View style={[styles.center, { backgroundColor: C.background }]}>
-        <ActivityIndicator color="#10B981" size="large" />
+      <View style={[styles.container, { backgroundColor: C.background }]}>
+        <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }]}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.roundNavBtn,
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.75 }
+            ]}
+            hitSlop={8}
+          >
+            <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+          </Pressable>
+          <View style={styles.navTitleContainer}>
+            <Text style={[styles.navTitle, { color: C.textPrimary }]}>Parcel Details</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={[styles.center, { padding: Spacing.xl, gap: Spacing.md }]}>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: C.primarySubtle, alignItems: 'center', justifyContent: 'center' }}>
+            <MaterialIcons name="inventory-2" size={32} color={C.primary} />
+          </View>
+          <Text style={{ fontSize: 18, fontWeight: FontWeight.bold, color: C.textPrimary, textAlign: 'center' }}>
+            Parcel Not Available
+          </Text>
+          <Text style={{ fontSize: 13, color: C.textMuted, textAlign: 'center', lineHeight: 18 }}>
+            This parcel listing might have been completed, expired, or removed.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            <Pressable
+              onPress={() => handleRefresh()}
+              style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.surfaceBorder, backgroundColor: C.surface }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: FontWeight.semibold, color: C.textPrimary }}>Retry</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.replace('/(tabs)')}
+              style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primary }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: FontWeight.bold, color: '#fff' }}>Browse Marketplace</Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
     );
   }
 
-  const isParcelOpen = parcel.status === 'open';
+  const showBottomBar = !isSender && isParcelOpen;
+  const statusColor = isParcelOpen ? C.success : parcel.status === 'in_transit' || parcel.status === 'matched' ? C.primary : C.textMuted;
+  const statusBg = isParcelOpen ? C.successSubtle : parcel.status === 'in_transit' || parcel.status === 'matched' ? C.primarySubtle : C.surfaceElevated;
+  const statusBorder = isParcelOpen ? C.successBorder : parcel.status === 'in_transit' || parcel.status === 'matched' ? C.primaryBorder : C.surfaceBorder;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      {/* Top Floating App Bar strictly matching index.styles.ts */}
-      <View
-        style={[
-          styles.topNavBar,
-          {
-            paddingTop: insets.top + Spacing.sm,
-            backgroundColor: C.surface,
-            borderBottomColor: C.surfaceBorder,
-          },
-        ]}
-      >
+      {/* Top Header Bar */}
+      <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }, isTablet && styles.tabletCentered]}>
         <Pressable
           onPress={() => {
             Haptic.tap();
             router.back();
           }}
-          style={[
+          style={({ pressed }) => [
             styles.roundNavBtn,
-            { backgroundColor: C.card, borderColor: C.surfaceBorder },
+            { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+            pressed && { opacity: 0.75 },
           ]}
           hitSlop={8}
           accessibilityRole="button"
@@ -563,48 +844,26 @@ export default function ParcelDetailScreen() {
 
         <View style={styles.navTitleContainer}>
           <Text style={[styles.navTitle, { color: C.textPrimary }]}>
-            {isTravelerMode ? 'Parcel Details' : 'Manage Shipment'}
+            {isSender ? 'Manage Parcel' : 'Parcel Details'}
           </Text>
-          <View style={styles.navSubRow}>
-            <View
-              style={[
-                styles.navStatusDot,
-                { backgroundColor: isParcelOpen ? '#10B981' : C.primary },
-              ]}
-            />
-            <Text style={[styles.navSubtitle, { color: C.textMuted }]}>
-              {isTravelerMode ? 'SENDER REQUEST' : parcel.status.replace('_', ' ').toUpperCase()}
+          <View style={[styles.statusCapsule, { backgroundColor: statusBg, borderColor: statusBorder }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.statusCapsuleText, { color: statusColor }]}>
+              {parcel.status === 'open' ? 'OPEN FOR OFFERS' : parcel.status.toUpperCase()}
             </Text>
           </View>
         </View>
 
         <View style={styles.navRightRow}>
-          {/* Pre-Booking Chat Icon in Header */}
-          {isTravelerMode && !isSender ? (
-            <Pressable
-              onPress={handleChatWithSender}
-              style={[
-                styles.roundNavBtn,
-                { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
-              ]}
-              hitSlop={6}
-              disabled={isStartingChat}
-              accessibilityRole="button"
-              accessibilityLabel="Chat with sender"
-            >
-              {isStartingChat ? (
-                <ActivityIndicator size="small" color="#10B981" />
-              ) : (
-                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#10B981" />
-              )}
-            </Pressable>
-          ) : null}
-
           <Pressable
-            onPress={handleShareParcel}
-            style={[
+            onPress={() => {
+              Haptic.tap();
+              handleShareParcel();
+            }}
+            style={({ pressed }) => [
               styles.roundNavBtn,
-              { backgroundColor: C.card, borderColor: C.surfaceBorder },
+              { backgroundColor: C.surface, borderColor: C.surfaceBorder },
+              pressed && { opacity: 0.75 },
             ]}
             hitSlop={6}
             accessibilityRole="button"
@@ -612,368 +871,373 @@ export default function ParcelDetailScreen() {
           >
             <MaterialIcons name="share" size={18} color={C.textSecondary} />
           </Pressable>
+
+          {isSender && isParcelOpen ? (
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                handleCancelParcel();
+              }}
+              style={({ pressed }) => [
+                styles.roundNavBtn,
+                { backgroundColor: C.errorSubtle, borderColor: C.errorBorder },
+                pressed && { opacity: 0.75 },
+              ]}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel listing"
+            >
+              <MaterialIcons name="delete-outline" size={18} color={C.error} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.scrollBody,
-          {
-            paddingBottom: isTravelerMode && !isSender ? insets.bottom + 110 : insets.bottom + 36,
-          },
+          { paddingBottom: showBottomBar ? insets.bottom + 96 : insets.bottom + 36 },
+          isTablet && styles.tabletCentered,
+          isSmallDevice && { paddingHorizontal: Spacing.md },
         ]}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="#10B981"
-            colors={['#10B981']}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
       >
-        {/* 1. Parcel Information Review: Larger Image Showcase with fallback & Zoom */}
-        <View
-          style={[
-            styles.packageCard,
-            S.card,
-            {
-              backgroundColor: C.card,
-              borderColor: C.surfaceBorder,
-            },
-          ]}
-        >
-          <Pressable
-            onPress={() => {
-              Haptic.tap();
-              setShowImageModal(true);
-            }}
-            style={styles.packageImageContainer}
-            accessibilityRole="button"
-            accessibilityLabel="View full photo"
-          >
-            <Image
-              source={resolvedPhoto && !imgError ? { uri: resolvedPhoto } : fallbackImage}
-              style={styles.packageImage}
-              contentFit="cover"
-              onError={() => setImgError(true)}
-              transition={200}
-            />
-            <LinearGradient
-              colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.65)']}
-              style={StyleSheet.absoluteFillObject}
-            />
-
-            {/* Overlays on photo: Category chip + Inspect hint */}
-            <View style={styles.imageOverlayTop}>
-              <View style={[styles.categoryBadgePill, { backgroundColor: catMeta.bg }]}>
-                <MaterialIcons name={catMeta.icon} size={14} color={catMeta.color} />
-                <Text style={[styles.categoryBadgeText, { color: catMeta.color }]}>
-                  {catMeta.label}
-                </Text>
-              </View>
-
-              <View style={styles.weightOverlayBadge}>
-                <MaterialIcons name="fitness-center" size={12} color="#FFFFFF" />
-                <Text style={styles.weightOverlayBadgeText}>{parcel.weight} kg</Text>
-              </View>
-            </View>
-
-            <View style={styles.imageOverlayBottom}>
-              <Text style={styles.packageImageTitle} numberOfLines={2}>
-                {parcel.description || `${catMeta.label} Package`}
-              </Text>
-              <View style={styles.tapToZoomRow}>
-                <MaterialIcons name="fullscreen" size={14} color="rgba(255,255,255,0.85)" />
-                <Text style={styles.tapToZoomText}>Tap to inspect full photo</Text>
-              </View>
-            </View>
-          </Pressable>
-        </View>
-
-        {/* 2. Sender's Expected Price Card strictly matching index.styles.ts */}
-        <View
-          style={[
-            styles.priceOfferCard,
-            S.card,
-            {
-              backgroundColor: C.card,
-              borderColor: C.surfaceBorder,
-            },
-          ]}
-        >
-          <View style={styles.priceOfferHeader}>
-            <View style={styles.priceOfferTitleCol}>
-              <Text style={[styles.priceOfferSubLabel, { color: C.textMuted }]}>
-                SENDER'S EXPECTED REWARD
-              </Text>
-              <Text style={[styles.priceOfferAmount, { color: '#064E3B' }]}>
-                ₹{parcel.priceOffer}
-              </Text>
-              <Text style={[styles.priceOfferDetails, { color: C.textSecondary }]}>
-                Budget proposed by sender for carrying {parcel.weight} kg
-              </Text>
-            </View>
-
-            <View style={[styles.escrowShieldBadge, { backgroundColor: '#ECFDF5' }]}>
-              <MaterialIcons name="security" size={18} color="#10B981" />
-              <Text style={styles.escrowShieldText}>100% Escrow</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 3. Precise Pickup & Drop-Off Requirements Card strictly matching index.styles.ts */}
-        <View
-          style={[
-            styles.requirementsCard,
-            S.card,
-            {
-              backgroundColor: C.card,
-              borderColor: C.surfaceBorder,
-            },
-          ]}
-        >
-          <Text style={[styles.sectionHeading, { color: C.textPrimary }]}>
-            Route & Requirements
-          </Text>
-
-          {/* Route Flow */}
-          <View style={styles.routeFlow}>
-            {/* Origin Step */}
-            <View style={styles.routeStep}>
-              <View style={styles.stepIndicatorCol}>
-                <View style={[styles.pickupDot, { backgroundColor: '#10B981' }]} />
-                <View style={[styles.verticalLine, { backgroundColor: C.surfaceBorder }]} />
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={[styles.stepLabel, { color: C.textMuted }]}>PICKUP LOCATION</Text>
-                <Text style={[styles.stepCity, { color: C.textPrimary }]}>{parcel.fromCity}</Text>
-                <Text style={[styles.stepDetail, { color: C.textSecondary }]}>
-                  Doorstep / agreed rendezvous in {parcel.fromCity}
-                </Text>
-              </View>
-            </View>
-
-            {/* Destination Step */}
-            <View style={styles.routeStep}>
-              <View style={styles.stepIndicatorCol}>
-                <View style={[styles.dropoffPin, { backgroundColor: '#EF4444' }]}>
-                  <MaterialIcons name="location-on" size={12} color="#FFFFFF" />
-                </View>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={[styles.stepLabel, { color: C.textMuted }]}>
-                  DELIVERY DESTINATION
-                </Text>
-                <Text style={[styles.stepCity, { color: C.textPrimary }]}>{parcel.toCity}</Text>
-                <Text style={[styles.stepDetail, { color: '#047857' }]}>
-                  Deliver by: {formattedDeliveryDate}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Package Details Breakdown */}
-          <View style={[styles.specsGrid, { backgroundColor: C.surfaceElevated }]}>
-            <View style={styles.specItem}>
-              <Text style={[styles.specLabel, { color: C.textMuted }]}>WEIGHT</Text>
-              <Text style={[styles.specVal, { color: C.textPrimary }]}>{parcel.weight} kg</Text>
-            </View>
-            <View style={[styles.specDivider, { backgroundColor: C.surfaceBorder }]} />
-            <View style={styles.specItem}>
-              <Text style={[styles.specLabel, { color: C.textMuted }]}>CATEGORY</Text>
-              <Text style={[styles.specVal, { color: C.textPrimary, textTransform: 'capitalize' }]}>
-                {parcel.category}
-              </Text>
-            </View>
-            <View style={[styles.specDivider, { backgroundColor: C.surfaceBorder }]} />
-            <View style={styles.specItem}>
-              <Text style={[styles.specLabel, { color: C.textMuted }]}>TIER</Text>
-              <Text style={[styles.specVal, { color: C.textPrimary }]}>
-                {parcel.weight <= 2 ? 'Small' : parcel.weight <= 5 ? 'Medium' : 'Large'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Sender Special Instructions */}
-          {parcel.description ? (
-            <View style={[styles.notesBox, { borderColor: C.surfaceBorder }]}>
-              <MaterialIcons name="notes" size={16} color={C.textMuted} />
-              <Text style={[styles.notesText, { color: C.textSecondary }]}>
-                {parcel.description}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* 4. Sender Information & Pre-Booking Chat Card */}
-        <View
-          style={[
-            styles.senderCard,
-            S.card,
-            {
-              backgroundColor: C.card,
-              borderColor: C.surfaceBorder,
-            },
-          ]}
-        >
-          <View style={styles.senderLeft}>
-            <View style={[styles.senderAvatarBox, { backgroundColor: C.surfaceElevated }]}>
-              {parcel.userAvatar ? (
+        {/* Creative Digital Waybill Showcase Card */}
+        <View style={[styles.showcaseCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          {/* Media Header Window */}
+          <View style={[styles.mediaContainer, isSmallDevice && { height: 180 }]}>
+            {resolvedImage ? (
+              <Pressable
+                onPress={() => {
+                  Haptic.tap();
+                  setShowImageModal(true);
+                }}
+                style={{ width: '100%', height: '100%' }}
+              >
                 <Image
-                  source={{ uri: resolveImageUrl(parcel.userAvatar) }}
-                  style={styles.senderAvatarImg}
+                  source={{ uri: resolvedImage }}
+                  style={styles.mediaImage}
+                  contentFit="cover"
+                  transition={200}
+                />
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.6)']}
+                  style={styles.mediaGradientOverlay}
+                />
+                <View style={styles.zoomBadge}>
+                  <MaterialIcons name="zoom-in" size={14} color="#FFFFFF" />
+                  <Text style={styles.zoomBadgeText}>Tap to preview</Text>
+                </View>
+              </Pressable>
+            ) : (
+              <View style={{ width: '100%', height: '100%' }}>
+                <Image
+                  source={getCategoryFallbackImage(parcel.category)}
+                  style={styles.mediaImage}
                   contentFit="cover"
                 />
-              ) : (
-                <Text style={[styles.senderAvatarInitial, { color: '#10B981' }]}>
-                  {(parcel.userName || 'S').trim().charAt(0).toUpperCase()}
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.senderMetaCol}>
-              <View style={styles.senderNameRow}>
-                <Text style={[styles.senderNameText, { color: C.textPrimary }]}>
-                  {parcel.userName || 'Verified Sender'}
-                </Text>
-                <MaterialIcons name="verified" size={14} color="#10B981" />
+                <LinearGradient
+                  colors={['rgba(0, 74, 173, 0.4)', 'rgba(0, 0, 0, 0.7)']}
+                  style={StyleSheet.absoluteFillObject}
+                />
               </View>
-              <Text style={[styles.senderRatingSub, { color: C.textMuted }]}>
-                Verified Sender • Prompt responder
-              </Text>
+            )}
+
+            {/* Badges Over Media */}
+            <View style={styles.mediaBadgesTop}>
+              <View style={styles.mediaCategoryPill}>
+                <MaterialIcons name={catConfig.icon} size={14} color="#FFFFFF" />
+                <Text style={styles.mediaCategoryText}>{catConfig.label}</Text>
+              </View>
+
+              <View style={styles.mediaWeightPill}>
+                <MaterialIcons name="fitness-center" size={13} color="#FFFFFF" />
+                <Text style={styles.mediaWeightText}>{parcel.weight} kg</Text>
+              </View>
             </View>
           </View>
 
-          {/* Pre-Booking Chat Button */}
-          {isTravelerMode && !isSender ? (
-            <Pressable
-              style={[
-                styles.preBookingChatBtn,
-                { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
-              ]}
-              onPress={handleChatWithSender}
-              disabled={isStartingChat}
-              accessibilityRole="button"
-              accessibilityLabel="Chat with sender before offer"
-            >
-              {isStartingChat ? (
-                <ActivityIndicator size="small" color="#10B981" />
-              ) : (
-                <>
-                  <Ionicons name="chatbubble-ellipses" size={15} color="#10B981" />
-                  <Text style={styles.preBookingChatText}>Chat</Text>
-                </>
-              )}
-            </Pressable>
-          ) : null}
-        </View>
+          {/* Showcase Details Body */}
+          <View style={styles.showcaseBody}>
+            {/* Header Meta Row */}
+            <View style={styles.titleRow}>
+              <View style={styles.parcelHeaderMetaRow}>
+                <View style={[styles.categoryLabelPill, { backgroundColor: catConfig.bg }]}>
+                  <MaterialIcons name={catConfig.icon} size={13} color={catConfig.color} />
+                  <Text style={[styles.categoryLabelText, { color: catConfig.color }]}>
+                    {catConfig.label}
+                  </Text>
+                </View>
 
-        {/* Active Offer Banner (if traveler has already submitted an offer) */}
-        {myRequest ? (
-          <View
-            style={[
-              styles.existingOfferCard,
-              {
-                backgroundColor: myRequest.status === 'accepted' ? '#ECFDF5' : '#FFFBEB',
-                borderColor: myRequest.status === 'accepted' ? '#10B981' : '#F59E0B',
-              },
-            ]}
-          >
-            <View style={styles.existingOfferIconCircle}>
-              <MaterialIcons
-                name={myRequest.status === 'accepted' ? 'check-circle' : 'schedule'}
-                size={22}
-                color={myRequest.status === 'accepted' ? '#10B981' : '#D97706'}
-              />
-            </View>
-            <View style={styles.existingOfferTextCol}>
-              <Text
-                style={[
-                  styles.existingOfferTitle,
-                  { color: myRequest.status === 'accepted' ? '#064E3B' : '#92400E' },
-                ]}
-              >
-                {myRequest.status === 'accepted'
-                  ? 'Your Offer Was Accepted!'
-                  : `Offer Sent: ₹${myRequest.price}`}
-              </Text>
-              <Text
-                style={[
-                  styles.existingOfferSub,
-                  { color: myRequest.status === 'accepted' ? '#047857' : '#B45309' },
-                ]}
-              >
-                {myRequest.status === 'accepted'
-                  ? 'You are matched to carry this parcel! Coordinate pickup details in chat.'
-                  : `Waiting for ${parcel.userName}'s response. You can also chat or update your price.`}
-              </Text>
-            </View>
-          </View>
-        ) : null}
-
-        {/* Sender-Only: Carrier Bids & Proposals Management Section */}
-        {isSender ? (
-          <View style={styles.proposalsSection}>
-            <View style={styles.proposalsHeaderRow}>
-              <View style={styles.proposalsTitleRow}>
-                <Text style={[styles.proposalsTitle, { color: C.textPrimary }]}>
-                  Carrier Bids
-                </Text>
-                <View style={[styles.proposalsCountBadge, { backgroundColor: C.primarySubtle }]}>
-                  <Text style={[styles.proposalsCountText, { color: C.primary }]}>
-                    {visibleRequests.length}
+                <View style={[styles.verifiedBadge, { backgroundColor: C.successSubtle }]}>
+                  <MaterialIcons name="verified" size={12} color={C.success} />
+                  <Text style={[styles.verifiedBadgeText, { color: C.success }]}>
+                    Verified Listing
                   </Text>
                 </View>
               </View>
 
-              <View style={styles.filterPillsRow}>
-                {[
-                  { key: 'all' as TabFilter, label: 'All' },
-                  { key: 'pending' as TabFilter, label: 'Pending' },
-                  { key: 'active' as TabFilter, label: 'Active' },
-                ].map((tab) => {
-                  const isSelected = selectedTab === tab.key;
-                  return (
-                    <Pressable
-                      key={tab.key}
-                      style={[
-                        styles.filterPill,
-                        {
-                          backgroundColor: isSelected ? C.primary : C.surface,
-                          borderColor: isSelected ? C.primary : C.surfaceBorder,
-                        },
-                      ]}
-                      onPress={() => {
-                        Haptic.select();
-                        setSelectedTab(tab.key);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.filterPillText,
-                          { color: isSelected ? '#fff' : C.textMuted },
-                        ]}
-                      >
-                        {tab.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+              {/* Title / Description */}
+              <Text style={[styles.parcelTitle, { color: C.textPrimary }]}>
+                {parcel.description}
+              </Text>
+            </View>
+
+            {/* Journey / Route Visualizer */}
+            <View style={[styles.routeCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <View style={styles.routeHeader}>
+                <Text style={[styles.routeHeaderTitle, { color: C.textMuted }]}>Transit Route</Text>
+                {distanceKm ? (
+                  <View style={[styles.routeDistanceBadge, { backgroundColor: C.primarySubtle }]}>
+                    <MaterialIcons name="navigation" size={11} color={C.primary} />
+                    <Text style={[styles.routeDistanceText, { color: C.primary }]}>
+                      {distanceKm} km
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.routeVisualizer}>
+                <View style={styles.routeNode}>
+                  <View style={[styles.routeDotOrigin, { backgroundColor: C.success }]} />
+                  <Text style={[styles.routeCityName, { color: C.textPrimary }]} numberOfLines={1}>
+                    {parcel.fromCity}
+                  </Text>
+                  <Text style={[styles.routeCitySub, { color: C.textMuted }]}>Pickup Location</Text>
+                </View>
+
+                <View style={styles.routeConnector}>
+                  <View style={[styles.routeIconCircle, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                    <MaterialIcons name="east" size={16} color={C.primary} />
+                  </View>
+                </View>
+
+                <View style={[styles.routeNode, { alignItems: 'flex-end' }]}>
+                  <View style={[styles.routeDotDest, { backgroundColor: C.primary }]} />
+                  <Text style={[styles.routeCityName, { color: C.textPrimary, textAlign: 'right' }]} numberOfLines={1}>
+                    {parcel.toCity}
+                  </Text>
+                  <Text style={[styles.routeCitySub, { color: C.textMuted, textAlign: 'right' }]}>Dropoff City</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 4 Specifications Cards */}
+            <View style={styles.specsGrid}>
+              {/* 1. Weight */}
+              <View style={[styles.specCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <View style={styles.specHeaderRow}>
+                  <View style={[styles.specIconWrap, { backgroundColor: 'rgba(0, 74, 173, 0.1)' }]}>
+                    <MaterialIcons name="fitness-center" size={14} color={C.primary} />
+                  </View>
+                  <Text style={[styles.specLabel, { color: C.textMuted }]}>Package Weight</Text>
+                </View>
+                <Text style={[styles.specValue, { color: C.textPrimary }]}>{parcel.weight} kg</Text>
+              </View>
+
+              {/* 2. Category */}
+              <View style={[styles.specCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <View style={styles.specHeaderRow}>
+                  <View style={[styles.specIconWrap, { backgroundColor: catConfig.bg }]}>
+                    <MaterialIcons name={catConfig.icon} size={14} color={catConfig.color} />
+                  </View>
+                  <Text style={[styles.specLabel, { color: C.textMuted }]}>Category</Text>
+                </View>
+                <Text style={[styles.specValue, { color: C.textPrimary }]}>{catConfig.label}</Text>
+              </View>
+
+              {/* 3. Send By */}
+              <View style={[styles.specCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <View style={styles.specHeaderRow}>
+                  <View style={[styles.specIconWrap, { backgroundColor: 'rgba(234, 88, 12, 0.1)' }]}>
+                    <MaterialIcons name="event" size={14} color="#EA580C" />
+                  </View>
+                  <Text style={[styles.specLabel, { color: C.textMuted }]}>Send By</Text>
+                </View>
+                <Text style={[styles.specValue, { color: C.textPrimary }]} numberOfLines={1}>
+                  {parcel.deliveryDate ? formatScheduleDate(parcel.deliveryDate) : 'Today / Flexible'}
+                </Text>
+              </View>
+
+              {/* 4. Reward Offering */}
+              <View style={[styles.specCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+                <View style={styles.specHeaderRow}>
+                  <View style={[styles.specIconWrap, { backgroundColor: 'rgba(0, 139, 72, 0.12)' }]}>
+                    <MaterialIcons name="payments" size={14} color={C.success} />
+                  </View>
+                  <Text style={[styles.specLabel, { color: C.textMuted }]}>Delivery Reward</Text>
+                </View>
+                <Text style={[styles.specValue, { color: C.success }]}>
+                  {parcel.priceOffer ? `₹${parcel.priceOffer}` : 'Negotiable'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Safe Delivery Guarantee Banner */}
+            <View style={[styles.guaranteeBanner, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <View style={[styles.guaranteeIconWrap, { backgroundColor: C.successSubtle }]}>
+                <MaterialIcons name="security" size={20} color={C.success} />
+              </View>
+              <View style={styles.guaranteeContent}>
+                <Text style={[styles.guaranteeTitle, { color: C.textPrimary }]}>
+                  CaryGoo Safe Delivery Guarantee
+                </Text>
+                <Text style={[styles.guaranteeText, { color: C.textMuted }]}>
+                  Live package handover verified with sender & recipient OTPs. Safe booking payout protection upon delivery.
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Sender Attribution Card (Visible to Traveler) */}
+        {!isSender ? (
+          <View style={[styles.senderCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <View style={styles.senderCardHeader}>
+              <View style={styles.senderCardLeft}>
+                <Image
+                  source={getUserAvatarSource(parcel.userAvatar, parcel.userId || parcel.userName)}
+                  style={[styles.senderAvatar, { borderColor: C.surfaceBorder }]}
+                  contentFit="cover"
+                />
+                <View style={styles.senderMeta}>
+                  <View style={styles.senderNameRow}>
+                    <Text style={[styles.senderName, { color: C.textPrimary }]}>
+                      {parcel.userName}
+                    </Text>
+                    <View style={[styles.senderVerifiedPill, { backgroundColor: C.successSubtle }]}>
+                      <MaterialIcons name="verified" size={10} color={C.success} />
+                      <Text style={[styles.senderVerifiedText, { color: C.success }]}>Sender</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.senderSub, { color: C.textMuted }]}>
+                    Parcel Owner • Origin: {parcel.fromCity}
+                  </Text>
+                </View>
+              </View>
+
+              {isParcelOpen ? (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.preBookingChatBtn,
+                    { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
+                    pressed && { opacity: 0.75 },
+                  ]}
+                  onPress={handleChatWithSender}
+                  disabled={isStartingChat}
+                  accessibilityRole="button"
+                  accessibilityLabel="Chat with sender before offer"
+                >
+                  {isStartingChat ? (
+                    <ActivityIndicator size="small" color={C.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="chatbubble-ellipses-outline" size={15} color={C.primary} />
+                      <Text style={[styles.preBookingChatText, { color: C.primary }]}>Chat</Text>
+                    </>
+                  )}
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        {/* Traveler Perspective: Live Offer Status Banner */}
+        {!isSender && myRequest ? (
+          <View
+            style={[
+              styles.statusBanner,
+              {
+                backgroundColor: myRequest.status === 'accepted' ? C.successSubtle : C.surface,
+                borderColor: myRequest.status === 'accepted' ? C.successBorder : C.warning,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.statusBannerIcon,
+                { backgroundColor: myRequest.status === 'accepted' ? C.success : C.warning },
+              ]}
+            >
+              <MaterialIcons
+                name={myRequest.status === 'accepted' ? 'check-circle' : 'schedule'}
+                size={22}
+                color="#FFFFFF"
+              />
+            </View>
+            <View style={styles.statusBannerContent}>
+              <Text style={[styles.statusBannerTitle, { color: C.textPrimary }]}>
+                {myRequest.status === 'accepted' ? 'Your Offer Was Accepted! 🎉' : 'Delivery Offer Submitted'}
+              </Text>
+              <Text style={[styles.statusBannerSub, { color: C.textMuted }]}>
+                {myRequest.status === 'accepted'
+                  ? 'Coordinate pickup details and timing directly with the sender in chat.'
+                  : `Waiting for ${parcel.userName} to review your ₹${myRequest.price} offer.`}
+              </Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.statusBannerAction,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.85 },
+              ]}
+              onPress={() => {
+                Haptic.tap();
+                handleChat(myRequest);
+              }}
+            >
+              <Ionicons name="chatbubble-outline" size={15} color="#FFFFFF" />
+              <Text style={styles.statusBannerActionText}>Chat</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* Sender Perspective: Manage Offers */}
+        {isSender ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleWrap}>
+                <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
+                  Traveler Carrier Offers
+                </Text>
+                <View style={[styles.countBadge, { backgroundColor: C.primarySubtle }]}>
+                  <Text style={[styles.countBadgeText, { color: C.primary }]}>
+                    {visibleRequests.length}
+                  </Text>
+                </View>
               </View>
             </View>
 
             {loading ? (
-              <ActivityIndicator color="#10B981" style={{ marginVertical: 32 }} />
+              <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
             ) : visibleRequests.length === 0 ? (
-              <View style={[styles.emptyBidsCard, { backgroundColor: C.card, borderColor: C.surfaceBorder }]}>
-                <MaterialIcons name="radar" size={32} color="#10B981" />
-                <Text style={[styles.emptyBidsTitle, { color: C.textPrimary }]}>
+              <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+                <View style={[styles.emptyRadarWrap, { backgroundColor: C.primarySubtle }]}>
+                  <MaterialIcons name="radar" size={32} color={C.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
                   Waiting for Carrier Offers
                 </Text>
-                <Text style={[styles.emptyBidsSub, { color: C.textMuted }]}>
-                  Your parcel is active on the marketplace. Travellers on this route can submit offers to deliver it.
+                <Text style={[styles.emptySub, { color: C.textMuted }]}>
+                  Your parcel is live on CaryGoo! When travelers travelling towards {parcel.toCity} make an offer, it will appear here.
                 </Text>
+                {isParcelOpen ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.findTravelersBtn,
+                      { backgroundColor: C.primary },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                    onPress={() => {
+                      Haptic.tap();
+                      router.push({ pathname: '/search', params: { mode: 'parcel', id: parcel.id } });
+                    }}
+                  >
+                    <MaterialIcons name="search" size={17} color="#FFFFFF" />
+                    <Text style={styles.findTravelersText}>Find Matching Travelers Now</Text>
+                  </Pressable>
+                ) : null}
               </View>
             ) : (
               <View style={styles.proposalsList}>
@@ -981,21 +1245,13 @@ export default function ParcelDetailScreen() {
                   <ProposalCard
                     key={req.id}
                     request={req}
-                    viewerRole={viewerRole}
-                    onAccept={() => {
-                      updateRequestStatusAsync({ requestId: req.id, status: 'accepted' });
-                      Haptic.success();
-                    }}
-                    onDecline={() => {
-                      updateRequestStatusAsync({ requestId: req.id, status: 'rejected' });
-                      Haptic.tap();
-                    }}
-                    onCancel={() => {
-                      updateRequestStatusAsync({ requestId: req.id, status: 'cancelled' });
-                    }}
-                    onChat={handleChatWithSender}
+                    parcelCategory={parcel.category}
+                    isSender={isSender}
+                    onAccept={() => handleAcceptProposal(req)}
+                    onDecline={() => handleDeclineProposal(req)}
+                    onChat={() => handleChat(req)}
                     onTrack={() => router.push({ pathname: '/delivery/[id]', params: { id: req.id } })}
-                    onPayment={() => router.push({ pathname: '/payment/[id]', params: { id: req.id } })}
+                    onPayment={() => router.push({ pathname: '/payment/[id]', params: { id: req.id } } as never)}
                     C={C}
                   />
                 ))}
@@ -1005,83 +1261,101 @@ export default function ParcelDetailScreen() {
         ) : null}
       </ScrollView>
 
-      {/* 5. Dual Action Footer strictly matching index.styles.ts theme (Negotiation Mechanics) */}
-      {isTravelerMode && !isSender ? (
+      {/* Fixed Bottom Action Bar for Travelers */}
+      {showBottomBar ? (
         <View
           style={[
-            styles.actionFooter,
+            styles.fixedBottomBar,
             {
-              backgroundColor: C.card,
+              backgroundColor: C.surface,
               borderTopColor: C.surfaceBorder,
-              paddingBottom: Math.max(insets.bottom, 12) + Spacing.xs,
+              paddingBottom: insets.bottom + 12,
             },
           ]}
         >
-          {myRequest && myRequest.status === 'accepted' ? (
-            <Pressable
-              style={[styles.primaryActionBtn, { backgroundColor: '#10B981' }]}
-              onPress={handleChatWithSender}
-              accessibilityRole="button"
-              accessibilityLabel="Open chat with sender"
-            >
-              <Ionicons name="chatbubbles" size={18} color="#FFFFFF" />
-              <Text style={styles.primaryActionBtnText}>Coordinate in Chat</Text>
-              <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
-            </Pressable>
-          ) : (
-            <View style={styles.dualActionRow}>
-              {/* Button 1: Send Counter Offer */}
-              <Pressable
-                style={[
-                  styles.counterOfferBtn,
-                  {
-                    backgroundColor: '#ECFDF5',
-                    borderColor: '#10B981',
-                  },
-                ]}
-                onPress={() => {
-                  Haptic.select();
-                  setShowCounterSheet(true);
-                }}
-                disabled={isSubmittingOffer}
-                accessibilityRole="button"
-                accessibilityLabel="Send counter offer"
-              >
-                <MaterialIcons name="edit" size={16} color="#064E3B" />
-                <Text style={styles.counterOfferBtnText}>Send Counter Offer</Text>
-              </Pressable>
-
-              {/* Button 2: Quick 1-Tap 'Accept at ₹X' */}
-              <Pressable
-                style={[
-                  styles.acceptOriginalBtn,
-                  {
-                    backgroundColor: '#10B981',
-                    opacity: isSubmittingOffer ? 0.7 : 1,
-                  },
-                ]}
-                onPress={handleInstantAccept}
-                disabled={isSubmittingOffer}
-                accessibilityRole="button"
-                accessibilityLabel={`Accept at ${parcel.priceOffer} rupees`}
-              >
-                {isSubmittingOffer ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                    <Text style={styles.acceptOriginalBtnText}>
-                      Accept at ₹{parcel.priceOffer}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
+          <View style={[styles.bottomBarInner, isTablet && styles.tabletCentered]}>
+            <View style={styles.bottomPriceCol}>
+              <Text style={[styles.bottomBarLabel, { color: C.textMuted }]}>Delivery Reward</Text>
+              <Text style={[styles.bottomBarPrice, isSmallDevice && { fontSize: 18 }, { color: C.primary }]}>
+                {parcel.priceOffer ? `₹${parcel.priceOffer}` : 'Negotiable'}
+              </Text>
+              <Text style={[styles.bottomRateSub, { color: C.textMuted }]}>Paid upon delivery</Text>
             </View>
-          )}
+
+            {myRequest && myRequest.status === 'accepted' ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.primaryCtaBtn,
+                  isSmallDevice && styles.primaryCtaBtnSmall,
+                  { backgroundColor: C.success },
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                ]}
+                onPress={handleChatWithSender}
+                accessibilityRole="button"
+                accessibilityLabel="Open chat with sender"
+              >
+                <Ionicons name="chatbubbles" size={18} color="#FFFFFF" />
+                <Text style={[styles.primaryCtaText, isSmallDevice && styles.primaryCtaTextSmall]}>Coordinate in Chat</Text>
+                <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+              </Pressable>
+            ) : (
+              <View style={[styles.dualActionRow, { flex: 1.8 }]}>
+                {/* Button 1: Send Counter Offer */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.counterOfferBtn,
+                    {
+                      backgroundColor: C.surfaceElevated,
+                      borderColor: C.primary,
+                      borderWidth: 1,
+                    },
+                    pressed && { opacity: 0.8 },
+                  ]}
+                  onPress={() => {
+                    Haptic.select();
+                    setShowCounterSheet(true);
+                  }}
+                  disabled={isSubmittingOffer}
+                  accessibilityRole="button"
+                  accessibilityLabel="Send counter offer"
+                >
+                  <MaterialIcons name="edit" size={15} color={C.primary} />
+                  <Text style={[styles.counterOfferBtnText, { color: C.primary }]}>Counter</Text>
+                </Pressable>
+
+                {/* Button 2: Quick 1-Tap 'Accept at ₹X' */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.acceptOriginalBtn,
+                    {
+                      backgroundColor: C.primary,
+                      opacity: isSubmittingOffer ? 0.7 : 1,
+                    },
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                  ]}
+                  onPress={handleInstantAccept}
+                  disabled={isSubmittingOffer}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Accept at ${parcel.priceOffer} rupees`}
+                >
+                  {isSubmittingOffer ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" />
+                      <Text style={styles.acceptOriginalBtnText}>
+                        Accept at ₹{parcel.priceOffer}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            )}
+          </View>
         </View>
       ) : null}
 
-      {/* 6. Counter Offer Bottom Sheet (GestureBottomSheet) */}
+      {/* Traveler Counter Offer Bottom Sheet (GestureBottomSheet) */}
       <TravelerCounterOfferSheet
         visible={showCounterSheet}
         onClose={() => setShowCounterSheet(false)}
@@ -1092,751 +1366,47 @@ export default function ParcelDetailScreen() {
         isSubmitting={isSubmittingOffer}
       />
 
-      {/* Full Photo Modal */}
-      <Modal
-        visible={showImageModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowImageModal(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.modalCloseBtn,
-              { transform: [{ scale: pressed ? 0.92 : 1 }], opacity: pressed ? 0.8 : 1 },
-            ]}
-            onPress={() => {
-              Haptic.tap();
-              setShowImageModal(false);
-            }}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Close photo viewer"
-          >
-            <MaterialIcons name="close" size={24} color="#fff" />
-          </Pressable>
-          <Image
-            source={resolvedPhoto && !imgError ? { uri: resolvedPhoto } : fallbackImage}
-            style={styles.modalImg}
-            contentFit="contain"
-          />
-        </View>
-      </Modal>
-
-      {/* Carry Parcel Modal (for quick trip creation if needed) */}
       <CarryParcelModal
         visible={showCarryModal}
         onClose={() => setShowCarryModal(false)}
         parcel={parcel}
         userTrips={userTrips}
-        onConfirmCarry={(_tripId, _targetParcel) => handleInstantAccept()}
-        onPostTrip={(from, to, minCap) =>
-          router.push({
-            pathname: '/create-trip',
-            params: { fromCity: from, toCity: to, capacity: String(minCap) },
-          })
-        }
-        onQuickCreateAndCarry={(_params, _targetParcel) => handleInstantAccept()}
-        isSubmitting={isSubmittingOffer || isCreatingRequest}
+        onConfirmCarry={handleConfirmCarry}
+        onPostTrip={handlePostTripForParcel}
+        onQuickCreateAndCarry={handleQuickCreateAndCarry}
+        isSubmitting={isCreatingRequest || createTripMutation.isPending}
       />
+
+      {/* Full Photo Preview Modal */}
+      {resolvedImage ? (
+        <Modal
+          visible={showImageModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowImageModal(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <Pressable
+              style={styles.modalCloseBtn}
+              onPress={() => {
+                Haptic.tap();
+                setShowImageModal(false);
+              }}
+              hitSlop={12}
+            >
+              <MaterialIcons name="close" size={24} color="#FFFFFF" />
+            </Pressable>
+            <Image
+              source={{ uri: resolvedImage }}
+              style={styles.modalImg}
+              contentFit="contain"
+            />
+            <View style={styles.modalCaptionWrap}>
+              <Text style={styles.modalCaption}>{parcel.description}</Text>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Navigation Bar strictly matching index.styles.ts
-  topNavBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    borderBottomWidth: 1,
-  },
-  roundNavBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  navTitleContainer: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  navTitle: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
-  },
-  navSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  navStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  navSubtitle: {
-    fontSize: 9,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.6,
-  },
-  navRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-
-  scrollBody: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
-    gap: Spacing.md,
-  },
-
-  // 1. Package Image Showcase Card
-  packageCard: {
-    borderRadius: BorderRadius.xl, // 24 from index.styles.ts
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  packageImageContainer: {
-    height: 250,
-    position: 'relative',
-  },
-  packageImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlayTop: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    right: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  categoryBadgePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-  },
-  categoryBadgeText: {
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.4,
-  },
-  weightOverlayBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.full,
-  },
-  weightOverlayBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-  },
-  imageOverlayBottom: {
-    position: 'absolute',
-    bottom: 14,
-    left: 16,
-    right: 16,
-    gap: 4,
-  },
-  packageImageTitle: {
-    color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: FontWeight.extrabold,
-    lineHeight: 25,
-    letterSpacing: -0.3,
-  },
-  tapToZoomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  tapToZoomText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 11,
-    fontWeight: FontWeight.medium,
-  },
-
-  // 2. Sender's Expected Price Card
-  priceOfferCard: {
-    borderRadius: BorderRadius.xl, // 24
-    borderWidth: 1,
-    padding: Spacing.md,
-  },
-  priceOfferHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  priceOfferTitleCol: {
-    flex: 1,
-    gap: 2,
-  },
-  priceOfferSubLabel: {
-    fontSize: 9,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.6,
-  },
-  priceOfferAmount: {
-    fontSize: 32,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.5,
-  },
-  priceOfferDetails: {
-    fontSize: FontSize.xs,
-    marginTop: 2,
-  },
-  escrowShieldBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-  },
-  escrowShieldText: {
-    color: '#064E3B',
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-  },
-
-  // 3. Requirements Card
-  requirementsCard: {
-    borderRadius: BorderRadius.xl, // 24
-    borderWidth: 1,
-    padding: Spacing.md,
-    gap: Spacing.md,
-  },
-  sectionHeading: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.2,
-  },
-  routeFlow: {
-    gap: 4,
-  },
-  routeStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  stepIndicatorCol: {
-    alignItems: 'center',
-    width: 20,
-  },
-  pickupDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginTop: 3,
-  },
-  verticalLine: {
-    width: 2,
-    height: 36,
-    marginTop: 4,
-    borderRadius: 1,
-  },
-  dropoffPin: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  stepContent: {
-    flex: 1,
-    gap: 2,
-  },
-  stepLabel: {
-    fontSize: 9,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.6,
-  },
-  stepCity: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-  },
-  stepDetail: {
-    fontSize: 11,
-  },
-  specsGrid: {
-    flexDirection: 'row',
-    borderRadius: BorderRadius.lg,
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.md,
-  },
-  specItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  specLabel: {
-    fontSize: 9,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.5,
-  },
-  specVal: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-  },
-  specDivider: {
-    width: 1,
-    height: 24,
-    alignSelf: 'center',
-  },
-  notesBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    padding: 10,
-  },
-  notesText: {
-    flex: 1,
-    fontSize: FontSize.xs,
-    lineHeight: 18,
-  },
-
-  // 4. Sender Information Card
-  senderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: BorderRadius.xl, // 24
-    borderWidth: 1,
-    padding: Spacing.md,
-    gap: Spacing.md,
-  },
-  senderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  senderAvatarBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  senderAvatarImg: {
-    width: '100%',
-    height: '100%',
-  },
-  senderAvatarInitial: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-  },
-  senderMetaCol: {
-    flex: 1,
-    gap: 2,
-  },
-  senderNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  senderNameText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-  },
-  senderRatingSub: {
-    fontSize: 11,
-  },
-  preBookingChatBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  preBookingChatText: {
-    color: '#064E3B',
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
-  },
-
-  // Existing offer card
-  existingOfferCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1.5,
-  },
-  existingOfferIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  existingOfferTextCol: {
-    flex: 1,
-    gap: 2,
-  },
-  existingOfferTitle: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-  },
-  existingOfferSub: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-
-  // 5. Dual Action Footer strictly matching index.styles.ts
-  actionFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  dualActionRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    alignItems: 'center',
-  },
-  counterOfferBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1.5,
-    minHeight: 48,
-  },
-  counterOfferBtnText: {
-    color: '#064E3B',
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
-  },
-  acceptOriginalBtn: {
-    flex: 1.2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.full,
-    minHeight: 48,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  acceptOriginalBtnText: {
-    color: '#FFFFFF',
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-  },
-  primaryActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: BorderRadius.full,
-    minHeight: 48,
-  },
-  primaryActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-  },
-
-  // Sender Proposals Section
-  proposalsSection: {
-    gap: Spacing.md,
-  },
-  proposalsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  proposalsTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  proposalsTitle: {
-    fontSize: 18,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.3,
-  },
-  proposalsCountBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  proposalsCountText: {
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  filterPillsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: FontWeight.semibold,
-  },
-  emptyBidsCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: Spacing.sm,
-  },
-  emptyBidsTitle: {
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
-    marginTop: 4,
-  },
-  emptyBidsSub: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 270,
-  },
-  proposalsList: {
-    gap: Spacing.md,
-  },
-  proposalCard: {
-    borderRadius: 20,
-    padding: Spacing.md,
-    borderWidth: 1,
-    gap: Spacing.md,
-  },
-  carrierHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  carrierLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  carrierAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  carrierAvatarText: {
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
-  },
-  carrierMeta: {
-    gap: 2,
-  },
-  carrierNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  carrierName: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-  },
-  verifiedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  verifiedPillText: {
-    fontSize: 10,
-    fontWeight: FontWeight.bold,
-  },
-  carrierDate: {
-    fontSize: 11,
-  },
-  bidAmountBox: {
-    alignItems: 'flex-end',
-  },
-  bidAmount: {
-    fontSize: 20,
-    fontWeight: FontWeight.extrabold,
-    letterSpacing: -0.4,
-  },
-  bidLabel: {
-    fontSize: 10,
-    fontWeight: FontWeight.medium,
-    textTransform: 'uppercase',
-  },
-  carrierMessageBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: 10,
-    borderRadius: 12,
-  },
-  carrierMessageText: {
-    fontSize: 12,
-    lineHeight: 18,
-    flexShrink: 1,
-  },
-  proposalActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  cancelOfferBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  cancelOfferText: {
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  chatOfferBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  chatOfferText: {
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  acceptOfferBtn: {
-    flex: 1.4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderRadius: 14,
-  },
-  acceptOfferText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  escrowBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  escrowBtnText: {
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  trackLiveBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  trackLiveText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-  deliveryCompletedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  deliveryCompletedText: {
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  },
-
-  // Full photo modal
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseBtn: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  modalImg: {
-    width: '94%',
-    height: '75%',
-  },
-});
