@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 
@@ -118,7 +118,14 @@ export function TravelerActionButtonsCard({
       {/* Traveler Action Button based on current stage strictly in #10B981 */}
       {currentStage === 'awaiting_pickup' ? (
         <Pressable
-          style={[styles.primaryActionBtn, { backgroundColor: '#10B981' }]}
+          style={({ pressed }) => [
+            styles.primaryActionBtn,
+            {
+              backgroundColor: C.primary,
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? Motion.pressScale : 1 }],
+            },
+          ]}
           onPress={() => {
             Haptic.confirm();
             onMarkPickedUp();
@@ -139,7 +146,14 @@ export function TravelerActionButtonsCard({
         </Pressable>
       ) : currentStage === 'picked_up' ? (
         <Pressable
-          style={[styles.primaryActionBtn, { backgroundColor: '#10B981' }]}
+          style={({ pressed }) => [
+            styles.primaryActionBtn,
+            {
+              backgroundColor: C.primary,
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? Motion.pressScale : 1 }],
+            },
+          ]}
           onPress={() => {
             Haptic.confirm();
             onStartTransit();
@@ -160,7 +174,14 @@ export function TravelerActionButtonsCard({
         </Pressable>
       ) : currentStage === 'in_transit' ? (
         <Pressable
-          style={[styles.primaryActionBtn, { backgroundColor: '#10B981' }]}
+          style={({ pressed }) => [
+            styles.primaryActionBtn,
+            {
+              backgroundColor: C.primary,
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? Motion.pressScale : 1 }],
+            },
+          ]}
           onPress={() => {
             Haptic.confirm();
             onTapDelivered();
@@ -251,27 +272,21 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
   },
   chipText: {
     fontSize: 11,
   },
 
-  // Green Action Button strictly matching index.styles.ts (#10B981)
+  // Unified Action Button matching CarryGo design system
   primaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
-    borderRadius: BorderRadius.full,
-    minHeight: 50,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    height: 48,
+    borderRadius: BorderRadius.lg,
   },
   primaryActionBtnText: {
     color: '#FFFFFF',
@@ -282,7 +297,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.lg,
   },
   escrowTriggerText: {
     color: '#FFFFFF',
@@ -298,7 +313,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
   },
   completedBannerText: {

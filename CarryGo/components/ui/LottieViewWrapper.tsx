@@ -213,7 +213,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class LottieErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class LottieErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(): ErrorBoundaryState {

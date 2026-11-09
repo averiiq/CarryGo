@@ -171,6 +171,61 @@ export function TravellerPickupActionCard({
   );
 }
 
+// --- 2b. TRAVELLER: Start Transit Action Card (Picked Up -> In Transit) ---
+type TravellerStartTransitCardProps = {
+  onStartTransit: () => void;
+  loading: boolean;
+  C: ThemeColors;
+};
+
+export function TravellerStartTransitCard({ onStartTransit, loading, C }: TravellerStartTransitCardProps) {
+  return (
+    <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.iconBox, { backgroundColor: C.primarySubtle }]}>
+          <Feather name="truck" size={18} color={C.primary} />
+        </View>
+        <View style={styles.headerTextWrap}>
+          <View style={styles.badgeRow}>
+            <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Parcel in Custody</Text>
+            <View style={[styles.pillBadge, { backgroundColor: C.successSubtle, borderColor: C.successBorder }]}>
+              <Text style={[styles.pillBadgeText, { color: C.success }]}>Collected</Text>
+            </View>
+          </View>
+          <Text style={[styles.cardSubtitle, { color: C.textMuted }]}>
+            Pickup verified. When you begin travelling, tap below to start live journey tracking.
+          </Text>
+        </View>
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.primaryActionBtn,
+          {
+            backgroundColor: C.primary,
+            opacity: pressed ? 0.9 : 1,
+            transform: [{ scale: pressed ? Motion.pressScale : 1 }],
+          },
+        ]}
+        onPress={() => {
+          Haptic.confirm();
+          onStartTransit();
+        }}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <>
+            <Feather name="navigation" size={16} color="#fff" />
+            <Text style={styles.primaryActionBtnText}>Start Journey (In Transit)</Text>
+          </>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
 // --- 3. TRAVELLER: Trip Details & Status Controls Card ---
 type TravellerTripControlsCardProps = {
   currentStatus: string;

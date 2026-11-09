@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { LottieAnimation } from '@/components/ui/LottieViewWrapper';
+import { LottieAnimation, LottieErrorBoundary } from '@/components/ui/LottieViewWrapper';
 import { Haptic } from '@/services/haptics.service';
 
 export interface EscrowSuccessCardProps {
@@ -26,6 +26,7 @@ export function EscrowSuccessCard({
   testID = 'escrow-success-card',
 }: EscrowSuccessCardProps) {
   const { C, S } = useThemeColors();
+  const [lottieFailed, setLottieFailed] = useState(false);
 
   return (
     <View
@@ -35,7 +36,7 @@ export function EscrowSuccessCard({
         S.card,
         {
           backgroundColor: C.card,
-          borderColor: '#10B981',
+          borderColor: C.surfaceBorder,
         },
       ]}
     >
@@ -44,19 +45,22 @@ export function EscrowSuccessCard({
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Lottie Animation: done.lottie */}
+      {/* Lottie Animation: done.lottie with resilient fallback */}
       <View style={styles.animationContainer}>
-        <LottieView
-          source={require('@/assets/lotti-animations/done.lottie')}
-          autoPlay
-          loop={false}
-          style={styles.lottie}
-          renderMode="AUTOMATIC"
-        />
-        {/* Subtle fallback in case lottie-react-native environment doesn't render */}
-        <View style={styles.badgeFallback}>
-          <LottieAnimation name="successCheck" style={{ width: 64, height: 64 }} />
-        </View>
+        <LottieErrorBoundary name="successCheck">
+          {!lottieFailed ? (
+            <LottieView
+              source={require('@/assets/lotti-animations/done.lottie')}
+              autoPlay
+              loop={false}
+              style={styles.lottie}
+              renderMode="AUTOMATIC"
+              onAnimationFailure={() => setLottieFailed(true)}
+            />
+          ) : (
+            <LottieAnimation name="successCheck" style={{ width: 80, height: 80 }} />
+          )}
+        </LottieErrorBoundary>
       </View>
 
       {/* Confirmation Headlines */}
@@ -121,7 +125,14 @@ export function EscrowSuccessCard({
       <View style={styles.actionsWrap}>
         {onReturnToDashboard ? (
           <Pressable
-            style={[styles.primaryReturnBtn, { backgroundColor: '#10B981' }]}
+            style={({ pressed }) => [
+              styles.primaryReturnBtn,
+              {
+                backgroundColor: C.primary,
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? Motion.pressScale : 1 }],
+              },
+            ]}
             onPress={() => {
               Haptic.confirm();
               onReturnToDashboard();
@@ -129,19 +140,20 @@ export function EscrowSuccessCard({
             accessibilityRole="button"
             accessibilityLabel="Return to My Active Trips"
           >
-            <MaterialIcons name="dashboard" size={18} color="#FFFFFF" />
-            <Text style={styles.primaryReturnBtnText}>Return to My Active Trips</Text>
-            <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+            <Feather name="arrow-left" size={16} color="#FFFFFF" />
+            <Text style={styles.primaryReturnBtnText}>Return to Active Trips</Text>
           </Pressable>
         ) : null}
 
         {onRate ? (
           <Pressable
-            style={[
+            style={({ pressed }) => [
               styles.secondaryRateBtn,
               {
                 backgroundColor: C.surfaceElevated,
                 borderColor: C.surfaceBorder,
+                opacity: pressed ? 0.85 : 1,
+                transform: [{ scale: pressed ? Motion.pressScale : 1 }],
               },
             ]}
             onPress={() => {
@@ -296,14 +308,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
-    borderRadius: BorderRadius.full,
-    minHeight: 50,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    height: 48,
+    borderRadius: BorderRadius.lg,
   },
   primaryReturnBtnText: {
     color: '#FFFFFF',
@@ -315,12 +321,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.full,
+    height: 44,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
   },
   secondaryRateBtnText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
   },
 });

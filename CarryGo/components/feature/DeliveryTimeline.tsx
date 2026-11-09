@@ -55,7 +55,45 @@ type DeliveryTimelineProps = {
   C?: ThemeColors;
 };
 
-export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
+type DeliveryTimelinePropsExtended = {
+  step: DeliveryStep;
+  C?: ThemeColors;
+  isTraveller?: boolean;
+};
+
+export const TRAVELLER_STEPS: typeof STEPS = [
+  {
+    key: 'awaiting_pickup',
+    label: 'Pickup',
+    sub: 'Meet sender and collect parcel',
+    detail: 'Meet sender, inspect the package, and enter their 4-digit pickup code to confirm handover.',
+    icon: 'clock',
+  },
+  {
+    key: 'picked_up',
+    label: 'Picked Up',
+    sub: 'Parcel securely in custody',
+    detail: 'Package verified and safely stored. Tap Start Journey when you begin travelling.',
+    icon: 'package',
+  },
+  {
+    key: 'in_transit',
+    label: 'In Transit',
+    sub: 'En route to final destination',
+    detail: 'Live journey in progress. Update status presets, notes, and ETA to keep sender informed.',
+    icon: 'truck',
+  },
+  {
+    key: 'delivered',
+    label: 'Delivered',
+    sub: 'Safely delivered and verified',
+    detail: 'Receiver has verified package. 6-digit PIN confirmed and escrow payment released.',
+    icon: 'check-circle',
+  },
+];
+
+export function DeliveryTimeline({ step, isTraveller = false }: DeliveryTimelinePropsExtended) {
+  const stepsList = isTraveller ? TRAVELLER_STEPS : STEPS;
   const { C, S } = useThemeColors();
   const currentIdx = stepIndex(step);
   const [selectedIdx, setSelectedIdx] = useState<number>(currentIdx);
@@ -101,7 +139,7 @@ export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
     setSelectedIdx(idx);
   };
 
-  const displayedStep = STEPS[selectedIdx] || STEPS[currentIdx] || STEPS[0];
+  const displayedStep = stepsList[selectedIdx] || stepsList[currentIdx] || stepsList[0];
   const activeColor = step === 'delivered' ? C.success : C.primary;
 
   return (
@@ -110,7 +148,7 @@ export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
       <View style={styles.topRow}>
         <View style={styles.statusInfo}>
           <Text style={[styles.statusEyebrow, { color: C.textMuted }]}>
-            DELIVERY MILESTONES · {selectedIdx + 1} OF {STEPS.length}
+            DELIVERY MILESTONES · {selectedIdx + 1} OF {stepsList.length}
           </Text>
           <Text style={[styles.statusTitle, { color: C.textPrimary }]}>
             {displayedStep.label}
@@ -140,7 +178,7 @@ export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
 
       {/* Horizontal Segmented Progress Indicator */}
       <View style={styles.segmentsRow}>
-        {STEPS.map((s, idx) => {
+        {stepsList.map((s, idx) => {
           const isDone = idx < currentIdx;
           const isCurrent = idx === currentIdx;
           const isPending = idx > currentIdx;
@@ -206,7 +244,7 @@ export function DeliveryTimeline({ step }: DeliveryTimelineProps) {
               </Pressable>
 
               {/* Connecting Bar */}
-              {idx < STEPS.length - 1 ? (
+              {idx < stepsList.length - 1 ? (
                 <View
                   style={[
                     styles.segmentConnector,

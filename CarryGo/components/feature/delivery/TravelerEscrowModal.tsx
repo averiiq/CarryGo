@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 
@@ -66,14 +66,7 @@ export function TravelerEscrowModal({
     }
   };
 
-  const handleQuickAutoFill = () => {
-    const codeToUse = expectedOtp || '123456';
-    Haptic.tap();
-    setEnteredOtp(codeToUse);
-    setErrorText(null);
-  };
-
-  const isReady = enteredOtp.trim().length >= 4;
+  const isReady = enteredOtp.trim().length === 6;
 
   return (
     <Modal
@@ -190,27 +183,14 @@ export function TravelerEscrowModal({
             </View>
           ) : null}
 
-          {/* Demo Auto-fill Helper */}
+          {/* Primary Action Button matching system standard */}
           <Pressable
-            style={styles.demoHelperRow}
-            onPress={handleQuickAutoFill}
-            hitSlop={6}
-          >
-            <MaterialIcons name="bolt" size={14} color="#10B981" />
-            <Text style={styles.demoHelperText}>
-              {expectedOtp
-                ? `Demo Helper: Tap to fill code (${expectedOtp})`
-                : 'Demo Helper: Tap to fill test OTP (123456)'}
-            </Text>
-          </Pressable>
-
-          {/* Primary Action Button strictly matching index.styles.ts (#10B981) */}
-          <Pressable
-            style={[
+            style={({ pressed }) => [
               styles.verifyBtn,
               {
-                backgroundColor: isReady ? '#10B981' : '#A7F3D0',
-                opacity: loading ? 0.7 : 1,
+                backgroundColor: isReady ? C.primary : C.surfaceElevated,
+                opacity: loading ? 0.7 : pressed && isReady ? 0.9 : 1,
+                transform: [{ scale: pressed && isReady ? Motion.pressScale : 1 }],
               },
             ]}
             onPress={handleVerifyPress}
@@ -219,12 +199,14 @@ export function TravelerEscrowModal({
             accessibilityLabel="Verify and release payment"
           >
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={isReady ? '#FFFFFF' : C.textMuted} size="small" />
             ) : (
               <>
-                <MaterialIcons name="lock-open" size={18} color="#FFFFFF" />
-                <Text style={styles.verifyBtnText}>Verify & Release Payment</Text>
-                <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+                <Feather name="unlock" size={16} color={isReady ? '#FFFFFF' : C.textMuted} />
+                <Text style={[styles.verifyBtnText, { color: isReady ? '#FFFFFF' : C.textMuted }]}>
+                  Verify & Release Payment
+                </Text>
+                <Feather name="arrow-right" size={16} color={isReady ? '#FFFFFF' : C.textMuted} />
               </>
             )}
           </Pressable>
@@ -380,20 +362,14 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
 
-  // Button strictly in #10B981
+  // Unified verify button
   verifyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
-    borderRadius: BorderRadius.full,
-    minHeight: 50,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
+    height: 48,
+    borderRadius: BorderRadius.lg,
   },
   verifyBtnText: {
     color: '#FFFFFF',

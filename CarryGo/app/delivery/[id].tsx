@@ -36,6 +36,7 @@ import {
 import {
   SenderPickupOtpCard,
   TravellerPickupActionCard,
+  TravellerStartTransitCard,
   TravellerTripControlsCard,
   SenderLiveJourneyCard,
   DeliveryOtpActionCard,
@@ -441,6 +442,44 @@ function DeliveryScreenInner() {
     }
   };
 
+  // Final 6-Digit Delivery OTP Confirmation & Escrow Release (Traveller)
+  const handleConfirmFinalDelivery = async () => {
+    if (!isTraveller || step !== 'in_transit') {
+      showAlert('Not Allowed', 'Only the assigned traveller can complete delivery in transit.');
+      return;
+    }
+    const cleanOtp = enteredDeliveryOtp.trim();
+    if (cleanOtp.length !== 6) {
+      Haptic.error();
+      showAlert('Invalid Code', 'Please enter the complete 6-digit Delivery PIN provided by the recipient.');
+      return;
+    }
+    const targetId = delivery?.id || id;
+    if (!targetId) return;
+
+    setLoading(true);
+    Haptic.confirm();
+    try {
+      const result = await confirmDelivery(targetId, cleanOtp, user?.id);
+      if (result.success && result.data) {
+        setDelivery(result.data);
+        setEnteredDeliveryOtp('');
+        Haptic.success();
+        showAlert('Delivery Completed! 🎉', 'Delivery verified. Escrow payment has been released to your account.');
+        queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
+      } else {
+        Haptic.error();
+        showAlert('Verification Failed', result.error || 'Incorrect Delivery PIN. Please confirm the code with the recipient.');
+      }
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Error', err?.message || 'Could not verify delivery. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Quick Action for Traveler: Start Transit Stage
   const handleStartTransit = async () => {
     const targetId = delivery?.id || id;
@@ -480,37 +519,20 @@ function DeliveryScreenInner() {
       const result = await confirmDelivery(targetId, otp, user?.id);
       if (result.success && result.data) {
         setDelivery(result.data);
+        setShowEscrowModal(false);
+        Haptic.success();
+        showAlert('Delivery Completed! 🎉', '6-digit PIN verified. Escrow payment released.');
+        queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
       } else {
-        // Simulated fallback for demo/sandbox mode
-        setDelivery((prev) => ({
-          id: targetId,
-          requestId: id,
-          pickupConfirmed: true,
-          deliveryConfirmed: true,
-          deliveryConfirmedAt: new Date().toISOString(),
-          createdAt: prev?.createdAt || new Date().toISOString(),
-          ...(prev || {}),
-          status: 'delivered',
-        }));
+        Haptic.error();
+        showAlert('Verification Failed', result.error || 'Incorrect Delivery PIN. Please confirm the code with the sender.');
       }
-    } catch {
-      // Simulated fallback
-      setDelivery((prev) => ({
-        id: targetId,
-        requestId: id,
-        pickupConfirmed: true,
-        deliveryConfirmed: true,
-        deliveryConfirmedAt: new Date().toISOString(),
-        createdAt: prev?.createdAt || new Date().toISOString(),
-        ...(prev || {}),
-        status: 'delivered',
-      }));
+    } catch (err: any) {
+      Haptic.error();
+      showAlert('Verification Error', err?.message || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
-      setShowEscrowModal(false);
-      Haptic.success();
-      queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
     }
   };
 
@@ -747,7 +769,7 @@ function DeliveryScreenInner() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         {/* ========================================================================= */}
-        {/* TOP FLOATING NAV BAR                                                      */}
+        {/* TOP FLOATING NAV BAR */}
         {/* ========================================================================= */}
         <View style={[styles.topNavBar, { paddingTop: insets.top + (Platform.OS === 'ios' ? 8 : 12), backgroundColor: C.surface, borderBottomColor: C.surfaceBorder }]}>
           <View style={styles.topNavRow}>
@@ -808,7 +830,7 @@ function DeliveryScreenInner() {
           automaticallyAdjustKeyboardInsets={true}
         >
           {/* ========================================================================= */}
-          {/* 1. UNIFIED ROUTE HERO CARD                                               */}
+          {/* 1. UNIFIED ROUTE HERO CARD */}
           {/* ========================================================================= */}
           <View style={[styles.heroCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.sm]}>
             {/* Live Status Pill & Role Badge */}
@@ -916,16 +938,12 @@ function DeliveryScreenInner() {
           </View>
 
           {/* ========================================================================= */}
-          {/* 2. PROGRESS TIMELINE (HORIZONTAL STEPPER)                                  */}
+          {/* 2. PROGRESS TIMELINE (HORIZONTAL STEPPER) */}
           {/* ========================================================================= */}
-          {isTraveller ? (
-            <JourneyStatusTracker currentStage={step} />
-          ) : (
-            <DeliveryTimeline step={step} C={C} />
-          )}
+          <DeliveryTimeline step={step} C={C} isTraveller={isTraveller} />
 
           {/* ========================================================================= */}
-          {/* 3. ACTIVE FOCUSED ACTION CARD (ROLE-BASED)                                 */}
+          {/* 3. ACTIVE FOCUSED ACTION CARD (ROLE-BASED) */}
           {/* ========================================================================= */}
 
           {/* SENDER FLOWS */}
@@ -982,30 +1000,62 @@ function DeliveryScreenInner() {
           {/* TRAVELLER FLOWS */}
           {isTraveller && (
             <>
-              {step !== 'delivered' && (
-                <TravelerActionButtonsCard
-                  currentStage={step}
-                  onMarkPickedUp={handleMarkPickedUp}
-                  onStartTransit={handleStartTransit}
-                  onTapDelivered={handleTapDelivered}
-                  onUpdateTransitStatus={(status) => handleUpdateTripDetails(status, '', '')}
-                  currentTransitStatus={delivery?.tripStatus}
-                  loading={loading || tripUpdateLoading}
+              {/* Stage 1: Awaiting Pickup -> Collect package & enter 4-digit code */}
+              {step === 'awaiting_pickup' && (
+                <TravellerPickupActionCard
+                  enteredOtp={enteredPickupOtp}
+                  onOtpChange={setEnteredPickupOtp}
+                  onConfirmPickup={handleConfirmPickupWithOtp}
+                  loading={loading}
+                  C={C}
                 />
               )}
 
-              {isInTransit && FeatureFlags.preciseLocationSharing ? (
-                <DeliveryMap
-                  travellerName="Your Location"
-                  lat={travellerLocation?.lat ?? 28.6139}
-                  lng={travellerLocation?.lng ?? 77.2090}
-                  updatedAt={travellerLocation?.updatedAt ?? new Date().toISOString()}
-                  isLiveBroadcasting={locationSharing && Boolean(travellerLocation)}
-                  fromCity={request.fromCity}
-                  toCity={request.toCity}
+              {/* Stage 2: Picked Up -> Ready to depart & begin transit */}
+              {step === 'picked_up' && (
+                <TravellerStartTransitCard
+                  onStartTransit={handleStartTransit}
+                  loading={tripUpdateLoading}
                   C={C}
                 />
-              ) : null}
+              )}
+
+              {/* Stage 3: In Transit -> Live Journey Status Controls & 6-Digit Delivery PIN Verification */}
+              {isInTransit && (
+                <>
+                  <TravellerTripControlsCard
+                    currentStatus={delivery?.tripStatus || 'On Highway'}
+                    currentNote={delivery?.tripNote || ''}
+                    currentEta={delivery?.etaText || ''}
+                    onUpdateTrip={handleUpdateTripDetails}
+                    locationSharing={locationSharing}
+                    onToggleLocation={handleToggleLocationSharing}
+                    loading={tripUpdateLoading}
+                    C={C}
+                  />
+
+                  {FeatureFlags.preciseLocationSharing ? (
+                    <DeliveryMap
+                      travellerName="Your Location"
+                      lat={travellerLocation?.lat ?? 28.6139}
+                      lng={travellerLocation?.lng ?? 77.2090}
+                      updatedAt={travellerLocation?.updatedAt ?? new Date().toISOString()}
+                      isLiveBroadcasting={locationSharing && Boolean(travellerLocation)}
+                      fromCity={request.fromCity}
+                      toCity={request.toCity}
+                      C={C}
+                    />
+                  ) : null}
+
+                  <DeliveryOtpActionCard
+                    enteredOtp={enteredDeliveryOtp}
+                    onOtpChange={setEnteredDeliveryOtp}
+                    onConfirmDelivery={handleConfirmFinalDelivery}
+                    loading={loading}
+                    C={C}
+                  />
+                </>
+              )}
             </>
           )}
 
@@ -1031,7 +1081,7 @@ function DeliveryScreenInner() {
           )}
 
           {/* ========================================================================= */}
-          {/* 4. STREAMLINED JOURNEY SPECIFICATIONS CARD                                 */}
+          {/* 4. STREAMLINED JOURNEY SPECIFICATIONS CARD */}
           {/* ========================================================================= */}
           <View style={[styles.specsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <View style={styles.specsHeader}>
