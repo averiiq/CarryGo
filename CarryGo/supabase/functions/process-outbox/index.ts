@@ -1,23 +1,24 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { timingSafeEqual } from 'https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts';
 
-function getCorsHeaders(req: Request) {
-  const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').filter(Boolean);
-  const origin = req.headers.get('origin') || '';
-  const allowOrigin = allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] || '*');
-  return {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
+import { handleCors } from '../_shared/cors.ts';
+
+const encoder = new TextEncoder();
+
+function safeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const ab = encoder.encode(a);
+  const bb = encoder.encode(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
 }
 
 serve(async req => {
-  const corsHeaders = getCorsHeaders(req);
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const cors = handleCors(req);
+  if (cors.rejectedResponse) return cors.rejectedResponse;
+  if (cors.preflightResponse) return cors.preflightResponse;
+  const corsHeaders = cors.headers;
 
   try {
     const authHeader = req.headers.get('authorization') || '';
@@ -25,28 +26,15 @@ serve(async req => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const internalSecret = Deno.env.get('INTERNAL_SERVICE_KEY');
 
-    const isServiceKey = Boolean(token && serviceRoleKey && token === serviceRoleKey);
-    const isSecretMatch = Boolean(internalSecret && req.headers.get('x-service-token') === internalSecret);
+    const isServiceKey = safeEqual(token, serviceRoleKey);
+    const isSecretMatch = Boolean(internalSecret && safeEqual(req.headers.get('x-service-token') || '', internalSecret));
 
+    // Internal-only endpoint — reject all non-service callers
     if (!isServiceKey && !isSecretMatch) {
-      if (!token) {
-        return new Response(JSON.stringify({ error: 'Authorization required' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const anonClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      );
-      const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
-      if (authError || !user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const payload = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
@@ -62,7 +50,8 @@ serve(async req => {
     });
 
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
+      console.error('[process-outbox] RPC error:', error.message);
+      return new Response(JSON.stringify({ error: 'Internal server error' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -72,7 +61,8 @@ serve(async req => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: String(error) }), {
+    console.error('[process-outbox] Unexpected error:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -77,9 +77,8 @@ export function useRecommendations(): RecommendationsReturn {
       }
 
       // Fetch active trips on user's frequent routes (not user's own)
-      const { data: matchingTrips } = await sb
-        .from('trips')
-        .select('*')
+      const { data: matchingTrips } = await (sb.from('trips') as any)
+        .select('id, user_id, user_name, user_avatar, user_rating, from_city, to_city, stopovers, date, time, vehicle_type, available_capacity, price_per_kg, status, created_at, allowed_categories')
         .eq('status', 'active')
         .neq('user_id', user.id)
         .in('from_city', Array.from(fromCities))
@@ -90,7 +89,7 @@ export function useRecommendations(): RecommendationsReturn {
       // Fetch open parcels on user's frequent routes (not user's own)
       const { data: matchingParcels } = await sb
         .from('parcels')
-        .select('*')
+        .select('id, user_id, user_name, user_avatar, from_city, to_city, category, description, delivery_date, weight, price_offer, status, image_url, created_at')
         .in('status', ['open'])
         .neq('user_id', user.id)
         .in('from_city', Array.from(fromCities))
@@ -98,7 +97,7 @@ export function useRecommendations(): RecommendationsReturn {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      const recommendedTrips: Trip[] = (matchingTrips ?? []).map(row => ({
+      const recommendedTrips: Trip[] = (matchingTrips ?? []).map((row: any) => ({
         id: row.id,
         userId: row.user_id,
         userName: row.user_name,

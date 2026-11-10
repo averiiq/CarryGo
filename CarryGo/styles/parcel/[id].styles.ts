@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadow } from '@/constants/theme';
 
 export const styles = StyleSheet.create({
   container: {
@@ -71,11 +71,7 @@ export const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    ...Shadow.md,
   },
   mediaContainer: {
     height: 220,
@@ -447,8 +443,9 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    fontSize: FontSize.md + 1,
-    fontWeight: FontWeight.bold,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.3,
   },
   countBadge: {
     paddingHorizontal: 9,
@@ -513,11 +510,7 @@ export const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: 1,
     gap: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    ...Shadow.sm,
   },
   carrierHeader: {
     flexDirection: 'row',
@@ -680,11 +673,13 @@ export const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 8,
+    // Upward-casting shadow — navy-tinted, soft. Negative height lifts the bar
+    // off the content behind it instead of looking like a stamped line.
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 10,
   },
   bottomBarInner: {
     flexDirection: 'row',
@@ -712,11 +707,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 13,
     borderRadius: BorderRadius.full,
-    shadowColor: '#004AAD',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    ...Shadow.brand,
   },
   primaryCtaText: {
     color: '#FFFFFF',

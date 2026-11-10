@@ -38,6 +38,10 @@ yarn-error.*
 .env.*
 !.env.example
 .env*.local
+supabase/.env
+
+# ad-hoc test scripts that may contain credentials
+assets/images/test_*.js
 
 # typescript
 *.tsbuildinfo

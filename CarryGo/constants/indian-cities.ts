@@ -1,4 +1,4 @@
-// Haryana Cities Coordinate Database (CaryGoo Haryana Launch)
+// Haryana Cities & Towns Coordinate Database (CaryGoo Regional Launch)
 
 export type PopulationTier = 'metro' | 'tier1' | 'tier2' | 'tier3';
 
@@ -13,8 +13,9 @@ export interface IndianCity {
 export type HaryanaCity = IndianCity;
 
 /**
- * Haryana Cities Database
- * Exclusively contains Haryana districts, municipal corporations, and major transit hubs.
+ * Haryana Cities, Towns & Transit Villages Database
+ * Contains Haryana districts, municipal corporations, tehsils, industrial hubs,
+ * and key transit villages along National & State Highway corridors.
  */
 export const HARYANA_CITIES: readonly IndianCity[] = [
   // Major Urban & Industrial Hubs (Tier 1)
@@ -41,8 +42,10 @@ export const HARYANA_CITIES: readonly IndianCity[] = [
   { name: 'Manesar', state: 'Haryana', lat: 28.3518, lng: 76.9366, tier: 'tier2' },
   { name: 'Jagadhri', state: 'Haryana', lat: 30.1727, lng: 77.2986, tier: 'tier2' },
   { name: 'Thanesar', state: 'Haryana', lat: 29.98, lng: 76.82, tier: 'tier2' },
+  { name: 'Ballabgarh', state: 'Haryana', lat: 28.3417, lng: 77.3333, tier: 'tier2' },
+  { name: 'Dharuhera', state: 'Haryana', lat: 28.2056, lng: 76.7917, tier: 'tier2' },
 
-  // District Headquarters, Sub-Divisions & Transit Towns (Tier 3)
+  // District Headquarters, Sub-Divisions & Highway Towns (Tier 3)
   { name: 'Fatehabad', state: 'Haryana', lat: 29.5146, lng: 75.4542, tier: 'tier3' },
   { name: 'Narnaul', state: 'Haryana', lat: 28.0441, lng: 76.1075, tier: 'tier3' },
   { name: 'Charkhi Dadri', state: 'Haryana', lat: 28.5921, lng: 76.2653, tier: 'tier3' },
@@ -93,10 +96,99 @@ export const HARYANA_CITIES: readonly IndianCity[] = [
   { name: 'Indri', state: 'Haryana', lat: 29.88, lng: 77.06, tier: 'tier3' },
   { name: 'Taraori', state: 'Haryana', lat: 29.8, lng: 76.9333, tier: 'tier3' },
   { name: 'Mahendragarh', state: 'Haryana', lat: 28.2833, lng: 76.15, tier: 'tier3' },
+
+  // Key Highway Towns, Industrial Corridors & Transit Villages (Tier 3)
+  // NH-44 GT Road Corridor
+  { name: 'Kundli', state: 'Haryana', lat: 28.8752, lng: 77.1264, tier: 'tier3' },
+  { name: 'Rai', state: 'Haryana', lat: 28.9328, lng: 77.0984, tier: 'tier3' },
+  { name: 'Murthal', state: 'Haryana', lat: 29.0289, lng: 77.0739, tier: 'tier3' },
+  { name: 'Bapoli', state: 'Haryana', lat: 29.3242, lng: 77.0850, tier: 'tier3' },
+  { name: 'Israna', state: 'Haryana', lat: 29.2742, lng: 76.8533, tier: 'tier3' },
+  { name: 'Madlauda', state: 'Haryana', lat: 29.4583, lng: 76.8550, tier: 'tier3' },
+  { name: 'Pipli', state: 'Haryana', lat: 29.9822, lng: 76.8833, tier: 'tier3' },
+  { name: 'Babain', state: 'Haryana', lat: 30.0753, lng: 77.0375, tier: 'tier3' },
+
+  // NH-48 & Gurugram / Sohna / Rewari Corridor
+  { name: 'Badshahpur', state: 'Haryana', lat: 28.3931, lng: 77.0542, tier: 'tier3' },
+  { name: 'Bhondsi', state: 'Haryana', lat: 28.3510, lng: 77.0670, tier: 'tier3' },
+  { name: 'Kherki Daula', state: 'Haryana', lat: 28.3980, lng: 76.9850, tier: 'tier3' },
+  { name: 'Bilaspur', state: 'Haryana', lat: 28.3183, lng: 76.8717, tier: 'tier3' },
+  { name: 'Pachgaon', state: 'Haryana', lat: 28.3240, lng: 76.9050, tier: 'tier3' },
+  { name: 'Farrukhnagar', state: 'Haryana', lat: 28.4500, lng: 76.8167, tier: 'tier3' },
+  { name: 'Khol', state: 'Haryana', lat: 28.2333, lng: 76.4500, tier: 'tier3' },
+  { name: 'Dahina', state: 'Haryana', lat: 28.3000, lng: 76.3500, tier: 'tier3' },
+
+  // Rohtak / Jhajjar / Sonipat Corridor
+  { name: 'Rohad', state: 'Haryana', lat: 28.7210, lng: 76.8540, tier: 'tier3' },
+  { name: 'Asaudha', state: 'Haryana', lat: 28.7350, lng: 76.8820, tier: 'tier3' },
+  { name: 'Badli', state: 'Haryana', lat: 28.5833, lng: 76.8167, tier: 'tier3' },
+  { name: 'Dighal', state: 'Haryana', lat: 28.7333, lng: 76.6500, tier: 'tier3' },
+  { name: 'Matanhail', state: 'Haryana', lat: 28.4500, lng: 76.5167, tier: 'tier3' },
+  { name: 'Kalanaur', state: 'Haryana', lat: 28.8333, lng: 76.4000, tier: 'tier3' },
+  { name: 'Mundlana', state: 'Haryana', lat: 29.1833, lng: 76.8167, tier: 'tier3' },
+
+  // Hisar / Sirsa / Bhiwani / Fatehabad Corridor
+  { name: 'Agroha', state: 'Haryana', lat: 29.3500, lng: 75.6167, tier: 'tier3' },
+  { name: 'Balsamand', state: 'Haryana', lat: 28.9833, lng: 75.4500, tier: 'tier3' },
+  { name: 'Adampur', state: 'Haryana', lat: 29.2833, lng: 75.4500, tier: 'tier3' },
+  { name: 'Bhattu Kalan', state: 'Haryana', lat: 29.3833, lng: 75.3500, tier: 'tier3' },
+  { name: 'Ding', state: 'Haryana', lat: 29.4167, lng: 75.1833, tier: 'tier3' },
+  { name: 'Bawani Khera', state: 'Haryana', lat: 28.9500, lng: 76.0167, tier: 'tier3' },
+  { name: 'Mundhal Khurd', state: 'Haryana', lat: 29.0333, lng: 76.1167, tier: 'tier3' },
+  { name: 'Behal', state: 'Haryana', lat: 28.5167, lng: 75.6167, tier: 'tier3' },
+  { name: 'Jui Khurd', state: 'Haryana', lat: 28.6667, lng: 75.8833, tier: 'tier3' },
+  { name: 'Kalanwali', state: 'Haryana', lat: 29.8333, lng: 74.9833, tier: 'tier3' },
+  { name: 'Nathusari Chopta', state: 'Haryana', lat: 29.4333, lng: 75.0167, tier: 'tier3' },
+
+  // Jind / Kaithal / Kurukshetra Corridor
+  { name: 'Julana', state: 'Haryana', lat: 29.1167, lng: 76.3833, tier: 'tier3' },
+  { name: 'Pillukhera', state: 'Haryana', lat: 29.2667, lng: 76.5167, tier: 'tier3' },
+  { name: 'Uchana', state: 'Haryana', lat: 29.4667, lng: 76.1667, tier: 'tier3' },
+  { name: 'Alewa', state: 'Haryana', lat: 29.4833, lng: 76.3500, tier: 'tier3' },
+  { name: 'Dhand', state: 'Haryana', lat: 29.8833, lng: 76.5500, tier: 'tier3' },
+  { name: 'Siwan', state: 'Haryana', lat: 29.9500, lng: 76.3500, tier: 'tier3' },
+  { name: 'Guhla', state: 'Haryana', lat: 30.0333, lng: 76.3000, tier: 'tier3' },
+  { name: 'Ismailabad', state: 'Haryana', lat: 30.1167, lng: 76.7833, tier: 'tier3' },
+
+  // Ambala / Yamunanagar / Panchkula Corridor
+  { name: 'Saha', state: 'Haryana', lat: 30.2500, lng: 76.9667, tier: 'tier3' },
+  { name: 'Barara', state: 'Haryana', lat: 30.2167, lng: 77.0500, tier: 'tier3' },
+  { name: 'Mullana', state: 'Haryana', lat: 30.2500, lng: 77.0500, tier: 'tier3' },
+  { name: 'Shahzadpur', state: 'Haryana', lat: 30.4333, lng: 77.0167, tier: 'tier3' },
+  { name: 'Sadhaura', state: 'Haryana', lat: 30.3833, lng: 77.2167, tier: 'tier3' },
+  { name: 'Bilaspur (Yamunanagar)', state: 'Haryana', lat: 30.3000, lng: 77.3000, tier: 'tier3' },
+  { name: 'Chhachhrauli', state: 'Haryana', lat: 30.2500, lng: 77.3667, tier: 'tier3' },
+  { name: 'Hathnikund', state: 'Haryana', lat: 30.3167, lng: 77.5833, tier: 'tier3' },
+  { name: 'Mustafabad', state: 'Haryana', lat: 30.2000, lng: 77.1500, tier: 'tier3' },
+  { name: 'Raipur Rani', state: 'Haryana', lat: 30.6500, lng: 77.0167, tier: 'tier3' },
+  { name: 'Barwala (Panchkula)', state: 'Haryana', lat: 30.5667, lng: 76.9167, tier: 'tier3' },
+
+  // Faridabad / Palwal / Hodal Corridor
+  { name: 'Sikri', state: 'Haryana', lat: 28.2833, lng: 77.3333, tier: 'tier3' },
+  { name: 'Prithla', state: 'Haryana', lat: 28.2333, lng: 77.3167, tier: 'tier3' },
+  { name: 'Alawalpur', state: 'Haryana', lat: 28.1667, lng: 77.2833, tier: 'tier3' },
+  { name: 'Aurangabad', state: 'Haryana', lat: 28.0500, lng: 77.3667, tier: 'tier3' },
+  { name: 'Hassanpur', state: 'Haryana', lat: 27.9833, lng: 77.4833, tier: 'tier3' },
+  { name: 'Mandkola', state: 'Haryana', lat: 28.1833, lng: 77.1667, tier: 'tier3' },
+  { name: 'Nagina', state: 'Haryana', lat: 27.9333, lng: 77.0000, tier: 'tier3' },
+  { name: 'Pinangwan', state: 'Haryana', lat: 27.9000, lng: 77.1000, tier: 'tier3' },
+
+  // Mahendragarh / Narnaul Corridor
+  { name: 'Kanina', state: 'Haryana', lat: 28.3167, lng: 76.3167, tier: 'tier3' },
+  { name: 'Ateli', state: 'Haryana', lat: 28.1000, lng: 76.2667, tier: 'tier3' },
+  { name: 'Nangal Chaudhry', state: 'Haryana', lat: 27.8833, lng: 76.1167, tier: 'tier3' },
+  { name: 'Satnali', state: 'Haryana', lat: 28.3167, lng: 75.9833, tier: 'tier3' },
+
+  // Key Border Transit Gateways
+  { name: 'Zirakpur', state: 'Punjab', lat: 30.6425, lng: 76.8173, tier: 'tier2' },
+  { name: 'Dera Bassi', state: 'Punjab', lat: 30.5833, lng: 76.8500, tier: 'tier3' },
+  { name: 'Noida', state: 'Uttar Pradesh', lat: 28.5355, lng: 77.3910, tier: 'tier1' },
+  { name: 'Greater Noida', state: 'Uttar Pradesh', lat: 28.4744, lng: 77.5040, tier: 'tier1' },
+  { name: 'Ghaziabad', state: 'Uttar Pradesh', lat: 28.6692, lng: 77.4538, tier: 'tier1' },
 ];
 
 /**
- * Primary exported city list. In this release, CaryGoo is launching in Haryana only.
+ * Primary exported city list. In this release, CaryGoo is launching in Haryana and NCR corridors.
  */
 export const INDIAN_CITIES: readonly IndianCity[] = HARYANA_CITIES;
 
@@ -119,11 +211,23 @@ const CITY_ALIASES: Record<string, string> = {
   'dabwali': 'Mandi Dabwali',
   'shahabad': 'Shahbad',
   'shahbad markanda': 'Shahbad',
+  'murthal': 'Murthal',
+  'kundli': 'Kundli',
+  'dharuhera': 'Dharuhera',
+  'ballabgarh': 'Ballabgarh',
+  'ballabhgarh': 'Ballabgarh',
+  'agroha': 'Agroha',
+  'zirakpur': 'Zirakpur',
+  'derabassi': 'Dera Bassi',
+  'noida': 'Noida',
+  'greater noida': 'Greater Noida',
+  'ghaziabad': 'Ghaziabad',
+  'manesar': 'Manesar',
+  'bilaspur': 'Bilaspur',
 };
 
 /**
  * Optional regional transit gateway hubs for corridor calculations only.
- * Not included in selectable city dropdowns or user autocomplete.
  */
 const REGIONAL_GATEWAYS: IndianCity[] = [
   { name: 'Delhi', state: 'Delhi', lat: 28.6139, lng: 77.209, tier: 'metro' },
@@ -140,14 +244,15 @@ GATEWAY_MAP.set('delhi ncr', REGIONAL_GATEWAYS[0]);
 
 /**
  * Find a city by name (case-insensitive, alias support, partial match fallback).
- * Prioritizes Haryana cities, with fallback to regional transit gateways for corridor math.
  */
 export function findCity(name: string): IndianCity | undefined {
-  if (!name) return undefined;
+  if (!name || typeof name !== 'string') return undefined;
   const lower = name.toLowerCase().trim();
-  const alias = CITY_ALIASES[lower];
-  if (alias) {
-    const aliasedCity = CITY_MAP.get(alias.toLowerCase());
+
+  // Check aliases first
+  const aliasTarget = CITY_ALIASES[lower];
+  if (aliasTarget) {
+    const aliasedCity = CITY_MAP.get(aliasTarget.toLowerCase());
     if (aliasedCity) return aliasedCity;
   }
   const exact = CITY_MAP.get(lower);

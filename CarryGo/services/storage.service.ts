@@ -188,7 +188,7 @@ async function uploadToCloudinary(
     if (result.status >= 200 && result.status < 300) {
       try {
         await FileSystem.deleteAsync(optimized.uri, { idempotent: true });
-      } catch {}
+      } catch (err) { console.warn('[uploadImage] temp file cleanup failed:', err); }
       try {
         const data = JSON.parse(result.body);
         if (data && data.secure_url) {
@@ -206,7 +206,7 @@ async function uploadToCloudinary(
       try {
         const errBody = JSON.parse(result.body);
         msg = errBody.error?.message || msg;
-      } catch {}
+      } catch (err) { console.warn('[uploadImage] error body parsing failed:', err); }
       throw new Error(msg);
     }
 

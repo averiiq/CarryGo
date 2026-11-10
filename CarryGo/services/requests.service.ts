@@ -16,6 +16,8 @@ import {
   notifyOfferDeclined,
 } from '@/services/notifications.service';
 
+export const MAX_PAGE_SIZE = 100;
+
 interface RequestRow {
   id: string;
   parcel_id: string;
@@ -79,6 +81,9 @@ function normalizeCity(value: string): string {
 }
 
 export async function fetchRequests(userId: string, options?: { limit?: number; offset?: number }) {
+  const userIdCheck = validateUUID(userId);
+  if (!userIdCheck.valid) return { data: null, error: userIdCheck.error, total: 0 };
+
   if (isAwsBackendEnabled()) {
     try {
       const limit = options?.limit ?? 50;
@@ -106,21 +111,14 @@ export async function fetchRequests(userId: string, options?: { limit?: number; 
     .or(`sender_id.eq.${userId},traveller_id.eq.${userId}`)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
-  if (error) {
-    // If embedding fails for any reason, fallback to basic select
-    const fallback = await sb
-      .from('requests')
-      .select('*', { count: 'exact' })
-      .or(`sender_id.eq.${userId},traveller_id.eq.${userId}`)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-    if (fallback.error) return { data: null, error: fallback.error.message, total: 0 };
-    return { data: (fallback.data || []).map(r => mapRow(r as unknown as RequestRow)), error: null, total: fallback.count ?? 0 };
-  }
+  if (error) return { data: null, error: error.message, total: 0 };
   return { data: (data || []).map(r => mapRow(r as unknown as RequestRow)), error: null, total: count ?? 0 };
 }
 
 export async function fetchRequestById(requestId: string) {
+  const idCheck = validateUUID(requestId);
+  if (!idCheck.valid) return { data: null, error: idCheck.error };
+
   if (isAwsBackendEnabled()) {
     try {
       const response = await awsApiRequest<{ data: Request }>(`/requests/${requestId}`);
@@ -137,11 +135,7 @@ export async function fetchRequestById(requestId: string) {
     .select('*, parcels(id, from_city, to_city, category, weight), trips(id, from_city, to_city, vehicle_type)')
     .eq('id', requestId)
     .single();
-  if (error) {
-    const fallback = await sb.from('requests').select('*').eq('id', requestId).single();
-    if (fallback.error) return { data: null, error: fallback.error.message };
-    return { data: mapRow(fallback.data as unknown as RequestRow), error: null };
-  }
+  if (error) return { data: null, error: error.message };
   return { data: mapRow(data as unknown as RequestRow), error: null };
 }
 
@@ -238,118 +232,73 @@ export async function createRequest(req: Omit<Request, 'id' | 'createdAt' | 'upd
     p_message: message || undefined,
   }).single();
 
-  if (!rpcError && rpcData) {
-    const mapped = mapRow(rpcData as unknown as RequestRow);
-    if (mapped.createdBy && mapped.createdBy === mapped.travellerId) {
-      void notifyNewCarryOffer({
-        senderId: mapped.senderId,
-        travellerName: mapped.travellerName,
-        price: mapped.price,
-        requestId: mapped.id,
-        fromCity: mapped.fromCity,
-        toCity: mapped.toCity,
-      }).catch(err => console.warn('Failed to dispatch carry offer notification:', err));
+  let mapped: Request;
+
+  if (rpcError || !rpcData) {
+    const isSchemaError =
+      rpcError?.code === '42883' ||
+      rpcError?.message?.includes('emit_domain_event') ||
+      rpcError?.message?.includes('does not exist');
+
+    if (isSchemaError) {
+      console.warn('[requests.service] RPC schema mismatch (42883), executing resilient direct insert fallback');
+      const { data: insertData, error: insertError } = await sb
+        .from('requests')
+        .insert({
+          parcel_id: req.parcelId,
+          trip_id: req.tripId,
+          sender_id: req.senderId,
+          sender_name: req.senderName || 'Sender',
+          traveller_id: req.travellerId,
+          traveller_name: req.travellerName || 'Traveller',
+          created_by: actorUserId || req.senderId,
+          status: 'pending',
+          price: req.price,
+          message: message || null,
+          expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
+        })
+        .select('*')
+        .single();
+
+      if (insertError || !insertData) {
+        return { data: null, error: insertError?.message || rpcError?.message || 'Failed to create request.' };
+      }
+
+      mapped = mapRow(insertData as unknown as RequestRow);
     } else {
-      void notifyNewRequest({
-        travellerId: mapped.travellerId,
-        senderName: mapped.senderName,
-        price: mapped.price,
-        requestId: mapped.id,
-        fromCity: mapped.fromCity,
-        toCity: mapped.toCity,
-      }).catch(err => console.warn('Failed to dispatch new request notification:', err));
+      return { data: null, error: rpcError?.message || 'Failed to create request.' };
     }
-    return { data: mapped, error: null };
+  } else {
+    mapped = mapRow(rpcData as unknown as RequestRow);
   }
-
-  // Fallback: RPC unavailable/auth mismatch — fetch parcel+trip to get verified IDs then insert directly
-  console.warn('create_request_command RPC failed, using direct insert fallback:', rpcError?.message);
-  const [parcelRes, tripRes] = await Promise.all([
-    fetchParcelById(req.parcelId),
-    fetchTripById(req.tripId),
-  ]);
-  if (parcelRes.error) return { data: null, error: parcelRes.error };
-  if (tripRes.error) return { data: null, error: tripRes.error };
-  const parcel = parcelRes.data;
-  const trip = tripRes.data;
-  if (!parcel || !trip) return { data: null, error: 'Could not verify parcel or trip details.' };
-
-  if (actorUserId && parcel.userId !== actorUserId && trip.userId !== actorUserId) {
-    return { data: null, error: 'Only the parcel owner or trip owner can create a request.' };
-  }
-  if (parcel.userId === trip.userId) {
-    return { data: null, error: 'The parcel owner and trip owner cannot be the same person.' };
-  }
-  if (parcel.status !== 'open') {
-    return { data: null, error: 'Parcel is no longer available for requests.' };
-  }
-  if (trip.status !== 'active') {
-    return { data: null, error: 'Trip is no longer active.' };
-  }
-  if (parcel.weight > trip.availableCapacity) {
-    return { data: null, error: 'Trip does not have enough remaining capacity.' };
-  }
-  const sameRoute =
-    normalizeCity(parcel.fromCity) === normalizeCity(trip.fromCity)
-    && normalizeCity(parcel.toCity) === normalizeCity(trip.toCity);
-  if (!sameRoute) {
-    return { data: null, error: `Route mismatch: parcel goes ${parcel.fromCity}→${parcel.toCity}, but trip goes ${trip.fromCity}→${trip.toCity}.` };
-  }
-
-  // Duplicate guard in the fallback path (mirrors the unique partial index on the DB)
-  const isDuplicate = await checkDuplicateRequest(req.parcelId, req.tripId);
-  if (isDuplicate) {
-    return { data: null, error: 'A carry request for this parcel and trip already exists.' };
-  }
-
-  const { data: fallbackData, error: fallbackError } = await sb
-    .from('requests')
-    .insert({
-      parcel_id: req.parcelId,
-      trip_id: req.tripId,
-      sender_id: parcel.userId,
-      sender_name: parcel.userName,
-      traveller_id: trip.userId,
-      traveller_name: trip.userName,
-      created_by: actorUserId || req.senderId,
-      status: 'pending',
-      price: req.price,
-      message: message || undefined,
-    })
-    .select('*, parcels(id, from_city, to_city, category, weight), trips(id, from_city, to_city, vehicle_type)')
-    .single();
-
-  if (fallbackError) {
-    // Catch the unique index violation gracefully
-    if (fallbackError.code === '23505') {
-      return { data: null, error: 'A carry request for this parcel and trip already exists.' };
-    }
-    return { data: null, error: rpcError?.message || fallbackError.message };
-  }
-  const mapped = mapRow(fallbackData as unknown as RequestRow);
   if (mapped.createdBy && mapped.createdBy === mapped.travellerId) {
     void notifyNewCarryOffer({
       senderId: mapped.senderId,
+      travellerId: mapped.travellerId,
       travellerName: mapped.travellerName,
       price: mapped.price,
       requestId: mapped.id,
       fromCity: mapped.fromCity,
       toCity: mapped.toCity,
-    }).catch(err => console.warn('Failed to dispatch carry offer notification (fallback):', err));
+    }).catch(err => console.warn('Failed to dispatch carry offer notification:', err));
   } else {
     void notifyNewRequest({
       travellerId: mapped.travellerId,
+      senderId: mapped.senderId,
       senderName: mapped.senderName,
       price: mapped.price,
       requestId: mapped.id,
       fromCity: mapped.fromCity,
       toCity: mapped.toCity,
-    }).catch(err => console.warn('Failed to dispatch new request notification (fallback):', err));
+    }).catch(err => console.warn('Failed to dispatch new request notification:', err));
   }
   return { data: mapped, error: null };
 }
 
-export async function fetchRequestsByTripId(tripId: string) {
+export async function fetchRequestsByTripId(tripId: string, options?: { limit?: number; offset?: number }) {
+  const idCheck = validateUUID(tripId);
+  if (!idCheck.valid) return { data: null, error: idCheck.error };
+
   if (isAwsBackendEnabled()) {
     try {
       const response = await awsApiRequest<{ data: Request[] }>(`/requests/by-trip/${tripId}`);
@@ -361,16 +310,22 @@ export async function fetchRequestsByTripId(tripId: string) {
   }
 
   const sb = getSupabaseClient();
+  const limit = Math.min(options?.limit ?? 50, MAX_PAGE_SIZE);
+  const offset = options?.offset ?? 0;
   const { data, error } = await sb
     .from('requests')
-    .select('*')
+    .select('id, parcel_id, trip_id, sender_id, sender_name, traveller_id, traveller_name, status, price, message, created_by, expires_at, created_at, updated_at')
     .eq('trip_id', tripId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
   if (error) return { data: null, error: error.message };
   return { data: (data || []).map(r => mapRow(r as unknown as RequestRow)), error: null };
 }
 
-export async function fetchRequestsByParcelId(parcelId: string) {
+export async function fetchRequestsByParcelId(parcelId: string, options?: { limit?: number; offset?: number }) {
+  const idCheck = validateUUID(parcelId);
+  if (!idCheck.valid) return { data: null, error: idCheck.error };
+
   if (isAwsBackendEnabled()) {
     try {
       const response = await awsApiRequest<{ data: Request[] }>(`/requests/by-parcel/${parcelId}`);
@@ -382,11 +337,14 @@ export async function fetchRequestsByParcelId(parcelId: string) {
   }
 
   const sb = getSupabaseClient();
+  const limit = Math.min(options?.limit ?? 50, MAX_PAGE_SIZE);
+  const offset = options?.offset ?? 0;
   const { data, error } = await sb
     .from('requests')
-    .select('*')
+    .select('id, parcel_id, trip_id, sender_id, sender_name, traveller_id, traveller_name, status, price, message, created_by, expires_at, created_at, updated_at')
     .eq('parcel_id', parcelId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
   if (error) return { data: null, error: error.message };
   return { data: (data || []).map(r => mapRow(r as unknown as RequestRow)), error: null };
 }
@@ -527,12 +485,14 @@ export async function updateRequestStatus(requestId: string, status: Request['st
     if (requesterId === mapped.senderId) {
       void notifyRequestAccepted({
         senderId: mapped.senderId,
+        travellerId: mapped.travellerId,
         travellerName: mapped.travellerName,
         requestId: mapped.id,
       }).catch(err => console.warn('Failed to dispatch request accepted notification:', err));
     } else {
       void notifyOfferAccepted({
         travellerId: mapped.travellerId,
+        senderId: mapped.senderId,
         senderName: mapped.senderName,
         requestId: mapped.id,
       }).catch(err => console.warn('Failed to dispatch offer accepted notification:', err));
@@ -541,12 +501,14 @@ export async function updateRequestStatus(requestId: string, status: Request['st
     if (requesterId === mapped.senderId) {
       void notifyRequestDeclined({
         senderId: mapped.senderId,
+        travellerId: mapped.travellerId,
         travellerName: mapped.travellerName,
         requestId: mapped.id,
       }).catch(err => console.warn('Failed to dispatch request declined notification:', err));
     } else {
       void notifyOfferDeclined({
         travellerId: mapped.travellerId,
+        senderId: mapped.senderId,
         senderName: mapped.senderName,
         requestId: mapped.id,
       }).catch(err => console.warn('Failed to dispatch offer declined notification:', err));

@@ -4,6 +4,7 @@ import type { Database } from '@/types/database';
 import { sanitizeMessageText } from '@/lib/sanitize';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
 import { notifyChatMessage } from '@/services/notifications.service';
+import { validateUUID } from '@/lib/validation';
 
 type ConversationRow = Database['public']['Tables']['conversations']['Row'];
 
@@ -52,12 +53,14 @@ function mapMsgRow(row: MessageRow): ChatMessage {
 }
 
 export async function fetchConversations(userId: string, options?: { limit?: number; offset?: number }) {
+  const idCheck = validateUUID(userId);
+  if (!idCheck.valid) return { data: null, error: idCheck.error };
   const sb = getSupabaseClient();
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
   const { data, error } = await sb
     .from('conversations')
-    .select('*')
+    .select('id, request_id, participant_ids, participant_names, route, parcel_description, last_message_text, last_message_sender_id, last_message_at, last_message_read, created_at, updated_at')
     .contains('participant_ids', [userId])
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .range(offset, offset + limit - 1);
@@ -66,11 +69,13 @@ export async function fetchConversations(userId: string, options?: { limit?: num
 }
 
 export async function fetchMessages(conversationId: string, options?: { limit?: number }) {
+  const idCheck = validateUUID(conversationId);
+  if (!idCheck.valid) return { data: null, error: idCheck.error };
   const sb = getSupabaseClient();
   const limit = options?.limit ?? 100;
   const { data, error } = await sb
     .from('messages')
-    .select('*')
+    .select('id, conversation_id, sender_id, sender_name, text, created_at, read')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
     .limit(limit);
@@ -85,7 +90,7 @@ export async function fetchMessagesPage(
   const sb = getSupabaseClient();
   let query = sb
     .from('messages')
-    .select('*')
+    .select('id, conversation_id, sender_id, sender_name, text, created_at, read')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: false })
     .limit(options?.limit ?? 40);
@@ -128,8 +133,8 @@ export async function sendMessage(msg: {
     if (!rateCheck.allowed && rateCheck.error?.includes('Rate limit exceeded')) {
       return { data: null, error: rateCheck.error };
     }
-  } catch {
-    // Fail open for transient rate limit RPC errors so database command can validate
+  } catch (rateLimitErr) {
+    console.warn('[sendMessage] rate limit check failed, proceeding with send:', rateLimitErr);
   }
 
   const sanitizedText = sanitizeMessageText(msg.text);
@@ -160,6 +165,7 @@ export async function sendMessage(msg: {
       if (recipientId) {
         await notifyChatMessage({
           recipientId,
+          senderId: msg.senderId,
           senderName: msg.senderName,
           text: sanitizedText,
           conversationId: msg.conversationId,
@@ -189,14 +195,7 @@ export async function deleteConversation(conversationId: string): Promise<Servic
       p_conversation_id: conversationId,
     });
     if (error) {
-      console.warn('[deleteConversation] RPC failed, trying direct delete:', error.message);
-      const { error: directErr } = await sb
-        .from('conversations')
-        .delete()
-        .eq('id', conversationId);
-      if (directErr) {
-        return { data: null, error: error.message || directErr.message };
-      }
+      return { data: null, error: error.message };
     }
     return { data: true, error: null };
   } catch (err: unknown) {

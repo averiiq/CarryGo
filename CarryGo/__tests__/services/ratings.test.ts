@@ -82,29 +82,12 @@ describe('Ratings Service', () => {
       expect(res.data?.toUserId).toBe('user-2');
     });
 
-    it('gracefully falls back to direct table insertion when RPC encounters column ambiguity error', async () => {
+    it('returns user-friendly error when RPC encounters column ambiguity error (no direct insert fallback)', async () => {
       // Simulate the RPC returning ambiguous error
       mockRpc.mockResolvedValueOnce({
         data: null,
         error: { message: 'column reference "request_id" is ambiguous' },
       });
-
-      // Mock direct insert fallback
-      const mockSingle = jest.fn().mockResolvedValueOnce({
-        data: {
-          id: 'fallback-rating-1',
-          from_user_id: 'user-1',
-          to_user_id: 'user-2',
-          request_id: 'req-1',
-          rating: 4,
-          comment: 'Delivered safely',
-          created_at: '2026-09-23T10:05:00Z',
-        },
-        error: null,
-      });
-      const mockSelect = jest.fn().mockReturnValue({ single: mockSingle });
-      const mockInsert = jest.fn().mockReturnValue({ select: mockSelect });
-      mockFrom.mockReturnValue({ insert: mockInsert });
 
       const res = await submitRating({
         fromUserId: 'user-1',
@@ -114,17 +97,11 @@ describe('Ratings Service', () => {
         comment: 'Delivered safely',
       });
 
-      expect(mockFrom).toHaveBeenCalledWith('ratings');
-      expect(mockInsert).toHaveBeenCalledWith({
-        from_user_id: 'user-1',
-        to_user_id: 'user-2',
-        request_id: 'req-1',
-        rating: 4,
-        comment: 'Delivered safely',
-      });
-      expect(res.error).toBeNull();
-      expect(res.data?.id).toBe('fallback-rating-1');
-      expect(res.data?.rating).toBe(4);
+      // BN-22: No direct insert fallback — RPC-only path enforces RLS
+      expect(res.data).toBeNull();
+      expect(res.error).toBe('Could not record rating. Please retry in a moment.');
+      // Must NOT attempt direct table insert
+      expect(mockFrom).not.toHaveBeenCalledWith('ratings');
     });
   });
 

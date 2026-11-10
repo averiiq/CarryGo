@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode, useRef, useEffect, useState } from 'react';
-import { View, StyleSheet, StyleProp, ViewStyle, Animated, Text, Platform, UIManager } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle, Animated, Text, Platform } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -399,27 +399,12 @@ class LottieErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-const isNativeLottieSupported = (): boolean => {
-  if (Platform.OS === 'web') return false;
-  try {
-    if (typeof (UIManager as any).hasViewManagerConfig === 'function') {
-      return Boolean((UIManager as any).hasViewManagerConfig('LottieAnimationView'));
-    }
-    if (typeof (UIManager as any).getViewManagerConfig === 'function') {
-      return Boolean((UIManager as any).getViewManagerConfig('LottieAnimationView'));
-    }
-    return Boolean((UIManager as any)?.LottieAnimationView);
-  } catch {
-    return false;
-  }
-};
-
 function SafeLottieRenderer({
   name,
   animSource,
-  autoPlay,
-  loop,
-  speed,
+  autoPlay = true,
+  loop = true,
+  speed = 1,
   style,
   fallbackIcon,
   testID,
@@ -434,28 +419,43 @@ function SafeLottieRenderer({
   testID?: string;
 }) {
   const [hasFailed, setHasFailed] = useState(false);
+  const lottieRef = useRef<LottieView>(null);
 
-  // If the native binary lacks the Lottie view manager or native initialization fails,
-  // gracefully render the high-res native animated vector illustration.
-  if (!isNativeLottieSupported() || hasFailed) {
-    return (
-      <View style={[styles.outerWrap, style]} testID={testID || (name ? `lottie-${name}` : 'lottie-animation')}>
-        {fallbackIcon || <NativeAnimatedVectorBadge name={name} />}
-      </View>
-    );
+  useEffect(() => {
+    if (autoPlay && !hasFailed && Platform.OS !== 'web') {
+      const timer = setTimeout(() => {
+        try {
+          lottieRef.current?.play();
+        } catch {}
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [autoPlay, hasFailed]);
+
+  // On Web or if native decoding fails, display resilient vector fallback
+  if (Platform.OS === 'web' || hasFailed) {
+    return <>{fallbackIcon || <NativeAnimatedVectorBadge name={name} />}</>;
   }
+
+  const flattened = StyleSheet.flatten(style);
+  const width = flattened?.width ?? 140;
+  const height = flattened?.height ?? 140;
 
   return (
     <LottieView
+      ref={lottieRef}
       source={animSource}
       autoPlay={autoPlay}
       loop={loop}
       speed={speed}
-      style={[styles.lottie, style]}
-      renderMode={Platform.OS === 'android' ? 'SOFTWARE' : 'AUTOMATIC'}
+      style={{ width, height }}
+      renderMode="AUTOMATIC"
       enableSafeModeAndroid={true}
       cacheComposition={true}
-      onAnimationFailure={(_error) => {
+      onAnimationFailure={(error) => {
+        if (__DEV__) {
+          console.warn('[LottieAnimation] Animation failure:', error);
+        }
         setHasFailed(true);
       }}
       testID={testID}

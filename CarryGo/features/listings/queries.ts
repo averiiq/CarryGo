@@ -86,7 +86,7 @@ export function useTripQuery(tripId?: string) {
       if (!normalizedId) return undefined;
       // 1. Check direct cache
       const direct = queryClient.getQueryData<Trip | null>(queryKeys.listings.trip(normalizedId));
-      if (direct) return direct;
+      if (direct && direct.allowedCategories !== undefined) return direct;
 
       // 2. Search active listings.trips caches
       const tripsCaches = queryClient.getQueriesData<any>({
@@ -105,8 +105,9 @@ export function useTripQuery(tripId?: string) {
           if (found) return found;
         }
       }
-      return undefined;
+      return direct || undefined;
     },
+    initialDataUpdatedAt: 0,
     queryFn: async () => {
       if (!normalizedId) return null;
       try {

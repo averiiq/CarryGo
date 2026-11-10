@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadow } from '@/constants/theme';
 
 export const styles = StyleSheet.create({
   container: {
@@ -70,6 +70,7 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
+    ...Shadow.card,
   },
   ticketHeader: {
     padding: Spacing.lg,
@@ -125,6 +126,41 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: Spacing.sm,
+  },
+
+  // Stopover chain (optional intermediate cities)
+  stopoverChainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.18)',
+  },
+  stopoverChainLabel: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  stopoverChipsWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  stopoverChip: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  stopoverChipText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
   },
 
   // Schedule Ribbon
@@ -195,6 +231,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.lg,
     gap: Spacing.md,
+    ...Shadow.card,
   },
   travelerHeaderRow: {
     flexDirection: 'row',
@@ -352,6 +389,21 @@ export const styles = StyleSheet.create({
   canCarrySpecDivider: {
     width: 1,
     height: 24,
+  },
+  canCarrySummaryBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+  },
+  canCarrySummaryText: {
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 18,
   },
   canCarryGrid: {
     gap: 8,
@@ -533,6 +585,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
+    ...Shadow.sm,
   },
   ownerStatItem: {
     flex: 1,
@@ -540,11 +593,15 @@ export const styles = StyleSheet.create({
     gap: 2,
   },
   ownerStatVal: {
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
+    fontSize: 22,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.4,
   },
   ownerStatLbl: {
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   ownerStatDiv: {
     width: 1,
@@ -561,8 +618,9 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   requestsTitle: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.extrabold,
+    letterSpacing: -0.3,
   },
   requestsCountBadge: {
     paddingHorizontal: 8,
@@ -621,6 +679,13 @@ export const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
+    // Upward-casting shadow — navy-tinted, soft. Lifts the bar off scrolling
+    // content behind it instead of looking like a stamped border line.
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 10,
   },
   bottomBarInner: {
     flexDirection: 'row',
@@ -668,6 +733,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: BorderRadius.full,
+    ...Shadow.brand,
   },
   requestDeliveryBtnText: {
     color: '#fff',
@@ -696,5 +762,178 @@ export const styles = StyleSheet.create({
   },
   requestDeliveryBtnTextSmall: {
     fontSize: 12,
+  },
+
+  // Map & Itinerary Section Styles
+  mapSectionCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
+    ...Shadow.card,
+  },
+  mapHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+  },
+  mapHeaderTitle: {
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+  },
+  osmBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  osmBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.medium,
+  },
+  mapCanvasWrapper: {
+    height: 220,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  itineraryCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    ...Shadow.card,
+  },
+  itineraryHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  itineraryTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  itinerarySubtitle: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  matchedLegPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  matchedLegPillText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    color: '#065F46',
+  },
+  matchedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginVertical: 4,
+  },
+  matchedBannerHeading: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
+  matchedBannerSub: {
+    fontSize: 11,
+    fontWeight: FontWeight.medium,
+    marginTop: 2,
+  },
+  matchedBannerPrice: {
+    alignItems: 'flex-end',
+  },
+  matchedBannerPriceVal: {
+    fontSize: 16,
+    fontWeight: FontWeight.extrabold,
+  },
+  matchedBannerPriceSub: {
+    fontSize: 9,
+    fontWeight: FontWeight.medium,
+    textTransform: 'uppercase',
+  },
+  timelineNodesList: {
+    marginTop: 8,
+    gap: 0,
+  },
+  timelineNodeRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    minHeight: 46,
+  },
+  nodeTimeCol: {
+    width: 60,
+    alignItems: 'flex-start',
+    paddingTop: 1,
+  },
+  nodeTimeText: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
+  nodeDistText: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  nodeTrackCol: {
+    width: 24,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  nodeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2.5,
+    zIndex: 2,
+  },
+  nodeTrackLine: {
+    position: 'absolute',
+    top: 12,
+    bottom: 0,
+    width: 2,
+    zIndex: 1,
+  },
+  nodeInfoCol: {
+    flex: 1,
+    paddingLeft: 6,
+    paddingBottom: 14,
+  },
+  nodeInfoColMatched: {
+    borderRadius: BorderRadius.sm,
+  },
+  nodeCityText: {
+    fontSize: 13,
+    fontWeight: FontWeight.medium,
+  },
+  nodeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  nodeBadgeText: {
+    fontSize: 9.5,
+    fontWeight: FontWeight.bold,
+  },
+  stopoverBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: BorderRadius.xs,
+  },
+  stopoverBadgeText: {
+    fontSize: 9,
+    fontWeight: FontWeight.medium,
   },
 });

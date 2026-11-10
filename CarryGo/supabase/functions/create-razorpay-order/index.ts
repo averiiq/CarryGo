@@ -1,24 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { handleCors } from '../_shared/cors.ts';
 
 const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID') ?? '';
 const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET') ?? '';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
-};
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  });
-}
-
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: CORS_HEADERS });
+  const cors = handleCors(req);
+  if (cors.rejectedResponse) return cors.rejectedResponse;
+  if (cors.preflightResponse) return cors.preflightResponse;
+
+  function jsonResponse(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json', ...cors.headers },
+    });
   }
 
   if (req.method !== 'POST') {
@@ -138,11 +133,11 @@ Deno.serve(async (req) => {
       const linkPayload = {
         amount: amountInPaise,
         currency: 'INR',
-        description: `CaryGoo Delivery Booking Guarantee for Request #${request.id.slice(0, 8)}`,
+        description: `CarryGo Delivery Booking Guarantee for Request #${request.id.slice(0, 8)}`,
         customer: {
-          name: customer?.name || user.email || 'CarryGo Customer',
-          email: customer?.email || user.email || 'customer@carrygo.com',
-          contact: customer?.phone || '+919876543210',
+          name: user.user_metadata?.full_name || user.email || 'CarryGo Customer',
+          email: user.email || '',
+          contact: user.phone || '',
         },
         notify: { sms: false, email: false },
         callback_url: 'https://carrygo.averiq.in/payment/success',
@@ -280,9 +275,8 @@ Deno.serve(async (req) => {
       keyId: RAZORPAY_KEY_ID,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal error';
-    console.error('[create-razorpay-order]', message);
-    return jsonResponse({ error: message }, 500);
+    console.error('[create-razorpay-order]', err instanceof Error ? err.message : String(err));
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });
 

@@ -5,6 +5,8 @@ import { getUserErrorMessage } from '@/lib/error-handler';
 import { storageGet, storageSet } from '@/lib/secure-storage';
 import { fetchOrCreateDelivery } from '@/services/deliveries.service';
 import { Payment, RazorpayOrder } from '@/types';
+import { validateUUID } from '@/lib/validation';
+import { notifyPaymentLocked } from '@/services/notifications.service';
 import type { Database } from '@/types/database';
 
 type PaymentRow = Database['public']['Tables']['payments']['Row'];
@@ -46,7 +48,9 @@ async function extractFunctionErrorMessage(error: any, fallback: string): Promis
           if (text) return text;
         }
       }
-    } catch {}
+    } catch (contextErr) {
+      console.warn('[extractFunctionErrorMessage] error context parsing failed:', contextErr);
+    }
   }
   return error.message || fallback;
 }
@@ -125,7 +129,7 @@ export async function fetchPaymentById(paymentId: string) {
   const sb = getSupabaseClient();
   const { data, error } = await sb
     .from('payments')
-    .select('*')
+    .select('id, request_id, sender_id, traveller_id, amount, status, locked_at, released_at, razorpay_order_id, razorpay_payment_id, created_at')
     .eq('id', paymentId)
     .maybeSingle();
 
@@ -141,28 +145,21 @@ export async function fetchPaymentById(paymentId: string) {
 
 export async function fetchPaymentByRequestOrId(identifier: string) {
   if (!FeatureFlags.payments) return { data: null, error: disabledFeatureMessage.payments };
+  const idCheck = validateUUID(identifier);
+  if (!idCheck.valid) return { data: null, error: idCheck.error };
   const sb = getSupabaseClient();
-  
+
+  // Single query: check both request_id and id in one round-trip
   let { data, error } = await sb
     .from('payments')
-    .select('*')
-    .eq('request_id', identifier)
+    .select('id, request_id, sender_id, traveller_id, amount, status, locked_at, released_at, razorpay_order_id, razorpay_payment_id, created_at')
+    .or(`request_id.eq.${identifier},id.eq.${identifier}`)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (!data) {
-    const res = await sb
-      .from('payments')
-      .select('*')
-      .eq('id', identifier)
-      .maybeSingle();
-    data = res.data;
-    error = res.error;
-  }
-
   // If still not found, check if identifier is a delivery ID
-  if (!data) {
+  if (!data && !error) {
     const { data: delivery } = await sb
       .from('deliveries')
       .select('request_id')
@@ -171,7 +168,7 @@ export async function fetchPaymentByRequestOrId(identifier: string) {
     if (delivery?.request_id) {
       const res = await sb
         .from('payments')
-        .select('*')
+        .select('id, request_id, sender_id, traveller_id, amount, status, locked_at, released_at, razorpay_order_id, razorpay_payment_id, created_at')
         .eq('request_id', delivery.request_id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -194,6 +191,8 @@ export async function fetchPaymentByRequestOrId(identifier: string) {
 
 export async function resolveRequestId(identifier: string): Promise<string> {
   if (!identifier) return '';
+  const idCheck = validateUUID(identifier);
+  if (!idCheck.valid) return '';
   const sb = getSupabaseClient();
   try {
     // 1. Check if identifier is already a valid request ID
@@ -222,7 +221,7 @@ export async function resolveRequestId(identifier: string): Promise<string> {
   } catch (err) {
     console.warn('[resolveRequestId] Failed to resolve identifier:', err);
   }
-  return identifier;
+  return '';
 }
 
 export async function fetchPaymentByRequest(requestId: string) {
@@ -230,27 +229,36 @@ export async function fetchPaymentByRequest(requestId: string) {
   const sb = getSupabaseClient();
   const { data, error } = await sb
     .from('payments')
-    .select('*')
+    .select('id, request_id, sender_id, traveller_id, amount, status, locked_at, released_at, razorpay_order_id, razorpay_payment_id, created_at')
     .eq('request_id', requestId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: null };
+  if (!data) {
+    const cached = (await storageGet<Payment>(`payment_cache_req_${requestId}`)) ||
+      (await storageGet<Payment>(`payment_cache_${requestId}`));
+    if (cached) return { data: cached, error: null };
+    return { data: null, error: null };
+  }
 
   return { data: mapRow(data), error: null };
 }
 
-export async function fetchUserPayments(userId: string) {
+export async function fetchUserPayments(userId: string, options?: { limit?: number; offset?: number }) {
   if (!FeatureFlags.payments) return { data: [], error: disabledFeatureMessage.payments };
+  const idCheck = validateUUID(userId);
+  if (!idCheck.valid) return { data: [], error: idCheck.error };
   const sb = getSupabaseClient();
+  const limit = Math.min(options?.limit ?? 50, MAX_PAGE_SIZE);
+  const offset = options?.offset ?? 0;
   const { data, error } = await sb
     .from('payments')
-    .select('*')
+    .select('id, request_id, sender_id, traveller_id, amount, status, locked_at, released_at, razorpay_order_id, razorpay_payment_id, created_at')
     .or(`sender_id.eq.${userId},traveller_id.eq.${userId}`)
     .order('created_at', { ascending: false })
-    .limit(100);
+    .range(offset, offset + limit - 1);
 
   const dbList = data ? data.map(mapRow) : [];
   try {
@@ -267,18 +275,23 @@ export async function fetchUserPayments(userId: string) {
   }
 }
 
+export const MAX_PAGE_SIZE = 100;
+
 export async function confirmMockBookingPayment(params: {
   requestId: string;
   amount: number;
   senderId?: string;
   travellerId?: string;
 }): Promise<{ data: Payment | null; error: string | null }> {
+  if (!__DEV__ && !FeatureFlags.isDemoMode) {
+    return { data: null, error: 'Test payment mode is only available in development or demo mode.' };
+  }
   const sb = getSupabaseClient();
   const { data: { session } } = await sb.auth.getSession();
-  const currentUserId = session?.user?.id || params.senderId || '';
+  const authUserId = session?.user?.id || '';
 
-  let senderId = params.senderId || currentUserId;
-  let travellerId = params.travellerId || '';
+  let senderId = '';
+  let travellerId = '';
   let price = Number(params.amount) || 100;
 
   try {
@@ -289,8 +302,12 @@ export async function confirmMockBookingPayment(params: {
       .maybeSingle();
 
     if (req) {
-      senderId = req.sender_id || senderId;
-      travellerId = req.traveller_id || travellerId;
+      if (req.sender_id && validateUUID(req.sender_id).valid) {
+        senderId = req.sender_id;
+      }
+      if (req.traveller_id && validateUUID(req.traveller_id).valid) {
+        travellerId = req.traveller_id;
+      }
       if (req.price != null && !isNaN(Number(req.price))) {
         price = Number(req.price);
       }
@@ -299,10 +316,57 @@ export async function confirmMockBookingPayment(params: {
     console.warn('[confirmMockBookingPayment] Request lookup note:', lookupErr);
   }
 
+  if (!senderId) {
+    if (authUserId && validateUUID(authUserId).valid) {
+      senderId = authUserId;
+    } else if (params.senderId && validateUUID(params.senderId).valid) {
+      senderId = params.senderId;
+    }
+  }
+
+  if (!travellerId && params.travellerId && validateUUID(params.travellerId).valid) {
+    travellerId = params.travellerId;
+  }
+
   const nowIso = new Date().toISOString();
-  const paymentId = `cg_pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const razorpayPaymentId = `pay_demo_${Date.now()}`;
   const razorpayOrderId = `order_demo_${Date.now()}`;
+
+  let persistedPaymentId = '';
+
+  // 1. Persist directly to Supabase payments table so database, notifications, and counterparty see it
+  if (senderId) {
+    try {
+      const upsertRow: Record<string, unknown> = {
+        request_id: params.requestId,
+        sender_id: senderId,
+        amount: price,
+        status: 'locked',
+        locked_at: nowIso,
+        razorpay_order_id: razorpayOrderId,
+        razorpay_payment_id: razorpayPaymentId,
+      };
+      if (travellerId) {
+        upsertRow.traveller_id = travellerId;
+      }
+
+      const { data: dbPayment, error: dbErr } = await (sb.from('payments') as any)
+        .upsert(upsertRow, { onConflict: 'request_id' })
+        .select('id, request_id, sender_id, traveller_id, amount, status, locked_at, released_at, razorpay_order_id, razorpay_payment_id, created_at')
+        .maybeSingle();
+
+      if (dbPayment?.id) {
+        persistedPaymentId = dbPayment.id;
+      }
+      if (dbErr) {
+        console.warn('[confirmMockBookingPayment] Supabase payments upsert note:', dbErr.message);
+      }
+    } catch (dbErr) {
+      console.warn('[confirmMockBookingPayment] Supabase payments upsert caught:', dbErr);
+    }
+  }
+
+  const paymentId = persistedPaymentId || `pay_sim_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
   const paymentRecord: Payment = {
     id: paymentId,
@@ -317,6 +381,7 @@ export async function confirmMockBookingPayment(params: {
     createdAt: nowIso,
   };
 
+  // 2. Cache in local storage for instant offline & screen transitions
   try {
     await storageSet(`payment_cache_${params.requestId}`, paymentRecord);
     await storageSet(`payment_cache_req_${params.requestId}`, paymentRecord);
@@ -338,20 +403,36 @@ export async function confirmMockBookingPayment(params: {
     console.warn('[confirmMockBookingPayment] Storage cache warning:', storageErr);
   }
 
-  // Ensure request is accepted
+  // 3. Ensure request is marked accepted in DB
   try {
     await sb
       .from('requests')
       .update({ status: 'accepted', updated_at: nowIso })
-      .eq('id', params.requestId)
-      .eq('status', 'pending');
-  } catch {}
+      .eq('id', params.requestId);
+  } catch (statusErr) {
+    console.warn('[confirmMockBookingPayment] request status update failed:', statusErr);
+  }
 
-  // Initialize delivery record so tracking works seamlessly
+  // 4. Initialize delivery record with pickup OTP ready
   try {
     await fetchOrCreateDelivery(params.requestId, senderId, true);
   } catch (delErr) {
     console.warn('[confirmMockBookingPayment] Delivery init note:', delErr);
+  }
+
+  // 5. Notify traveller of payment reservation
+  if (travellerId) {
+    try {
+      await notifyPaymentLocked({
+        userId: travellerId,
+        senderId,
+        amount: price,
+        deliveryOrRequestId: params.requestId,
+        isTraveller: true,
+      });
+    } catch (notifErr) {
+      console.warn('[confirmMockBookingPayment] Payment notification note:', notifErr);
+    }
   }
 
   return { data: paymentRecord, error: null };

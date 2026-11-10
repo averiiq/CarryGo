@@ -23,7 +23,7 @@ import { useRequestQuery } from '@/features/requests/queries';
 import { useConversationsQuery } from '@/features/conversations/queries';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/queryKeys';
-import { useAlert } from '@/template';
+import { useAlert, getSupabaseClient } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { getUserErrorMessage, getErrorTitle } from '@/lib/error-handler';
 import { RatingModal } from '@/components/feature/RatingModal';
@@ -49,8 +49,9 @@ import {
   issueDeliveryOtp,
   getOrIssueDeliveryOtp,
 } from '@/services/deliveries.service';
+import { fetchPaymentByRequest, fetchPaymentByRequestOrId } from '@/services/payments.service';
 import { getCurrentLocation, updateDeliveryLocation, fetchDeliveryLocation } from '@/services/location.service';
-import { Delivery } from '@/types';
+import { Delivery, Payment } from '@/types';
 import { Haptic } from '@/services/haptics.service';
 import { disabledFeatureMessage, FeatureFlags } from '@/constants/featureFlags';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -69,6 +70,8 @@ function DeliveryScreenInner() {
   const conversationsQuery = useConversationsQuery(user?.id);
 
   const [delivery, setDelivery] = useState<Delivery | null>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(true);
   const [pickupOtp, setPickupOtp] = useState<string | null>(null);
   const [enteredPickupOtp, setEnteredPickupOtp] = useState('');
   const [enteredDeliveryOtp, setEnteredDeliveryOtp] = useState('');
@@ -97,8 +100,91 @@ function DeliveryScreenInner() {
   // Active chat conversation for this delivery request
   const conversation = conversationsQuery.data?.find(c => c.requestId === id);
 
+  const [hasDeliveryRecord, setHasDeliveryRecord] = useState(false);
+
+  // Load payment status and delivery record to enforce strict payment gating
+  const checkPay = useCallback(async () => {
+    if (!id) return;
+    try {
+      const [payRes, delRes] = await Promise.all([
+        fetchPaymentByRequestOrId(id),
+        fetchDelivery(id, isSender),
+      ]);
+
+      if (payRes?.data) {
+        setPayment(payRes.data);
+      }
+      if (delRes?.data && delRes.data.status !== 'failed') {
+        setDelivery(delRes.data);
+        setHasDeliveryRecord(true);
+        if (isSender && delRes.data.pickupOtp) {
+          setPickupOtp(delRes.data.pickupOtp);
+        }
+      }
+    } catch (err) {
+      console.warn('[DeliveryScreen] checkPay error:', err);
+    } finally {
+      setCheckingPayment(false);
+    }
+  }, [id, isSender]);
+
+  useEffect(() => {
+    void checkPay();
+  }, [checkPay]);
+
+  // Realtime subscription — unlock delivery screen automatically when payment or delivery updates
+  useEffect(() => {
+    if (!id) return;
+    const sb = getSupabaseClient();
+    const channel = sb
+      .channel(`delivery-realtime:${id}:${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        (payload) => {
+          const row = payload.new as any;
+          if (row && (row.request_id === id || row.id === id || row.request_id === request?.id)) {
+            void checkPay();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deliveries' },
+        (payload) => {
+          const row = payload.new as any;
+          if (row && (row.request_id === id || row.id === id || row.request_id === request?.id)) {
+            void checkPay();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'requests' },
+        (payload) => {
+          const row = payload.new as any;
+          if (row && (row.id === id || row.id === request?.id)) {
+            void requestQuery.refetch();
+            void checkPay();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try { void sb.removeChannel(channel); } catch {}
+    };
+  }, [id, request?.id, checkPay]);
+
+  const isPaymentLocked = payment?.status === 'locked' || payment?.status === 'released';
+  const isRequestCompleted = request?.status === 'completed';
+  const isDeliveryActive = hasDeliveryRecord || Boolean(delivery && delivery.status !== 'failed');
+  const isPaid = isPaymentLocked || isRequestCompleted || isDeliveryActive;
+
   const initDelivery = useCallback(async () => {
     if (!id || !request || !isParticipant) return;
+    // Strictly do not load or create delivery until payment is locked or completed
+    if (!isPaid) return;
     try {
       const { data } = await fetchOrCreateDelivery(id, user?.id, isSender);
       if (data) {
@@ -124,17 +210,17 @@ function DeliveryScreenInner() {
     } catch (err) {
       console.warn('[DeliveryScreen] initDelivery error caught:', err);
     }
-  }, [id, isParticipant, isSender, request, user?.id]);
+  }, [id, isParticipant, isPaid, isSender, request, user?.id]);
 
   useEffect(() => {
-    if (!id || !request || !isParticipant) return;
+    if (!id || !request || !isParticipant || !isPaid) return;
     void initDelivery();
     Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
     return () => {
       if (locationInterval.current) clearInterval(locationInterval.current);
       if (pollInterval.current) clearInterval(pollInterval.current);
     };
-  }, [fadeAnim, id, initDelivery, isParticipant, request]);
+  }, [fadeAnim, id, initDelivery, isParticipant, isPaid, request]);
 
   // Check if current user has already rated this delivery
   useEffect(() => {
@@ -151,7 +237,7 @@ function DeliveryScreenInner() {
 
   // If sender and awaiting pickup, ensure pickup OTP is ready to show
   useEffect(() => {
-    if (!isSender || step !== 'awaiting_pickup') return;
+    if (!isSender || step !== 'awaiting_pickup' || !isPaid) return;
     if (pickupOtp) return;
 
     let isMounted = true;
@@ -169,7 +255,7 @@ function DeliveryScreenInner() {
     return () => {
       isMounted = false;
     };
-  }, [delivery?.id, id, isSender, step, pickupOtp]);
+  }, [delivery?.id, id, isPaid, isSender, step, pickupOtp]);
 
   // If sender and in transit, ensure 6-digit delivery OTP is ready to show
   useEffect(() => {
@@ -570,6 +656,107 @@ function DeliveryScreenInner() {
     );
   }
 
+  if (checkingPayment && !isPaid) {
+    return (
+      <View style={[styles.centerState, { backgroundColor: C.background }]}>
+        <ActivityIndicator size="large" color={C.primary} />
+        <Text style={[styles.loadingText, { color: C.textMuted }]}>Checking booking payment status...</Text>
+      </View>
+    );
+  }
+
+  // STRICT PAYMENT GATE: Never allow opening the delivery process page or viewing pickup OTP before payment
+  if (!isPaid && request) {
+    if (isSender) {
+      return (
+        <View style={[styles.centerState, { backgroundColor: C.background, paddingHorizontal: Spacing.xl }]}>
+          <View style={[styles.gateIconCircle, { backgroundColor: C.primarySubtle }]}>
+            <Ionicons name="lock-closed" size={38} color={C.primary} />
+          </View>
+          <Text style={[styles.gateTitle, { color: C.textPrimary }]}>Booking Payment Required</Text>
+          <Text style={[styles.gateSub, { color: C.textMuted }]}>
+            Handover OTP and delivery tracking unlock immediately once your booking payment is reserved. Your payment is held safely until the parcel is delivered.
+          </Text>
+
+          <View style={[styles.gateSummaryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <View style={styles.gateSummaryRow}>
+              <Text style={[styles.gateSummaryLabel, { color: C.textMuted }]}>Route</Text>
+              <Text style={[styles.gateSummaryValue, { color: C.textPrimary }]}>
+                {request.fromCity || 'Origin'} → {request.toCity || 'Destination'}
+              </Text>
+            </View>
+            <View style={styles.gateSummaryRow}>
+              <Text style={[styles.gateSummaryLabel, { color: C.textMuted }]}>Traveler</Text>
+              <Text style={[styles.gateSummaryValue, { color: C.textPrimary }]}>
+                {request.travellerName || 'Assigned Traveler'}
+              </Text>
+            </View>
+            <View style={[styles.gateSummaryRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.surfaceBorder, paddingTop: Spacing.sm, marginTop: Spacing.xs }]}>
+              <Text style={[styles.gateSummaryLabel, { color: C.textPrimary, fontWeight: '700' }]}>Total to Pay</Text>
+              <Text style={[styles.gateSummaryValue, { color: C.primary, fontWeight: '700', fontSize: FontSize.lg }]}>
+                ₹{request.price}
+              </Text>
+            </View>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.gatePrimaryBtn,
+              { backgroundColor: C.primary },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+            ]}
+            onPress={() => {
+              Haptic.tap();
+              router.replace({ pathname: '/payment/[id]', params: { id } });
+            }}
+          >
+            <Feather name="credit-card" size={17} color="#FFFFFF" />
+            <Text style={styles.gatePrimaryBtnText}>Book & Pay ₹{request.price}</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.gateSecondaryBtn, { borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated }]}
+            onPress={() => router.back()}
+          >
+            <Text style={[styles.gateSecondaryBtnText, { color: C.textPrimary }]}>Back to Requests</Text>
+          </Pressable>
+        </View>
+      );
+    } else {
+      // isTraveller
+      return (
+        <View style={[styles.centerState, { backgroundColor: C.background, paddingHorizontal: Spacing.xl }]}>
+          <View style={[styles.gateIconCircle, { backgroundColor: C.warningSubtle }]}>
+            <Ionicons name="time-outline" size={38} color={C.warning} />
+          </View>
+          <Text style={[styles.gateTitle, { color: C.textPrimary }]}>Awaiting Sender Booking</Text>
+          <Text style={[styles.gateSub, { color: C.textMuted }]}>
+            {request.senderName || 'The sender'} has not completed the booking payment yet. Parcel handover code and collection controls will unlock automatically once payment is reserved.
+          </Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.gatePrimaryBtn,
+              { backgroundColor: C.primary },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+            ]}
+            onPress={handleOpenChat}
+          >
+            <Ionicons name="chatbubble-outline" size={17} color="#FFFFFF" />
+            <Text style={styles.gatePrimaryBtnText}>Chat with Sender</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.gateSecondaryBtn, { borderColor: C.surfaceBorder, backgroundColor: C.surfaceElevated }]}
+            onPress={() => router.back()}
+          >
+            <Text style={[styles.gateSecondaryBtnText, { color: C.textPrimary }]}>Back</Text>
+          </Pressable>
+        </View>
+      );
+    }
+  }
+
   // Formatting helpers
   const categoryTitle = request.parcelCategory
     ? `${request.parcelCategory.charAt(0).toUpperCase() + request.parcelCategory.slice(1)} Parcel`
@@ -961,14 +1148,6 @@ function DeliveryScreenInner() {
               </View>
             </View>
           </View>
-
-          {/* Minimal 24/7 Security Assurance Badge */}
-          <View style={styles.supportFooter}>
-            <Feather name="lock" size={12} color={C.textMuted} />
-            <Text style={[styles.supportFooterText, { color: C.textMuted }]}>
-              CaryGoo 2-Factor OTP verification guarantees safe handoff and payout release.
-            </Text>
-          </View>
         </Animated.ScrollView>
       </KeyboardAvoidingView>
     </>
@@ -1313,5 +1492,74 @@ const styles = StyleSheet.create({
   backOutlineText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
+  },
+  gateIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  gateTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    textAlign: 'center',
+    marginBottom: Spacing.xs,
+  },
+  gateSub: {
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+  },
+  gateSummaryCard: {
+    width: '100%',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.xs,
+    marginBottom: Spacing.lg,
+  },
+  gateSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  gateSummaryLabel: {
+    fontSize: FontSize.sm,
+  },
+  gateSummaryValue: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  gatePrimaryBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: BorderRadius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  gatePrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  gateSecondaryBtn: {
+    width: '100%',
+    height: 44,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  gateSecondaryBtnText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
   },
 });

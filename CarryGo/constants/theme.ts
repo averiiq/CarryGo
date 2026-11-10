@@ -164,41 +164,64 @@ export const BorderRadius = {
   full: 9999,
 };
 
+/**
+ * Elevation scale — tuned for premium mobile feel.
+ *
+ * Shadow color is near-black navy (#0A1628) so cards feel grounded, not
+ * washed-out grey. Vertical offset grows with elevation while opacity stays
+ * low — that is what makes the shadow look soft and natural instead of
+ * stamped. On Android, `elevation` drives the real shadow; iOS uses the
+ * other four props.
+ */
 export const Shadow = {
-  card: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
+  xs: {
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 14,
-    elevation: 2,
-  },
-  glow: {
-    shadowColor: '#004AAD',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 3,
-  },
-  sm: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowRadius: 2,
     elevation: 1,
   },
-  md: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
+  sm: {
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  card: {
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 16,
     elevation: 3,
   },
-  float: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 10 },
+  md: {
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 24,
-    elevation: 5,
+    elevation: 6,
+  },
+  float: {
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.10,
+    shadowRadius: 40,
+    elevation: 10,
+  },
+  glow: {
+    shadowColor: '#004AAD',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  brand: {
+    shadowColor: '#004AAD',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+    elevation: 6,
   },
 };
 
@@ -207,11 +230,13 @@ export const Shadow = {
  * Provides crisp cross-platform rendering across iOS, Android, and Web.
  */
 export const BoxShadow = {
-  card: '0px 4px 14px rgba(15, 23, 42, 0.04)',
-  glow: '0px 6px 16px rgba(0, 74, 173, 0.16)',
-  sm: '0px 2px 6px rgba(15, 23, 42, 0.03)',
-  md: '0px 6px 16px rgba(15, 23, 42, 0.06)',
-  float: '0px 10px 24px rgba(15, 23, 42, 0.08)',
+  xs: '0px 1px 2px rgba(10, 22, 40, 0.04)',
+  sm: '0px 2px 8px rgba(10, 22, 40, 0.05)',
+  card: '0px 4px 16px rgba(10, 22, 40, 0.06)',
+  md: '0px 8px 24px rgba(10, 22, 40, 0.08)',
+  float: '0px 16px 40px rgba(10, 22, 40, 0.10)',
+  glow: '0px 6px 20px rgba(0, 74, 173, 0.22)',
+  brand: '0px 8px 20px rgba(0, 74, 173, 0.28)',
 };
 
 export const LightShadow = {

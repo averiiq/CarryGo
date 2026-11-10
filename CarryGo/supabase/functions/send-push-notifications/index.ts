@@ -1,16 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-function getCorsHeaders(req: Request) {
-  const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').filter(Boolean);
-  const origin = req.headers.get('origin') || '';
-  const allowOrigin = allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] || '*');
-  return {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
+import { handleCors } from '../_shared/cors.ts';
 
 type ExpoTicket = {
   id?: string;
@@ -20,11 +11,10 @@ type ExpoTicket = {
 };
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const cors = handleCors(req);
+  if (cors.rejectedResponse) return cors.rejectedResponse;
+  if (cors.preflightResponse) return cors.preflightResponse;
+  const corsHeaders = cors.headers;
 
   try {
     const authHeader = req.headers.get('authorization') || '';
@@ -57,6 +47,18 @@ serve(async (req) => {
         });
       }
       authenticatedUser = user;
+
+      // Rate limit push notification requests for authenticated users
+      const { error: rateLimitError } = await anonClient.rpc('enforce_rate_limit', {
+        p_user_id: user.id,
+        p_action: 'send_push_notification',
+      });
+      if (rateLimitError) {
+        return new Response(JSON.stringify({ error: 'Too many notification requests. Please wait.' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const payload = await req.json();
@@ -93,6 +95,14 @@ serve(async (req) => {
       }
     }
 
+    // Anti-self-alerting guard: do not push notifications back to the acting user
+    const senderId = (rawData as any)?.senderId || (rawData as any)?.sender_id;
+    if (senderId && senderId === user_id && type !== 'system_alert') {
+      return new Response(JSON.stringify({ message: 'Self-notification suppressed' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { data: devices, error: devicesError } = await supabase
       .from('user_devices')
       .select('id, expo_push_token, failure_count')
@@ -100,19 +110,26 @@ serve(async (req) => {
       .is('invalidated_at', null);
 
     if (devicesError) {
-      return new Response(JSON.stringify({ error: devicesError.message }), {
+      console.error('[send-push-notifications] devices lookup error:', devicesError.message);
+      return new Response(JSON.stringify({ error: 'Failed to look up devices' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const seenTokens = new Set<string>();
     const activeDevices = (devices || []).filter(device => {
       const token = typeof device.expo_push_token === 'string' ? device.expo_push_token.trim() : '';
-      return (
+      const isValid = (
         token.startsWith('ExponentPushToken[')
         || token.startsWith('ExpoPushToken[')
         || /^[a-zA-Z0-9_-]{22,64}$/.test(token)
       );
+      if (isValid && !seenTokens.has(token)) {
+        seenTokens.add(token);
+        return true;
+      }
+      return false;
     });
 
     if (activeDevices.length === 0) {
@@ -139,6 +156,7 @@ serve(async (req) => {
       priority: pushPriority,
       channelId,
       data: {
+        recipientId: user_id,
         notificationId: id,
         type: type || 'general',
         category: category || 'general',
@@ -162,8 +180,8 @@ serve(async (req) => {
     const expoResult = await expoResponse.json();
 
     if (!expoResponse.ok) {
-      console.error('Expo push error:', JSON.stringify(expoResult));
-      return new Response(JSON.stringify({ error: `Expo push failed: ${JSON.stringify(expoResult)}` }), {
+      console.error('[send-push-notifications] Expo push error:', JSON.stringify(expoResult));
+      return new Response(JSON.stringify({ error: 'Push notification dispatch failed' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -210,7 +228,8 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error('Unexpected error:', err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    console.error('[send-push-notifications]', err instanceof Error ? err.message : String(err));
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

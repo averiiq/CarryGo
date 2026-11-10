@@ -25,6 +25,8 @@ export interface RouteCompatibilityResult {
   isCompatible: boolean;
   rejectionCode?: RejectionReasonCode;
   rejectionReason?: string;
+  /** When the match came from a stopover sub-segment (not the direct from→to), the actual sub-segment that matched. */
+  matchedSegment?: { from: string; to: string; viaStopover: boolean };
   confidence: number; // 0 to 1
   originMatch: {
     isCompatible: boolean;

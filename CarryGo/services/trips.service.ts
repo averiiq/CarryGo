@@ -12,16 +12,53 @@ import { enrichMissingUserAvatars } from './avatar-enrichment.service';
 
 type TripRow = Database['public']['Tables']['trips']['Row'];
 
-function parseAllowedCategories(raw: any): ParcelCategory[] | undefined {
+export const MAX_PAGE_SIZE = 100;
+
+export function parseAllowedCategories(raw: any): ParcelCategory[] | undefined {
   if (!raw) return undefined;
-  if (Array.isArray(raw)) return raw as ParcelCategory[];
+  if (Array.isArray(raw)) {
+    const cleaned = raw
+      .map((s) => String(s || '').trim().replace(/^[{"']+|[}"']+$/g, '').toLowerCase())
+      .filter(Boolean);
+    return cleaned.length > 0 ? (cleaned as ParcelCategory[]) : undefined;
+  }
   if (typeof raw === 'string') {
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed as ParcelCategory[];
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed
+          .map((s) => String(s || '').trim().replace(/^[{"']+|[}"']+$/g, '').toLowerCase())
+          .filter(Boolean);
+        return cleaned.length > 0 ? (cleaned as ParcelCategory[]) : undefined;
+      }
     } catch {
-      const items = raw.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+      const items = raw
+        .replace(/^\{|\}$/g, '')
+        .split(',')
+        .map((s: string) => s.trim().replace(/^["']|["']$/g, '').toLowerCase())
+        .filter(Boolean);
       if (items.length > 0) return items as ParcelCategory[];
+    }
+  }
+  return undefined;
+}
+
+export function parseStopovers(raw: any): string[] | undefined {
+  if (!raw) return undefined;
+  if (Array.isArray(raw)) {
+    const cleaned = raw.map((s) => String(s || '').trim().replace(/^[{"']+|[}"']+$/g, '')).filter(Boolean);
+    return cleaned.length > 0 ? cleaned : undefined;
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed.map((s: unknown) => String(s || '').trim().replace(/^[{"']+|[}"']+$/g, '')).filter(Boolean);
+        return cleaned.length > 0 ? cleaned : undefined;
+      }
+    } catch {
+      const items = raw.replace(/^\{|\}$/g, '').split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+      if (items.length > 0) return items;
     }
   }
   return undefined;
@@ -43,6 +80,7 @@ function mapRow(row: any): Trip {
     userRating: row.user_rating ?? 0,
     fromCity: row.from_city,
     toCity: row.to_city,
+    stopovers: parseStopovers(row.stopovers),
     date: row.date,
     time: row.time,
     vehicleType: row.vehicle_type as Trip['vehicleType'],
@@ -95,15 +133,23 @@ export async function fetchTrips(filters?: {
 
   let query = sb
     .from('trips')
-    .select('*', shouldCount ? { count: 'exact' } : undefined)
+    .select('id, user_id, user_name, user_avatar, user_rating, from_city, to_city, stopovers, date, time, vehicle_type, available_capacity, price_per_kg, status, created_at, allowed_categories', shouldCount ? { count: 'exact' } : undefined)
     .eq('status', 'active')
     .gt('available_capacity', 0)
     .gte('date', todayStr)
     .gte('created_at', getUnmatchedListingCutoffIso())
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
-  if (filters?.fromCity) query = query.ilike('from_city', `%${sanitizeLikeInput(filters.fromCity)}%`);
-  if (filters?.toCity) query = query.ilike('to_city', `%${sanitizeLikeInput(filters.toCity)}%`);
+  if (filters?.fromCity) {
+    const safeOr = sanitizeLikeInput(filters.fromCity).replace(/,/g, '');
+    const safeStopovers = filters.fromCity.trim().replace(/[{},\\.]/g, '');
+    query = query.or(`from_city.ilike.%${safeOr}%,stopovers.cs.{${safeStopovers}}`);
+  }
+  if (filters?.toCity) {
+    const safeOr = sanitizeLikeInput(filters.toCity).replace(/,/g, '');
+    const safeStopovers = filters.toCity.trim().replace(/[{},\\.]/g, '');
+    query = query.or(`to_city.ilike.%${safeOr}%,stopovers.cs.{${safeStopovers}}`);
+  }
   if (filters?.userCity && !filters.fromCity && !filters.toCity) {
     try {
       const { fetchCityMarketplaceTrips } = require('@/services/marketplace-relevance.service');
@@ -118,6 +164,7 @@ export async function fetchTrips(filters?: {
     query = query.or(`from_city.ilike.%${city}%,to_city.ilike.%${city}%`);
   }
   const { data, error, count } = await query;
+
   if (error) return { data: null, error: error.message, total: 0 };
   const filtered = (data || []).map(mapRow).filter((t: Trip) => {
     if (t.status !== 'active') return false;
@@ -146,7 +193,14 @@ export async function fetchTripById(tripId: string) {
   }
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('trips').select('*').eq('id', tripId).single();
+  let { data, error } = await sb.from('trips').select('id, user_id, user_name, user_avatar, user_rating, from_city, to_city, stopovers, date, time, vehicle_type, available_capacity, price_per_kg, status, created_at, allowed_categories').eq('id', tripId).single();
+  if (error && error.message?.includes('allowed_categories')) {
+    const retry = await sb.from('trips').select('id, user_id, user_name, user_avatar, user_rating, from_city, to_city, stopovers, date, time, vehicle_type, available_capacity, price_per_kg, status, created_at').eq('id', tripId).single();
+    if (!retry.error && retry.data) {
+      data = { ...retry.data, allowed_categories: null } as any;
+      error = null;
+    }
+  }
   if (error) return { data: null, error: error.message };
   const mapped = mapRow(data);
   const [enriched] = await enrichMissingUserAvatars([mapped]);
@@ -198,13 +252,16 @@ export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
   if (trip.allowedCategories && Array.isArray(trip.allowedCategories)) {
     insertPayload.allowed_categories = trip.allowedCategories;
   }
+  if (trip.stopovers && Array.isArray(trip.stopovers) && trip.stopovers.length > 0) {
+    insertPayload.stopovers = trip.stopovers;
+  }
 
   let { data, error } = await sb.from('trips').insert(insertPayload).select().single();
-  if (error && (insertPayload.allowed_categories || insertPayload.user_avatar)) {
-    // Retry without columns that might not exist in an older schema
-    const fallbackPayload: any = { ...insertPayload };
+
+  // If remote database schema has not added allowed_categories column yet, retry cleanly without it
+  if (error && error.message?.includes('allowed_categories')) {
+    const fallbackPayload = { ...insertPayload };
     delete fallbackPayload.allowed_categories;
-    delete fallbackPayload.user_avatar;
     const retry = await sb.from('trips').insert(fallbackPayload).select().single();
     if (!retry.error) {
       data = retry.data;
@@ -219,6 +276,9 @@ export async function createTrip(trip: Omit<Trip, 'id' | 'createdAt'>) {
   }
   if (trip.allowedCategories) {
     mapped.allowedCategories = trip.allowedCategories;
+  }
+  if (trip.stopovers && trip.stopovers.length > 0 && !mapped.stopovers) {
+    mapped.stopovers = trip.stopovers;
   }
   return { data: mapped, error: null };
 }
@@ -246,15 +306,22 @@ export async function updateTripStatus(tripId: string, status: Trip['status'], u
   return { error: null };
 }
 
-export async function fetchUserTrips(userId: string): Promise<{ data: Trip[] | null; error: string | null }> {
-  if (!userId) return { data: [], error: null };
+export async function fetchUserTrips(
+  userId: string,
+  options?: { limit?: number; offset?: number },
+): Promise<{ data: Trip[] | null; error: string | null; total: number }> {
+  if (!userId) return { data: [], error: null, total: 0 };
   const sb = getSupabaseClient();
-  const { data, error } = await sb
+  const limit = Math.min(options?.limit ?? 50, MAX_PAGE_SIZE);
+  const offset = options?.offset ?? 0;
+  const { data, error, count } = await sb
     .from('trips')
-    .select('*')
+    .select('id, user_id, user_name, user_avatar, user_rating, from_city, to_city, stopovers, date, time, vehicle_type, available_capacity, price_per_kg, status, created_at, allowed_categories', { count: 'exact' })
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-  if (error) return { data: null, error: error.message };
-  return { data: (data || []).map(mapRow), error: null };
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) return { data: null, error: error.message, total: 0 };
+  const mapped = (data || []).map(mapRow);
+  return { data: mapped, error: null, total: count ?? mapped.length };
 }
 

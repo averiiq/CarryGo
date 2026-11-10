@@ -31,37 +31,24 @@ describe('Conversations Service - deleteConversation', () => {
     expect(res.error).toBeNull();
   });
 
-  it('falls back to direct table deletion if RPC fails', async () => {
+  it('returns RPC error directly without direct delete fallback (BN-25)', async () => {
     mockRpc.mockResolvedValueOnce({
       data: null,
       error: { message: 'function not found' },
     });
 
-    const mockEq = jest.fn().mockResolvedValueOnce({
-      error: null,
-    });
-    const mockDelete = jest.fn().mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ delete: mockDelete });
-
     const res = await deleteConversation('conv-123');
-    expect(mockFrom).toHaveBeenCalledWith('conversations');
-    expect(mockDelete).toHaveBeenCalled();
-    expect(mockEq).toHaveBeenCalledWith('id', 'conv-123');
-    expect(res.data).toBe(true);
-    expect(res.error).toBeNull();
+    // BN-25: No direct delete fallback — RPC-only path enforces RLS
+    expect(mockFrom).not.toHaveBeenCalledWith('conversations');
+    expect(res.data).toBeNull();
+    expect(res.error).toBe('function not found');
   });
 
-  it('returns error message if both RPC and fallback deletion fail', async () => {
+  it('returns RPC error message when deletion is not allowed', async () => {
     mockRpc.mockResolvedValueOnce({
       data: null,
       error: { message: 'Chats can only be deleted after the delivery is completed' },
     });
-
-    const mockEq = jest.fn().mockResolvedValueOnce({
-      error: { message: 'RLS violation' },
-    });
-    const mockDelete = jest.fn().mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ delete: mockDelete });
 
     const res = await deleteConversation('conv-123');
     expect(res.data).toBeNull();

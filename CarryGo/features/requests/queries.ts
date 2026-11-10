@@ -38,6 +38,7 @@ export function useRequestsQuery(userId?: string) {
     queryKey: queryKeys.requests.byUser(userId ?? 'anonymous'),
     enabled: Boolean(userId),
     staleTime: 60_000,
+    refetchInterval: 15_000,
     retry: 1,
     queryFn: async () => {
       if (!userId) return [];
@@ -52,7 +53,8 @@ export function useRequestQuery(requestId?: string) {
   return useQuery<Request | null>({
     queryKey: queryKeys.requests.detail(requestId ?? 'missing'),
     enabled: Boolean(requestId),
-    staleTime: 2 * 60_000,
+    staleTime: 30_000,
+    refetchInterval: 10_000,
     retry: 1,
     queryFn: async () => {
       if (!requestId) return null;

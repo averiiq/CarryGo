@@ -16,9 +16,49 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
 import { GestureBottomSheet } from '@/components/ui/GestureBottomSheet';
 import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
+import { findCity, getDistance } from '@/constants/indian-cities';
+import { areCitiesEquivalent } from '@/services/route-compatibility.service';
+import { calculateLegPrice } from '@/components/feature/matching/blaBlaHelpers';
 
 export function normalizeCity(val?: string) {
   return (val || '').trim().toLowerCase();
+}
+
+export function isParcelOnTripRoute(
+  parcelFrom: string,
+  parcelTo: string,
+  tripFrom: string,
+  tripTo: string,
+  stopovers: string[] = []
+): { isMatch: boolean; matchedFrom: string; matchedTo: string; isSubSegment: boolean } {
+  const fullSequence = [tripFrom, ...stopovers, tripTo].filter(Boolean);
+  let fromIndex = -1;
+  let toIndex = -1;
+  let matchedFrom = tripFrom;
+  let matchedTo = tripTo;
+
+  for (let i = 0; i < fullSequence.length; i++) {
+    if (areCitiesEquivalent(fullSequence[i], parcelFrom)) {
+      fromIndex = i;
+      matchedFrom = fullSequence[i];
+      break;
+    }
+  }
+
+  for (let j = fullSequence.length - 1; j >= 0; j--) {
+    if (areCitiesEquivalent(fullSequence[j], parcelTo)) {
+      toIndex = j;
+      matchedTo = fullSequence[j];
+      break;
+    }
+  }
+
+  if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
+    const isSubSegment = !(fromIndex === 0 && toIndex === fullSequence.length - 1);
+    return { isMatch: true, matchedFrom, matchedTo, isSubSegment };
+  }
+
+  return { isMatch: false, matchedFrom: tripFrom, matchedTo: tripTo, isSubSegment: false };
 }
 
 export function calculateParcelDeliveryPrice(
@@ -33,20 +73,33 @@ export function calculateParcelDeliveryPrice(
 
 export function partitionMatchingParcels(
   parcels: Parcel[],
-  trip: Pick<Trip, 'fromCity' | 'toCity' | 'availableCapacity'>
-): { eligible: Parcel[]; overweight: Parcel[] } {
-  const normFrom = normalizeCity(trip.fromCity);
-  const normTo = normalizeCity(trip.toCity);
+  trip: Pick<Trip, 'fromCity' | 'toCity' | 'availableCapacity'> & { stopovers?: string[]; allowedCategories?: Parcel['category'][] }
+): { eligible: Parcel[]; overweight: Parcel[]; incompatibleCategory: Parcel[] } {
   const maxCap = trip.availableCapacity || 0;
-
   const eligible: Parcel[] = [];
   const overweight: Parcel[] = [];
+  const incompatibleCategory: Parcel[] = [];
+
+  const allowedSet = trip.allowedCategories && trip.allowedCategories.length > 0
+    ? new Set(trip.allowedCategories.map((c) => String(c).trim().toLowerCase()))
+    : null;
 
   for (const parcel of parcels) {
     if (parcel.status !== 'open') continue;
-    if (normalizeCity(parcel.fromCity) !== normFrom || normalizeCity(parcel.toCity) !== normTo) {
+    const match = isParcelOnTripRoute(
+      parcel.fromCity,
+      parcel.toCity,
+      trip.fromCity,
+      trip.toCity,
+      trip.stopovers || []
+    );
+    if (!match.isMatch) continue;
+
+    if (allowedSet && !allowedSet.has(String(parcel.category || '').trim().toLowerCase())) {
+      incompatibleCategory.push(parcel);
       continue;
     }
+
     if (parcel.weight <= maxCap) {
       eligible.push(parcel);
     } else {
@@ -54,7 +107,7 @@ export function partitionMatchingParcels(
     }
   }
 
-  return { eligible, overweight };
+  return { eligible, overweight, incompatibleCategory };
 }
 
 const CATEGORY_ITEMS: { id: Parcel['category']; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
@@ -70,6 +123,8 @@ export interface QuickCreateParcelParams {
   category: Parcel['category'];
   weight: number;
   description: string;
+  fromCity?: string;
+  toCity?: string;
 }
 
 interface SendRequestModalProps {
@@ -81,6 +136,8 @@ interface SendRequestModalProps {
   onCreateParcel: (fromCity: string, toCity: string) => void;
   onQuickCreateAndRequest?: (params: QuickCreateParcelParams, trip: Trip, calculatedPrice: number) => Promise<void>;
   isSubmitting?: boolean;
+  initialFromCity?: string;
+  initialToCity?: string;
 }
 
 export function SendRequestModal({
@@ -92,31 +149,100 @@ export function SendRequestModal({
   onCreateParcel,
   onQuickCreateAndRequest,
   isSubmitting = false,
+  initialFromCity,
+  initialToCity,
 }: SendRequestModalProps) {
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const maxCapacity = trip?.availableCapacity || 10;
   const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
   const [bookingMode, setBookingMode] = useState<'existing' | 'quick'>('quick');
 
+  const allRouteStops = useMemo(() => {
+    if (!trip) return [];
+    const stops = (trip.stopovers || []).map((s) => String(s || '').trim()).filter(Boolean);
+    return [trip.fromCity, ...stops, trip.toCity];
+  }, [trip]);
+
+  const [pickupCity, setPickupCity] = useState<string>(() => {
+    if (initialFromCity && allRouteStops.includes(initialFromCity)) return initialFromCity;
+    return trip?.fromCity || '';
+  });
+
+  const [dropoffCity, setDropoffCity] = useState<string>(() => {
+    if (initialToCity && allRouteStops.includes(initialToCity)) return initialToCity;
+    return trip?.toCity || '';
+  });
+
+  useEffect(() => {
+    if (initialFromCity && allRouteStops.includes(initialFromCity)) {
+      setPickupCity(initialFromCity);
+    } else if (trip?.fromCity) {
+      setPickupCity(trip.fromCity);
+    }
+  }, [initialFromCity, trip?.fromCity, allRouteStops]);
+
+  useEffect(() => {
+    if (initialToCity && allRouteStops.includes(initialToCity)) {
+      setDropoffCity(initialToCity);
+    } else if (trip?.toCity) {
+      setDropoffCity(trip.toCity);
+    }
+  }, [initialToCity, trip?.toCity, allRouteStops]);
+
+  const pickupIndex = allRouteStops.indexOf(pickupCity);
+  const availableDropoffStops = useMemo(() => {
+    if (pickupIndex === -1) return allRouteStops.slice(1);
+    return allRouteStops.slice(pickupIndex + 1);
+  }, [allRouteStops, pickupIndex]);
+
+  useEffect(() => {
+    if (availableDropoffStops.length > 0 && !availableDropoffStops.includes(dropoffCity)) {
+      setDropoffCity(availableDropoffStops[availableDropoffStops.length - 1]);
+    }
+  }, [availableDropoffStops, dropoffCity]);
+
+  const isSubSegment = Boolean(
+    trip && (pickupCity !== trip.fromCity || dropoffCity !== trip.toCity)
+  );
+
+  const legDistanceKm = useMemo(() => {
+    const c1 = findCity(pickupCity);
+    const c2 = findCity(dropoffCity);
+    if (c1 && c2) return Math.round(getDistance(c1, c2));
+    return 0;
+  }, [pickupCity, dropoffCity]);
+
+  const selectableCategoryItems = useMemo(() => {
+    if (trip?.allowedCategories && trip.allowedCategories.length > 0) {
+      const allowed = new Set(trip.allowedCategories.map((c) => String(c).trim().toLowerCase()));
+      const filtered = CATEGORY_ITEMS.filter((item) => allowed.has(item.id.toLowerCase()));
+      if (filtered.length > 0) return filtered;
+    }
+    return CATEGORY_ITEMS;
+  }, [trip?.allowedCategories]);
+
   // Quick Instant Booking state with clamped default weight
-  const [quickCategory, setQuickCategory] = useState<Parcel['category']>('documents');
+  const [quickCategory, setQuickCategory] = useState<Parcel['category']>(() => selectableCategoryItems[0]?.id || 'documents');
   const [quickWeight, setQuickWeight] = useState<number>(() => Math.min(1, Math.max(0.5, trip?.availableCapacity || 1)));
   const [quickDescription, setQuickDescription] = useState<string>('');
+
+  useEffect(() => {
+    if (selectableCategoryItems.length > 0) {
+      const isAllowed = selectableCategoryItems.some((item) => item.id === quickCategory);
+      if (!isAllowed) {
+        setQuickCategory(selectableCategoryItems[0].id);
+      }
+    }
+  }, [selectableCategoryItems, quickCategory]);
 
   const { eligible: matchingParcels, overweight: overweightParcels } = useMemo(() => {
     if (!trip) return { eligible: [], overweight: [] };
     return partitionMatchingParcels(userParcels, trip);
   }, [trip, userParcels]);
 
-  useEffect(() => {
-    if (matchingParcels.length > 0) {
-      setBookingMode('existing');
-      setSelectedParcelId(matchingParcels[0].id);
-    } else {
-      setBookingMode('quick');
-      setSelectedParcelId(null);
-    }
-  }, [matchingParcels]);
+  // v2 (BlaBlaCar-style): single-path booking — always quick. The `existing`
+  // branch below is unreachable and will be pruned in Phase 2 along with the
+  // saved-parcels concept.
 
   const weightPresets = useMemo(() => {
     const raw = [0.5, 1, 2, 3, 5];
@@ -145,7 +271,13 @@ export function SendRequestModal({
     ? calculateParcelDeliveryPrice(selectedParcel.weight, trip.pricePerKg)
     : 0;
 
-  const quickCalculatedCost = calculateParcelDeliveryPrice(quickWeight, trip.pricePerKg);
+  const activePickup = bookingMode === 'existing' && selectedParcel ? selectedParcel.fromCity : pickupCity;
+  const activeDropoff = bookingMode === 'existing' && selectedParcel ? selectedParcel.toCity : dropoffCity;
+
+  const quickCalculatedCost = useMemo(() => {
+    const base = calculateParcelDeliveryPrice(quickWeight, trip.pricePerKg);
+    return calculateLegPrice(base, activePickup, activeDropoff, trip.fromCity, trip.toCity);
+  }, [quickWeight, trip, activePickup, activeDropoff]);
 
   const handleAdjustWeight = (delta: number) => {
     Haptic.select();
@@ -160,10 +292,21 @@ export function SendRequestModal({
   const handleConfirm = async () => {
     if (bookingMode === 'existing') {
       if (!selectedParcelId || isSubmitting) return;
+      if (selectedParcel && trip?.allowedCategories && trip.allowedCategories.length > 0) {
+        const allowed = new Set(trip.allowedCategories.map((c) => String(c).trim().toLowerCase()));
+        if (!allowed.has(String(selectedParcel.category).toLowerCase())) {
+          Haptic.warning();
+          return;
+        }
+      }
       Haptic.confirm();
       await onConfirmRequest(selectedParcelId, trip, calculatedCost);
     } else {
       if (isSubmitting) return;
+      if (selectableCategoryItems.length > 0 && !selectableCategoryItems.some((item) => item.id === quickCategory)) {
+        Haptic.warning();
+        return;
+      }
       Haptic.confirm();
       if (onQuickCreateAndRequest) {
         await onQuickCreateAndRequest(
@@ -171,13 +314,15 @@ export function SendRequestModal({
             category: quickCategory,
             weight: quickWeight,
             description: quickDescription.trim() || `${quickCategory.toUpperCase()} package delivery`,
+            fromCity: activePickup,
+            toCity: activeDropoff,
           },
           trip,
           quickCalculatedCost
         );
       } else {
         onClose();
-        onCreateParcel(trip.fromCity, trip.toCity);
+        onCreateParcel(activePickup, activeDropoff);
       }
     }
   };
@@ -206,7 +351,7 @@ export function SendRequestModal({
             <View style={{ flex: 1 }}>
               <View style={styles.nameRow}>
                 <Text style={[styles.title, { color: C.textPrimary }]} numberOfLines={1}>
-                  Request {trip.userName}
+                  Book with {trip.userName}
                 </Text>
                 <View style={styles.ratingPill}>
                   <MaterialIcons name="star" size={13} color="#F59E0B" />
@@ -241,74 +386,102 @@ export function SendRequestModal({
         </View>
 
         <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Route Capsule */}
-          <View style={[styles.routeCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-            <View style={styles.routeCityCol}>
-              <Text style={[styles.routeCityLabel, { color: C.textMuted }]}>PICKUP</Text>
-              <Text style={[styles.routeCityName, { color: C.textPrimary }]}>{trip.fromCity}</Text>
-            </View>
-            <View style={[styles.routeArrowCircle, { backgroundColor: C.primarySubtle }]}>
-              <MaterialIcons name="arrow-forward" size={14} color={C.primary} />
-            </View>
-            <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
-              <Text style={[styles.routeCityLabel, { color: C.textMuted }]}>DESTINATION</Text>
-              <Text style={[styles.routeCityName, { color: C.textPrimary }]}>{trip.toCity}</Text>
-            </View>
-          </View>
+          {/* Route Capsule or Stopover Selector */}
+          {allRouteStops.length > 2 ? (
+            <View style={[styles.stopSelectorCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <View style={styles.stopSelectorHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialIcons name="alt-route" size={15} color="#008B48" />
+                  <Text style={[styles.stopSelectorTitle, { color: C.textPrimary }]}>Choose Delivery Segment</Text>
+                </View>
+                {isSubSegment && legDistanceKm > 0 ? (
+                  <View style={styles.subSegmentPill}>
+                    <Text style={styles.subSegmentPillText}>{legDistanceKm} km leg</Text>
+                  </View>
+                ) : null}
+              </View>
 
-          {/* Mode Switcher if user has pre-existing parcels */}
-          {matchingParcels.length > 0 ? (
-            <View style={[styles.modeToggleWrap, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
-              <Pressable
-                onPress={() => {
-                  Haptic.select();
-                  setBookingMode('existing');
-                }}
-                style={[
-                  styles.modeToggleTab,
-                  bookingMode === 'existing' && { backgroundColor: C.primary },
-                ]}
-              >
-                <MaterialIcons
-                  name="inventory-2"
-                  size={14}
-                  color={bookingMode === 'existing' ? '#FFFFFF' : C.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.modeToggleText,
-                    { color: bookingMode === 'existing' ? '#FFFFFF' : C.textSecondary },
-                  ]}
-                >
-                  My Saved Parcels ({matchingParcels.length})
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  Haptic.select();
-                  setBookingMode('quick');
-                }}
-                style={[
-                  styles.modeToggleTab,
-                  bookingMode === 'quick' && { backgroundColor: C.primary },
-                ]}
-              >
-                <MaterialIcons
-                  name="bolt"
-                  size={14}
-                  color={bookingMode === 'quick' ? '#FFFFFF' : C.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.modeToggleText,
-                    { color: bookingMode === 'quick' ? '#FFFFFF' : C.textSecondary },
-                  ]}
-                >
-                  New Package
-                </Text>
-              </Pressable>
+              {/* Pickup Stop row */}
+              <View style={styles.stopPickRow}>
+                <View style={styles.stopPickHeader}>
+                  <Text style={[styles.stopPickLabel, { color: C.textMuted }]}>PICKUP AT</Text>
+                  <Text style={[styles.stopPickVal, { color: '#004AAD' }]}>{pickupCity}</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stopsScroll}>
+                  {allRouteStops.slice(0, allRouteStops.length - 1).map((stop) => {
+                    const isSel = stop === pickupCity;
+                    return (
+                      <Pressable
+                        key={`pick-${stop}`}
+                        onPress={() => {
+                          Haptic.tap();
+                          setPickupCity(stop);
+                        }}
+                        style={[
+                          styles.stopChip,
+                          {
+                            backgroundColor: isSel ? '#004AAD' : (isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9'),
+                            borderColor: isSel ? '#004AAD' : C.surfaceBorder,
+                          }
+                        ]}
+                      >
+                        <Text style={[styles.stopChipText, { color: isSel ? '#FFFFFF' : C.textPrimary, fontWeight: isSel ? '700' : '500' }]}>
+                          {stop}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Dropoff Stop row */}
+              <View style={[styles.stopPickRow, { marginTop: 10 }]}>
+                <View style={styles.stopPickHeader}>
+                  <Text style={[styles.stopPickLabel, { color: C.textMuted }]}>DELIVER TO</Text>
+                  <Text style={[styles.stopPickVal, { color: '#008B48' }]}>{dropoffCity}</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stopsScroll}>
+                  {availableDropoffStops.map((stop) => {
+                    const isSel = stop === dropoffCity;
+                    return (
+                      <Pressable
+                        key={`drop-${stop}`}
+                        onPress={() => {
+                          Haptic.tap();
+                          setDropoffCity(stop);
+                        }}
+                        style={[
+                          styles.stopChip,
+                          {
+                            backgroundColor: isSel ? '#008B48' : (isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9'),
+                            borderColor: isSel ? '#008B48' : C.surfaceBorder,
+                          }
+                        ]}
+                      >
+                        <Text style={[styles.stopChipText, { color: isSel ? '#FFFFFF' : C.textPrimary, fontWeight: isSel ? '700' : '500' }]}>
+                          {stop}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
             </View>
-          ) : null}
+          ) : (
+            <View style={[styles.routeCard, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+              <View style={styles.routeCityCol}>
+                <Text style={[styles.routeCityLabel, { color: C.textMuted }]}>PICKUP</Text>
+                <Text style={[styles.routeCityName, { color: C.textPrimary }]}>{trip.fromCity}</Text>
+              </View>
+              <View style={[styles.routeArrowCircle, { backgroundColor: C.primarySubtle }]}>
+                <MaterialIcons name="arrow-forward" size={14} color={C.primary} />
+              </View>
+              <View style={[styles.routeCityCol, { alignItems: 'flex-end' }]}>
+                <Text style={[styles.routeCityLabel, { color: C.textMuted }]}>DESTINATION</Text>
+                <Text style={[styles.routeCityName, { color: C.textPrimary }]}>{trip.toCity}</Text>
+              </View>
+            </View>
+          )}
 
           {/* Existing Parcels List View */}
           {bookingMode === 'existing' && matchingParcels.length > 0 ? (
@@ -376,9 +549,22 @@ export function SendRequestModal({
                 </View>
               ) : null}
 
-              <Text style={[styles.sectionHeading, { color: C.textPrimary }]}>Package Category</Text>
+              <View style={styles.categoryHeadingWrap}>
+                <Text style={[styles.sectionHeading, { color: C.textPrimary, marginBottom: 0 }]}>Package Category</Text>
+                {trip.allowedCategories && trip.allowedCategories.length > 0 ? (
+                  <View style={[styles.allowedPillStrip, { backgroundColor: C.successSubtle, borderColor: C.successBorder }]}>
+                    <MaterialIcons name="check-circle" size={12} color={C.success} />
+                    <Text style={[styles.allowedPillText, { color: C.textPrimary }]}>
+                      {trip.userName || 'Traveller'} accepts {selectableCategoryItems.length === 1 ? 'only ' : ''}
+                      <Text style={{ fontWeight: FontWeight.bold, color: C.success }}>
+                        {selectableCategoryItems.map((c) => c.label).join(', ')}
+                      </Text>
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
               <View style={styles.categoryGrid}>
-                {CATEGORY_ITEMS.map((cat) => {
+                {selectableCategoryItems.map((cat) => {
                   const isSel = quickCategory === cat.id;
                   return (
                     <Pressable
@@ -526,7 +712,7 @@ export function SendRequestModal({
               <>
                 <MaterialIcons name="send" size={18} color="#FFFFFF" />
                 <Text style={styles.submitBtnText}>
-                  Send Delivery Request • ₹{activeCost}
+                  Book Delivery • ₹{activeCost}
                 </Text>
               </>
             )}
@@ -652,6 +838,67 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 8,
   },
+  stopSelectorCard: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.sm + 4,
+    marginBottom: Spacing.md,
+  },
+  stopSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  stopSelectorTitle: {
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+  },
+  subSegmentPill: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  subSegmentPillText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+    color: '#065F46',
+  },
+  stopPickRow: {
+    width: '100%',
+  },
+  stopPickHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  stopPickLabel: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  stopPickVal: {
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
+  stopsScroll: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  stopChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  stopChipText: {
+    fontSize: 12,
+  },
   modeToggleWrap: {
     flexDirection: 'row',
     borderRadius: BorderRadius.full,
@@ -730,6 +977,23 @@ const styles = StyleSheet.create({
   },
   parcelItemCostSub: {
     fontSize: 9,
+  },
+  categoryHeadingWrap: {
+    marginBottom: Spacing.sm,
+    gap: 6,
+  },
+  allowedPillStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  allowedPillText: {
+    fontSize: FontSize.xs - 1,
   },
   categoryGrid: {
     flexDirection: 'row',

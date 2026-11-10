@@ -27,7 +27,6 @@ import { Request } from '@/types';
 import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
 
 type MainTab = 'requests' | 'active';
-type RequestFilter = 'all' | 'received' | 'sent';
 
 const RequestListItem = React.memo(function RequestListItem({
   item,
@@ -104,7 +103,6 @@ function RequestsScreenContent() {
   const createConversationMutation = useCreateConversationMutation(user?.id);
 
   const [tab, setTab] = useState<MainTab>('requests');
-  const [requestFilter, setRequestFilter] = useState<RequestFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<Request | null>(null);
   const [openingChatRequestId, setOpeningChatRequestId] = useState<string | null>(null);
@@ -122,14 +120,33 @@ function RequestsScreenContent() {
   const refreshPaidRequests = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const res = await fetchUserPayments(user.id);
-      const data = res?.data;
-      if (!Array.isArray(data)) return;
-      const locked = new Set(
-        data
-          .filter((p: any) => p && (p.status === 'locked' || p.status === 'released') && p.requestId)
-          .map((p: any) => p.requestId as string),
-      );
+      const sb = getSupabaseClient();
+      const [paymentsRes, deliveriesRes] = await Promise.all([
+        fetchUserPayments(user.id),
+        sb
+          .from('deliveries')
+          .select('request_id, status')
+          .neq('status', 'failed'),
+      ]);
+
+      const locked = new Set<string>();
+
+      if (Array.isArray(paymentsRes?.data)) {
+        for (const p of paymentsRes.data) {
+          if (p && (p.status === 'locked' || p.status === 'released') && p.requestId) {
+            locked.add(p.requestId);
+          }
+        }
+      }
+
+      if (Array.isArray(deliveriesRes?.data)) {
+        for (const d of deliveriesRes.data) {
+          if (d?.request_id && d.status !== 'failed') {
+            locked.add(d.request_id);
+          }
+        }
+      }
+
       setPaidRequestIds(locked);
     } catch {}
   }, [user?.id]);
@@ -146,7 +163,7 @@ function RequestsScreenContent() {
     }, [user?.id, refreshPaidRequests])
   );
 
-  // Realtime subscription — refetch requests when a related row changes
+  // Realtime subscription — refetch requests and payments when related rows change
   useEffect(() => {
     if (!user?.id) return;
     const sb = getSupabaseClient();
@@ -156,19 +173,41 @@ function RequestsScreenContent() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'requests' },
         (payload) => {
-          const row: any = payload.new || payload.old;
-          if (!row) return;
+          // Use payload.new for INSERT/UPDATE; for DELETE, refetch unconditionally
+          const row: any = payload.new;
+          if (!row) {
+            // DELETE event — refetch to sync list
+            void requestsRefetchRef.current();
+            return;
+          }
           const touchesUser = row.sender_id === user.id || row.traveller_id === user.id;
           if (touchesUser) {
             void requestsRefetchRef.current();
+            void refreshPaidRequests();
           }
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        () => {
+          void refreshPaidRequests();
+          void requestsRefetchRef.current();
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deliveries' },
+        () => {
+          void refreshPaidRequests();
+          void requestsRefetchRef.current();
         },
       )
       .subscribe();
     return () => {
       try { void sb.removeChannel(channel); } catch {}
     };
-  }, [user?.id]);
+  }, [user?.id, refreshPaidRequests]);
 
   const rawRequests = user && Array.isArray(requestsQuery.data) ? requestsQuery.data : [];
   const conversations = user && Array.isArray(conversationsQuery.data) ? conversationsQuery.data : [];
@@ -240,10 +279,8 @@ function RequestsScreenContent() {
 
   const displayed = useMemo(() => {
     if (tab === 'active') return activeList;
-    if (requestFilter === 'received') return receivedRequests;
-    if (requestFilter === 'sent') return sentRequests;
     return allPendingRequests;
-  }, [tab, requestFilter, activeList, receivedRequests, sentRequests, allPendingRequests]);
+  }, [tab, activeList, allPendingRequests]);
 
   const switchTab = (nextTab: MainTab) => {
     if (nextTab === tab) return;
@@ -271,6 +308,7 @@ function RequestsScreenContent() {
     try {
       await Promise.all([
         requestsRefetchRef.current(),
+        refreshPaidRequests(),
         ratedRequestIdsQuery.refetch(),
         conversationsRefetchRef.current(),
         parcelsRefetchRef.current(),
@@ -279,7 +317,7 @@ function RequestsScreenContent() {
     } finally {
       setRefreshing(false);
     }
-  }, [ratedRequestIdsQuery, requestedParcelIds.length, user]);
+  }, [ratedRequestIdsQuery, refreshPaidRequests, requestedParcelIds.length, user]);
 
   const handleAccept = (requestId: string, req: Request) => {
     const isIncoming = isRequestIncoming(req, user?.id);
@@ -332,8 +370,9 @@ function RequestsScreenContent() {
             Haptic.success();
 
             if (isSender) {
-              // Auto-route to payment screen — the Pay Now banner on this tab will
-              // keep the sender nudged if they back out without paying.
+              // v2: senders pay at booking, so this branch only fires for legacy
+              // requests created before upfront protection shipped. Keep as a safety
+              // net so unpaid accepted requests still have a clear path to pay.
               router.push({ pathname: '/payment/[id]', params: { id: requestId } });
             } else {
               showAlert(
@@ -496,8 +535,19 @@ function RequestsScreenContent() {
 
   const handleDelivery = useCallback((req: Request) => {
     Haptic.tap();
+    const isReqPaid = paidRequestIds.has(req.id) || req.status === 'completed';
+    const isSender = user?.id ? user.id === req.senderId : false;
+    if (!isReqPaid && req.status === 'accepted') {
+      if (isSender) {
+        router.push({ pathname: '/payment/[id]', params: { id: req.id } });
+        return;
+      } else {
+        showAlert('Awaiting Payment', 'The sender has not completed the booking payment yet. Once paid, handover and tracking will unlock.');
+        return;
+      }
+    }
     router.push({ pathname: '/delivery/[id]', params: { id: req.id } });
-  }, [router]);
+  }, [paidRequestIds, router, showAlert, user?.id]);
 
   const handlePayment = useCallback((req: Request) => {
     Haptic.tap();
@@ -513,9 +563,15 @@ function RequestsScreenContent() {
     Haptic.tap();
     if (req.status === 'accepted' || req.status === 'completed') {
       const isSender = user?.id ? user.id === req.senderId : false;
-      if (req.status === 'accepted' && isSender && !paidRequestIds.has(req.id)) {
-        router.push({ pathname: '/payment/[id]', params: { id: req.id } });
-        return;
+      const isReqPaid = paidRequestIds.has(req.id) || req.status === 'completed';
+      if (req.status === 'accepted' && !isReqPaid) {
+        if (isSender) {
+          router.push({ pathname: '/payment/[id]', params: { id: req.id } });
+          return;
+        } else {
+          showAlert('Awaiting Payment', 'The sender has not completed the booking payment yet. Once paid, handover and tracking will unlock.');
+          return;
+        }
       }
       router.push({ pathname: '/delivery/[id]', params: { id: req.id } });
       return;
@@ -525,7 +581,7 @@ function RequestsScreenContent() {
     } else if (req.parcelId) {
       router.push({ pathname: '/parcel/[id]', params: { id: req.parcelId } });
     }
-  }, [router, user?.id, paidRequestIds]);
+  }, [paidRequestIds, router, showAlert, user?.id]);
 
   const renderRequestItem = useCallback(({ item }: { item: Request }) => (
     <RequestListItem
@@ -587,8 +643,8 @@ function RequestsScreenContent() {
       {/* 2 Main Tabs: Requests vs Active Deliveries */}
       <View style={[styles.segmentedWrap, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }, isTablet && styles.tabletContainer]}>
         {[
-          { key: 'requests' as const, label: 'Requests', icon: 'swap-horizontal-circle', count: allPendingRequests.length, alert: receivedRequests.length > 0 },
-          { key: 'active' as const, label: 'Active', icon: 'local-shipping', count: activeList.length, alert: false },
+          { key: 'requests' as const, label: 'Pending', icon: 'schedule', count: allPendingRequests.length, alert: receivedRequests.length > 0 },
+          { key: 'active' as const, label: 'In Transit', icon: 'local-shipping', count: activeList.length, alert: false },
         ].map((t) => {
           const active = tab === t.key;
           return (
@@ -650,70 +706,6 @@ function RequestsScreenContent() {
         })}
       </View>
 
-      {/* Requests Direction Filter: All | Received | Sent */}
-      {tab === 'requests' && allPendingRequests.length > 0 ? (
-        <View style={[styles.filtersContainer, isTablet && styles.tabletContainer]}>
-          <View style={styles.filterChipRow}>
-            {[
-              { key: 'all' as const, label: 'All', count: allPendingRequests.length, alert: false },
-              { key: 'received' as const, label: 'Received', count: receivedRequests.length, alert: receivedRequests.length > 0 },
-              { key: 'sent' as const, label: 'Sent', count: sentRequests.length, alert: false },
-            ].map((st) => {
-              const active = requestFilter === st.key;
-              return (
-                <Pressable
-                  key={st.key}
-                  style={[
-                    styles.statusChip,
-                    {
-                      backgroundColor: active ? C.primarySubtle : C.surface,
-                      borderColor: active ? C.primary : C.surfaceBorder,
-                    },
-                    st.count === 0 && st.key !== 'all' && { opacity: 0.45 },
-                  ]}
-                  hitSlop={TouchTarget.smallHitSlop}
-                  onPress={() => {
-                    Haptic.select();
-                    setRequestFilter(st.key);
-                  }}
-                  disabled={st.count === 0 && st.key !== 'all'}
-                >
-                  <Text
-                    style={[
-                      styles.statusChipText,
-                      { color: active ? C.primary : C.textSecondary, fontWeight: active ? FontWeight.bold : FontWeight.medium },
-                    ]}
-                  >
-                    {st.label}
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusChipBadge,
-                      {
-                        backgroundColor: active
-                          ? C.primary
-                          : st.alert
-                          ? '#EF4444'
-                          : C.surfaceBorder,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusChipCount,
-                        { color: active || st.alert ? '#fff' : C.textSecondary },
-                      ]}
-                    >
-                      {st.count}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
-
       <Animated.View style={[{ flex: 1 }, { transform: [{ translateX: slideAnim }] }]}>
         <FlashList
           data={requestsQuery.error || requestsQuery.isLoading ? [] : displayed}
@@ -760,22 +752,12 @@ function RequestsScreenContent() {
                 </View>
 
                 <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-                  {tab === 'requests'
-                    ? requestFilter === 'received'
-                      ? 'No Received Requests'
-                      : requestFilter === 'sent'
-                      ? 'No Sent Requests'
-                      : 'No Pending Requests'
-                    : 'No Active Deliveries'}
+                  {tab === 'requests' ? 'No Pending Requests' : 'No Active Deliveries'}
                 </Text>
 
-                <Text style={[styles.emptySubtext, { color: C.textMuted }]}> 
+                <Text style={[styles.emptySubtext, { color: C.textMuted }]}>
                   {tab === 'requests'
-                    ? requestFilter === 'received'
-                      ? 'You have no incoming delivery requests or carry offers waiting for your action.'
-                      : requestFilter === 'sent'
-                      ? 'You have no outgoing requests awaiting response from travelers.'
-                      : 'When you send a request or someone requests your trip, it will appear here.'
+                    ? 'When you send a request or someone requests your trip, it will appear here.'
                     : 'Matched deliveries in transit will appear here with live tracking, confirmed booking, and handover OTP.'}
                 </Text>
 

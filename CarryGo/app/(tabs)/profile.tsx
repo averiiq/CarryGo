@@ -233,7 +233,26 @@ export default function ProfileScreen() {
     statusMessage: updateStatusMessage,
     checkForUpdate,
     applyUpdate,
+    versionInfo,
   } = useAppUpdates();
+
+  const handleCheckUpdate = useCallback(async () => {
+    if (isUpdateReady) {
+      await applyUpdate();
+      return;
+    }
+    const res = await checkForUpdate();
+    if (res?.error) {
+      showAlert('Update Check', res.error);
+    } else if (res?.isReady) {
+      showAlert('Update Ready', 'The latest update has been downloaded. Restart now to apply it?', [
+        { text: 'Later', style: 'cancel' },
+        { text: 'Restart Now', onPress: () => void applyUpdate() },
+      ]);
+    } else {
+      showAlert('Up to Date', 'You are already running the latest version of CaryGoo.');
+    }
+  }, [applyUpdate, checkForUpdate, isUpdateReady, showAlert]);
 
   const lastFocusRefreshRef = useRef<number>(0);
 
@@ -831,18 +850,12 @@ export default function ProfileScreen() {
                 C={C}
                 animatedIconName="shield"
                 animatedIconColor={C.info}
-                label="Terms of Service"
-                subtitle="Platform rules, booking terms & policies"
-                onPress={() => router.push('/legal/terms')}
-              />
-              <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
-              <MenuItem
-                C={C}
-                animatedIconName="lock"
-                animatedIconColor={C.success}
-                label="Privacy Policy"
-                subtitle="Data protection and privacy encryption"
-                onPress={() => router.push('/legal/privacy')}
+                label="Legal & Policies"
+                subtitle="Terms, privacy, refunds, shipping & safety guidelines"
+                right={
+                  <MaterialIcons name="chevron-right" size={18} color={C.textMuted} style={{ opacity: 0.6 }} />
+                }
+                onPress={() => router.push('/legal' as any)}
               />
             </View>
           </View>
@@ -859,21 +872,21 @@ export default function ProfileScreen() {
                   isCheckingUpdates
                     ? 'Checking update servers...'
                     : isDownloadingUpdate
-                    ? 'Downloading update...'
+                    ? 'Downloading update in background...'
                     : isUpdateReady
-                    ? 'Update ready! Tap to restart'
-                    : updateStatusMessage || 'Latest version active'
+                    ? 'Latest update downloaded • Tap to apply now'
+                    : updateStatusMessage || 'You are on the latest version'
                 }
                 right={
                   isCheckingUpdates || isDownloadingUpdate ? (
                     <ActivityIndicator size="small" color={C.primary} />
                   ) : isUpdateReady ? (
-                    <View style={[styles.updateReadyBadge, { backgroundColor: C.primary }]}>
-                      <Text style={styles.updateReadyText}>Restart</Text>
+                    <View style={[styles.updateReadyBadge, { backgroundColor: C.success }]}>
+                      <Text style={styles.updateReadyText}>Apply</Text>
                     </View>
                   ) : undefined
                 }
-                onPress={isUpdateReady ? applyUpdate : checkForUpdate}
+                onPress={handleCheckUpdate}
               />
               <View style={[styles.div, { backgroundColor: C.surfaceBorder }]} />
               <MenuItem
@@ -901,9 +914,12 @@ export default function ProfileScreen() {
             <View style={styles.footerContent}>
               <Image
                 source={require('@/assets/images/logo-horizontal.png')}
-                style={{ width: 310, height: 68, opacity: 1.0 }}
+                style={{ width: 280, height: 60, opacity: 0.95 }}
                 contentFit="contain"
               />
+              <Text style={[styles.footerVersionText, { color: C.textMuted }]}>
+                Version {versionInfo.displayVersion || versionInfo.version || '1.2.2'}
+              </Text>
             </View>
           </View>
         </Animated.View>
@@ -1283,13 +1299,19 @@ const styles = StyleSheet.create({
   // Footer
   footer: {
     paddingTop: Spacing.xs,
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footerContent: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+  },
+  footerVersionText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    letterSpacing: 0.3,
   },
   footerText: {
     fontSize: 11,

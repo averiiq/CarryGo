@@ -1,16 +1,57 @@
 import { Trip, Parcel } from '@/types';
 import { getDistance, findCity } from '@/constants/indian-cities';
 import {
-  checkTripParcelRoute,
+  checkTripParcelRoute as baseCheckTripParcelRoute,
   checkRouteCompatibility,
   RouteCompatibilityResult,
 } from './route-compatibility.service';
 
 export {
-  checkTripParcelRoute,
   checkRouteCompatibility,
   RouteCompatibilityResult,
 };
+
+/**
+ * Full ordered route for a trip including optional stopovers.
+ * Mumbai + [Vadodara, Jaipur] + Delhi => [Mumbai, Vadodara, Jaipur, Delhi].
+ */
+export function buildFullRoute(trip: Trip): string[] {
+  const stops = (trip.stopovers || []).map((s) => String(s || '').trim()).filter(Boolean);
+  return [trip.fromCity, ...stops, trip.toCity];
+}
+
+/**
+ * Stopover-aware compatibility check. If the direct trip route is not
+ * compatible with the parcel, try every ordered sub-segment of
+ * [from, ...stopovers, to] and return the best compatible match.
+ */
+export function checkTripParcelRoute(trip: Trip, parcel: Parcel): RouteCompatibilityResult {
+  const direct = baseCheckTripParcelRoute(trip, parcel);
+  const route = buildFullRoute(trip);
+  if (route.length <= 2) return direct;
+
+  let best: RouteCompatibilityResult = direct;
+  let bestSegment: { from: string; to: string } | null = null;
+
+  for (let i = 0; i < route.length - 1; i++) {
+    for (let j = i + 1; j < route.length; j++) {
+      if (i === 0 && j === route.length - 1) continue;
+      const r = checkRouteCompatibility(route[i], route[j], parcel.fromCity, parcel.toCity);
+      if (r.isCompatible && r.overallRouteScore > best.overallRouteScore) {
+        best = r;
+        bestSegment = { from: route[i], to: route[j] };
+      }
+    }
+  }
+
+  if (bestSegment) {
+    return {
+      ...best,
+      matchedSegment: { from: bestSegment.from, to: bestSegment.to, viaStopover: true },
+    };
+  }
+  return best;
+}
 
 export interface MatchScore {
   total: number;

@@ -820,7 +820,12 @@ export default function HomeScreen() {
     setCarryParcelTarget(target);
   }, [parcels, router, showAlert, user]);
 
-  const handleConfirmCarry = useCallback(async (tripId: string, targetParcel: Parcel) => {
+  const handleConfirmCarry = useCallback(async (
+    tripId: string,
+    targetParcel: Parcel,
+    chargeAmount?: number,
+    customMessage?: string
+  ) => {
     if (!user) return;
     const chosenTrip = trips.find(t => t.id === tripId);
     if (!chosenTrip) return;
@@ -832,6 +837,10 @@ export default function HomeScreen() {
       return;
     }
 
+    const finalPrice = Math.max(1, Math.round(Number(chargeAmount) || targetParcel.priceOffer || 100));
+    const defaultMsg = `Hi ${targetParcel.userName}! I am travelling on ${chosenTrip.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${finalPrice}.`;
+    const finalMsg = customMessage?.trim() || defaultMsg;
+
     try {
       const result = await createRequestAsync({
         parcelId: targetParcel.id,
@@ -841,8 +850,8 @@ export default function HomeScreen() {
         travellerId: user.id,
         travellerName: user.name || 'Traveller',
         status: 'pending',
-        price: targetParcel.priceOffer,
-        message: `Hi ${targetParcel.userName}! I am travelling on ${chosenTrip.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
+        price: finalPrice,
+        message: finalMsg,
       });
 
       if (result) {
@@ -851,7 +860,7 @@ export default function HomeScreen() {
         setRequestSuccess({
           type: 'offer_sent',
           recipientName: targetParcel.userName,
-          price: targetParcel.priceOffer,
+          price: finalPrice,
           fromCity: targetParcel.fromCity,
           toCity: targetParcel.toCity,
         });
@@ -878,13 +887,20 @@ export default function HomeScreen() {
 
   const handleQuickCreateAndCarry = useCallback(async (
     quickParams: QuickCarryTripParams,
-    targetParcel: Parcel
+    targetParcel: Parcel,
+    chargeAmount?: number,
+    customMessage?: string
   ) => {
     if (!user) {
       Haptic.warning();
       showAlert('Sign In Required', 'Please sign in to carry parcels.');
       return;
     }
+
+    const finalPrice = Math.max(1, Math.round(Number(chargeAmount) || targetParcel.priceOffer || 100));
+    const calculatedPerKg = Math.max(30, Math.round(finalPrice / Math.max(1, targetParcel.weight)));
+    const defaultMsg = `Hi ${targetParcel.userName}! I am travelling ${targetParcel.fromCity} to ${targetParcel.toCity} on ${quickParams.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${finalPrice}.`;
+    const finalMsg = customMessage?.trim() || defaultMsg;
 
     try {
       // 1. Post trip for the exact parcel route automatically
@@ -898,11 +914,11 @@ export default function HomeScreen() {
         time: quickParams.time,
         vehicleType: quickParams.vehicleType,
         availableCapacity: quickParams.capacity,
-        pricePerKg: Math.max(50, Math.round(targetParcel.priceOffer / Math.max(1, targetParcel.weight))),
+        pricePerKg: calculatedPerKg,
         status: 'active',
       });
 
-      // 2. Immediately dispatch carry offer with parcel's reward
+      // 2. Immediately dispatch carry offer with custom delivery fee
       const result = await createRequestAsync({
         parcelId: targetParcel.id,
         tripId: newTrip.id,
@@ -911,8 +927,8 @@ export default function HomeScreen() {
         travellerId: user.id,
         travellerName: user.name || 'Traveller',
         status: 'pending',
-        price: targetParcel.priceOffer,
-        message: `Hi ${targetParcel.userName}! I am travelling ${targetParcel.fromCity} to ${targetParcel.toCity} on ${quickParams.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
+        price: finalPrice,
+        message: finalMsg,
       });
 
       if (result) {
@@ -921,7 +937,7 @@ export default function HomeScreen() {
         setRequestSuccess({
           type: 'offer_sent',
           recipientName: targetParcel.userName,
-          price: targetParcel.priceOffer,
+          price: finalPrice,
           fromCity: targetParcel.fromCity,
           toCity: targetParcel.toCity,
         });
@@ -937,8 +953,13 @@ export default function HomeScreen() {
 
   const handleTrackDelivery = useCallback((requestId: string) => {
     Haptic.tap();
+    const req = requestsQuery.data?.find(r => r.id === requestId);
+    if (req && req.status === 'accepted' && user?.id === req.senderId) {
+      router.push({ pathname: '/payment/[id]', params: { id: requestId } });
+      return;
+    }
     router.push({ pathname: '/delivery/[id]', params: { id: requestId } });
-  }, [router]);
+  }, [requestsQuery.data, router, user?.id]);
 
   const handleViewRequest = useCallback((_requestId: string) => {
     Haptic.tap();
@@ -1559,7 +1580,7 @@ const styles = StyleSheet.create({
   liveTagRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   livePulseDot: {
     width: 8,

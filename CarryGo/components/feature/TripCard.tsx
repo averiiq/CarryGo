@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Trip, Request } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing, Shadow } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -314,6 +314,16 @@ export const TripCard = React.memo(function TripCard({
           </View>
         </View>
 
+        {trip.stopovers && trip.stopovers.length > 0 ? (
+          <View style={[styles.viaRow, { backgroundColor: C.primarySubtle }]}>
+            <MaterialIcons name="alt-route" size={11} color={C.primary} />
+            <Text style={[styles.viaText, { color: C.primary }]} numberOfLines={1}>
+              via {trip.stopovers.slice(0, 2).join(' • ')}
+              {trip.stopovers.length > 2 ? ` +${trip.stopovers.length - 2} more` : ''}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Specs Highlights: Date, Capacity, Match Score */}
         <View style={styles.specsRow}>
           <View style={[styles.specItem, { backgroundColor: C.surfaceElevated }]}>
@@ -542,11 +552,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...Shadow.sm,
   },
   avatarImage: {
     width: '100%',
@@ -676,6 +682,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
     borderWidth: 1,
+  },
+  viaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.full,
+    alignSelf: 'flex-start',
+    marginTop: -2,
+  },
+  viaText: {
+    fontSize: 11,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.1,
+    flexShrink: 1,
   },
   specsRow: {
     flexDirection: 'row',

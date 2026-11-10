@@ -1,6 +1,26 @@
 import { getSupabaseClient } from '@/template';
 import { PromotionalBanner } from '@/types';
 
+const VALID_CTA_ACTIONS = new Set([
+  'create_parcel', 'create_trip', 'search', 'my_activity', 'subscribe', 'refer',
+]);
+
+const ALLOWED_DEEP_LINK_PREFIXES = [
+  '/', '/search', '/create-parcel', '/create-trip', '/my-activity',
+  '/trip/', '/parcel/', '/payment/', '/profile', '/settings',
+];
+
+function sanitizeDeepLink(link: string | null | undefined): string | null {
+  if (!link) return null;
+  const trimmed = link.trim();
+  // Only allow internal relative routes
+  if (!trimmed.startsWith('/')) return null;
+  if (ALLOWED_DEEP_LINK_PREFIXES.some(p => trimmed === p || trimmed.startsWith(p))) {
+    return trimmed;
+  }
+  return null;
+}
+
 export async function fetchActivePromotionalBanners(): Promise<{
   data: PromotionalBanner[];
   error: string | null;
@@ -11,7 +31,7 @@ export async function fetchActivePromotionalBanners(): Promise<{
 
     const { data, error } = await (supabase as any)
       .from('promotional_banners')
-      .select('*')
+      .select('id, type, badge_text, badge_color, title, subtitle, cta_text, cta_action, deep_link, image_url, display_order, is_active, starts_at, ends_at, created_at, updated_at')
       .eq('is_active', true)
       .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
       .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
@@ -30,8 +50,8 @@ export async function fetchActivePromotionalBanners(): Promise<{
       title: row.title || '',
       subtitle: row.subtitle || '',
       cta_text: row.cta_text || 'Learn More',
-      cta_action: row.cta_action || 'create_parcel',
-      deep_link: row.deep_link || null,
+      cta_action: VALID_CTA_ACTIONS.has(row.cta_action) ? row.cta_action : 'create_parcel',
+      deep_link: sanitizeDeepLink(row.deep_link),
       image_url: row.image_url || null,
       display_order: Number(row.display_order ?? 0),
       is_active: Boolean(row.is_active),

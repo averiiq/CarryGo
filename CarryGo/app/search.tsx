@@ -15,6 +15,7 @@ import { Spacing, BorderRadius, FontSize, FontWeight, ThemeColors } from '@/cons
 import { Haptic } from '@/services/haptics.service';
 import { createSubscription } from '@/services/subscriptions.service';
 import { useAlert } from '@/template';
+import { getUserErrorMessage } from '@/lib/error-handler';
 import { flattenInfiniteData, useParcelsQuery, useTripsQuery, useParcelQuery, useTripQuery } from '@/features/listings/queries';
 import { useRequestsQuery, useCreateRequestMutation } from '@/features/requests/queries';
 import { useMatchingTrips, useMatchingTripsOnRoute } from '@/hooks/useMatching';
@@ -25,6 +26,7 @@ import {
   buildRequestsByTripMap,
   MatchSortOption,
 } from '@/components/feature/matching/matchingHelpers';
+import { calculateLegPrice } from '@/components/feature/matching/blaBlaHelpers';
 import { FeatureFlags } from '@/constants/featureFlags';
 import { CityDropdown } from '@/components/feature/CityDropdown';
 import { HistoryChip, SearchHistoryEntry } from '@/components/feature/HistoryChip';
@@ -108,7 +110,13 @@ export default function SearchScreen({ hideBackBtn = false }: { hideBackBtn?: bo
 
   useEffect(() => {
     AsyncStorage.getItem(HISTORY_KEY).then(raw => {
-      if (raw) setHistory(JSON.parse(raw));
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setHistory(parsed);
+      } catch {
+        AsyncStorage.removeItem(HISTORY_KEY);
+      }
     });
   }, []);
 
@@ -997,11 +1005,11 @@ function SmartMatchesSection({
                 );
               } else {
                 Haptic.error();
-                showAlert('Error', 'Could not send request. Please try again.');
+                showAlert('Could Not Send Request', 'Could not send request. Please try again.');
               }
-            } catch {
+            } catch (err: unknown) {
               Haptic.error();
-              showAlert('Error', 'Could not send request. Please try again.');
+              showAlert('Could Not Send Request', getUserErrorMessage(err, 'Could not send request. Please try again.'));
             }
           },
         },
@@ -1202,18 +1210,28 @@ function SmartMatchesSection({
           <View style={smStyles.list}>
             {sortedTrips.map((item) => {
               if (!isTripModeLegacy) {
-                const matchPrice = currentParcel
+                const seg = tripMatchBreakdowns.get(item.id)?.routeCompatibility?.matchedSegment;
+                const basePrice = currentParcel
                   ? calculateMatchPrice(item.pricePerKg, currentParcel.weight)
                   : Math.round(item.pricePerKg * 2 || 180);
+                const matchPrice = seg?.viaStopover
+                  ? calculateLegPrice(basePrice, seg.from, seg.to, item.fromCity, item.toCity)
+                  : basePrice;
 
                 return (
                   <View key={item.id} style={{ marginBottom: 12 }}>
                     <BlaBlaTripCard
                       trip={item}
                       price={matchPrice}
+                      matchedSegment={seg}
                       onPress={() => router.push({
                         pathname: '/trip/[id]',
-                        params: { id: item.id, parcelId: currentParcel?.id || '' },
+                        params: {
+                          id: item.id,
+                          parcelId: currentParcel?.id || '',
+                          ...(seg?.from ? { draftFromCity: seg.from, draftToCity: seg.to } : (fromCity ? { draftFromCity: fromCity, draftToCity: toCity } : {})),
+                          draftPrice: String(matchPrice),
+                        },
                       })}
                     />
                   </View>

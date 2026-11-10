@@ -1,6 +1,7 @@
 import { Trip, Parcel } from '@/types';
 import { areCitiesEquivalent, normalizeCityName } from './route-compatibility.service';
 import { enrichMissingUserAvatars } from './avatar-enrichment.service';
+import { parseAllowedCategories, parseStopovers } from './trips.service';
 
 /**
  * Service to evaluate and fetch live marketplace listings relevant to a user's registered home city.
@@ -158,6 +159,7 @@ export async function fetchCityMarketplaceTrips(
           userRating: parseFloat(String(row.user_rating || 4.5)),
           fromCity: row.from_city,
           toCity: row.to_city,
+          stopovers: parseStopovers(row.stopovers),
           date: row.date,
           time: row.time,
           vehicleType: row.vehicle_type,
@@ -165,6 +167,7 @@ export async function fetchCityMarketplaceTrips(
           pricePerKg: parseFloat(String(row.price_per_kg)),
           status: row.status,
           createdAt: row.created_at,
+          allowedCategories: parseAllowedCategories(row.allowed_categories),
         }))
         .filter((t: Trip) => MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(t, userCity));
 
@@ -189,6 +192,7 @@ export async function fetchCityMarketplaceTrips(
         userRating: parseFloat(String(row.user_rating || 4.5)),
         fromCity: row.from_city,
         toCity: row.to_city,
+        stopovers: parseStopovers(row.stopovers),
         date: row.date,
         time: row.time,
         vehicleType: row.vehicle_type,
@@ -196,6 +200,7 @@ export async function fetchCityMarketplaceTrips(
         pricePerKg: parseFloat(String(row.price_per_kg)),
         status: row.status,
         createdAt: row.created_at,
+        allowedCategories: parseAllowedCategories(row.allowed_categories),
       }))
       .filter((t: Trip) => MarketplaceRelevanceService.isTripEligibleForLiveMarketplace(t, userCity));
 

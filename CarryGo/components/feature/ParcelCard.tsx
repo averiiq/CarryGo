@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Parcel, Request } from '@/types';
-import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Motion, LetterSpacing, Shadow } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
 import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
@@ -397,11 +397,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...Shadow.sm,
   },
   avatarImage: {
     width: '100%',

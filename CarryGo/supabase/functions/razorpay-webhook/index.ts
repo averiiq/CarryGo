@@ -1,12 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const RAZORPAY_WEBHOOK_SECRET = Deno.env.get('RAZORPAY_WEBHOOK_SECRET') ?? '';
+import { WEBHOOK_CORS_HEADERS as CORS_HEADERS } from '../_shared/cors.ts';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'content-type, x-razorpay-signature',
-};
+const RAZORPAY_WEBHOOK_SECRET = Deno.env.get('RAZORPAY_WEBHOOK_SECRET') ?? '';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -43,6 +39,7 @@ type RazorpayEvent = {
   event?: string;
   payload?: {
     payment?: { entity?: Record<string, unknown> };
+    payment_link?: { entity?: Record<string, unknown> };
     order?: { entity?: Record<string, unknown> };
   };
 };
@@ -156,8 +153,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ ok: true, ignored: true, event: eventName });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal error';
-    console.error('[razorpay-webhook]', message);
-    return jsonResponse({ error: message }, 500);
+    console.error('[razorpay-webhook]', err instanceof Error ? err.message : String(err));
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });

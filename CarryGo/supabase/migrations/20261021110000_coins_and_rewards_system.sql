@@ -57,8 +57,15 @@ DROP POLICY IF EXISTS coin_transactions_select_own ON public.coin_transactions;
 CREATE POLICY coin_transactions_select_own ON public.coin_transactions
   FOR SELECT USING (auth.uid() = user_id);
 
--- 6. Insert default admin configuration for coin award if not present
-INSERT INTO public.app_config (key, value, updated_at)
+-- 6. Ensure app_settings table exists for coin config
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  key text PRIMARY KEY,
+  value text,
+  description text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.app_settings (key, value, updated_at)
 VALUES ('coin_award_per_delivery', '50', now())
 ON CONFLICT (key) DO NOTHING;
 
@@ -166,7 +173,7 @@ BEGIN
 
   -- Read configured award amount from app_config
   SELECT value INTO v_coins_setting
-  FROM public.app_config
+  FROM public.app_settings
   WHERE key = 'coin_award_per_delivery';
 
   IF v_coins_setting IS NOT NULL AND v_coins_setting ~ '^[0-9]+$' THEN

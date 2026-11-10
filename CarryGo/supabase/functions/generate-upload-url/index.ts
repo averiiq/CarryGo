@@ -13,17 +13,13 @@ async function sha1Hex(message: string): Promise<string> {
     .join('');
 }
 
-Deno.serve(async (req) => {
-  const headers: Record<string, string> = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
-    'Content-Type': 'application/json',
-  };
+import { handleCors } from '../_shared/cors.ts';
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers });
-  }
+Deno.serve(async (req) => {
+  const cors = handleCors(req);
+  if (cors.rejectedResponse) return cors.rejectedResponse;
+  if (cors.preflightResponse) return cors.preflightResponse;
+  const headers: Record<string, string> = { ...cors.headers, 'Content-Type': 'application/json' };
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });

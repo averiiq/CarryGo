@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '@/template';
 import { sanitizeLikeInput } from '@/lib/sanitize';
+import { validateUUID } from '@/lib/validation';
 
 export interface UserStats {
   completedDeliveries: number;
@@ -64,6 +65,8 @@ export interface ActivityEvent {
 }
 
 export async function fetchUserStats(userId: string): Promise<{ data: UserStats | null; error: string | null }> {
+  const idCheck = validateUUID(userId);
+  if (!idCheck.valid) return { data: null, error: idCheck.error || 'Invalid User ID' };
   const sb = getSupabaseClient();
 
   const [profileRes, tripsRes, parcelsRes, requestsRes, paymentsRes, ratingsRes] = await Promise.all([
@@ -146,6 +149,8 @@ export async function fetchRoutePopularity(fromCity: string, toCity: string): Pr
 }
 
 export async function fetchUserActivityTimeline(userId: string, days: number = 30): Promise<{ data: ActivityEvent[]; error: string | null }> {
+  const idCheck = validateUUID(userId);
+  if (!idCheck.valid) return { data: [], error: idCheck.error || 'Invalid User ID' };
   const sb = getSupabaseClient();
   const since = new Date();
   since.setDate(since.getDate() - days);

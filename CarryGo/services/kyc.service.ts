@@ -9,8 +9,6 @@ import {
 } from '@/types';
 import { uploadKycDocument as uploadKycToS3 } from '@/services/storage.service';
 import { enforceRateLimit } from '@/lib/server-rate-limit';
-import * as FileSystem from 'expo-file-system';
-import { optimizeImage } from '@/lib/imageOptimizer';
 import { hashAadhaarNumber, hashPanNumber } from '@/lib/crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -105,50 +103,10 @@ function mapSession(row: KycSessionRow, documents: KycDocument[]): KycSession {
 const DEFAULT_SANDBOX_BASE_URL = 'https://api.sandbox.co.in';
 
 function getSandboxConfig() {
-  const isTest = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined';
-  const apiKey = process.env.EXPO_PUBLIC_SANDBOX_API_KEY || (isTest ? 'test_sandbox_api_key' : '');
-  // Note: Private SANDBOX_API_SECRET is kept strictly on the server in Edge Functions.
-  const apiSecret = isTest ? 'test_sandbox_api_secret' : '';
   const baseUrl = (process.env.EXPO_PUBLIC_SANDBOX_BASE_URL || DEFAULT_SANDBOX_BASE_URL).replace(/\/+$/, '');
-  return { apiKey, apiSecret, baseUrl };
-}
-
-let cachedSandboxToken: string | null = null;
-let sandboxTokenExpiry = 0;
-
-async function getSandboxToken(apiKey: string, apiSecret: string, baseUrl: string): Promise<string> {
-  const now = Date.now();
-  if (cachedSandboxToken && sandboxTokenExpiry > now + 60000) {
-    return cachedSandboxToken;
-  }
-
-  const response = await fetch(`${baseUrl}/authenticate`, {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'x-api-secret': apiSecret,
-      'x-api-version': '2.0',
-    },
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Sandbox gateway authentication failed (${response.status}): ${errText}`);
-  }
-
-  const data = (await response.json()) as {
-    access_token?: string;
-    data?: { access_token?: string };
-  };
-
-  const token = data.access_token || data.data?.access_token;
-  if (!token) {
-    throw new Error('Could not obtain access token from UIDAI Sandbox gateway.');
-  }
-
-  cachedSandboxToken = token;
-  sandboxTokenExpiry = now + 23 * 60 * 60 * 1000;
-  return token;
+  // All KYC API calls are proxied through the sandbox-kyc Edge Function.
+  // No API key or secret should ever be stored or used client-side.
+  return { baseUrl };
 }
 
 function extractLast2MobileDigits(message?: string, mobileNumber?: string): string | undefined {
@@ -229,82 +187,23 @@ export async function generateAadhaarOtp(
   let referenceId: string | null = null;
   let registeredMobileEnding: string | undefined = undefined;
 
-  const { apiKey, apiSecret, baseUrl } = getSandboxConfig();
   const isTest = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined';
-  const isLive = !cleanAadhaar.startsWith('0000') && (isTest ? Boolean(apiKey && apiSecret) : true);
+  const isLive = !cleanAadhaar.startsWith('0000');
 
   if (isLive) {
     try {
-      let resData: any = null;
+      // Securely invoke serverless Edge Function where private secrets reside
+      const { data: edgeData, error: edgeErr } = await sb.functions.invoke('sandbox-kyc', {
+        body: { action: 'generate_otp', aadhaarNumber: cleanAadhaar },
+      });
 
-      if (!isTest) {
-        // Securely invoke serverless Edge Function where private secrets reside
-        const { data: edgeData, error: edgeErr } = await sb.functions.invoke('sandbox-kyc', {
-          body: { action: 'generate_otp', aadhaarNumber: cleanAadhaar },
-        });
-
-        if (edgeErr || !edgeData) {
-          return {
-            data: null,
-            error: edgeErr?.message || 'UIDAI gateway request failed. Please verify your 12-digit number and retry.',
-          };
-        }
-        resData = edgeData;
-      } else {
-        const token = await getSandboxToken(apiKey, apiSecret, baseUrl);
-
-        const response = await fetch(`${baseUrl}/kyc/aadhaar/okyc/otp`, {
-          method: 'POST',
-          headers: {
-            'Authorization': token,
-            'x-api-key': apiKey,
-            'x-api-version': '2.0',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            '@entity': 'in.co.sandbox.kyc.aadhaar.okyc.otp.request',
-            aadhaar_number: cleanAadhaar,
-            consent: 'y',
-            reason: 'For KYC verification',
-          }),
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          let parsedMessage = '';
-          try {
-            const parsed = JSON.parse(errText);
-            parsedMessage = parsed.message || parsed.error?.message || '';
-          } catch {}
-
-          if (response.status === 503 || parsedMessage.includes('Source Unavailable') || errText.includes('Source Unavailable')) {
-            return {
-              data: null,
-              error: 'UIDAI was unable to find records for this Aadhaar number, or the UIDAI gateway is temporarily unavailable. Please verify your 12-digit number and retry.',
-            };
-          }
-
-          if (response.status === 429 || parsedMessage.toLowerCase().includes('limit') || parsedMessage.toLowerCase().includes('flood')) {
-            return {
-              data: null,
-              error: parsedMessage || 'UIDAI flood limit reached. Please wait before requesting another OTP. Existing OTP is valid for 10 minutes.',
-            };
-          }
-
-          return {
-            data: null,
-            error: parsedMessage || `Aadhaar OTP request rejected (${response.status}): ${errText}`,
-          };
-        }
-
-        resData = (await response.json()) as {
-          data?: { reference_id?: string | number; message?: string; mobile_number?: string };
-          reference_id?: string | number;
-          message?: string;
-          mobile_number?: string;
-          code?: number;
+      if (edgeErr || !edgeData) {
+        return {
+          data: null,
+          error: edgeErr?.message || 'UIDAI gateway request failed. Please verify your 12-digit number and retry.',
         };
       }
+      const resData = edgeData;
 
       const rawRef = resData.data?.reference_id ?? resData.reference_id;
       const msg = resData.data?.message ?? resData.message ?? '';
@@ -429,77 +328,29 @@ export async function verifyAadhaarOtp(
     verifiedAt: new Date().toISOString(),
   };
 
-  const { apiKey, apiSecret, baseUrl } = getSandboxConfig();
+  const { baseUrl } = getSandboxConfig();
   const isTest = process.env.NODE_ENV === 'test' || typeof jest !== 'undefined';
-  const isLive = !referenceId.startsWith('sbx_adh_') && (isTest ? Boolean(apiKey && apiSecret) : true);
+  const isLive = !referenceId.startsWith('sbx_adh_');
+
+  // Block mock/sandbox path in production — require real verification
+  if (!isLive && !__DEV__ && !isTest) {
+    return { data: null, error: 'Real Aadhaar verification required in production.' };
+  }
 
   if (isLive) {
     try {
-      let res: any = null;
+      // All KYC verification goes through the Edge Function — no client-side API secrets
+      const { data: edgeData, error: edgeErr } = await sb.functions.invoke('sandbox-kyc', {
+        body: { action: 'verify_otp', referenceId, otp: cleanOtp },
+      });
 
-      if (!isTest) {
-        // Securely invoke serverless Edge Function where private secrets reside
-        const { data: edgeData, error: edgeErr } = await sb.functions.invoke('sandbox-kyc', {
-          body: { action: 'verify_otp', referenceId, otp: cleanOtp },
-        });
-
-        if (edgeErr || !edgeData) {
-          return {
-            data: null,
-            error: edgeErr?.message || 'Aadhaar OTP verification failed. Please check the code.',
-          };
-        }
-        res = edgeData;
-      } else {
-        const token = await getSandboxToken(apiKey, apiSecret, baseUrl);
-
-        const response = await fetch(`${baseUrl}/kyc/aadhaar/okyc/otp/verify`, {
-          method: 'POST',
-          headers: {
-            'Authorization': token,
-            'x-api-key': apiKey,
-            'x-api-version': '2.0',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            '@entity': 'in.co.sandbox.kyc.aadhaar.okyc.request',
-            reference_id: referenceId,
-            otp: cleanOtp,
-          }),
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          let parsedMessage = '';
-          try {
-            const parsed = JSON.parse(errText);
-            parsedMessage = parsed.message || parsed.error?.message || '';
-          } catch {}
-          return {
-            data: null,
-            error: parsedMessage || 'Invalid or expired OTP. Please verify the code and try again.',
-          };
-        }
-
-        res = (await response.json()) as {
-          data?: {
-            name?: string;
-            date_of_birth?: string;
-            gender?: string;
-            full_address?: string;
-            address?: {
-              house?: string;
-              street?: string;
-              locality?: string;
-              district?: string;
-              state?: string;
-              pincode?: string;
-            };
-            message?: string;
-          };
-          message?: string;
+      if (edgeErr || !edgeData) {
+        return {
+          data: null,
+          error: edgeErr?.message || 'Aadhaar OTP verification failed. Please check the code.',
         };
       }
+      const res: any = edgeData;
 
       if (!res.data?.name) {
         const errMsg = res.data?.message ?? res.message;
@@ -628,9 +479,13 @@ export async function verifyAadhaarDigiLocker(
   userId: string,
   referenceId: string,
 ): Promise<ServiceResult<AadhaarVerifiedData>> {
+  // This function uses hardcoded fake identity data — only allow in development
+  if (!__DEV__) {
+    return { data: null, error: 'DigiLocker sandbox verification is not available in production.' };
+  }
   const sb = getSupabaseClient();
 
-  // Deterministic Sandbox verification response
+  // Deterministic Sandbox verification response (DEV only)
   const verifiedData: AadhaarVerifiedData = {
     referenceId,
     name: 'Verified User',
@@ -704,22 +559,9 @@ export async function uploadSelfie(
     console.warn('Standard cloud storage upload exception:', cloudErr);
   }
 
-  // 2. High-resilience fallback: compress image and create secure base64 data URI
-  if (!finalCdnUrl) {
-    try {
-      const optimized = await optimizeImage(fileUri, 'kyc');
-      const base64 = await FileSystem.readAsStringAsync(optimized.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      if (base64 && base64.length > 0) {
-        finalCdnUrl = `data:${optimized.mimeType};base64,${base64}`;
-        finalSizeBytes = optimized.sizeBytes;
-        finalMimeType = optimized.mimeType;
-      }
-    } catch (optErr) {
-      console.error('Failed to encode selfie for fallback:', optErr);
-    }
-  }
+  // Base64 fallback removed — storing biometric data directly in the DB
+  // violates DPDP Act data-minimisation requirements. If cloud upload fails,
+  // the user must retry.
 
   if (!finalCdnUrl) {
     return { data: null, error: 'Selfie upload failed. Please try capturing the photo again.' };
@@ -1153,7 +995,7 @@ export async function fetchLatestKycSession(userId: string): Promise<{ data: Kyc
 
   const { data: session, error } = await sb
     .from('kyc_sessions')
-    .select('*')
+    .select('id, user_id, full_name, id_type, status, rejection_reason, submission_attempt, created_at, aadhaar_verification_status, aadhaar_reference_id, aadhaar_name, aadhaar_dob, aadhaar_gender, aadhaar_address')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -1164,7 +1006,7 @@ export async function fetchLatestKycSession(userId: string): Promise<{ data: Kyc
 
   const { data: docs } = await sb
     .from('kyc_documents')
-    .select('*')
+    .select('id, session_id, document_type, storage_path, file_size_bytes, mime_type, uploaded_at')
     .eq('session_id', session.id);
 
   const documents = (docs ?? []).map(mapDocument);

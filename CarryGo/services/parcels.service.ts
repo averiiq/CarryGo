@@ -12,12 +12,14 @@ import { enrichMissingUserAvatars } from './avatar-enrichment.service';
 
 type ParcelRow = Database['public']['Tables']['parcels']['Row'];
 
+export const MAX_PAGE_SIZE = 100;
+
 function parseImageUris(raw: string | null): string[] | undefined {
   if (!raw) return undefined;
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed;
-  } catch {}
+  } catch (err) { console.warn('[parseImageUris] JSON parse failed for image_url:', err); }
   return [raw];
 }
 
@@ -90,7 +92,7 @@ export async function fetchParcels(filters?: {
 
   let query = sb
     .from('parcels')
-    .select('*', shouldCount ? { count: 'exact' } : undefined)
+    .select('id, user_id, user_name, user_avatar, from_city, to_city, category, description, delivery_date, weight, price_offer, status, image_url, created_at', shouldCount ? { count: 'exact' } : undefined)
     .eq('status', 'open')
     .gte('created_at', getUnmatchedListingCutoffIso())
     .order('created_at', { ascending: false })
@@ -138,7 +140,7 @@ export async function fetchParcelById(parcelId: string) {
   }
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('parcels').select('*').eq('id', parcelId).single();
+  const { data, error } = await sb.from('parcels').select('id, user_id, user_name, user_avatar, from_city, to_city, category, description, delivery_date, weight, price_offer, status, image_url, created_at').eq('id', parcelId).single();
   if (error) return { data: null, error: error.message };
   const mapped = mapRow(data);
   const [enriched] = await enrichMissingUserAvatars([mapped]);
@@ -163,7 +165,7 @@ export async function fetchParcelsByIds(parcelIds: string[]) {
   }
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('parcels').select('*').in('id', validIds);
+  const { data, error } = await sb.from('parcels').select('id, user_id, user_name, user_avatar, from_city, to_city, category, description, delivery_date, weight, price_offer, status, image_url, created_at').in('id', validIds);
   if (error) return { data: null, error: error.message };
   const mapped = (data || []).map(mapRow);
   const enriched = await enrichMissingUserAvatars(mapped);
@@ -216,16 +218,7 @@ export async function createParcel(parcel: Omit<Parcel, 'id' | 'createdAt'>) {
     image_url: imageUrl,
   };
 
-  let { data, error } = await sb.from('parcels').insert(insertPayload).select().single();
-  if (error && insertPayload.user_avatar) {
-    const fallbackPayload: any = { ...insertPayload };
-    delete fallbackPayload.user_avatar;
-    const retry = await sb.from('parcels').insert(fallbackPayload).select().single();
-    if (!retry.error) {
-      data = retry.data;
-      error = null;
-    }
-  }
+  const { data, error } = await sb.from('parcels').insert(insertPayload).select().single();
 
   if (error) return { data: null, error: error.message };
   const mapped = mapRow(data);
@@ -258,15 +251,22 @@ export async function updateParcelStatus(parcelId: string, status: Parcel['statu
   return { error: null };
 }
 
-export async function fetchUserParcels(userId: string): Promise<{ data: Parcel[] | null; error: string | null }> {
-  if (!userId) return { data: [], error: null };
+export async function fetchUserParcels(
+  userId: string,
+  options?: { limit?: number; offset?: number },
+): Promise<{ data: Parcel[] | null; error: string | null; total: number }> {
+  if (!userId) return { data: [], error: null, total: 0 };
   const sb = getSupabaseClient();
-  const { data, error } = await sb
+  const limit = Math.min(options?.limit ?? 50, MAX_PAGE_SIZE);
+  const offset = options?.offset ?? 0;
+  const { data, error, count } = await sb
     .from('parcels')
-    .select('*')
+    .select('id, user_id, user_name, user_avatar, from_city, to_city, category, description, delivery_date, weight, price_offer, status, image_url, created_at', { count: 'exact' })
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-  if (error) return { data: null, error: error.message };
-  return { data: (data || []).map(mapRow), error: null };
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) return { data: null, error: error.message, total: 0 };
+  const mapped = (data || []).map(mapRow);
+  return { data: mapped, error: null, total: count ?? mapped.length };
 }
 

@@ -59,6 +59,7 @@ export function getContextBanner(
   isRequester: boolean,
   otherName: string,
   C: ThemeColors,
+  isPaid?: boolean,
 ) {
   if (request.status === 'pending') {
     if (!isRequester) {
@@ -117,6 +118,34 @@ export function getContextBanner(
   }
 
   if (request.status === 'accepted') {
+    if (isPaid) {
+      if (isTraveller) {
+        return {
+          title: 'Booking Confirmed • Ready to Carry',
+          message: 'Sender has completed booking payment (held safely). Coordinate pickup in chat. Tap Delivery & OTP for handover.',
+          bg: '#ECFDF5',
+          border: '#A7F3D0',
+          iconBg: '#008B48',
+          iconColor: '#FFFFFF',
+          titleColor: '#065F46',
+          textColor: '#047857',
+          icon: 'shield-checkmark-outline' as const,
+        };
+      } else {
+        return {
+          title: 'Booking Confirmed • Safe Pay Active',
+          message: 'Your payment is held securely in Safe Pay. Coordinate pickup and share OTP only upon handover.',
+          bg: '#ECFDF5',
+          border: '#A7F3D0',
+          iconBg: '#008B48',
+          iconColor: '#FFFFFF',
+          titleColor: '#065F46',
+          textColor: '#047857',
+          icon: 'shield-checkmark-outline' as const,
+        };
+      }
+    }
+
     if (isSender) {
       return {
         title: 'Step 2: Confirm & Book Delivery',
@@ -251,10 +280,10 @@ export function getRequestCardViewModel({
   const showAcceptDecline = !isRequester && request.status === 'pending';
   const showCancel = isRequester && request.status === 'pending';
   const showPayButton = isSender && request.status === 'accepted' && isPaid !== true;
-  const showDeliveryButton = request.status === 'accepted' && (!isSender || isPaid !== false);
+  const showDeliveryButton = (request.status === 'accepted' && isPaid !== false) || request.status === 'completed';
   const showReceiptReview = request.status === 'completed';
 
-  const contextBanner = getContextBanner(request, isSender, isTraveller, isRequester, personName, C);
+  const contextBanner = getContextBanner(request, isSender, isTraveller, isRequester, personName, C, isPaid);
 
   let formattedDate = 'Recent';
   try {
@@ -279,22 +308,24 @@ export function getRequestCardViewModel({
       : (isAccepted || isCompleted ? 'checkmark-circle' : 'time-outline')) as keyof typeof Ionicons.glyphMap,
   };
 
+  const isBooked = isCompleted || Boolean(isPaid);
+
   const step2 = {
-    done: isCompleted,
-    active: isAccepted,
-    label: isCompleted
+    done: isBooked,
+    active: isAccepted && !isPaid,
+    label: isBooked
       ? 'Booked'
       : (isAccepted ? (isSender ? 'Booking Due' : 'Booking Pending') : 'Book'),
-    icon: (isCompleted
+    icon: (isBooked
       ? 'shield-checkmark'
       : (isAccepted ? (isSender ? 'lock-closed' : 'shield-outline') : 'lock-closed-outline')) as keyof typeof Ionicons.glyphMap,
   };
 
   const step3 = {
     done: isCompleted,
-    active: isAccepted,
-    label: isCompleted ? 'Delivered' : (isAccepted ? 'Handover' : 'Delivery'),
-    icon: (isCompleted ? 'trophy' : 'cube-outline') as keyof typeof Ionicons.glyphMap,
+    active: isAccepted && (isPaid !== undefined ? Boolean(isPaid) : true),
+    label: isCompleted ? 'Delivered' : (isPaid ? 'Handover OTP' : (isAccepted ? 'Handover' : 'Delivery')),
+    icon: (isCompleted ? 'trophy' : (isPaid ? 'key-outline' : 'cube-outline')) as keyof typeof Ionicons.glyphMap,
   };
 
   return {
@@ -529,7 +560,9 @@ export const RequestCard = React.memo(function RequestCard({
               style={styles.detailsBtn}
             >
               <Text style={[styles.detailsBtnText, { color: C.textMuted }]}>
-                {request.status === 'accepted' ? 'Live Tracking' : (request.tripId ? 'Trip Details' : 'Parcel Details')}
+                {request.status === 'accepted'
+                  ? (vm.isSender && !isPaid ? 'Payment Required' : (isPaid ? (vm.isTraveller ? 'Delivery & OTP' : 'Live Tracking') : 'Awaiting Booking'))
+                  : (request.tripId ? 'Trip Details' : 'Parcel Details')}
               </Text>
               <Ionicons name="chevron-forward" size={12} color={C.textMuted} />
             </Pressable>

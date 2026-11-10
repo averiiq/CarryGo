@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -40,9 +41,9 @@ interface CarryParcelModalProps {
   onClose: () => void;
   parcel: Parcel | null;
   userTrips: Trip[];
-  onConfirmCarry: (tripId: string, parcel: Parcel) => Promise<void>;
+  onConfirmCarry: (tripId: string, parcel: Parcel, chargeAmount: number, message?: string) => Promise<void>;
   onPostTrip: (fromCity: string, toCity: string, weightNeeded: number) => void;
-  onQuickCreateAndCarry?: (params: QuickCarryTripParams, parcel: Parcel) => Promise<void>;
+  onQuickCreateAndCarry?: (params: QuickCarryTripParams, parcel: Parcel, chargeAmount: number, message?: string) => Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -62,6 +63,29 @@ export function CarryParcelModal({
 
   const [quickVehicle, setQuickVehicle] = useState<Trip['vehicleType']>('car');
   const [quickDateOption, setQuickDateOption] = useState<'today' | 'tomorrow' | 'day_after'>('today');
+
+  const [chargeText, setChargeText] = useState<string>('');
+  const [customNote, setCustomNote] = useState<string>('');
+  const [chargeError, setChargeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (parcel) {
+      const defaultCharge =
+        parcel.priceOffer && parcel.priceOffer > 0
+          ? parcel.priceOffer
+          : Math.max(100, Math.round((parcel.weight || 1) * 50));
+      setChargeText(String(defaultCharge));
+      setCustomNote('');
+      setChargeError(null);
+    }
+  }, [parcel, visible]);
+
+  const parsedCharge = useMemo(() => {
+    const num = parseInt(chargeText.replace(/[^0-9]/g, ''), 10);
+    return isNaN(num) ? 0 : num;
+  }, [chargeText]);
+
+  const isValidCharge = parsedCharge >= 1 && parsedCharge <= 100000;
 
   const matchingTrips = useMemo(() => {
     if (!parcel) return [];
@@ -101,10 +125,17 @@ export function CarryParcelModal({
   };
 
   const handleConfirm = async () => {
+    if (!isValidCharge) {
+      setChargeError('Please enter a delivery charge between ₹1 and ₹1,00,000');
+      Haptic.error();
+      return;
+    }
+    setChargeError(null);
+
     if (carryMode === 'existing') {
       if (!selectedTripId || isSubmitting) return;
       Haptic.confirm();
-      await onConfirmCarry(selectedTripId, parcel);
+      await onConfirmCarry(selectedTripId, parcel, parsedCharge, customNote.trim() || undefined);
     } else {
       if (isSubmitting) return;
       Haptic.confirm();
@@ -116,7 +147,9 @@ export function CarryParcelModal({
             time: '10:00 AM',
             capacity: Math.max(10, Math.ceil(parcel.weight + 4)),
           },
-          parcel
+          parcel,
+          parsedCharge,
+          customNote.trim() || undefined
         );
       } else {
         onClose();
@@ -198,17 +231,112 @@ export function CarryParcelModal({
             </View>
           </View>
 
-          {/* Earnings Spotlight Card */}
-          <View style={[styles.payoutCard, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-            <View style={styles.payoutIconCircle}>
-              <MaterialIcons name="account-balance-wallet" size={20} color="#059669" />
+          {/* Custom Delivery Charge Input Card */}
+          <View style={[styles.chargeCard, { backgroundColor: C.surface, borderColor: chargeError ? C.error : C.surfaceBorder }]}>
+            <View style={styles.chargeHeader}>
+              <View style={[styles.chargeIconWrap, { backgroundColor: C.primarySubtle }]}>
+                <MaterialIcons name="payments" size={18} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.chargeTitle, { color: C.textPrimary }]}>How much will you charge?</Text>
+                <Text style={[styles.chargeSubtitle, { color: C.textMuted }]}>
+                  {parcel.priceOffer && parcel.priceOffer > 0
+                    ? `Sender offered ₹${parcel.priceOffer} • You can adjust or accept`
+                    : 'Set your delivery fee for carrying this package'}
+                </Text>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.payoutLabel}>YOU WILL EARN</Text>
-              <Text style={styles.payoutAmount}>₹{parcel.priceOffer}</Text>
-              <Text style={styles.payoutSub}>
-                Guaranteed payout released to your wallet upon delivery OTP verification.
-              </Text>
+
+            <View style={[styles.chargeInputRow, { backgroundColor: C.surfaceElevated, borderColor: chargeError ? C.error : C.surfaceBorder }]}>
+              <Text style={[styles.currencyPrefix, { color: C.primary }]}>₹</Text>
+              <TextInput
+                style={[styles.chargeInput, { color: C.textPrimary }]}
+                keyboardType="number-pad"
+                value={chargeText}
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/[^0-9]/g, '');
+                  setChargeText(cleaned);
+                  if (chargeError) setChargeError(null);
+                }}
+                placeholder="0"
+                placeholderTextColor={C.textMuted}
+                maxLength={6}
+              />
+              <Text style={[styles.chargeUnit, { color: C.textMuted }]}>total fee</Text>
+            </View>
+
+            {chargeError ? (
+              <Text style={[styles.errorText, { color: C.error }]}>{chargeError}</Text>
+            ) : null}
+
+            {/* Quick Presets */}
+            <View style={styles.presetsRow}>
+              {parcel.priceOffer && parcel.priceOffer > 0 && parcel.priceOffer !== parsedCharge ? (
+                <Pressable
+                  onPress={() => {
+                    Haptic.select();
+                    setChargeText(String(parcel.priceOffer));
+                    if (chargeError) setChargeError(null);
+                  }}
+                  style={[styles.presetChip, { backgroundColor: C.primarySubtle, borderColor: C.primary }]}
+                >
+                  <MaterialIcons name="done" size={13} color={C.primary} />
+                  <Text style={[styles.presetChipText, { color: C.primary, fontWeight: '700' }]}>
+                    Match ₹{parcel.priceOffer}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {[100, 200, 300, 500].map((amt) => {
+                const isSelected = parsedCharge === amt;
+                return (
+                  <Pressable
+                    key={amt}
+                    onPress={() => {
+                      Haptic.select();
+                      setChargeText(String(amt));
+                      if (chargeError) setChargeError(null);
+                    }}
+                    style={[
+                      styles.presetChip,
+                      {
+                        backgroundColor: isSelected ? C.primary : C.surfaceElevated,
+                        borderColor: isSelected ? C.primary : C.surfaceBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.presetChipText,
+                        { color: isSelected ? '#FFFFFF' : C.textSecondary, fontWeight: isSelected ? '700' : '500' },
+                      ]}
+                    >
+                      ₹{amt}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => {
+                  Haptic.select();
+                  setChargeText(String(Math.min(100000, (parsedCharge || 0) + 50)));
+                  if (chargeError) setChargeError(null);
+                }}
+                style={[styles.presetChip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}
+              >
+                <Text style={[styles.presetChipText, { color: C.textSecondary }]}>+₹50</Text>
+              </Pressable>
+            </View>
+
+            {/* Optional note to sender */}
+            <View style={styles.noteWrap}>
+              <TextInput
+                style={[styles.noteInput, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder, color: C.textPrimary }]}
+                placeholder="Add a note to sender (pickup time, flexible stops)..."
+                placeholderTextColor={C.textMuted}
+                value={customNote}
+                onChangeText={setCustomNote}
+                maxLength={200}
+              />
             </View>
           </View>
 
@@ -414,11 +542,11 @@ export function CarryParcelModal({
         <View style={[styles.footer, { borderTopColor: C.surfaceBorder }]}>
           <Pressable
             onPress={handleConfirm}
-            disabled={isSubmitting || (carryMode === 'existing' && !selectedTripId)}
+            disabled={isSubmitting || !isValidCharge || (carryMode === 'existing' && !selectedTripId)}
             style={({ pressed }) => [
               styles.submitBtn,
               { backgroundColor: C.primary },
-              isSubmitting && { opacity: 0.6 },
+              (isSubmitting || !isValidCharge) && { opacity: 0.6 },
               pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
             ]}
           >
@@ -428,7 +556,7 @@ export function CarryParcelModal({
               <>
                 <MaterialIcons name="local-shipping" size={18} color="#FFFFFF" />
                 <Text style={styles.submitBtnText}>
-                  Send Carry Offer • Earn ₹{parcel.priceOffer}
+                  Send Carry Offer • ₹{parsedCharge > 0 ? parsedCharge : 0}
                 </Text>
               </>
             )}
@@ -535,39 +663,88 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 8,
   },
-  payoutCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
+  chargeCard: {
+    padding: Spacing.sm + 4,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     marginBottom: Spacing.md,
-    gap: 12,
+    gap: Spacing.xs + 2,
   },
-  payoutIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#D1FAE5',
+  chargeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 2,
+  },
+  chargeIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  payoutLabel: {
-    fontSize: 9,
+  chargeTitle: {
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
-    color: '#065F46',
-    letterSpacing: 0.5,
   },
-  payoutAmount: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.extrabold,
-    color: '#047857',
-    marginVertical: 1,
+  chargeSubtitle: {
+    fontSize: FontSize.xs - 1,
+    marginTop: 1,
   },
-  payoutSub: {
-    fontSize: 10,
-    color: '#065F46',
-    lineHeight: 14,
+  chargeInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm + 2,
+    height: 48,
+  },
+  currencyPrefix: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    marginRight: 6,
+  },
+  chargeInput: {
+    flex: 1,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    paddingVertical: 0,
+  },
+  chargeUnit: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  errorText: {
+    fontSize: FontSize.xs - 1,
+    marginTop: 2,
+  },
+  presetsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  presetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  presetChipText: {
+    fontSize: FontSize.xs,
+  },
+  noteWrap: {
+    marginTop: 4,
+  },
+  noteInput: {
+    fontSize: FontSize.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
   },
   modeToggleWrap: {
     flexDirection: 'row',

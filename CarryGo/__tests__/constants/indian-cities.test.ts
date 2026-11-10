@@ -58,10 +58,11 @@ describe('Indian Cities Optimization & Lookups', () => {
     expect(distance).toBeLessThan(150);
   });
 
-  it('contains exclusively Haryana cities in the primary city list', () => {
+  it('contains predominantly Haryana and connected NCR/regional transit towns in the city list', () => {
     expect(INDIAN_CITIES.length).toBeGreaterThan(50);
+    const validStates = new Set(['Haryana', 'Delhi', 'Punjab', 'Chandigarh', 'Rajasthan', 'Uttar Pradesh']);
     for (const city of INDIAN_CITIES) {
-      expect(city.state).toBe('Haryana');
+      expect(validStates.has(city.state)).toBe(true);
     }
   });
 

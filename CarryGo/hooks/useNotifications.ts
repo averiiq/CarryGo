@@ -14,7 +14,6 @@ import {
   markNotificationsRead,
   registerForPushNotifications,
   savePushToken,
-  sendLocalNotification,
   setPendingNotificationRoute,
   consumePendingNotificationRoute,
 } from '@/services/notifications.service';
@@ -230,20 +229,39 @@ export function useNotifications() {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
           (payload) => {
-            void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
             if (payload.eventType === 'INSERT' && payload.new) {
               const newNotif = payload.new as {
                 id?: string;
+                user_id?: string;
                 title?: string;
                 body?: string;
                 type?: string;
                 related_id?: string;
                 deep_link?: string;
+                data?: Record<string, unknown>;
               };
+
+              // STRICT USER ISOLATION:
+              // Never display or sound a notification belonging to another user!
+              if (newNotif.user_id && newNotif.user_id !== user.id) {
+                return;
+              }
+
+              // Anti-self-alerting guard:
+              const senderId = (newNotif.data as any)?.senderId || (newNotif.data as any)?.sender_id;
+              if (senderId && senderId === user.id && newNotif.type !== 'system_alert') {
+                return;
+              }
+
+              void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+
               if (newNotif.title && newNotif.body) {
                 const dedupeKey = newNotif.id || `notif_${newNotif.type}_${newNotif.title}_${newNotif.related_id}`;
                 if (shouldProcessNotification(dedupeKey)) {
-                  // Show instant in-app banner toast
+                  // Show instant in-app banner toast only.
+                  // Do NOT fire sendLocalNotification here — the push service
+                  // already sends a remote push notification to the device.
+                  // Firing a local notification too causes duplicate OS alerts.
                   notifCtx?.showBanner({
                     title: newNotif.title,
                     body: newNotif.body,
@@ -251,29 +269,10 @@ export function useNotifications() {
                     relatedId: newNotif.related_id,
                     deepLink: newNotif.deep_link,
                   });
-
-                  // Trigger system status bar notification with sound/vibration (crucial for Expo Go & active sessions)
-                  const channel = newNotif.type === 'chat_message'
-                    ? 'messages'
-                    : (newNotif.type?.startsWith('delivery') || newNotif.type?.startsWith('request') || newNotif.type === 'new_request')
-                      ? 'deliveries'
-                      : newNotif.type?.startsWith('payment')
-                        ? 'payments'
-                        : 'default';
-
-                  void sendLocalNotification(
-                    newNotif.title,
-                    newNotif.body,
-                    {
-                      notificationId: newNotif.id || '',
-                      type: newNotif.type || 'general',
-                      relatedId: newNotif.related_id || '',
-                      deepLink: newNotif.deep_link || '',
-                    },
-                    channel
-                  ).catch(() => {});
                 }
               }
+            } else {
+              void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
             }
           }
         )
@@ -283,8 +282,23 @@ export function useNotifications() {
     }
 
     notifListenerRef.current = Notifications.addNotificationReceivedListener((notification) => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
       const content = notification.request.content;
+      const data = content.data as Record<string, unknown> | undefined;
+
+      // STRICT USER ISOLATION:
+      // If notification data specifies recipient, verify it matches current user
+      const targetUserId = data?.recipientId || data?.userId || data?.user_id;
+      if (targetUserId && typeof targetUserId === 'string' && targetUserId !== user.id) {
+        return;
+      }
+
+      // Check anti-self-alerting
+      const senderId = data?.senderId || data?.sender_id;
+      if (senderId && typeof senderId === 'string' && senderId === user.id && data?.type !== 'system_alert') {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
       if (content.title && content.body) {
         const notifId = (content.data?.notificationId as string) || (content.data?.id as string) || notification.request.identifier;
         const dedupeKey = notifId || `push_${content.data?.type}_${content.title}_${content.data?.relatedId}`;

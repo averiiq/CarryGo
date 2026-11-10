@@ -27,7 +27,7 @@ export async function fetchSubscriptions(userId: string) {
   const sb = getSupabaseClient();
   const { data, error } = await sb
     .from('route_subscriptions')
-    .select('*')
+    .select('id, user_id, from_city, to_city, active, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -35,25 +35,116 @@ export async function fetchSubscriptions(userId: string) {
   return { data: (data || []).map(mapRow), error: null };
 }
 
-export async function createSubscription(userId: string, fromCity: string, toCity: string) {
-  const rateCheck = await enforceRateLimit(userId, 'create_request');
-  if (!rateCheck.allowed) {
-    return { data: null, error: rateCheck.error ?? 'Rate limit exceeded. Please try again later.' };
-  }
+export async function isUserSubscribedToRoute(
+  userId: string | undefined,
+  fromCity: string,
+  toCity: string
+): Promise<boolean> {
+  if (!userId || !fromCity || !toCity) return false;
+  try {
+    const sb = getSupabaseClient();
+    const sanitizedFrom = sanitizeTextInput(fromCity, 100);
+    const sanitizedTo = sanitizeTextInput(toCity, 100);
+    if (!sanitizedFrom || !sanitizedTo) return false;
 
+    const { data, error } = await sb
+      .from('route_subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('from_city', sanitizedFrom)
+      .ilike('to_city', sanitizedTo)
+      .eq('active', true)
+      .limit(1);
+
+    if (error || !data) return false;
+    return data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+export async function createSubscription(userId: string, fromCity: string, toCity: string) {
   const sanitizedFrom = sanitizeTextInput(fromCity, 100);
   const sanitizedTo = sanitizeTextInput(toCity, 100);
-  if (!sanitizedFrom || !sanitizedTo) return { data: null, error: 'City names are required' };
+  if (!sanitizedFrom || !sanitizedTo) return { data: null, error: 'Origin and destination cities are required' };
+  if (sanitizedFrom.trim().toLowerCase() === sanitizedTo.trim().toLowerCase()) {
+    return { data: null, error: 'Origin and destination cities cannot be identical' };
+  }
+
+  try {
+    const rateCheck = await enforceRateLimit(userId, 'search');
+    if (!rateCheck.allowed) {
+      return { data: null, error: rateCheck.error ?? 'Too many alert requests. Please wait a moment.' };
+    }
+  } catch {
+    // Fail open on rate check RPC
+  }
 
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from('route_subscriptions').upsert({
-    user_id: userId,
-    from_city: sanitizedFrom,
-    to_city: sanitizedTo,
-    active: true,
-  }, { onConflict: 'user_id,from_city,to_city' }).select().single();
-  if (error) return { data: null, error: error.message };
-  return { data: mapRow(data), error: null };
+  try {
+    // 1. Look for existing subscription record for this user and route
+    const { data: existing } = await sb
+      .from('route_subscriptions')
+      .select('id, user_id, from_city, to_city, active, created_at')
+      .eq('user_id', userId)
+      .ilike('from_city', sanitizedFrom)
+      .ilike('to_city', sanitizedTo)
+      .maybeSingle();
+
+    if (existing) {
+      if (!existing.active) {
+        const { data: updated, error: updateErr } = await sb
+          .from('route_subscriptions')
+          .update({ active: true })
+          .eq('id', existing.id)
+          .select()
+          .single();
+        if (updateErr) {
+          console.warn('[subscriptions] Failed to reactivate route subscription:', updateErr.message);
+          return { data: { ...mapRow(existing), active: true }, error: null };
+        }
+        return { data: mapRow(updated), error: null };
+      }
+      return { data: mapRow(existing), error: null };
+    }
+
+    // 2. Insert new record
+    const { data: inserted, error: insertErr } = await sb
+      .from('route_subscriptions')
+      .insert({
+        user_id: userId,
+        from_city: sanitizedFrom,
+        to_city: sanitizedTo,
+        active: true,
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      // If unique violation occurred concurrently, refetch and return
+      if (
+        insertErr.code === '23505' ||
+        insertErr.message?.includes('duplicate key') ||
+        insertErr.message?.includes('unique')
+      ) {
+        const { data: refetched } = await sb
+          .from('route_subscriptions')
+          .select('id, user_id, from_city, to_city, active, created_at')
+          .eq('user_id', userId)
+          .ilike('from_city', sanitizedFrom)
+          .ilike('to_city', sanitizedTo)
+          .maybeSingle();
+        if (refetched) {
+          return { data: mapRow(refetched), error: null };
+        }
+      }
+      return { data: null, error: insertErr.message };
+    }
+
+    return { data: mapRow(inserted), error: null };
+  } catch (err: any) {
+    return { data: null, error: err?.message || 'Failed to create route alert' };
+  }
 }
 
 export async function deleteSubscription(subId: string, userId: string) {

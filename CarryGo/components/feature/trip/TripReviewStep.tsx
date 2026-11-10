@@ -12,6 +12,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 export interface TripReviewDraft {
   fromCity: string;
   toCity: string;
+  stopovers?: string[];
   date: string;
   time: string;
   vehicle: VehicleType;
@@ -87,13 +88,61 @@ export const TripReviewStep = memo(function TripReviewStep({
         weightOrCapacity={form.capacity}
         priceOrOffer={form.price}
         onEditRoute={() => onEdit(0)}
-        onEditDetails={() => onEdit(1)}
+        onEditDetails={() => onEdit(2)}
         hasKyc={userHasKyc}
         showTrustCard={false}
         userAvatar={userAvatar}
         userName={userName}
         userRating={userRating}
       />
+
+      {/* Stopovers Card */}
+      {form.stopovers && form.stopovers.length > 0 ? (
+        <View style={[styles.allowedCard, { backgroundColor: C.card, borderColor: C.surfaceBorder }]}>
+          <View style={styles.allowedHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <MaterialIcons name="alt-route" size={15} color={C.primary} />
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>
+                Stopovers on Your Route
+              </Text>
+              <View style={[styles.countBadge, { backgroundColor: C.primarySubtle }]}>
+                <Text style={[styles.countBadgeText, { color: C.primary }]}>
+                  {form.stopovers.length}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => onEdit(1)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.editAction}
+              accessibilityRole="button"
+              accessibilityLabel="Edit stopovers"
+            >
+              <MaterialIcons name="edit" size={13} color={C.primary} />
+              <Text style={[styles.editLink, { color: C.primary }]}>Edit</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.stopoverChain}>
+            <View style={styles.chainItem}>
+              <View style={[styles.chainDot, { backgroundColor: C.success }]} />
+              <Text style={[styles.chainCity, { color: C.textPrimary }]}>{form.fromCity}</Text>
+            </View>
+            {form.stopovers.map((s, idx) => (
+              <View key={`${s}-${idx}`} style={styles.chainItem}>
+                <View style={[styles.chainConnector, { backgroundColor: C.surfaceBorder }]} />
+                <View style={[styles.chainDotMid, { backgroundColor: C.primary }]} />
+                <Text style={[styles.chainStopCity, { color: C.textSecondary }]}>{s}</Text>
+              </View>
+            ))}
+            <View style={styles.chainItem}>
+              <View style={[styles.chainConnector, { backgroundColor: C.surfaceBorder }]} />
+              <View style={[styles.chainDot, { backgroundColor: C.error }]} />
+              <Text style={[styles.chainCity, { color: C.textPrimary }]}>{form.toCity}</Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
 
       {/* Allowed Categories Card */}
       {form.allowedCategories && form.allowedCategories.length > 0 ? (
@@ -338,5 +387,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
     marginTop: 1,
+  },
+
+  // Stopover chain
+  stopoverChain: {
+    gap: 0,
+    paddingTop: 4,
+  },
+  chainItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  chainDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginLeft: 1,
+  },
+  chainDotMid: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginLeft: 3,
+  },
+  chainCity: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  chainStopCity: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  chainConnector: {
+    position: 'absolute',
+    left: 6,
+    top: -4,
+    width: 2,
+    height: 12,
   },
 });

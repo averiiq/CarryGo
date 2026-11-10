@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet,
   ActivityIndicator, RefreshControl, Share,
@@ -25,13 +25,13 @@ import {
   useCreateRequestMutation,
 } from '@/features/requests/queries';
 import { SendRequestModal, QuickCreateParcelParams } from '@/components/feature/SendRequestModal';
-import { NegotiateTripModal, NegotiationParams } from '@/components/feature/NegotiateTripModal';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Request, Trip, Parcel, ParcelCategory } from '@/types';
 import { isRequestIncoming } from '@/services/requests.service';
 import { createDelivery } from '@/services/deliveries.service';
+import { fetchPaymentByRequest } from '@/services/payments.service';
 import { Haptic } from '@/services/haptics.service';
 import { getUserErrorMessage } from '@/lib/error-handler';
 import { getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
@@ -39,6 +39,11 @@ import { RequestItem } from '@/components/feature/RequestItem';
 import { StatusBarGeometry, Spacing, FontWeight } from '@/constants/theme';
 import { styles } from '@/styles/trip/[id].styles';
 import { CARRY_CATEGORIES } from '@/components/feature/trip/TripDetailsStep';
+import { RouteMapCanvas } from '@/components/feature/trip/RouteMapCanvas';
+import { fetchRouteAlternatives, RouteOption } from '@/services/routing.service';
+import { getStopoverTimelineMeta, calculateLegPrice } from '@/components/feature/matching/blaBlaHelpers';
+import { checkTripParcelRoute } from '@/services/smart-matching.service';
+import { findCity, getDistance } from '@/constants/indian-cities';
 import { useQuery } from '@tanstack/react-query';
 import { fetchProfile } from '@/services/profile.service';
 
@@ -85,7 +90,7 @@ export default function TripDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { C } = useThemeColors();
+  const { C, isDark } = useThemeColors();
   const { isSmallDevice, isTablet } = useResponsive();
 
   const tripQuery = useTripQuery(id);
@@ -101,7 +106,6 @@ export default function TripDetailScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [showNegotiateModal, setShowNegotiateModal] = useState(false);
   const [openingChatRequestId, setOpeningChatRequestId] = useState<string | null>(null);
 
   const trip = (tripQuery.data ?? undefined) as Trip | undefined;
@@ -177,58 +181,120 @@ export default function TripDetailScreen() {
       fromCity: draftFromCity || trip?.fromCity || '',
       toCity: draftToCity || trip?.toCity || '',
       category: (draftCategory as ParcelCategory) || 'documents',
-      weight: Number(draftWeight) || 1,
-      priceOffer: Number(draftPrice) || 180,
+      weight: Math.min(Math.max(Number(draftWeight) || 1, 0.1), 500),
+      priceOffer: Math.min(Math.max(Number(draftPrice) || 180, 1), 50000),
       description: draftDesc || 'Parcel delivery',
       status: 'open',
       createdAt: new Date().toISOString(),
     };
   }, [draftCategory, draftWeight, draftPrice, draftFromCity, draftToCity, draftDesc, user, trip]);
 
+  const [routeOption, setRouteOption] = useState<RouteOption | null>(null);
+  const [isMapLoading, setIsMapLoading] = useState(false);
+
+  useEffect(() => {
+    if (!trip?.fromCity || !trip?.toCity) return;
+    let cancelled = false;
+    setIsMapLoading(true);
+
+    fetchRouteAlternatives(trip.fromCity, trip.toCity)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.routes && res.routes.length > 0) {
+          setRouteOption(res.routes[0]);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsMapLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trip?.fromCity, trip?.toCity]);
+
+  const itineraryNodes = useMemo(() => {
+    if (!trip) return [];
+    return getStopoverTimelineMeta(trip);
+  }, [trip]);
+
   const matchingRouteParcel = useMemo(() => {
     if (!trip) return null;
-    const normTripFrom = (trip.fromCity || '').trim().toLowerCase();
-    const normTripTo = (trip.toCity || '').trim().toLowerCase();
     return userParcels.find(
       p => p.status === 'open' &&
-           (p.fromCity || '').trim().toLowerCase() === normTripFrom &&
-           (p.toCity || '').trim().toLowerCase() === normTripTo &&
-           p.weight <= (trip.availableCapacity || 999)
+           p.weight <= (trip.availableCapacity || 999) &&
+           checkTripParcelRoute(trip, p).isCompatible
     ) || null;
   }, [trip, userParcels]);
 
   const activeParcel = useMemo(() => {
     if (!trip) return null;
-    const normTripFrom = (trip.fromCity || '').trim().toLowerCase();
-    const normTripTo = (trip.toCity || '').trim().toLowerCase();
 
     if (draftParcel) {
-      if ((draftParcel.fromCity || '').trim().toLowerCase() === normTripFrom && (draftParcel.toCity || '').trim().toLowerCase() === normTripTo) {
+      if (checkTripParcelRoute(trip, draftParcel).isCompatible) {
         return draftParcel;
       }
     }
     if (singleParcelQuery.data) {
       const p = singleParcelQuery.data;
-      if ((p.fromCity || '').trim().toLowerCase() === normTripFrom && (p.toCity || '').trim().toLowerCase() === normTripTo) {
+      if (checkTripParcelRoute(trip, p).isCompatible) {
         return p;
       }
     }
     if (parcelId) {
       const found = userParcels.find(p => p.id === parcelId);
-      if (found && (found.fromCity || '').trim().toLowerCase() === normTripFrom && (found.toCity || '').trim().toLowerCase() === normTripTo) {
+      if (found && checkTripParcelRoute(trip, found).isCompatible) {
         return found;
       }
     }
     return matchingRouteParcel;
   }, [draftParcel, singleParcelQuery.data, parcelId, userParcels, trip, matchingRouteParcel]);
 
-  const calculatedPrice = useMemo(() => {
-    if (!trip) return 180;
-    if (activeParcel) {
-      return Math.max(80, Math.round(trip.pricePerKg * (activeParcel.weight || 1)));
+  const senderMatchedLeg = useMemo(() => {
+    if (!trip) return null;
+    const allStops = [trip.fromCity, ...(trip.stopovers || []).map(s => String(s || '').trim()).filter(Boolean), trip.toCity];
+
+    const candidateFrom = (draftFromCity || activeParcel?.fromCity || '').trim().toLowerCase();
+    const candidateTo = (draftToCity || activeParcel?.toCity || '').trim().toLowerCase();
+
+    if (!candidateFrom || !candidateTo) return null;
+
+    const fromIdx = allStops.findIndex(s => s.toLowerCase() === candidateFrom);
+    const toIdx = allStops.findIndex(s => s.toLowerCase() === candidateTo);
+
+    if (fromIdx !== -1 && toIdx !== -1 && fromIdx < toIdx) {
+      const legFrom = allStops[fromIdx];
+      const legTo = allStops[toIdx];
+      const c1 = findCity(legFrom);
+      const c2 = findCity(legTo);
+      const legDist = c1 && c2 ? Math.round(getDistance(c1, c2)) : 0;
+      const fullRate = activeParcel ? Math.round(trip.pricePerKg * (activeParcel.weight || 1)) : Math.round(trip.pricePerKg * 1);
+      const legPrice = calculateLegPrice(fullRate, legFrom, legTo, trip.fromCity, trip.toCity);
+      const isSubSegment = !(fromIdx === 0 && toIdx === allStops.length - 1);
+      return {
+        from: legFrom,
+        to: legTo,
+        distanceKm: legDist,
+        legPrice,
+        isSubSegment,
+      };
     }
-    return Math.max(80, Math.round(trip.pricePerKg * 2));
-  }, [trip, activeParcel]);
+    return null;
+  }, [trip, draftFromCity, draftToCity, activeParcel]);
+
+  // Fare is weight × traveller-set pricePerKg, floored at ₹80 (or fair leg fare if sub-segment).
+  const calculatedPrice = useMemo(() => {
+    if (!trip) return 0;
+    if (senderMatchedLeg?.legPrice) {
+      return senderMatchedLeg.legPrice;
+    }
+    if (activeParcel) {
+      const baseFare = Math.max(80, Math.round(trip.pricePerKg * (activeParcel.weight || 1)));
+      return calculateLegPrice(baseFare, activeParcel.fromCity, activeParcel.toCity, trip.fromCity, trip.toCity);
+    }
+    return Math.max(80, Math.round(trip.pricePerKg * 1));
+  }, [trip, activeParcel, senderMatchedLeg]);
 
   const myRequest = useMemo(() => requests.find(r => r.senderId === user?.id && ['pending', 'accepted'].includes(r.status)), [requests, user?.id]);
   const loading = tripQuery.isLoading || requestsQuery.isLoading || parcelsQuery.isLoading;
@@ -261,6 +327,18 @@ export default function TripDetailScreen() {
       return;
     }
 
+    if (targetTrip.allowedCategories && targetTrip.allowedCategories.length > 0) {
+      const allowed = targetTrip.allowedCategories.map((c) => String(c).trim().toLowerCase());
+      if (!allowed.includes(String(chosenParcel.category || '').toLowerCase())) {
+        Haptic.warning();
+        showAlert(
+          'Category Not Accepted',
+          `${targetTrip.userName || 'The traveller'} does not carry ${chosenParcel.category} on this trip.`
+        );
+        return;
+      }
+    }
+
     try {
       let resolvedParcelId = chosenParcel.id;
       if (resolvedParcelId === 'draft-parcel') {
@@ -278,6 +356,8 @@ export default function TripDetailScreen() {
         resolvedParcelId = created.id;
       }
 
+      // Booking status is determined server-side by the create_request RPC
+      // based on traveller rating data — never trust client for status.
       const result = await createRequestAsync({
         parcelId: resolvedParcelId,
         tripId: targetTrip.id,
@@ -287,177 +367,23 @@ export default function TripDetailScreen() {
         travellerName: targetTrip.userName,
         status: 'pending',
         price: priceToUse,
-        message: `Hi ${targetTrip.userName}! I would like you to deliver my ${chosenParcel.category} package (${chosenParcel.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity}.`,
+        message: `Hi ${targetTrip.userName}! I would like you to deliver my ${chosenParcel.category} package (${chosenParcel.weight}kg) from ${chosenParcel.fromCity || targetTrip.fromCity} to ${chosenParcel.toCity || targetTrip.toCity} on your route.`,
       });
 
       if (result) {
         setShowRequestModal(false);
         Haptic.success();
-        showAlert(
-          'Request Sent! 🎉',
-          `Your delivery request was sent to ${targetTrip.userName}.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
-        await requestsQuery.refetch();
+        void requestsQuery.refetch();
+        // v2 (BlaBlaCar-style): pay upfront at booking. Go straight to the
+        // payment/protection screen; funds are released on OTP handover.
+        router.push({ pathname: '/payment/[id]', params: { id: result.id } });
       } else {
-        showAlert('Error', 'Could not send request. Please try again.');
+        showAlert('Could Not Send Request', 'Could not send request. Please check the trip and parcel details.');
       }
     } catch (err: any) {
       Haptic.error();
-      showAlert('Error', err?.message || 'Could not send request. Please try again.');
-    }
-  };
-
-  const handleNegotiateSubmit = async (params: NegotiationParams) => {
-    if (!user || !trip) {
-      Haptic.warning();
-      showAlert('Sign In Required', 'Please sign in to negotiate trips.');
-      return;
-    }
-
-    if (user.id === trip.userId) {
-      Haptic.warning();
-      showAlert('Not Allowed', 'You cannot send a counter-offer on your own trip.');
-      return;
-    }
-
-    const priceToOffer = Math.max(50, Math.round(Number(params.offeredPrice) || calculatedPrice || 100));
-
-    try {
-      let parcelToUse = activeParcel;
-      const isRouteMatch = parcelToUse &&
-        parcelToUse.fromCity.trim().toLowerCase() === trip.fromCity.trim().toLowerCase() &&
-        parcelToUse.toCity.trim().toLowerCase() === trip.toCity.trim().toLowerCase();
-
-      if (!parcelToUse || parcelToUse.id === 'draft-parcel' || !isRouteMatch) {
-        parcelToUse = await createParcelMutation.mutateAsync({
-          userId: user.id,
-          userName: user.fullName || user.name || 'Sender',
-          fromCity: trip.fromCity,
-          toCity: trip.toCity,
-          category: activeParcel?.category || 'documents',
-          weight: Math.min(activeParcel?.weight || 1, trip.availableCapacity || 10),
-          description: activeParcel?.description || `Delivery on trip ${trip.fromCity} → ${trip.toCity}`,
-          priceOffer: priceToOffer,
-          status: 'open',
-        });
-      }
-
-      const result = await createRequestAsync({
-        parcelId: parcelToUse.id,
-        tripId: trip.id,
-        senderId: user.id,
-        senderName: user.fullName || user.name || 'Sender',
-        travellerId: trip.userId,
-        travellerName: trip.userName,
-        status: 'pending',
-        price: priceToOffer,
-        message: params.message,
-      });
-
-      if (result) {
-        setShowNegotiateModal(false);
-        Haptic.success();
-        showAlert(
-          'Offer Sent! 🤝',
-          `${trip.userName} has been notified of your proposal.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
-        await requestsQuery.refetch();
-      } else {
-        showAlert('Error', 'Could not submit proposal.');
-      }
-    } catch (err: any) {
-      Haptic.error();
-      showAlert('Error', getUserErrorMessage(err, 'Could not submit proposal.'));
-    }
-  };
-
-  const handleStartNegotiateChat = async (params: NegotiationParams) => {
-    if (!user || !trip) {
-      Haptic.warning();
-      showAlert('Sign In Required', 'Please sign in to chat.');
-      return;
-    }
-
-    if (user.id === trip.userId) {
-      Haptic.warning();
-      showAlert('Not Allowed', 'You cannot message yourself.');
-      return;
-    }
-
-    const priceToOffer = Math.max(50, Math.round(Number(params.offeredPrice) || calculatedPrice || 100));
-
-    try {
-      let parcelToUse = activeParcel;
-      const isRouteMatch = parcelToUse &&
-        parcelToUse.fromCity.trim().toLowerCase() === trip.fromCity.trim().toLowerCase() &&
-        parcelToUse.toCity.trim().toLowerCase() === trip.toCity.trim().toLowerCase();
-
-      if (!parcelToUse || parcelToUse.id === 'draft-parcel' || !isRouteMatch) {
-        parcelToUse = await createParcelMutation.mutateAsync({
-          userId: user.id,
-          userName: user.fullName || user.name || 'Sender',
-          fromCity: trip.fromCity,
-          toCity: trip.toCity,
-          category: activeParcel?.category || 'documents',
-          weight: Math.min(activeParcel?.weight || 1, trip.availableCapacity || 10),
-          description: activeParcel?.description || `Delivery inquiry on trip ${trip.fromCity} → ${trip.toCity}`,
-          priceOffer: priceToOffer,
-          status: 'open',
-        });
-      }
-
-      let targetRequestId = myRequest?.id;
-      if (!targetRequestId) {
-        const newReq = await createRequestAsync({
-          parcelId: parcelToUse.id,
-          tripId: trip.id,
-          senderId: user.id,
-          senderName: user.fullName || user.name || 'Sender',
-          travellerId: trip.userId,
-          travellerName: trip.userName,
-          status: 'pending',
-          price: priceToOffer,
-          message: params.message,
-        });
-        targetRequestId = newReq?.id;
-      }
-
-      if (targetRequestId) {
-        setShowNegotiateModal(false);
-        const existingConv = conversations.find(c => c.requestId === targetRequestId);
-        if (existingConv?.id) {
-          router.push(`/chat/${encodeURIComponent(String(existingConv.id))}` as never);
-          return;
-        }
-
-        const newConv = await createConversationAsync({
-          requestId: targetRequestId,
-          participantIds: [user.id, trip.userId],
-          participantNames: {
-            [user.id]: user.fullName || user.name || 'You',
-            [trip.userId]: trip.userName,
-          },
-          parcelDescription: parcelToUse.description || 'Parcel delivery',
-          route: `${trip.fromCity} → ${trip.toCity}`,
-        });
-
-        if (newConv?.id) {
-          router.push(`/chat/${encodeURIComponent(String(newConv.id))}` as never);
-        } else {
-          router.push('/(tabs)/requests');
-        }
-      }
-    } catch (err: any) {
-      Haptic.error();
-      showAlert('Chat Error', getUserErrorMessage(err, 'Could not open chat.'));
+      console.warn('[trip] Request creation failed:', err?.message);
+      showAlert('Could Not Send Request', getUserErrorMessage(err, 'Could not send request. Please try again.'));
     }
   };
 
@@ -472,12 +398,26 @@ export default function TripDetailScreen() {
       return;
     }
 
+    if (targetTrip.allowedCategories && targetTrip.allowedCategories.length > 0) {
+      const allowed = targetTrip.allowedCategories.map((c) => String(c).trim().toLowerCase());
+      if (!allowed.includes(String(quickParams.category || '').toLowerCase())) {
+        Haptic.warning();
+        showAlert(
+          'Category Not Accepted',
+          `${targetTrip.userName || 'The traveller'} does not carry ${quickParams.category} on this trip.`
+        );
+        return;
+      }
+    }
+
     try {
+      const fromCity = quickParams.fromCity || targetTrip.fromCity;
+      const toCity = quickParams.toCity || targetTrip.toCity;
       const newParcel = await createParcelMutation.mutateAsync({
         userId: user.id,
         userName: user.fullName || user.name || 'Sender',
-        fromCity: targetTrip.fromCity,
-        toCity: targetTrip.toCity,
+        fromCity,
+        toCity,
         category: quickParams.category,
         weight: quickParams.weight,
         description: quickParams.description,
@@ -494,27 +434,22 @@ export default function TripDetailScreen() {
         travellerName: targetTrip.userName,
         status: 'pending',
         price: calculatedPrice,
-        message: `Hi ${targetTrip.userName}! Could you please carry my ${quickParams.category} package (${quickParams.weight}kg) on your trip from ${targetTrip.fromCity} to ${targetTrip.toCity}?`,
+        message: `Hi ${targetTrip.userName}! Could you please carry my ${quickParams.category} package (${quickParams.weight}kg) from ${fromCity} to ${toCity} on your route?`,
       });
 
       if (result) {
         setShowRequestModal(false);
         Haptic.success();
-        showAlert(
-          'Request Sent! 🎉',
-          `Your request was sent to ${targetTrip.userName}.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
-        await Promise.all([requestsQuery.refetch(), allParcelsQuery.refetch()]);
+        void Promise.all([requestsQuery.refetch(), allParcelsQuery.refetch()]);
+        // v2: pay upfront at booking (see handleConfirmRequest).
+        router.push({ pathname: '/payment/[id]', params: { id: result.id } });
       } else {
-        showAlert('Error', 'Could not send request. Please try again.');
+        showAlert('Could Not Send Request', 'Could not send request. Please check the trip and parcel details.');
       }
     } catch (err: any) {
       Haptic.error();
-      showAlert('Error', err?.message || 'Failed to send request.');
+      console.warn('[trip] Quick request failed:', err?.message);
+      showAlert('Could Not Send Request', getUserErrorMessage(err, 'Failed to send request. Please try again.'));
     }
   };
 
@@ -636,7 +571,20 @@ export default function TripDetailScreen() {
     }
   };
 
-  const handleDelivery = (req: Request) => {
+  const handleDelivery = async (req: Request) => {
+    Haptic.tap();
+    try {
+      const { data: pay } = await fetchPaymentByRequest(req.id);
+      const isReqPaid = pay?.status === 'locked' || pay?.status === 'released' || req.status === 'completed';
+      if (!isReqPaid && req.status === 'accepted') {
+        if (viewerRole === 'sender') {
+          router.push({ pathname: '/payment/[id]', params: { id: req.id } });
+        } else {
+          showAlert('Awaiting Sender Payment', 'The sender has not completed the booking payment yet. Once paid, parcel handover and tracking will unlock.');
+        }
+        return;
+      }
+    } catch {}
     router.push({ pathname: '/delivery/[id]', params: { id: req.id } });
   };
 
@@ -753,6 +701,9 @@ export default function TripDetailScreen() {
     if (trip.allowedCategories && trip.allowedCategories.length > 0) {
       return trip.allowedCategories.map(c => String(c).trim().toLowerCase());
     }
+    if (Array.isArray(trip.allowedCategories) && trip.allowedCategories.length === 0) {
+      return [];
+    }
     const vType = trip.vehicleType?.toLowerCase() || 'car';
     if (vType === 'bike') {
       return ['documents', 'electronics', 'clothing', 'medicine'];
@@ -769,6 +720,16 @@ export default function TripDetailScreen() {
   const allowedSet = useMemo(() => {
     return new Set(normalizedAllowedCategories);
   }, [normalizedAllowedCategories]);
+
+  const sortedCarryCategories = useMemo(() => {
+    return [...CARRY_CATEGORIES].sort((a, b) => {
+      const aAllowed = allowedSet.has(a.type);
+      const bAllowed = allowedSet.has(b.type);
+      if (aAllowed && !bAllowed) return -1;
+      if (!aAllowed && bAllowed) return 1;
+      return 0;
+    });
+  }, [allowedSet]);
 
   const vehicleSpecs = useMemo(() => {
     const vType = trip.vehicleType?.toLowerCase() || 'car';
@@ -940,6 +901,20 @@ export default function TripDetailScreen() {
                 <Text style={[styles.routeCityText, isSmallDevice && { fontSize: 17 }]} numberOfLines={1}>{trip.toCity}</Text>
               </View>
             </View>
+
+            {trip.stopovers && trip.stopovers.length > 0 ? (
+              <View style={styles.stopoverChainRow}>
+                <MaterialIcons name="alt-route" size={13} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.stopoverChainLabel}>via</Text>
+                <View style={styles.stopoverChipsWrap}>
+                  {trip.stopovers.map((s, idx) => (
+                    <View key={`${s}-${idx}`} style={styles.stopoverChip}>
+                      <Text style={styles.stopoverChipText} numberOfLines={1}>{s}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </View>
 
           {/* Ticket Body: Capacity & Pricing */}
@@ -974,6 +949,144 @@ export default function TripDetailScreen() {
                 ₹{trip.pricePerKg}/kg
               </Text>
             </View>
+          </View>
+        </View>
+
+        {/* ── Real Interactive Route Street Map Canvas ── */}
+        <View style={[styles.mapSectionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.mapHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <MaterialIcons name="map" size={16} color={C.primary} />
+              <Text style={[styles.mapHeaderTitle, { color: C.textPrimary }]}>Live Route Corridor</Text>
+            </View>
+            <View style={[styles.osmBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
+              <Text style={[styles.osmBadgeText, { color: C.textMuted }]}>OpenStreetMap</Text>
+            </View>
+          </View>
+          <View style={styles.mapCanvasWrapper}>
+            <RouteMapCanvas
+              routes={routeOption ? [routeOption] : []}
+              selectedRouteId={routeOption?.id || 'main-route'}
+              fromCity={trip.fromCity}
+              toCity={trip.toCity}
+              stopovers={trip.stopovers || []}
+              height={220}
+              isLoading={isMapLoading}
+            />
+          </View>
+        </View>
+
+        {/* ── BlaBlaCar-Style Journey & Stopovers Itinerary ── */}
+        <View style={[styles.itineraryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.itineraryHeader}>
+            <View>
+              <Text style={[styles.itineraryTitle, { color: C.textPrimary }]}>Route Itinerary</Text>
+              <Text style={[styles.itinerarySubtitle, { color: C.textMuted }]}>
+                {trip.stopovers && trip.stopovers.length > 0
+                  ? `${trip.stopovers.length} intermediate stopover${trip.stopovers.length === 1 ? '' : 's'} along highway`
+                  : 'Direct non-stop corridor'}
+              </Text>
+            </View>
+            {senderMatchedLeg?.isSubSegment ? (
+              <View style={[styles.matchedLegPill, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
+                <MaterialIcons name="alt-route" size={12} color="#059669" />
+                <Text style={styles.matchedLegPillText}>Matches Your Leg</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Sender Matched Sub-Segment Banner */}
+          {senderMatchedLeg?.isSubSegment ? (
+            <View style={[styles.matchedBanner, { backgroundColor: isDark ? 'rgba(16,185,129,0.14)' : '#ECFDF5', borderColor: isDark ? 'rgba(16,185,129,0.4)' : '#A7F3D0' }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.matchedBannerHeading, { color: isDark ? '#6EE7B7' : '#065F46' }]}>
+                  Your Delivery Sub-Route
+                </Text>
+                <Text style={[styles.matchedBannerSub, { color: isDark ? '#A7F3D0' : '#047857' }]}>
+                  {senderMatchedLeg.from} ➔ {senderMatchedLeg.to} • {senderMatchedLeg.distanceKm} km
+                </Text>
+              </View>
+              <View style={styles.matchedBannerPrice}>
+                <Text style={[styles.matchedBannerPriceVal, { color: isDark ? '#6EE7B7' : '#065F46' }]}>
+                  ₹{senderMatchedLeg.legPrice}
+                </Text>
+                <Text style={[styles.matchedBannerPriceSub, { color: isDark ? '#A7F3D0' : '#047857' }]}>
+                  fair leg fare
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
+          {/* Vertical Nodes */}
+          <View style={styles.timelineNodesList}>
+            {itineraryNodes.map((node, idx) => {
+              const isSenderPickup = senderMatchedLeg?.from.toLowerCase() === node.cityName.toLowerCase();
+              const isSenderDropoff = senderMatchedLeg?.to.toLowerCase() === node.cityName.toLowerCase();
+              const isMatchedStop = isSenderPickup || isSenderDropoff;
+
+              return (
+                <View key={`${node.cityName}-${idx}`} style={styles.timelineNodeRow}>
+                  {/* Time column */}
+                  <View style={styles.nodeTimeCol}>
+                    <Text style={[styles.nodeTimeText, { color: C.textPrimary }]}>{node.time}</Text>
+                    {node.distanceFromStartKm > 0 ? (
+                      <Text style={[styles.nodeDistText, { color: C.textMuted }]}>+{node.distanceFromStartKm} km</Text>
+                    ) : (
+                      <Text style={[styles.nodeDistText, { color: C.textMuted }]}>Start</Text>
+                    )}
+                  </View>
+
+                  {/* Vertical Track & Node Dot */}
+                  <View style={styles.nodeTrackCol}>
+                    <View
+                      style={[
+                        styles.nodeDot,
+                        node.isOrigin && { borderColor: '#004AAD', backgroundColor: '#FFFFFF' },
+                        node.isDestination && { borderColor: '#008B48', backgroundColor: '#FFFFFF' },
+                        !node.isOrigin && !node.isDestination && { borderColor: '#94A3B8', backgroundColor: '#CBD5E1' },
+                        isMatchedStop && { borderColor: '#008B48', backgroundColor: '#008B48', transform: [{ scale: 1.25 }] },
+                      ]}
+                    />
+                    {idx < itineraryNodes.length - 1 ? (
+                      <View style={[styles.nodeTrackLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+                    ) : null}
+                  </View>
+
+                  {/* City info */}
+                  <View style={[styles.nodeInfoCol, isMatchedStop && styles.nodeInfoColMatched]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text
+                        style={[
+                          styles.nodeCityText,
+                          { color: C.textPrimary },
+                          (node.isOrigin || node.isDestination) && { fontWeight: '700' },
+                          isMatchedStop && { color: '#008B48', fontWeight: '700' },
+                        ]}
+                      >
+                        {node.cityName}
+                      </Text>
+                      {isSenderPickup ? (
+                        <View style={[styles.nodeBadge, { backgroundColor: '#DBEAFE', borderColor: '#93C5FD' }]}>
+                          <MaterialIcons name="north-east" size={10} color="#1D4ED8" />
+                          <Text style={[styles.nodeBadgeText, { color: '#1D4ED8' }]}>Your Pickup</Text>
+                        </View>
+                      ) : null}
+                      {isSenderDropoff ? (
+                        <View style={[styles.nodeBadge, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
+                          <MaterialIcons name="south-east" size={10} color="#15803D" />
+                          <Text style={[styles.nodeBadgeText, { color: '#15803D' }]}>Your Dropoff</Text>
+                        </View>
+                      ) : null}
+                      {!node.isOrigin && !node.isDestination && !isMatchedStop ? (
+                        <View style={[styles.stopoverBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F8FAFC' }]}>
+                          <Text style={[styles.stopoverBadgeText, { color: C.textMuted }]}>Stop {node.stopoverIndex}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -1118,8 +1231,24 @@ export default function TripDetailScreen() {
           </View>
 
           {/* Detailed Category Acceptance List */}
+          {trip.allowedCategories && trip.allowedCategories.length > 0 ? (
+            <View style={[styles.canCarrySummaryBar, { backgroundColor: C.successSubtle, borderColor: C.successBorder }]}>
+              <MaterialIcons name="check-circle" size={16} color={C.success} />
+              <Text style={[styles.canCarrySummaryText, { color: C.textPrimary }]}>
+                {isOwner ? 'You are accepting ' : `${travelerFirstName} accepts `}
+                <Text style={{ fontWeight: FontWeight.bold, color: C.success }}>
+                  {normalizedAllowedCategories.length} {normalizedAllowedCategories.length === 1 ? 'category' : 'categories'}
+                </Text>
+                {': '}
+                <Text style={{ fontWeight: FontWeight.bold }}>
+                  {normalizedAllowedCategories.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')}
+                </Text>
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.canCarryGrid}>
-            {CARRY_CATEGORIES.map((cat) => {
+            {sortedCarryCategories.map((cat) => {
               const allowed = allowedSet.has(cat.type);
               return (
                 <View
@@ -1265,7 +1394,7 @@ export default function TripDetailScreen() {
           <View style={[styles.ownerStatsStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
             <View style={styles.ownerStatItem}>
               <Text style={[styles.ownerStatVal, { color: C.textPrimary }]}>{visibleRequests.length}</Text>
-              <Text style={[styles.ownerStatLbl, { color: C.textMuted }]}>Requests</Text>
+              <Text style={[styles.ownerStatLbl, { color: C.textMuted }]}>Bookings</Text>
             </View>
             <View style={[styles.ownerStatDiv, { backgroundColor: C.surfaceBorder }]} />
             <View style={styles.ownerStatItem}>
@@ -1285,7 +1414,7 @@ export default function TripDetailScreen() {
           <View style={styles.requestsSection}>
             <View style={styles.requestsHeaderRow}>
               <Text style={[styles.requestsTitle, { color: C.textPrimary }]}>
-                Delivery Requests
+                Incoming Bookings
               </Text>
               <View style={[styles.requestsCountBadge, { backgroundColor: C.primarySubtle }]}>
                 <Text style={[styles.requestsCountText, { color: C.primary }]}>
@@ -1299,26 +1428,10 @@ export default function TripDetailScreen() {
             ) : visibleRequests.length === 0 ? (
               <View style={[styles.emptyRequestsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
                 <MaterialIcons name="inbox" size={32} color={C.textMuted} />
-                <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Delivery Requests Yet</Text>
+                <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Bookings Yet</Text>
                 <Text style={[styles.emptySub, { color: C.textMuted }]}>
-                  Senders will send delivery requests when they see your trip in the marketplace.
+                  Senders on this route will book space on your trip. You'll see each paid booking here with pickup details.
                 </Text>
-                {isTripActive ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.browseParcelsBtn,
-                      { backgroundColor: C.primary },
-                      pressed && { opacity: 0.9 }
-                    ]}
-                    onPress={() => router.push({
-                      pathname: '/search',
-                      params: { fromCity: trip.fromCity, toCity: trip.toCity, mode: 'parcels' }
-                    })}
-                  >
-                    <MaterialIcons name="search" size={16} color="#fff" />
-                    <Text style={styles.browseParcelsText}>Browse Parcels on Route</Text>
-                  </Pressable>
-                ) : null}
               </View>
             ) : (
               <View style={styles.requestsList}>
@@ -1357,35 +1470,26 @@ export default function TripDetailScreen() {
             isSmallDevice && styles.bottomBarInnerSmall,
           ]}>
             <View style={styles.bottomPriceCol}>
-              <Text style={[styles.bottomPriceLabel, { color: C.textMuted }]}>Estimated Fare</Text>
-              <Text style={[styles.bottomPriceAmount, isSmallDevice && { fontSize: 16 }, { color: C.textPrimary }]}>
-                ₹{calculatedPrice}
-              </Text>
-              <Text style={[styles.bottomRateSub, { color: C.textMuted }]}>₹{trip.pricePerKg}/kg</Text>
+              {activeParcel ? (
+                <>
+                  <Text style={[styles.bottomPriceLabel, { color: C.textMuted }]}>Fare for {activeParcel.weight} kg</Text>
+                  <Text style={[styles.bottomPriceAmount, isSmallDevice && { fontSize: 16 }, { color: C.textPrimary }]}>
+                    ₹{calculatedPrice}
+                  </Text>
+                  <Text style={[styles.bottomRateSub, { color: C.textMuted }]}>₹{trip.pricePerKg}/kg × {activeParcel.weight} kg</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.bottomPriceLabel, { color: C.textMuted }]}>Traveller's Rate</Text>
+                  <Text style={[styles.bottomPriceAmount, isSmallDevice && { fontSize: 16 }, { color: C.textPrimary }]}>
+                    ₹{trip.pricePerKg}/kg
+                  </Text>
+                  <Text style={[styles.bottomRateSub, { color: C.textMuted }]}>Final fare set by weight</Text>
+                </>
+              )}
             </View>
 
             <View style={[styles.bottomActionsRow, isSmallDevice && { gap: 6 }]}>
-              <Pressable
-                onPress={() => {
-                  if (!user) {
-                    Haptic.warning();
-                    showAlert('Sign In Required', 'Please sign in to negotiate trips.');
-                    return;
-                  }
-                  Haptic.tap();
-                  setShowNegotiateModal(true);
-                }}
-                style={({ pressed }) => [
-                  styles.negotiateBtn,
-                  isSmallDevice && styles.negotiateBtnSmall,
-                  { borderColor: C.surfaceBorder },
-                  pressed && { opacity: 0.75 }
-                ]}
-              >
-                <MaterialIcons name="tune" size={isSmallDevice ? 14 : 16} color={C.textPrimary} />
-                <Text style={[styles.negotiateBtnText, isSmallDevice && styles.negotiateBtnTextSmall, { color: C.textPrimary }]}>Negotiate</Text>
-              </Pressable>
-
               <Pressable
                 onPress={() => {
                   if (!user) {
@@ -1418,7 +1522,7 @@ export default function TripDetailScreen() {
               >
                 <MaterialIcons name="local-shipping" size={isSmallDevice ? 15 : 17} color="#FFFFFF" />
                 <Text style={[styles.requestDeliveryBtnText, isSmallDevice && styles.requestDeliveryBtnTextSmall]}>
-                  {parcelCategoryBlocked ? 'Not Supported' : (isSmallDevice ? 'Request' : 'Request Delivery')}
+                  {parcelCategoryBlocked ? 'Not Supported' : (isSmallDevice ? 'Book' : 'Book Delivery')}
                 </Text>
               </Pressable>
             </View>
@@ -1435,18 +1539,10 @@ export default function TripDetailScreen() {
         onCreateParcel={handleCreateParcelForTrip}
         onQuickCreateAndRequest={handleQuickCreateAndRequest}
         isSubmitting={isCreatingRequest || createParcelMutation.isPending}
+        initialFromCity={senderMatchedLeg?.from || draftFromCity}
+        initialToCity={senderMatchedLeg?.to || draftToCity}
       />
 
-      <NegotiateTripModal
-        visible={showNegotiateModal}
-        onClose={() => setShowNegotiateModal(false)}
-        trip={trip || null}
-        parcel={activeParcel}
-        initialPrice={calculatedPrice}
-        onSendCounterOffer={handleNegotiateSubmit}
-        onStartChat={handleStartNegotiateChat}
-        isSubmitting={isCreatingRequest || createParcelMutation.isPending}
-      />
     </View>
   );
 }

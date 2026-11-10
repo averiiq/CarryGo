@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Updates from 'expo-updates';
 import {
   checkForAppUpdate,
   fetchAppUpdate,
   reloadAppToApplyUpdate,
   getAppVersionInfo,
   AppVersionInfo,
+  PENDING_UPDATE_KEY,
 } from '@/services/updates.service';
 
-const CHECK_INTERVAL_MS = 1000 * 60 * 15; // 15 minutes minimum between checks
+const CHECK_INTERVAL_MS = 1000 * 60 * 15; // 15 minutes minimum between background checks
 
 export function useAppUpdates() {
   const [isChecking, setIsChecking] = useState(false);
@@ -17,13 +20,32 @@ export function useAppUpdates() {
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
-  const [versionInfo] = useState<AppVersionInfo>(getAppVersionInfo);
+  const [versionInfo, setVersionInfo] = useState<AppVersionInfo>(getAppVersionInfo);
 
   const lastCheckedRef = useRef<number>(0);
+  const isUpdateReadyRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    isUpdateReadyRef.current = isUpdateReady;
+  }, [isUpdateReady]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(PENDING_UPDATE_KEY)
+      .then((saved) => {
+        if (saved && !Updates.isEmbeddedLaunch) {
+          setVersionInfo((prev) => ({
+            ...prev,
+            version: saved,
+            displayVersion: saved.startsWith('v') ? saved : `v${saved}`,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const checkAndUpdate = useCallback(async (isManual = false) => {
     const now = Date.now();
-    // Prevent excessive checks unless manually triggered
+    // Prevent excessive automated checks unless manually triggered
     if (!isManual && now - lastCheckedRef.current < CHECK_INTERVAL_MS) {
       return;
     }
@@ -37,11 +59,12 @@ export function useAppUpdates() {
       setLastCheckTime(new Date());
 
       if (!checkResult.isAvailable) {
+        const err = checkResult.error;
         if (isManual) {
-          setStatusMessage(checkResult.error ? checkResult.error : 'You are on the latest version.');
+          setStatusMessage(err ? err : 'You are on the latest version.');
         }
         setIsChecking(false);
-        return;
+        return { isAvailable: false, isReady: false, error: err };
       }
 
       const msg =
@@ -53,10 +76,10 @@ export function useAppUpdates() {
         setUpdateMessage(msg);
       }
 
-      // Update is available: Download in background
+      // Update is available: Download completely silently in the background
       setIsDownloading(true);
       if (isManual) {
-        setStatusMessage('Downloading new update...');
+        setStatusMessage('Downloading new update in background...');
       }
 
       const fetchResult = await fetchAppUpdate();
@@ -64,7 +87,9 @@ export function useAppUpdates() {
 
       if (fetchResult.success) {
         setIsUpdateReady(true);
-        setStatusMessage('New update ready to apply!');
+        isUpdateReadyRef.current = true;
+        setStatusMessage('Latest version downloaded • Applies seamlessly');
+
         const fetchMsg =
           (fetchResult.manifest as any)?.message ||
           (fetchResult.manifest as any)?.metadata?.message ||
@@ -73,25 +98,51 @@ export function useAppUpdates() {
         if (fetchMsg) {
           setUpdateMessage(fetchMsg);
         }
-      } else if (isManual) {
-        setStatusMessage(fetchResult.error || 'Failed to download update.');
+
+        // Dynamically reflect the newly downloaded version
+        const newManifestVersion =
+          (fetchResult.manifest as any)?.extra?.expoClient?.version ||
+          (fetchResult.manifest as any)?.metadata?.version ||
+          (fetchResult.manifest?.id ? `1.2.2 (OTA-${fetchResult.manifest.id.slice(0, 6)})` : null);
+        if (newManifestVersion) {
+          setVersionInfo((prev) => ({
+            ...prev,
+            version: newManifestVersion,
+            displayVersion: newManifestVersion.startsWith('v') ? newManifestVersion : `v${newManifestVersion}`,
+          }));
+        }
+        return { isAvailable: true, isReady: true };
+      } else {
+        const err = fetchResult.error || 'Failed to download update.';
+        if (isManual) {
+          setStatusMessage(err);
+        }
+        return { isAvailable: true, isReady: false, error: err };
       }
-    } catch {
+    } catch (err: any) {
+      const message = err?.message || 'Unable to check for updates right now.';
       if (isManual) {
-        setStatusMessage('Unable to check for updates right now.');
+        setStatusMessage(message);
       }
+      return { isAvailable: false, isReady: false, error: message };
     } finally {
       setIsChecking(false);
     }
   }, []);
 
-  // Background check on mount & app foreground
+  // Background check on mount & app foreground, plus silent reload when backgrounded
   useEffect(() => {
-    checkAndUpdate(false);
+    void checkAndUpdate(false);
 
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (nextState === 'active') {
-        checkAndUpdate(false);
+        void checkAndUpdate(false);
+      } else if (nextState === 'background' || nextState === 'inactive') {
+        // When user moves away from the app, silently reload if an update is ready
+        // so the new bundle is active when they reopen
+        if (isUpdateReadyRef.current) {
+          void reloadAppToApplyUpdate();
+        }
       }
     });
 

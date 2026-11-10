@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import {
 } from '@/components/feature/matching/matchingHelpers';
 import { formatScheduleDate } from '@/components/feature/SevenDaySchedulePicker';
 import { Haptic } from '@/services/haptics.service';
+import { isUserSubscribedToRoute } from '@/services/subscriptions.service';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import type { Trip } from '@/types';
 import { ParcelDraft, PARCEL_CATEGORIES } from './types';
@@ -30,6 +31,7 @@ interface ParcelAvailableTripsStepProps {
   onEditDetails: () => void;
   onPostOpenRequest: () => void;
   isPostingOpenRequest?: boolean;
+  onSetRouteAlert?: () => Promise<boolean> | void;
 }
 
 export function ParcelAvailableTripsStep({
@@ -39,9 +41,46 @@ export function ParcelAvailableTripsStep({
   onEditDetails,
   onPostOpenRequest,
   isPostingOpenRequest = false,
+  onSetRouteAlert,
 }: ParcelAvailableTripsStepProps) {
   const { user } = useAuth();
   const [sortBy, setSortBy] = useState<MatchSortOption>('match');
+  const [isAlertSubscribed, setIsAlertSubscribed] = useState(false);
+  const [isSettingAlert, setIsSettingAlert] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.id && form.fromCity && form.toCity) {
+      isUserSubscribedToRoute(user.id, form.fromCity, form.toCity)
+        .then((subscribed) => {
+          if (isMounted) setIsAlertSubscribed(subscribed);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, form.fromCity, form.toCity]);
+
+  const handleAlertPress = useCallback(async () => {
+    if (isAlertSubscribed) {
+      Haptic.select();
+      return;
+    }
+    if (!onSetRouteAlert || isSettingAlert) return;
+    setIsSettingAlert(true);
+    try {
+      const result = await onSetRouteAlert();
+      if (result !== false) {
+        setIsAlertSubscribed(true);
+        Haptic.success();
+      }
+    } catch {
+      Haptic.error();
+    } finally {
+      setIsSettingAlert(false);
+    }
+  }, [isAlertSubscribed, onSetRouteAlert, isSettingAlert]);
 
   const browseTripsQuery = useMatchingTripsOnRoute(
     form.fromCity && form.toCity
@@ -67,25 +106,9 @@ export function ParcelAvailableTripsStep({
   const parcelWeightNum = Number(form.weight) || 1;
   const isLoading = browseTripsQuery.isLoading;
 
-  const autoListTriggered = useRef(false);
-
-  // If no matching trips are found on the corridor, smoothly auto-list to the marketplace
-  useEffect(() => {
-    if (
-      !isLoading &&
-      sortedTrips.length === 0 &&
-      !isPostingOpenRequest &&
-      !autoListTriggered.current &&
-      form.fromCity &&
-      form.toCity
-    ) {
-      autoListTriggered.current = true;
-      const timer = setTimeout(() => {
-        onPostOpenRequest();
-      }, 700);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, sortedTrips.length, isPostingOpenRequest, onPostOpenRequest, form.fromCity, form.toCity]);
+  // v2 (BlaBlaCar-style): search-first flow. The empty state no longer
+  // auto-lists to the marketplace — senders explicitly choose between
+  // waiting for a traveller or posting open.
 
   return (
     <View style={styles.container}>
@@ -214,55 +237,144 @@ export function ParcelAvailableTripsStep({
             <LottieAnimation name="locationFetch" style={{ width: 140, height: 110 }} />
           </View>
           <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>
-            {isPostingOpenRequest ? 'Listing on Marketplace...' : 'No Trips on This Route Yet'}
+            {isPostingOpenRequest ? 'Publishing to Marketplace...' : 'No Trips on This Route Yet'}
           </Text>
           <Text style={[styles.emptySubtitle, { color: C.textMuted }]}>
             {isPostingOpenRequest
-              ? 'Automatically listing your parcel so nearby travellers can discover and send delivery proposals.'
-              : 'No active travellers heading this way right now. Automatically listing your parcel to the open marketplace!'}
+              ? 'Listing your parcel live so travellers on this route can discover it.'
+              : `No active travellers found between ${form.fromCity || 'Origin'} and ${form.toCity || 'Destination'}. Choose an option below to proceed:`}
           </Text>
 
-          <Pressable
-            disabled={isPostingOpenRequest}
-            onPress={() => {
-              Haptic.confirm();
-              onPostOpenRequest();
-            }}
-            style={({ pressed }) => [
-              styles.postRequestBtn,
-              { backgroundColor: C.primary },
-              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-            ]}
-          >
-            {isPostingOpenRequest ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text style={styles.postRequestBtnText}>Publishing Parcel...</Text>
+          <View style={styles.actionCardsContainer}>
+            {/* 1. Primary Action: Post to Live Marketplace */}
+            <Pressable
+              disabled={isPostingOpenRequest}
+              onPress={() => {
+                Haptic.confirm();
+                onPostOpenRequest();
+              }}
+              style={({ pressed }) => [
+                styles.primaryActionCard,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.92, transform: [{ scale: 0.985 }] },
+                isPostingOpenRequest && { opacity: 0.8 },
+              ]}
+            >
+              <View style={styles.primaryActionIconBox}>
+                <MaterialIcons name="rocket-launch" size={20} color="#FFFFFF" />
               </View>
-            ) : (
-              <>
-                <MaterialIcons name="campaign" size={16} color="#FFFFFF" />
-                <Text style={styles.postRequestBtnText}>List on Marketplace Now</Text>
-              </>
-            )}
-          </Pressable>
+              <View style={styles.actionTextCol}>
+                <View style={styles.actionHeaderRow}>
+                  <Text style={styles.primaryActionTitle}>
+                    {isPostingOpenRequest ? 'Publishing to Marketplace...' : 'Post to Live Marketplace'}
+                  </Text>
+                  <View style={styles.recommendedBadge}>
+                    <Text style={styles.recommendedBadgeText}>RECOMMENDED</Text>
+                  </View>
+                </View>
+                <Text style={styles.primaryActionSubtitle}>
+                  List your parcel live. Verified travellers on this route will see it and can offer to carry it.
+                </Text>
+              </View>
+              {isPostingOpenRequest ? (
+                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginLeft: 6 }} />
+              ) : (
+                <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+              )}
+            </Pressable>
 
-          <Pressable
-            onPress={() => {
-              Haptic.tap();
-              onEditDetails();
-            }}
-            style={({ pressed }) => [
-              styles.editDetailsBtn,
-              { borderColor: C.surfaceBorder },
-              pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
-            ]}
-          >
-            <MaterialIcons name="edit" size={14} color={C.textSecondary} />
-            <Text style={[styles.editDetailsBtnText, { color: C.textSecondary }]}>
-              Change Route or Date
-            </Text>
-          </Pressable>
+            {/* 2. Secondary Action: Notify Me When a Trip Opens */}
+            {onSetRouteAlert ? (
+              <Pressable
+                disabled={isSettingAlert}
+                onPress={handleAlertPress}
+                style={({ pressed }) => [
+                  styles.secondaryActionCard,
+                  {
+                    backgroundColor: isAlertSubscribed ? (C.successSubtle || 'rgba(0, 139, 72, 0.08)') : C.surfaceElevated,
+                    borderColor: isAlertSubscribed ? (C.success || '#008B48') : C.surfaceBorder,
+                  },
+                  pressed && { opacity: 0.88, transform: [{ scale: 0.985 }] },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.secondaryActionIconBox,
+                    {
+                      backgroundColor: isAlertSubscribed
+                        ? (C.successSubtle || 'rgba(0, 139, 72, 0.15)')
+                        : C.primarySubtle,
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={isAlertSubscribed ? 'notifications-active' : 'notifications'}
+                    size={20}
+                    color={isAlertSubscribed ? (C.success || '#008B48') : C.primary}
+                  />
+                </View>
+                <View style={styles.actionTextCol}>
+                  <View style={styles.actionHeaderRow}>
+                    <Text
+                      style={[
+                        styles.secondaryActionTitle,
+                        { color: isAlertSubscribed ? (C.success || '#008B48') : C.textPrimary },
+                      ]}
+                    >
+                      {isAlertSubscribed ? 'Route Alert Active 🔔' : 'Notify Me When a Trip Opens'}
+                    </Text>
+                    {isAlertSubscribed ? (
+                      <View style={[styles.activePillBadge, { backgroundColor: C.successSubtle }]}>
+                        <MaterialIcons name="check" size={11} color={C.success || '#008B48'} />
+                        <Text style={[styles.activePillText, { color: C.success || '#008B48' }]}>ACTIVE</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={[styles.secondaryActionSubtitle, { color: C.textSecondary }]}>
+                    {isAlertSubscribed
+                      ? 'You will receive instant notification the moment a traveller posts a trip on this route.'
+                      : 'Get alerted on your phone the moment a traveller opens a trip on this route.'}
+                  </Text>
+                </View>
+                {isSettingAlert ? (
+                  <ActivityIndicator size="small" color={C.primary} style={{ marginLeft: 6 }} />
+                ) : isAlertSubscribed ? (
+                  <MaterialIcons name="check-circle" size={20} color={C.success || '#008B48'} style={{ marginLeft: 6 }} />
+                ) : (
+                  <MaterialIcons name="chevron-right" size={20} color={C.textMuted} style={{ marginLeft: 6 }} />
+                )}
+              </Pressable>
+            ) : null}
+
+            {/* 3. Utility Action: Change Route or Date */}
+            <Pressable
+              onPress={() => {
+                Haptic.tap();
+                onEditDetails();
+              }}
+              style={({ pressed }) => [
+                styles.tertiaryActionCard,
+                {
+                  backgroundColor: C.surface,
+                  borderColor: C.surfaceBorder,
+                },
+                pressed && { opacity: 0.75, transform: [{ scale: 0.985 }] },
+              ]}
+            >
+              <View style={[styles.secondaryActionIconBox, { backgroundColor: C.surfaceElevated }]}>
+                <MaterialIcons name="edit-calendar" size={18} color={C.textSecondary} />
+              </View>
+              <View style={styles.actionTextCol}>
+                <Text style={[styles.tertiaryActionTitle, { color: C.textPrimary }]}>
+                  Change Route or Date
+                </Text>
+                <Text style={[styles.tertiaryActionSubtitle, { color: C.textMuted }]}>
+                  Adjust cities or pick another delivery day to discover more travellers.
+                </Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color={C.textMuted} style={{ marginLeft: 6 }} />
+            </Pressable>
+          </View>
         </View>
       ) : (
         <>
@@ -280,11 +392,18 @@ export function ParcelAvailableTripsStep({
           >
             {sortedTrips.map((trip) => {
               const calculatedPrice = calculateMatchPrice(trip.pricePerKg, parcelWeightNum);
+              const viaStop = (trip.stopovers || []).length > 0
+                && (form.fromCity.trim().toLowerCase() !== (trip.fromCity || '').trim().toLowerCase()
+                  || form.toCity.trim().toLowerCase() !== (trip.toCity || '').trim().toLowerCase());
+              const matchedSegment = viaStop
+                ? { from: form.fromCity, to: form.toCity, viaStopover: true as const }
+                : undefined;
               return (
                 <View key={trip.id} style={styles.tripCardWrap}>
                   <BlaBlaTripCard
                     trip={trip}
                     price={calculatedPrice}
+                    matchedSegment={matchedSegment}
                     onPress={() => onSelectTrip(trip)}
                   />
                 </View>
@@ -293,8 +412,11 @@ export function ParcelAvailableTripsStep({
 
             {/* Fallback — list on marketplace instead of picking a trip */}
             <View style={[styles.fallbackCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <View style={[styles.fallbackIconCircle, { backgroundColor: C.primarySubtle }]}>
+                <MaterialIcons name="campaign" size={20} color={C.primary} />
+              </View>
               <Text style={[styles.fallbackTitle, { color: C.textPrimary }]}>
-                None of these fit?
+                None of these fit your schedule?
               </Text>
               <Text style={[styles.fallbackSubtitle, { color: C.textMuted }]}>
                 List your parcel on the marketplace — other travellers can discover it and send you offers.
@@ -307,16 +429,20 @@ export function ParcelAvailableTripsStep({
                 }}
                 style={({ pressed }) => [
                   styles.fallbackBtn,
-                  { borderColor: C.primary },
-                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                  { backgroundColor: C.primary },
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                  isPostingOpenRequest && { opacity: 0.8 },
                 ]}
               >
                 {isPostingOpenRequest ? (
-                  <ActivityIndicator size="small" color={C.primary} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={[styles.fallbackBtnText, { color: '#FFFFFF' }]}>Publishing to Marketplace...</Text>
+                  </View>
                 ) : (
                   <>
-                    <MaterialIcons name="campaign" size={14} color={C.primary} />
-                    <Text style={[styles.fallbackBtnText, { color: C.primary }]}>List on Marketplace</Text>
+                    <MaterialIcons name="rocket-launch" size={16} color="#FFFFFF" />
+                    <Text style={[styles.fallbackBtnText, { color: '#FFFFFF' }]}>List on Live Marketplace</Text>
                   </>
                 )}
               </Pressable>
@@ -450,7 +576,7 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     alignItems: 'center',
-    padding: Spacing.xl,
+    padding: Spacing.lg,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     marginVertical: Spacing.sm,
@@ -465,45 +591,127 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   emptyTitle: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.md + 1,
     fontWeight: FontWeight.bold,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: FontSize.xs,
-    lineHeight: 17,
+    lineHeight: 18,
     textAlign: 'center',
-    maxWidth: 260,
+    maxWidth: 320,
     marginBottom: Spacing.xs,
   },
-  postRequestBtn: {
+  actionCardsContainer: {
+    width: '100%',
+    gap: Spacing.smd,
+    marginTop: Spacing.sm,
+  },
+  primaryActionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.sm,
-    width: '100%',
-    justifyContent: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    gap: Spacing.smd,
+    shadowColor: '#004AAD',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  postRequestBtnText: {
+  primaryActionIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  actionTextCol: {
+    flex: 1,
+    gap: 3,
+  },
+  actionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  primaryActionTitle: {
+    fontSize: FontSize.sm + 1,
+    fontWeight: FontWeight.bold,
     color: '#FFFFFF',
-    fontSize: 14,
+  },
+  primaryActionSubtitle: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 15,
+  },
+  recommendedBadge: {
+    backgroundColor: '#008B48',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  recommendedBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  secondaryActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    gap: Spacing.smd,
+  },
+  secondaryActionIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  secondaryActionTitle: {
+    fontSize: FontSize.sm + 1,
     fontWeight: FontWeight.bold,
   },
-  editDetailsBtn: {
+  secondaryActionSubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  activePillBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 4,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  editDetailsBtnText: {
-    fontSize: 12,
+  activePillText: {
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  tertiaryActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    gap: Spacing.smd,
+  },
+  tertiaryActionTitle: {
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
+  },
+  tertiaryActionSubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
   },
   helperStrip: {
     flexDirection: 'row',
@@ -521,36 +729,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fallbackCard: {
-    marginTop: Spacing.sm,
-    padding: Spacing.md,
+    marginTop: Spacing.md,
+    padding: Spacing.lg,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderStyle: 'dashed',
-    gap: 6,
+    gap: Spacing.xs,
     alignItems: 'center',
   },
+  fallbackIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
   fallbackTitle: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.sm + 1,
     fontWeight: FontWeight.bold,
+    textAlign: 'center',
   },
   fallbackSubtitle: {
     fontSize: FontSize.xs,
     textAlign: 'center',
     lineHeight: 16,
-    maxWidth: 280,
-    marginBottom: 4,
+    maxWidth: 300,
+    marginBottom: Spacing.xs,
   },
   fallbackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    gap: 8,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
     borderRadius: BorderRadius.md,
-    borderWidth: 1.5,
+    width: '100%',
+    justifyContent: 'center',
   },
   fallbackBtnText: {
-    fontSize: 12,
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: FontWeight.bold,
   },
 });

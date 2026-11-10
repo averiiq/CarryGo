@@ -117,14 +117,18 @@ function PaymentScreenContent() {
           }
         )
         .subscribe();
-    } catch {}
+    } catch (err) {
+      console.warn('[payment] Realtime channel setup failed:', err);
+    }
 
     return () => {
       isMounted = false;
       if (channel) {
         try {
           void sb.removeChannel(channel);
-        } catch {}
+        } catch (err) {
+          console.warn('[payment] Realtime channel cleanup failed:', err);
+        }
       }
     };
   }, [id]);
@@ -145,7 +149,7 @@ function PaymentScreenContent() {
   const isPaid = paymentStatus === 'locked' || paymentStatus === 'released';
   const canPay = !isPaid && isSender && (isAccepted || FeatureFlags.isDemoMode);
 
-  const effectivePrice = payment?.amount ?? request?.price ?? 100;
+  const effectivePrice = payment?.amount ?? request?.price ?? 0;
 
   const {
     isCreatingOrder,
@@ -154,8 +158,11 @@ function PaymentScreenContent() {
     error,
     startCheckout,
     confirmDemoBooking,
+    resetCheckout,
   } = useRazorpayCheckout({
     requestId: effectiveRequestId,
+    senderId: user?.id,
+    travellerId: request?.travellerId,
     senderName: user?.fullName || user?.name,
     senderEmail: user?.email,
     senderPhone: user?.phone,
@@ -172,9 +179,13 @@ function PaymentScreenContent() {
   const isBusy = isCreatingOrder || isProcessing || isVerifying;
 
   const handleInitiatePayment = useCallback(() => {
+    if (!effectivePrice || effectivePrice <= 0) {
+      showAlert('Error', 'Payment amount unavailable. Please try again.');
+      return;
+    }
     Haptic.select();
     void startCheckout({ fallbackAmount: effectivePrice });
-  }, [effectivePrice, startCheckout]);
+  }, [effectivePrice, showAlert, startCheckout]);
 
   const handleDirectDemoBooking = useCallback(() => {
     Haptic.select();
@@ -250,7 +261,7 @@ function PaymentScreenContent() {
           <Pressable style={[styles.iconButton, { backgroundColor: C.surfaceElevated }]} onPress={() => router.back()}>
             <Feather name="arrow-left" size={20} color={C.textPrimary} />
           </Pressable>
-          <Text style={[styles.navTitle, { color: C.textPrimary }]}>Payment Status</Text>
+          <Text style={[styles.navTitle, { color: C.textPrimary }]}>Review & Pay</Text>
           <View style={{ width: 38 }} />
         </View>
         <View style={styles.disabledContainer}>
@@ -298,7 +309,7 @@ function PaymentScreenContent() {
 
         <View style={styles.navTitleCol}>
           <Text style={[styles.navTitle, { color: C.textPrimary }]}>
-            {isPaid ? 'Booking Receipt' : 'Payment & Booking'}
+            {isPaid ? 'Booking Receipt' : 'Review & Pay'}
           </Text>
           <Text style={[styles.navSubtitle, { color: C.textMuted }]}>
             {receiptNumber}
@@ -421,7 +432,7 @@ function PaymentScreenContent() {
               ? 'Complete payment to confirm and book your parcel delivery space.'
               : isAccepted
               ? 'The sender must complete the booking payment before transit begins.'
-              : 'Payment will unlock as soon as both parties accept the delivery request.'}
+              : 'Pay upfront to lock your booking. Funds are held in safe custody and released after OTP-verified handover.'}
           </Text>
         </View>
 
@@ -784,20 +795,22 @@ function PaymentScreenContent() {
               )}
             </Pressable>
 
-            {/* In demo mode or if error occurred, provide immediate 1-tap booking fallback */}
-            {FeatureFlags.isDemoMode || error ? (
+            {/* Test Mode Simulation — Available during dev/demo or upon gateway failure */}
+            {(__DEV__ || FeatureFlags.isDemoMode || Boolean(error)) ? (
               <Pressable
                 onPress={handleDirectDemoBooking}
                 disabled={isBusy}
                 style={({ pressed }) => [
                   styles.secondaryActionBtn,
-                  { backgroundColor: C.surfaceElevated, borderColor: C.primary, marginTop: 4 },
+                  { backgroundColor: C.surfaceElevated, borderColor: C.success, marginTop: 4 },
                   pressed && { opacity: 0.75 },
                 ]}
+                accessibilityRole="button"
+                accessibilityLabel="Pay in Test Mode"
               >
-                <Ionicons name="shield-checkmark-outline" size={16} color={C.primary} />
-                <Text style={[styles.secondaryActionText, { color: C.primary }]}>
-                  Confirm & Book Space (Demo Simulation)
+                <Ionicons name="flash" size={16} color={C.success} />
+                <Text style={[styles.secondaryActionText, { color: C.success, fontWeight: '700' }]}>
+                  Pay in Test Mode • {formatAmount(effectivePrice)} (Instant)
                 </Text>
               </Pressable>
             ) : null}
@@ -806,6 +819,9 @@ function PaymentScreenContent() {
               <View style={[styles.errorBanner, { backgroundColor: C.errorSubtle, borderColor: C.errorBorder }]}>
                 <Feather name="alert-circle" size={15} color={C.error} />
                 <Text style={[styles.errorText, { color: C.error, flex: 1 }]}>{error}</Text>
+                <Pressable onPress={resetCheckout} hitSlop={TouchTarget.smallHitSlop} style={{ paddingHorizontal: 6 }}>
+                  <Feather name="x" size={16} color={C.error} />
+                </Pressable>
               </View>
             ) : null}
 

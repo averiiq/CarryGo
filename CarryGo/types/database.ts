@@ -1111,6 +1111,8 @@ export type Database = {
           user_name: string
           user_rating: number
           vehicle_type: Database["public"]["Enums"]["vehicle_type"]
+          allowed_categories?: string[] | null
+          stopovers?: string[] | null
         }
         Insert: {
           available_capacity: number
@@ -1129,6 +1131,8 @@ export type Database = {
           user_name: string
           user_rating?: number
           vehicle_type: Database["public"]["Enums"]["vehicle_type"]
+          allowed_categories?: string[] | null
+          stopovers?: string[] | null
         }
         Update: {
           available_capacity?: number
@@ -1147,6 +1151,8 @@ export type Database = {
           user_name?: string
           user_rating?: number
           vehicle_type?: Database["public"]["Enums"]["vehicle_type"]
+          allowed_categories?: string[] | null
+          stopovers?: string[] | null
         }
         Relationships: [
           {
@@ -1709,6 +1715,8 @@ export type Database = {
           price_per_kg: number
           status: Database["public"]["Enums"]["trip_status"]
           created_at: string
+          allowed_categories?: string[] | null
+          stopovers?: string[] | null
           total_count: number
         }[]
       }

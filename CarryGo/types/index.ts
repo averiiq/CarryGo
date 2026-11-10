@@ -50,6 +50,7 @@ export interface Trip {
   userRating: number;
   fromCity: string;
   toCity: string;
+  stopovers?: string[];
   date: string;
   time: string;
   vehicleType: VehicleType;

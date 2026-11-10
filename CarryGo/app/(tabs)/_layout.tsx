@@ -74,7 +74,7 @@ function getTabMeta(routeName: string, pendingRequests: number, unreadMessages: 
     case 'index':
       return { label: 'Home', icon: 'home', outlineIcon: 'home-outline', animatedIcon: 'home' };
     case 'requests':
-      return { label: 'Requests', icon: 'swap-horizontal', outlineIcon: 'swap-horizontal-outline', animatedIcon: 'activity', badge: pendingRequests };
+      return { label: 'Bookings', icon: 'swap-horizontal', outlineIcon: 'swap-horizontal-outline', animatedIcon: 'activity', badge: pendingRequests };
     case 'messages':
       return { label: 'Messages', icon: 'chatbubbles', outlineIcon: 'chatbubbles-outline', animatedIcon: 'messageSquare', badge: unreadMessages };
     case 'profile':
@@ -473,7 +473,7 @@ export default function TabLayout() {
       )}
     >
       <Tabs.Screen name={'index'} options={{ title: 'Home' }} />
-      <Tabs.Screen name={'requests'} options={{ title: 'Requests' }} />
+      <Tabs.Screen name={'requests'} options={{ title: 'Bookings' }} />
       <Tabs.Screen name={'messages'} options={{ title: 'Messages' }} />
       <Tabs.Screen name={'profile'} options={{ title: 'Profile' }} />
     </Tabs>

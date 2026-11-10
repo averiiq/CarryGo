@@ -133,33 +133,6 @@ export async function fetchUserAvatars(userIds: string[]): Promise<Record<string
         }
       }
     }
-
-    // Secondary fallback: check parcels and trips for any users still without an avatar
-    const stillMissing = missingIds.filter((id) => !result[id]);
-    if (stillMissing.length > 0) {
-      const [parcelsRes, tripsRes] = await Promise.all([
-        sb.from('parcels').select('user_id, user_avatar').in('user_id', stillMissing).not('user_avatar', 'is', null).limit(20),
-        sb.from('trips').select('user_id, user_avatar').in('user_id', stillMissing).not('user_avatar', 'is', null).limit(20),
-      ]);
-      if (parcelsRes.data) {
-        for (const p of parcelsRes.data) {
-          if (p.user_avatar && p.user_id && !result[p.user_id]) {
-            const trimmed = p.user_avatar.trim();
-            result[p.user_id] = trimmed;
-            setCachedAvatar(p.user_id, trimmed);
-          }
-        }
-      }
-      if (tripsRes.data) {
-        for (const t of tripsRes.data) {
-          if (t.user_avatar && t.user_id && !result[t.user_id]) {
-            const trimmed = t.user_avatar.trim();
-            result[t.user_id] = trimmed;
-            setCachedAvatar(t.user_id, trimmed);
-          }
-        }
-      }
-    }
   } catch (err) {
     console.warn('fetchUserAvatars non-blocking error:', err);
   }

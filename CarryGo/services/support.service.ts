@@ -278,7 +278,7 @@ export async function getUserSupportTickets(
 
   const { data, error } = await sb
     .from('support_tickets')
-    .select('*')
+    .select('id, user_id, subject, description, status, assigned_to, created_at, updated_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
@@ -310,7 +310,7 @@ export async function getSupportTicketById(
 
   const { data, error } = await sb
     .from('support_tickets')
-    .select('*')
+    .select('id, user_id, subject, description, status, assigned_to, created_at, updated_at')
     .eq('id', ticketId)
     .eq('user_id', userId)
     .single();

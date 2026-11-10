@@ -1,20 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { handleCors } from '../_shared/cors.ts';
 
 const RAZORPAY_KEY_ID = Deno.env.get('RAZORPAY_KEY_ID') ?? '';
 const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET') ?? '';
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
-};
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  });
-}
 
 async function verifySignature(orderId: string, paymentId: string, signature: string): Promise<boolean> {
   const payload = `${orderId}|${paymentId}`;
@@ -38,8 +26,15 @@ async function verifySignature(orderId: string, paymentId: string, signature: st
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: CORS_HEADERS });
+  const cors = handleCors(req);
+  if (cors.rejectedResponse) return cors.rejectedResponse;
+  if (cors.preflightResponse) return cors.preflightResponse;
+
+  function jsonResponse(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json', ...cors.headers },
+    });
   }
 
   if (req.method !== 'POST') {
@@ -219,9 +214,8 @@ Deno.serve(async (req) => {
       amount: payment.amount,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal error';
-    console.error('[verify-razorpay-payment]', message);
-    return jsonResponse({ error: message }, 500);
+    console.error('[verify-razorpay-payment]', err instanceof Error ? err.message : String(err));
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });
 

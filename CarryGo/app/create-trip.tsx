@@ -11,6 +11,7 @@ import { WizardContainer } from '@/components/feature/WizardContainer';
 import { formatScheduleDate, SevenDaySchedulePicker, toLocalDateKey } from '@/components/feature/SevenDaySchedulePicker';
 import {
   TripRouteStep,
+  TripStopoversStep,
   TripDetailsStep,
   TripReviewStep,
   VEHICLES,
@@ -25,6 +26,8 @@ import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
 import KycOnboarding from '@/components/feature/KycOnboarding';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
+import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
+import { useSafetyAgreement } from '@/hooks/useSafetyAgreement';
 import { findCity, getDistance } from '@/constants/indian-cities';
 import { useCreateTripMutation } from '@/features/listings/queries';
 import { getUserErrorMessage } from '@/lib/error-handler';
@@ -32,6 +35,7 @@ import { recordCorridorUsage } from '@/services/corridors.service';
 
 const STEPS = [
   { label: 'Route' },
+  { label: 'Stops' },
   { label: 'Details' },
   { label: 'Review' },
 ];
@@ -41,6 +45,7 @@ const ALL_CATEGORIES: ParcelCategory[] = ['documents', 'electronics', 'clothing'
 type TripDraft = {
   fromCity: string;
   toCity: string;
+  stopovers: string[];
   date: string;
   time: string;
   vehicle: VehicleType;
@@ -52,6 +57,7 @@ type TripDraft = {
 const EMPTY_DRAFT: TripDraft = {
   fromCity: '',
   toCity: '',
+  stopovers: [],
   date: '',
   time: '',
   vehicle: 'car',
@@ -94,9 +100,18 @@ export default function CreateTripScreen() {
     user?.verified ||
     user?.isAadhaarVerified
   );
+  const [showSafety, setShowSafety] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetectingCurrentLocation, setIsDetectingCurrentLocation] = useState(false);
   const [locationHint, setLocationHint] = useState<string | null>(null);
+
+  const {
+    isReady: isSafetyReady,
+    hasAgreed: hasSafetyAgreed,
+    shouldShowSafety,
+    markAgreed: markSafetyAgreed,
+    recordActionCompleted: recordTripPosted,
+  } = useSafetyAgreement(user?.id, 'traveller');
 
   // Corridor distance and recommended fare guidance
   const corridorDistance = useMemo(() => {
@@ -147,6 +162,7 @@ export default function CreateTripScreen() {
         fromCity,
         toCity,
         capacity,
+        stopovers: Array.isArray(values.stopovers) ? values.stopovers : [],
         date: values.date ? date : prev.date,
       };
     });
@@ -165,6 +181,7 @@ export default function CreateTripScreen() {
     const nextForm: TripDraft = {
       fromCity: typeof params.fromCity === 'string' ? normalizeCity(params.fromCity) : '',
       toCity: typeof params.toCity === 'string' ? normalizeCity(params.toCity) : '',
+      stopovers: [],
       date: typeof params.date === 'string' && params.date ? params.date : toLocalDateKey(new Date()),
       time: typeof params.time === 'string' && params.time ? params.time : '10:00 AM',
       vehicle: isValidVehicle ? prefillVehicle : 'car',
@@ -306,6 +323,19 @@ export default function CreateTripScreen() {
     }
   }, [isDraftRestored]);
 
+  // Gate KYC and Safety on entry, not on submit. Avoids
+  // having the traveller fill the whole wizard only to get bounced at the end.
+  useEffect(() => {
+    if (!user || !isSafetyReady) return;
+    if (shouldShowSafety) {
+      setShowSafety(true);
+      return;
+    }
+    if (!isKycApproved) {
+      setShowKyc(true);
+    }
+  }, [user, isSafetyReady, shouldShowSafety, isKycApproved]);
+
   const undoDraftRestore = () => {
     setForm(EMPTY_DRAFT);
     setFieldErrors({});
@@ -321,9 +351,9 @@ export default function CreateTripScreen() {
         setStep(0);
         return false;
       }
-      if (checkStep === 1 && !validateDetailsStep(prepared)) {
+      if (checkStep === 2 && !validateDetailsStep(prepared)) {
         setDirection('backward');
-        setStep(1);
+        setStep(2);
         return false;
       }
     }
@@ -331,13 +361,13 @@ export default function CreateTripScreen() {
   };
 
   const goNext = () => {
-    if (!canMoveToStep(Math.min(step + 1, 2))) {
+    if (!canMoveToStep(Math.min(step + 1, 3))) {
       return;
     }
     setFieldErrors({});
     setDirection('forward');
     Haptic.tap();
-    setStep((s) => Math.min(s + 1, 2));
+    setStep((s) => Math.min(s + 1, 3));
   };
 
   const goBack = () => {
@@ -382,7 +412,7 @@ export default function CreateTripScreen() {
     }
     if (!validateDetailsStep(prepared)) {
       setDirection('backward');
-      setStep(1);
+      setStep(2);
       return;
     }
     if (!user) {
@@ -391,6 +421,11 @@ export default function CreateTripScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Sign In', onPress: () => router.push('/login') },
       ]);
+      return;
+    }
+    if (shouldShowSafety) {
+      Haptic.warning();
+      setShowSafety(true);
       return;
     }
     if (!isKycApproved) {
@@ -411,6 +446,7 @@ export default function CreateTripScreen() {
         userRating: realRating,
         fromCity: prepared.fromCity,
         toCity: prepared.toCity,
+        stopovers: prepared.stopovers && prepared.stopovers.length > 0 ? prepared.stopovers : undefined,
         date: prepared.date,
         time: prepared.time,
         vehicleType: form.vehicle,
@@ -433,6 +469,7 @@ export default function CreateTripScreen() {
       }
       clearDraft();
       void recordCorridorUsage(prepared.fromCity, prepared.toCity);
+      void recordTripPosted();
       Haptic.success();
       router.replace({ pathname: '/trip/[id]', params: { id: result.id } });
     } catch (error) {
@@ -448,6 +485,15 @@ export default function CreateTripScreen() {
 
   return (
     <>
+      <SafetyOnboarding
+        visible={showSafety}
+        role="traveller"
+        onClose={() => setShowSafety(false)}
+        onComplete={async () => {
+          await markSafetyAgreed();
+          setShowSafety(false);
+        }}
+      />
       <KycMandatoryModal
         visible={showKyc}
         onClose={() => setShowKyc(false)}
@@ -504,7 +550,7 @@ export default function CreateTripScreen() {
               )}
               {step === 0 ? (
                 <Button
-                  title="Continue to Details"
+                  title="Continue to Stops"
                   onPress={goNext}
                   fullWidth
                   size="md"
@@ -512,6 +558,14 @@ export default function CreateTripScreen() {
                   icon={<MaterialIcons name="arrow-forward" size={18} color="#fff" />}
                 />
               ) : step === 1 ? (
+                <Button
+                  title={form.stopovers.length > 0 ? 'Continue to Details' : 'Skip Stops'}
+                  onPress={goNext}
+                  size="md"
+                  style={styles.primaryButton}
+                  icon={<MaterialIcons name="arrow-forward" size={18} color="#fff" />}
+                />
+              ) : step === 2 ? (
                 <Button
                   title="Review Trip"
                   onPress={goNext}
@@ -558,6 +612,14 @@ export default function CreateTripScreen() {
           />
         )}
         {step === 1 && (
+          <TripStopoversStep
+            fromCity={form.fromCity}
+            toCity={form.toCity}
+            stopovers={form.stopovers}
+            onChange={(next) => updateField('stopovers', next)}
+          />
+        )}
+        {step === 2 && (
           <TripDetailsStep
             form={form}
             updateField={updateField}
@@ -565,7 +627,7 @@ export default function CreateTripScreen() {
             recommendedPrice={recommendedPrice}
           />
         )}
-        {step === 2 && <TripReviewStep form={form} onEdit={handleStepPress} hasKyc={isKycApproved} />}
+        {step === 3 && <TripReviewStep form={form} onEdit={handleStepPress} hasKyc={isKycApproved} />}
       </WizardContainer>
     </>
   );

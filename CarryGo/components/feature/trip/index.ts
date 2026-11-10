@@ -1,4 +1,5 @@
 export { TripRouteStep } from './TripRouteStep';
+export { TripStopoversStep } from './TripStopoversStep';
 export {
   TripDetailsStep,
   VEHICLES,

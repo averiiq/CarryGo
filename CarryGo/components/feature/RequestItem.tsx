@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, Shadow } from '@/constants/theme';
 import { Request, Parcel } from '@/types';
 import { resolveImageUrl, getUserAvatarSource, DEFAULT_AVATAR_ASSET } from '@/constants/images';
 
@@ -14,6 +14,7 @@ export interface RequestItemProps {
   request: Request;
   parcel?: Parcel;
   viewerRole: 'traveller' | 'sender' | 'observer';
+  isPaid?: boolean;
   onAccept: () => void;
   onReject: () => void;
   onChat: () => void;
@@ -33,7 +34,8 @@ export interface RequestItemActions {
 
 export function getRequestItemActions(
   status: Request['status'],
-  viewerRole: 'traveller' | 'sender' | 'observer'
+  viewerRole: 'traveller' | 'sender' | 'observer',
+  isPaid?: boolean
 ): RequestItemActions {
   const isTraveller = viewerRole === 'traveller';
   const isSender = viewerRole === 'sender';
@@ -45,8 +47,8 @@ export function getRequestItemActions(
     canChat: isPending || isAccepted,
     canAccept: isTraveller && isPending,
     canReject: isTraveller && isPending,
-    canMakePayment: isSender && isAccepted,
-    canTrackDelivery: isAccepted,
+    canMakePayment: isSender && isAccepted && !isPaid,
+    canTrackDelivery: isAccepted && isPaid !== false,
     isCompleted,
     chatLabel: isPending && isSender ? 'Chat with Traveler' : 'Chat',
   };
@@ -56,6 +58,7 @@ export function RequestItem({
   request,
   parcel,
   viewerRole,
+  isPaid,
   onAccept,
   onReject,
   onChat,
@@ -64,7 +67,7 @@ export function RequestItem({
 }: RequestItemProps) {
   const { C } = useThemeColors();
   const [avatarError, setAvatarError] = React.useState(false);
-  const actions = getRequestItemActions(request.status, viewerRole);
+  const actions = getRequestItemActions(request.status, viewerRole, isPaid);
   const isTraveller = viewerRole === 'traveller';
   const isSender = viewerRole === 'sender';
   const isPending = request.status === 'pending';
@@ -90,12 +93,11 @@ export function RequestItem({
               transition={200}
               onError={() => setAvatarError(true)}
             />
-            <View style={[styles.verifiedSelfieDot, { backgroundColor: C.success, borderColor: C.surface }]} />
+            {/* TODO: Show verified dot only when senderIsVerified is available from server */}
           </View>
           <View>
             <View style={styles.nameRow}>
               <Text style={[styles.name, { color: C.textPrimary }]}>{personName}</Text>
-              <MaterialIcons name="verified" size={14} color={C.success} />
             </View>
             <Text style={[styles.time, { color: C.textMuted }]}>
               {new Date(request.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
@@ -216,38 +218,47 @@ export function RequestItem({
             <Text style={[styles.secondaryActionText, { color: C.textPrimary }]}>Chat</Text>
           </Pressable>
 
-          {isSender ? (
+          {isSender && !isPaid ? (
             <Pressable
               style={({ pressed }) => [
-                styles.secondaryActionBtn,
-                { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder },
-                pressed && { opacity: 0.75 }
+                styles.primaryTrackingBtn,
+                { backgroundColor: '#D97706' },
+                pressed && { opacity: 0.9 }
               ]}
               onPress={onPayment}
             >
-              <MaterialIcons name="account-balance-wallet" size={15} color={C.warning} />
-              <Text style={[styles.secondaryActionText, { color: C.warning }]}>Book</Text>
+              <MaterialIcons name="lock" size={15} color="#fff" />
+              <Text style={styles.primaryTrackingText}>Book & Pay (₹{request.price})</Text>
             </Pressable>
           ) : null}
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.primaryTrackingBtn,
-              pressed && { opacity: 0.9 }
-            ]}
-            onPress={onDelivery}
-          >
-            <LinearGradient
-              colors={[C.primary, C.primaryDark]}
-              style={StyleSheet.absoluteFillObject}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            />
-            <MaterialIcons name={isSender ? 'radar' : 'fact-check'} size={15} color="#fff" />
-            <Text style={styles.primaryTrackingText}>
-              {isSender ? 'Live Tracking' : 'Process Delivery'}
-            </Text>
-          </Pressable>
+          {isPaid ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryTrackingBtn,
+                pressed && { opacity: 0.9 }
+              ]}
+              onPress={onDelivery}
+            >
+              <LinearGradient
+                colors={[C.primary, C.primaryDark]}
+                style={StyleSheet.absoluteFillObject}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              />
+              <MaterialIcons name={isSender ? 'radar' : 'fact-check'} size={15} color="#fff" />
+              <Text style={styles.primaryTrackingText}>
+                {isSender ? 'Live Tracking' : 'Process Delivery'}
+              </Text>
+            </Pressable>
+          ) : !isSender ? (
+            <View style={[styles.secondaryActionBtn, { backgroundColor: C.warningSubtle, borderColor: C.warningBorder, flex: 1 }]}>
+              <Ionicons name="time-outline" size={14} color={C.warning} />
+              <Text style={[styles.secondaryActionText, { color: C.warning, fontSize: FontSize.xs }]}>
+                Awaiting Payment
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -269,6 +280,7 @@ const styles = StyleSheet.create({
     padding: Spacing.mdl,
     borderWidth: 1,
     gap: Spacing.md,
+    ...Shadow.sm,
   },
   topRow: {
     flexDirection: 'row',

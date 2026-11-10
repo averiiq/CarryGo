@@ -111,5 +111,22 @@ describe('SendRequestModal - Domain Calculations & Parcel Partitioning', () => {
       expect(result.overweight).toHaveLength(1);
       expect(result.overweight[0].id).toBe('p-1');
     });
+
+    it('filters parcels strictly based on trip.allowedCategories', () => {
+      const tripOnlyDocs = {
+        ...mockTrip,
+        allowedCategories: ['documents' as const],
+      };
+      const pDocs = makeParcel({ id: 'p-docs', category: 'documents', weight: 2 });
+      const pClothes = makeParcel({ id: 'p-clothes', category: 'clothing', weight: 2 });
+      const pTech = makeParcel({ id: 'p-tech', category: 'electronics', weight: 2 });
+
+      const result = partitionMatchingParcels([pDocs, pClothes, pTech], tripOnlyDocs);
+
+      expect(result.eligible).toHaveLength(1);
+      expect(result.eligible[0].id).toBe('p-docs');
+      expect(result.incompatibleCategory).toHaveLength(2);
+      expect(result.incompatibleCategory.map((p) => p.id)).toEqual(['p-clothes', 'p-tech']);
+    });
   });
 });

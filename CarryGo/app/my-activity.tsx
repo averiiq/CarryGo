@@ -39,7 +39,7 @@ import { useConversationsQuery, useCreateConversationMutation } from '@/features
 import { createDelivery } from '@/services/deliveries.service';
 import { isRequestIncoming, isRequestOutgoing } from '@/services/requests.service';
 import { fetchUserPayments } from '@/services/payments.service';
-import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, TouchTarget } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, ThemeColors, TouchTarget, Shadow } from '@/constants/theme';
 import { Trip, Parcel, Request, Payment } from '@/types';
 import { Haptic } from '@/services/haptics.service';
 import { getUserErrorMessage } from '@/lib/error-handler';
@@ -1169,6 +1169,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     overflow: 'hidden',
     marginBottom: Spacing.sm,
+    ...Shadow.card,
   },
   summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   summaryIconBox: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

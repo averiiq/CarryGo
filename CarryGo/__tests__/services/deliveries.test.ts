@@ -19,6 +19,10 @@ jest.mock('@/lib/server-rate-limit', () => ({
   enforceRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
 }));
 
+jest.mock('@/lib/validation', () => ({
+  validateUUID: () => ({ valid: true }),
+}));
+
 jest.mock('@/services/notifications.service', () => ({
   notifyPickupConfirmed: jest.fn().mockResolvedValue({ success: true }),
   notifyDeliveryCompleted: jest.fn().mockResolvedValue({ success: true }),

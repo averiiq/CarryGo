@@ -20,17 +20,13 @@ import { useConversationsQuery } from '@/features/conversations/queries';
 import {
   useParcelQuery,
   useUpdateParcelStatusMutation,
-  useTripsQuery,
   useTripQuery,
-  useCreateTripMutation,
-  flattenInfiniteData,
 } from '@/features/listings/queries';
 import {
   useRequestsByParcelQuery,
   useUpdateRequestStatusMutation,
   useCreateRequestMutation,
 } from '@/features/requests/queries';
-import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
 import { useAlert } from '@/template';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Request, Parcel, ParcelCategory } from '@/types';
@@ -89,6 +85,7 @@ function ProposalCard({
   onTrack,
   C,
 }: ProposalCardProps) {
+  const router = useRouter();
   const isPending = request.status === 'pending';
   const isAccepted = request.status === 'accepted';
   const isCompleted = request.status === 'completed';
@@ -245,17 +242,31 @@ function ProposalCard({
             <Text style={[styles.actionBtnText, { color: C.textPrimary }]}>Open Chat</Text>
           </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionBtnPrimary,
-              { backgroundColor: C.success },
-              pressed && { opacity: 0.9 },
-            ]}
-            onPress={onTrack}
-          >
-            <MaterialIcons name="radar" size={16} color="#FFFFFF" />
-            <Text style={styles.actionBtnPrimaryText}>Track Delivery</Text>
-          </Pressable>
+          {isSender ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionBtnPrimary,
+                { backgroundColor: '#D97706' },
+                pressed && { opacity: 0.9 },
+              ]}
+              onPress={() => router.push({ pathname: '/payment/[id]', params: { id: request.id } })}
+            >
+              <MaterialIcons name="lock" size={16} color="#FFFFFF" />
+              <Text style={styles.actionBtnPrimaryText}>Pay & Book (₹{request.price})</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionBtnPrimary,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.9 },
+              ]}
+              onPress={onTrack}
+            >
+              <MaterialIcons name="fact-check" size={16} color="#FFFFFF" />
+              <Text style={styles.actionBtnPrimaryText}>Process Delivery</Text>
+            </Pressable>
+          )}
         </View>
       ) : null}
 
@@ -285,19 +296,14 @@ export default function ParcelDetailScreen() {
   const conversationsQuery = useConversationsQuery(user?.id);
   const { mutateAsync: updateRequestStatusAsync } = useUpdateRequestStatusMutation(user?.id);
   const updateParcelStatusMutation = useUpdateParcelStatusMutation(user?.id);
-  const tripsQuery = useTripsQuery(true);
   const { mutateAsync: createRequestAsync, isPending: isCreatingRequest } = useCreateRequestMutation(user?.id);
-  const createTripMutation = useCreateTripMutation();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
-  const [showCarryModal, setShowCarryModal] = useState(false);
 
   const parcel = (parcelQuery.data ?? undefined) as Parcel | undefined;
   const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
-  const allTrips = flattenInfiniteData(tripsQuery.data);
-  const userTrips = useMemo(() => allTrips.filter(t => t.userId === user?.id && t.status === 'active'), [allTrips, user?.id]);
   const myRequest = useMemo(() => requests.find(r => r.travellerId === user?.id && ['pending', 'accepted'].includes(r.status)), [requests, user?.id]);
   const loading = parcelQuery.isLoading || requestsQuery.isLoading;
 
@@ -339,105 +345,21 @@ export default function ParcelDetailScreen() {
       parcelQuery.refetch(),
       requestsQuery.refetch(),
       conversationsQuery.refetch(),
-      tripsQuery.refetch(),
     ]);
     setRefreshing(false);
   };
 
-  const handleConfirmCarry = async (tripId: string, targetParcel: Parcel) => {
-    if (!user) return;
-    const chosenTrip = userTrips.find(t => t.id === tripId);
-    if (!chosenTrip) return;
-
-    try {
-      const result = await createRequestAsync({
-        parcelId: targetParcel.id,
-        tripId: chosenTrip.id,
-        senderId: targetParcel.userId,
-        senderName: targetParcel.userName,
-        travellerId: user.id,
-        travellerName: user.name || 'Traveller',
-        status: 'pending',
-        price: targetParcel.priceOffer,
-        message: `Hi ${targetParcel.userName}! I am travelling on ${chosenTrip.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
-      });
-
-      if (result) {
-        setShowCarryModal(false);
-        Haptic.success();
-        showAlert(
-          'Offer Sent! 🎉',
-          `Your offer to carry this parcel for ₹${targetParcel.priceOffer} was sent to ${targetParcel.userName}.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
-        await requestsQuery.refetch();
-      } else {
-        showAlert('Error', 'Could not send offer. Please try again.');
-      }
-    } catch (err: any) {
-      Haptic.error();
-      showAlert('Error', err?.message || 'Could not send offer. Please try again.');
-    }
-  };
-
-  const handlePostTripForParcel = (fromCity: string, toCity: string, minCapacity: number) => {
+  const handlePostTripForRoute = () => {
+    if (!parcel) return;
+    Haptic.tap();
     router.push({
       pathname: '/create-trip',
-      params: { fromCity, toCity, capacity: String(minCapacity) },
+      params: {
+        fromCity: parcel.fromCity,
+        toCity: parcel.toCity,
+        capacity: String(Math.max(1, Math.ceil(parcel.weight))),
+      },
     });
-  };
-
-  const handleQuickCreateAndCarry = async (quickParams: QuickCarryTripParams, targetParcel: Parcel) => {
-    if (!user) return;
-    try {
-      const newTrip = await createTripMutation.mutateAsync({
-        userId: user.id,
-        userName: user.fullName || user.name || 'Traveller',
-        userRating: user.totalRatings && user.totalRatings > 0 ? (user.rating || 5.0) : 0,
-        fromCity: targetParcel.fromCity,
-        toCity: targetParcel.toCity,
-        date: quickParams.date,
-        time: quickParams.time,
-        vehicleType: quickParams.vehicleType,
-        availableCapacity: quickParams.capacity,
-        pricePerKg: Math.max(50, Math.round(targetParcel.priceOffer / Math.max(1, targetParcel.weight))),
-        status: 'active',
-      });
-
-      const result = await createRequestAsync({
-        parcelId: targetParcel.id,
-        tripId: newTrip.id,
-        senderId: targetParcel.userId,
-        senderName: targetParcel.userName,
-        travellerId: user.id,
-        travellerName: user.name || 'Traveller',
-        status: 'pending',
-        price: targetParcel.priceOffer,
-        message: `Hi ${targetParcel.userName}! I am travelling from ${targetParcel.fromCity} to ${targetParcel.toCity} on ${quickParams.date} and can deliver your ${targetParcel.category} package (${targetParcel.weight}kg) for ₹${targetParcel.priceOffer}.`,
-      });
-
-      if (result) {
-        setShowCarryModal(false);
-        Haptic.success();
-        showAlert(
-          'Trip Posted & Offer Sent! 🎉',
-          `Your trip was posted and your offer (₹${targetParcel.priceOffer}) was sent to ${targetParcel.userName}.`,
-          [
-            { text: 'View Requests', onPress: () => router.push('/(tabs)/requests') },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
-        await Promise.all([requestsQuery.refetch(), tripsQuery.refetch()]);
-      } else {
-        showAlert('Error', 'Could not send carry offer. Please try again.');
-      }
-    } catch (err: any) {
-      Haptic.error();
-      showAlert('Error', err?.message || 'Could not post trip and send offer.');
-    }
   };
 
   const handleAcceptProposal = (req: Request) => {
@@ -1000,7 +922,8 @@ export default function ParcelDetailScreen() {
         ) : null}
       </ScrollView>
 
-      {/* Fixed Bottom Action Bar for Travelers */}
+      {/* Passive Nudge Bar for Travelers — v2 removes the direct offer-to-carry
+          path. Travellers list their trip on the route; senders initiate booking. */}
       {showBottomBar ? (
         <View
           style={[
@@ -1014,11 +937,11 @@ export default function ParcelDetailScreen() {
         >
           <View style={[styles.bottomBarInner, isTablet && styles.tabletCentered]}>
             <View style={styles.bottomPriceCol}>
-              <Text style={[styles.bottomBarLabel, { color: C.textMuted }]}>Delivery Reward</Text>
+              <Text style={[styles.bottomBarLabel, { color: C.textMuted }]}>Earn by travelling</Text>
               <Text style={[styles.bottomBarPrice, isSmallDevice && { fontSize: 18 }, { color: C.primary }]}>
-                {parcel.priceOffer ? `₹${parcel.priceOffer}` : 'Negotiable'}
+                {parcel.fromCity} → {parcel.toCity}
               </Text>
-              <Text style={[styles.bottomRateSub, { color: C.textMuted }]}>Paid upon delivery</Text>
+              <Text style={[styles.bottomRateSub, { color: C.textMuted }]}>Post your trip to get booked</Text>
             </View>
 
             <Pressable
@@ -1028,33 +951,14 @@ export default function ParcelDetailScreen() {
                 { backgroundColor: C.primary },
                 pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={() => {
-                if (!user) {
-                  Haptic.warning();
-                  showAlert('Sign In Required', 'Please sign in to offer to carry this parcel.');
-                  return;
-                }
-                Haptic.confirm();
-                setShowCarryModal(true);
-              }}
+              onPress={handlePostTripForRoute}
             >
-              <MaterialIcons name="local-shipping" size={isSmallDevice ? 16 : 18} color="#FFFFFF" />
-              <Text style={[styles.primaryCtaText, isSmallDevice && styles.primaryCtaTextSmall]}>Deliver This Parcel</Text>
+              <MaterialIcons name="add-road" size={isSmallDevice ? 16 : 18} color="#FFFFFF" />
+              <Text style={[styles.primaryCtaText, isSmallDevice && styles.primaryCtaTextSmall]}>Post Trip on Route</Text>
             </Pressable>
           </View>
         </View>
       ) : null}
-
-      <CarryParcelModal
-        visible={showCarryModal}
-        onClose={() => setShowCarryModal(false)}
-        parcel={parcel}
-        userTrips={userTrips}
-        onConfirmCarry={handleConfirmCarry}
-        onPostTrip={handlePostTripForParcel}
-        onQuickCreateAndCarry={handleQuickCreateAndCarry}
-        isSubmitting={isCreatingRequest || createTripMutation.isPending}
-      />
 
       {/* Full Photo Preview Modal */}
       {resolvedImage ? (

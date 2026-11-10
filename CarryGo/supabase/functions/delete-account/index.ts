@@ -1,21 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, apikey',
-};
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  });
-}
+import { handleCors } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: CORS_HEADERS });
+  const cors = handleCors(req);
+  if (cors.rejectedResponse) return cors.rejectedResponse;
+  if (cors.preflightResponse) return cors.preflightResponse;
+
+  function jsonResponse(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json', ...cors.headers },
+    });
   }
 
   if (req.method !== 'POST') {
@@ -50,22 +45,30 @@ Deno.serve(async (req) => {
 
     const userId = authData.user.id;
 
+    const { error: rateLimitError } = await userClient.rpc('enforce_rate_limit', {
+      p_user_id: userId,
+      p_action: 'delete_account',
+    });
+    if (rateLimitError) {
+      return jsonResponse({ error: 'Too many attempts. Please wait.' }, 429);
+    }
+
     // Call the PostgreSQL soft_delete_user_account RPC
     const { data: rpcData, error: rpcError } = await userClient.rpc('soft_delete_user_account');
 
     if (rpcError) {
       console.error('[delete-account] soft delete failed', rpcError.message);
-      return jsonResponse({ error: rpcError.message || 'Failed to soft delete account' }, 500);
+      return jsonResponse({ error: 'Failed to delete account. Please try again later.' }, 500);
     }
 
     if (rpcData && typeof rpcData === 'object' && 'error' in rpcData && rpcData.error) {
-      return jsonResponse({ error: String(rpcData.error) }, 400);
+      console.warn('[delete-account] RPC returned error:', rpcData.error);
+      return jsonResponse({ error: 'Account deletion is not allowed at this time.' }, 400);
     }
 
     return jsonResponse({ success: true, data: rpcData });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal error';
-    console.error('[delete-account]', message);
-    return jsonResponse({ error: message }, 500);
+    console.error('[delete-account]', err instanceof Error ? err.message : String(err));
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });

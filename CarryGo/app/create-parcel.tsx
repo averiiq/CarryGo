@@ -15,7 +15,7 @@ import { FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { Haptic } from '@/services/haptics.service';
 import { detectCurrentCity } from '@/services/location.service';
 import { uploadParcelImage } from '@/services/storage.service';
-import { notifyRouteSubscribers } from '@/services/subscriptions.service';
+import { notifyRouteSubscribers, createSubscription } from '@/services/subscriptions.service';
 import { KycMandatoryModal } from '@/components/feature/KycMandatoryModal';
 import SafetyOnboarding from '@/components/feature/SafetyOnboarding';
 import { useCreateParcelMutation } from '@/features/listings/queries';
@@ -36,9 +36,9 @@ import {
 } from '@/components/feature/parcel';
 
 const STEPS = [
-  { label: 'Route' },
-  { label: 'Details' },
-  { label: 'Available Trips' },
+  { label: 'Search' },
+  { label: 'Package' },
+  { label: 'Pick Traveller' },
 ];
 
 export default function CreateParcelScreen() {
@@ -76,7 +76,13 @@ export default function CreateParcelScreen() {
   const [locationHint, setLocationHint] = useState<string | null>(null);
   const { footerOffset } = useKeyboardPadding();
 
-  const { hasAgreed: hasSafetyAgreed, markAgreed: markSafetyAgreed } = useSafetyAgreement(user?.id);
+  const {
+    isReady: isSafetyReady,
+    hasAgreed: hasSafetyAgreed,
+    shouldShowSafety,
+    markAgreed: markSafetyAgreed,
+    recordActionCompleted: recordParcelSent,
+  } = useSafetyAgreement(user?.id, 'sender');
 
   const hasExternalPrefill = Boolean(
     params.fromCity ||
@@ -113,9 +119,9 @@ export default function CreateParcelScreen() {
       deliveryDate: typeof params.deliveryDate === 'string' ? params.deliveryDate : '',
       preferredTime: 'anytime',
       category: isValidCategory ? prefillCategory : 'documents',
-      description: typeof params.description === 'string' ? params.description : '',
-      weight: typeof params.weight === 'string' ? params.weight : '',
-      priceOffer: typeof params.priceOffer === 'string' ? params.priceOffer : '',
+      description: typeof params.description === 'string' ? params.description.trim().slice(0, 500) : '',
+      weight: typeof params.weight === 'string' ? String(Math.min(Math.max(Number(params.weight) || 0, 0), 500)) : '',
+      priceOffer: typeof params.priceOffer === 'string' ? String(Math.min(Math.max(Number(params.priceOffer) || 0, 0), 50000)) : '',
       images: [],
     };
 
@@ -202,6 +208,19 @@ export default function CreateParcelScreen() {
     }
   }, [isDraftRestored]);
 
+  // Gate KYC and Safety on entry, not on submit. Avoids
+  // having the sender fill the whole wizard only to get bounced at the end.
+  useEffect(() => {
+    if (!user || !isSafetyReady) return;
+    if (shouldShowSafety) {
+      setShowSafety(true);
+      return;
+    }
+    if (!isKycApproved) {
+      setShowKyc(true);
+    }
+  }, [user, isSafetyReady, shouldShowSafety, isKycApproved]);
+
   const undoDraftRestore = () => {
     setForm(EMPTY_PARCEL_DRAFT);
     setFieldErrors({});
@@ -267,6 +286,36 @@ export default function CreateParcelScreen() {
     });
   };
 
+  const handleSetRouteAlert = async (): Promise<boolean> => {
+    if (!user) {
+      Haptic.warning();
+      showAlert('Sign In Required', 'Please sign in to set a route alert.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => router.push('/login') },
+      ]);
+      return false;
+    }
+    const prepared = prepareDraft();
+    if (!prepared.fromCity || !prepared.toCity) {
+      Haptic.warning();
+      showAlert('Route Required', 'Pick both origin and destination cities before setting an alert.');
+      return false;
+    }
+    Haptic.tap();
+    const { error } = await createSubscription(user.id, prepared.fromCity, prepared.toCity);
+    if (error) {
+      Haptic.error();
+      showAlert('Could Not Set Alert', error);
+      return false;
+    }
+    Haptic.success();
+    showAlert(
+      'Route Alert Activated 🔔',
+      `We'll notify you automatically the moment a traveller posts a trip from ${prepared.fromCity} to ${prepared.toCity}.`,
+    );
+    return true;
+  };
+
   const handleUseCurrentLocation = async () => {
     if (isDetectingCurrentLocation) return;
     Haptic.tap();
@@ -307,7 +356,7 @@ export default function CreateParcelScreen() {
       ]);
       return;
     }
-    if (!hasSafetyAgreed) {
+    if (shouldShowSafety) {
       Haptic.warning();
       setShowSafety(true);
       return;
@@ -363,8 +412,9 @@ export default function CreateParcelScreen() {
       });
       clearDraft();
       void recordCorridorUsage(prepared.fromCity, prepared.toCity);
+      void recordParcelSent();
       Haptic.success();
-      router.replace({ pathname: '/search', params: { mode: 'parcel', id: result.id } });
+      router.replace({ pathname: '/parcel/[id]', params: { id: result.id } });
     } catch (error) {
       Haptic.error();
       showAlert(
@@ -380,6 +430,7 @@ export default function CreateParcelScreen() {
     <>
       <SafetyOnboarding
         visible={showSafety}
+        role="sender"
         onClose={() => setShowSafety(false)}
         onComplete={async () => {
           await markSafetyAgreed();
@@ -461,10 +512,11 @@ export default function CreateParcelScreen() {
             onSelectTrip={handleSelectTrip}
             onEditDetails={() => {
               setDirection('backward');
-              setStep(1);
+              setStep(0);
             }}
             onPostOpenRequest={handleSubmit}
             isPostingOpenRequest={createParcelMutation.isPending || isSubmitting}
+            onSetRouteAlert={handleSetRouteAlert}
           />
         )}
 
@@ -484,7 +536,7 @@ export default function CreateParcelScreen() {
               <Button title="Back" onPress={goBack} variant="outline" style={{ flex: 1 }} />
             )}
             <Button
-              title={step === 0 ? 'Continue to Details' : 'Find Available Trips'}
+              title={step === 0 ? 'Add Package Details' : 'Find Trips'}
               onPress={goNext}
               fullWidth={step === 0}
               style={step > 0 ? { flex: 2 } : undefined}
