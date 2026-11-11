@@ -98,9 +98,9 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Payments & Escrow Management</h1>
+        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Payments & Safe Pay Management</h1>
         <p className="text-sm text-muted mt-1">
-          Monitor Razorpay escrow balances, track fee transfers, and manually release or refund payments.
+          Monitor Razorpay held balances, track fee transfers, and manually release or refund payments.
         </p>
       </div>
 

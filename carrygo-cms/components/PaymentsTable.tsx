@@ -55,12 +55,12 @@ interface PaymentsTableProps {
 }
 
 const statusConfig = {
-  locked: { label: 'Locked in Escrow', color: 'bg-warning-subtle text-warning border-warning/20', icon: Lock },
+  locked: { label: 'Locked in Safe Pay', color: 'bg-warning-subtle text-warning border-warning/20', icon: Lock },
   released: { label: 'Released to Traveller', color: 'bg-success-subtle text-success border-success/20', icon: TrendingUp },
   refunded: { label: 'Refunded to Sender', color: 'bg-danger-subtle text-danger border-danger/20', icon: RefreshCcw },
 }
 
-function isStaleEscrow(payment: EnrichedPayment): boolean {
+function isStaleHold(payment: EnrichedPayment): boolean {
   if (payment.status !== 'locked') return false
   const lockTime = new Date(payment.locked_at).getTime()
   const now = Date.now()
@@ -81,7 +81,7 @@ export default function PaymentsTable({
   const [selectedPayment, setSelectedPayment] = useState<EnrichedPayment | null>(null)
   const [confirmedProof, setConfirmedProof] = useState(false)
 
-  // Escrow actions state
+  // Safe Pay actions state
   const [isPending, startTransition] = useTransition()
   const [refundReason, setRefundReason] = useState('')
   const [showRefundForm, setShowRefundForm] = useState(false)
@@ -126,12 +126,12 @@ export default function PaymentsTable({
     })
   }
 
-  const staleEscrowCount = payments.filter(isStaleEscrow).length
+  const staleHoldCount = payments.filter(isStaleHold).length
 
   const filtered = payments
     .filter((p) => {
       if (statusFilter === 'stale') {
-        if (!isStaleEscrow(p)) return false
+        if (!isStaleHold(p)) return false
       } else if (statusFilter !== 'all' && p.status !== statusFilter) {
         return false
       }
@@ -203,15 +203,15 @@ export default function PaymentsTable({
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `payments-escrow-${new Date().toISOString().slice(0, 10)}.csv`
+    anchor.download = `payments-safepay-${new Date().toISOString().slice(0, 10)}.csv`
     anchor.click()
     URL.revokeObjectURL(url)
   }
 
   return (
     <div className="space-y-6">
-      {/* Stale Escrow Warning Banner */}
-      {staleEscrowCount > 0 && statusFilter !== 'stale' && (
+      {/* Stale Hold Warning Banner */}
+      {staleHoldCount > 0 && statusFilter !== 'stale' && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-amber-500/20 text-amber-500 shrink-0">
@@ -219,7 +219,7 @@ export default function PaymentsTable({
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">
-                {staleEscrowCount} Payment{staleEscrowCount > 1 ? 's' : ''} Locked in Escrow for over 48 Hours
+                {staleHoldCount} Payment{staleHoldCount > 1 ? 's' : ''} Held in Safe Pay for over 48 Hours
               </p>
               <p className="text-xs text-muted">
                 These funds are waiting for delivery confirmation or admin arbitration. Prompt review prevents dispute escalations.
@@ -231,7 +231,7 @@ export default function PaymentsTable({
             onClick={() => setStatusFilter('stale')}
             className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors shrink-0 shadow-sm"
           >
-            Review Stale Escrows ({staleEscrowCount})
+            Review Stale Holds ({staleHoldCount})
           </button>
         </div>
       )}
@@ -250,7 +250,7 @@ export default function PaymentsTable({
         <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Lock className="w-4 h-4 text-warning" />
-            <p className="text-[11px] text-muted uppercase tracking-wider font-semibold">In Escrow</p>
+            <p className="text-[11px] text-muted uppercase tracking-wider font-semibold">In Safe Pay</p>
           </div>
           <p className="text-2xl font-heading font-bold text-warning">₹{totalLocked.toLocaleString('en-IN')}</p>
           <p className="text-xs text-muted mt-1">Awaiting delivery OTP</p>
@@ -272,17 +272,17 @@ export default function PaymentsTable({
           className={`glass-card p-4 cursor-pointer transition-all ${
             statusFilter === 'stale'
               ? 'border-warning ring-2 ring-warning/30 bg-warning/10'
-              : staleEscrowCount > 0
+              : staleHoldCount > 0
                 ? 'border-warning/40 bg-warning/5 hover:border-warning/60'
                 : 'hover:border-border-strong'
           }`}
         >
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className={`w-4 h-4 ${staleEscrowCount > 0 ? 'text-warning' : 'text-muted'}`} />
-            <p className="text-[11px] text-muted uppercase tracking-wider font-semibold">Stale Escrow (&gt;48h)</p>
+            <AlertTriangle className={`w-4 h-4 ${staleHoldCount > 0 ? 'text-warning' : 'text-muted'}`} />
+            <p className="text-[11px] text-muted uppercase tracking-wider font-semibold">Stale Hold (&gt;48h)</p>
           </div>
-          <p className={`text-2xl font-heading font-bold ${staleEscrowCount > 0 ? 'text-warning' : 'text-foreground'}`}>
-            {staleEscrowCount}
+          <p className={`text-2xl font-heading font-bold ${staleHoldCount > 0 ? 'text-warning' : 'text-foreground'}`}>
+            {staleHoldCount}
           </p>
           <p className="text-xs text-muted mt-1">
             {statusFilter === 'stale' ? 'Filtering active (click to reset)' : 'Click to filter queue'}
@@ -296,8 +296,8 @@ export default function PaymentsTable({
           {(
             [
               { key: 'all' as const, label: 'All Payments', count: payments.length, isWarning: false },
-              { key: 'locked' as const, label: 'Locked in Escrow', count: payments.filter((p) => p.status === 'locked').length, isWarning: false },
-              { key: 'stale' as const, label: 'Stale (>48h)', count: staleEscrowCount, isWarning: true },
+              { key: 'locked' as const, label: 'Locked in Safe Pay', count: payments.filter((p) => p.status === 'locked').length, isWarning: false },
+              { key: 'stale' as const, label: 'Stale (>48h)', count: staleHoldCount, isWarning: true },
               { key: 'released' as const, label: 'Released', count: payments.filter((p) => p.status === 'released').length, isWarning: false },
               { key: 'refunded' as const, label: 'Refunded', count: payments.filter((p) => p.status === 'refunded').length, isWarning: false },
             ]
@@ -396,7 +396,7 @@ export default function PaymentsTable({
                 filtered.map((payment, i) => {
                   const config = statusConfig[payment.status]
                   const StatusIcon = config.icon
-                  const isStale = isStaleEscrow(payment)
+                  const isStale = isStaleHold(payment)
 
                   return (
                     <motion.tr
@@ -487,7 +487,7 @@ export default function PaymentsTable({
         Showing {filtered.length} of {payments.length} payments
       </p>
 
-      {/* Payment Details & Escrow Actions Drawer */}
+      {/* Payment Details & Safe Pay Actions Drawer */}
       <SlideOver
         open={Boolean(selectedPayment)}
         onClose={() => {
@@ -496,7 +496,7 @@ export default function PaymentsTable({
           setActionError(null)
           setActionSuccess(null)
         }}
-        title="Payment & Escrow Details"
+        title="Payment & Safe Pay Details"
         subtitle={selectedPayment ? `ID: ${selectedPayment.id}` : undefined}
         width="md"
       >
@@ -516,11 +516,11 @@ export default function PaymentsTable({
               </div>
             )}
 
-            {/* Escrow Status & Amount Card */}
+            {/* Safe Pay Status & Amount Card */}
             <div className="glass-card p-5 rounded-2xl space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted uppercase tracking-wider font-semibold">Total Escrow Amount</p>
+                  <p className="text-xs text-muted uppercase tracking-wider font-semibold">Total Held Amount</p>
                   <p className="text-3xl font-heading font-bold text-foreground mt-0.5">
                     ₹{selectedPayment.amount.toLocaleString('en-IN')}
                   </p>
@@ -532,7 +532,7 @@ export default function PaymentsTable({
                 </div>
               </div>
 
-              {isStaleEscrow(selectedPayment) && (
+              {isStaleHold(selectedPayment) && (
                 <div className="p-3 rounded-xl bg-warning-subtle border border-warning/20 text-warning text-xs flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                   <div>
@@ -544,10 +544,10 @@ export default function PaymentsTable({
 
             {/* Financial Breakdown Card */}
             <div className="glass-card p-5 rounded-2xl space-y-3">
-              <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Escrow Financial Breakdown</h4>
+              <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Safe Pay Financial Breakdown</h4>
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between py-1 border-b border-border-subtle">
-                  <span className="text-muted">Gross Escrow Deposited:</span>
+                  <span className="text-muted">Gross Payment Held:</span>
                   <span className="font-semibold text-foreground">₹{selectedPayment.amount.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex items-center justify-between py-1 border-b border-border-subtle">
@@ -801,13 +801,13 @@ export default function PaymentsTable({
                 </div>
 
                 <div className="flex items-center justify-between py-1 border-b border-border-subtle">
-                  <span className="text-muted">Escrow Locked:</span>
+                  <span className="text-muted">Payment Held:</span>
                   <span className="text-foreground">{new Date(selectedPayment.locked_at).toLocaleString()}</span>
                 </div>
 
                 {selectedPayment.released_at && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-muted">Escrow Released:</span>
+                    <span className="text-muted">Payment Released:</span>
                     <span className="text-foreground">{new Date(selectedPayment.released_at).toLocaleString()}</span>
                   </div>
                 )}

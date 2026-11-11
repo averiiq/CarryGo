@@ -12,7 +12,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Administrative Access | CaryGoo Operations Command',
   description:
-    'CaryGoo Central Administration & Operations Command Gateway. Secure authentication for platform operations, KYC verification, and escrow arbitration.',
+    'CaryGoo Central Administration & Operations Command Gateway. Secure authentication for platform operations, KYC verification, and Safe Pay arbitration.',
 }
 
 export default async function LoginPage({
@@ -62,7 +62,7 @@ export default async function LoginPage({
               Mission-Critical Control Center for Platform Governance.
             </h1>
             <p className="text-sm text-muted leading-relaxed max-w-lg">
-              Manage nationwide corridor telemetry, adjudicate SafeVault™ escrow disputes, and audit real-time Aadhaar & biometric KYC verifications across India.
+              Manage nationwide corridor telemetry, adjudicate SafeVault™ Safe Pay disputes, and audit real-time Aadhaar & biometric KYC verifications across India.
             </p>
           </div>
 
@@ -92,7 +92,7 @@ export default async function LoginPage({
               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                 <Lock className="w-4 h-4" />
               </div>
-              <h3 className="text-xs font-semibold text-foreground">SafeVault™ Escrow</h3>
+              <h3 className="text-xs font-semibold text-foreground">SafeVault™ Safe Pay</h3>
               <p className="text-[11px] text-muted leading-relaxed">
                 Dual-OTP release protocol, dispute arbitration, and automated payout reconciliation.
               </p>

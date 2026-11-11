@@ -126,39 +126,68 @@ function AppStack() {
 
   return (
     <Stack
-        screenOptions={{
+      screenOptions={{
+        headerShown: false,
+        animation: 'ios_from_right',
+        animationDuration: 220,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+        fullScreenGestureShadowEnabled: true,
+        animationMatchesGesture: true,
+        gestureDirection: 'horizontal',
+        animationTypeForReplace: 'push',
+        contentStyle: { backgroundColor: C.background },
+      }}
+    >
+      <Stack.Screen name="index" options={{ animation: 'fade', animationDuration: 200 }} />
+      <Stack.Screen name="login" options={{ animation: 'fade', animationDuration: 200 }} />
+      <Stack.Screen name="onboarding" options={{ animation: 'fade', animationDuration: 200 }} />
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 200 }} />
+      <Stack.Screen
+        name="create-trip"
+        options={{
           headerShown: false,
-          animation: 'slide_from_right',
-          gestureEnabled: true,
-          fullScreenGestureEnabled: true,
-          contentStyle: { backgroundColor: C.background },
+          animation: 'slide_from_bottom',
+          animationDuration: 220,
+          gestureDirection: 'vertical',
         }}
-      >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="create-trip" options={{ headerShown: false }} />
-        <Stack.Screen name="create-parcel" options={{ headerShown: false }} />
-        <Stack.Screen name="chat/[id]" options={{ headerShown: true, headerTitle: 'Chat', ...headerOpts }} />
-        <Stack.Screen name="delivery/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
-        <Stack.Screen name="search" options={{ headerShown: false }} />
-        <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="parcel/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-        <Stack.Screen name="my-activity" options={{ headerShown: false }} />
-        <Stack.Screen name="kyc" options={{ headerShown: false }} />
-        <Stack.Screen name="support" options={{ headerShown: false }} />
-        <Stack.Screen name="notifications" options={{ headerShown: false }} />
-        <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
-        <Stack.Screen name="legal/terms" options={{ headerShown: false }} />
-        <Stack.Screen name="legal/privacy" options={{ headerShown: false }} />
-        <Stack.Screen name="legal/refund-policy" options={{ headerShown: false }} />
-        <Stack.Screen name="legal/shipping-policy" options={{ headerShown: false }} />
-        <Stack.Screen name="rewards" options={{ headerShown: false }} />
-      </Stack>
+      />
+      <Stack.Screen
+        name="create-parcel"
+        options={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
+          animationDuration: 220,
+          gestureDirection: 'vertical',
+        }}
+      />
+      <Stack.Screen
+        name="edit-profile"
+        options={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
+          animationDuration: 220,
+          gestureDirection: 'vertical',
+        }}
+      />
+      <Stack.Screen name="chat/[id]" options={{ headerShown: true, headerTitle: 'Chat', ...headerOpts }} />
+      <Stack.Screen name="delivery/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
+      <Stack.Screen name="search" options={{ headerShown: false }} />
+      <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="parcel/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="my-activity" options={{ headerShown: false }} />
+      <Stack.Screen name="kyc" options={{ headerShown: false }} />
+      <Stack.Screen name="support" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications" options={{ headerShown: false }} />
+      <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
+      <Stack.Screen name="legal/terms" options={{ headerShown: false }} />
+      <Stack.Screen name="legal/privacy" options={{ headerShown: false }} />
+      <Stack.Screen name="legal/refund-policy" options={{ headerShown: false }} />
+      <Stack.Screen name="legal/shipping-policy" options={{ headerShown: false }} />
+      <Stack.Screen name="rewards" options={{ headerShown: false }} />
+    </Stack>
   );
 }
 

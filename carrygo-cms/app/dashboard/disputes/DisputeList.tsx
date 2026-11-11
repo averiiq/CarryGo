@@ -274,7 +274,7 @@ export default function DisputeList({ disputes }: DisputeListProps) {
                               </p>
                               {dispute.paymentStatus && (
                                 <p>
-                                  <span className="text-muted">Escrow Status:</span>{' '}
+                                  <span className="text-muted">Safe Pay Status:</span>{' '}
                                   <strong className="capitalize text-primary">{dispute.paymentStatus}</strong>
                                 </p>
                               )}

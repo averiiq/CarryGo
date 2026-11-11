@@ -26,7 +26,7 @@ const commands = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, section: 'Pages' },
   { name: 'Trips & Travelers', href: '/dashboard/trips', icon: Navigation, section: 'Pages' },
   { name: 'Parcels & Shipments', href: '/dashboard/parcels', icon: Package, section: 'Pages' },
-  { name: 'Payments & Escrow', href: '/dashboard/payments', icon: CreditCard, section: 'Pages' },
+  { name: 'Payments & Safe Pay', href: '/dashboard/payments', icon: CreditCard, section: 'Pages' },
   { name: 'KYC Verification', href: '/dashboard/kyc', icon: FileCheck, section: 'Pages' },
   { name: 'Users & Accounts', href: '/dashboard/users', icon: Users, section: 'Pages' },
   { name: 'Disputes Resolution', href: '/dashboard/disputes', icon: AlertTriangle, section: 'Pages' },
@@ -38,7 +38,7 @@ const commands = [
   { name: 'System Settings', href: '/dashboard/settings', icon: Settings, section: 'Pages' },
   // Quick Actions
   { name: 'Review Pending KYC Submissions', href: '/dashboard/kyc?status=submitted', icon: FileCheck, section: 'Quick Actions' },
-  { name: 'Inspect Stale Escrow Balances', href: '/dashboard/payments', icon: CreditCard, section: 'Quick Actions' },
+  { name: 'Inspect Stale Held Balances', href: '/dashboard/payments', icon: CreditCard, section: 'Quick Actions' },
   { name: 'Manage Promotional Banners', href: '/dashboard/banners', icon: Sparkles, section: 'Quick Actions' },
   { name: 'Resolve Open Delivery Disputes', href: '/dashboard/disputes', icon: AlertTriangle, section: 'Quick Actions' },
   { name: 'Broadcast System Notification', href: '/dashboard/notifications', icon: Bell, section: 'Quick Actions' },

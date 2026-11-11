@@ -161,7 +161,7 @@ export async function adminRefundPayment(
   }
 
   // Update linked request to cancelled only if it is in a state that still
-  // reflects an active escrow — guards against overwriting a completed or
+  // reflects an active held payment — guards against overwriting a completed or
   // already-cancelled request.
   if (payment.request_id) {
     await auth.supabase

@@ -91,8 +91,8 @@
   --color-danger-subtle: var(--danger-subtle);
   --color-glass-bg: var(--glass-bg);
   --color-glass-border: var(--glass-border);
-  --font-sans: var(--font-sans), system-ui, -apple-system, sans-serif;
-  --font-heading: var(--font-heading), var(--font-sans), sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Outfit', 'Plus Jakarta Sans', sans-serif;
 
   /* Brand remap: emerald/teal/green → CaryGoo emerald #008B48 */
   --color-emerald-50:  #E8F8F0;

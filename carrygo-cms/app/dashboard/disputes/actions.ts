@@ -50,7 +50,7 @@ export async function resolveDispute(
   })
 
   if (error) {
-    // If no locked escrow payment is active, still allow admin to conclude the dispute on the request record
+    // If no locked held payment is active, still allow admin to conclude the dispute on the request record
     if (error.message.includes('Locked payment not found')) {
       const formattedMessage = sanitizedNote
         ? `[RESOLVED: ${resolution}] ${sanitizedNote}`

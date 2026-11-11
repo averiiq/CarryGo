@@ -459,6 +459,15 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        animation: 'fade',
+        freezeOnBlur: true,
+        transitionSpec: {
+          animation: 'timing',
+          config: {
+            duration: 180,
+          },
+        },
+        sceneStyle: { backgroundColor: C.background },
       }}
       tabBar={(props) => (
         <FloatingCapsuleTabBar

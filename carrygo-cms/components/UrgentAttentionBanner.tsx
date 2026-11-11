@@ -14,22 +14,22 @@ import {
 
 interface UrgentAttentionProps {
   pendingKyc: number
-  staleEscrows: number
+  staleHolds: number
   openDisputes: number
   openTickets: number
   activeBanners: number
-  totalLockedEscrow: number
+  totalHeldAmount: number
 }
 
 export default function UrgentAttentionBanner({
   pendingKyc,
-  staleEscrows,
+  staleHolds,
   openDisputes,
   openTickets,
   activeBanners,
-  totalLockedEscrow,
+  totalHeldAmount,
 }: UrgentAttentionProps) {
-  const hasUrgentItems = pendingKyc > 0 || staleEscrows > 0 || openDisputes > 0 || openTickets > 0
+  const hasUrgentItems = pendingKyc > 0 || staleHolds > 0 || openDisputes > 0 || openTickets > 0
 
   if (!hasUrgentItems) {
     return (
@@ -46,7 +46,7 @@ export default function UrgentAttentionBanner({
               </span>
             </h3>
             <p className="text-xs text-muted mt-0.5">
-              No stale escrow balances, pending identity verifications, or open disputes require intervention.
+              No stale held balances, pending identity verifications, or open disputes require intervention.
             </p>
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function UrgentAttentionBanner({
             href="/dashboard/payments"
             className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-border text-muted hover:text-foreground hover:bg-surface transition-colors"
           >
-            Escrow: ₹{totalLockedEscrow.toLocaleString('en-IN')}
+            Held: ₹{totalHeldAmount.toLocaleString('en-IN')}
           </Link>
           <Link
             href="/dashboard/banners"
@@ -70,17 +70,17 @@ export default function UrgentAttentionBanner({
   }
 
   const alertItems = [
-    ...(staleEscrows > 0
+    ...(staleHolds > 0
       ? [
           {
-            title: `${staleEscrows} Stale Escrow${staleEscrows > 1 ? 's' : ''}`,
+            title: `${staleHolds} Stale Held Payment${staleHolds > 1 ? 's' : ''}`,
             desc: '>48h awaiting delivery or admin arbitration',
             href: '/dashboard/payments',
             icon: CreditCard,
             color: 'text-warning',
             bg: 'bg-warning-subtle',
             border: 'border-warning/30',
-            buttonLabel: 'Resolve Escrow',
+            buttonLabel: 'Resolve Payment',
           },
         ]
       : []),

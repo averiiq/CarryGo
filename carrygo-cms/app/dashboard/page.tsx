@@ -10,7 +10,7 @@ import UrgentAttentionBanner from '@/components/UrgentAttentionBanner'
 import { isAwsCmsBackendEnabled } from '@/utils/backend/provider'
 import { awsCmsRequest } from '@/utils/aws/api'
 
-function getStaleEscrowThreshold(): string {
+function getStaleHoldThreshold(): string {
   const d = new Date()
   d.setHours(d.getHours() - 48)
   return d.toISOString()
@@ -29,12 +29,12 @@ export default async function DashboardOverview() {
   let pendingKyc = 0
   let openDisputes = 0
 
-  const fortyEightHoursAgo = getStaleEscrowThreshold()
+  const fortyEightHoursAgo = getStaleHoldThreshold()
 
   const [
     usersCountResult,
     kycCountResult,
-    staleEscrowsResult,
+    staleHoldsResult,
     activeBannersResult,
     openTicketsResult,
     paymentTotalsResult,
@@ -53,11 +53,11 @@ export default async function DashboardOverview() {
 
   totalUsers = usersCountResult.count ?? 0
   pendingKyc = kycCountResult.count ?? 0
-  const staleEscrows = staleEscrowsResult.count ?? 0
+  const staleHolds = staleHoldsResult.count ?? 0
   const activeBanners = activeBannersResult.count ?? 0
   const openTickets = openTicketsResult.count ?? 0
   const totalsSummary = (paymentTotalsResult?.data?.[0] ?? {}) as { released?: number; locked?: number; refunded?: number }
-  const totalLockedEscrow = Number(totalsSummary.locked ?? 0)
+  const totalHeldAmount = Number(totalsSummary.locked ?? 0)
 
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
@@ -184,8 +184,8 @@ export default async function DashboardOverview() {
       sparkline: chartData.map(d => d.parcels),
     },
     {
-      title: 'Escrow Protected',
-      value: `₹${totalLockedEscrow.toLocaleString('en-IN')}`,
+      title: 'Safe Pay Protected',
+      value: `₹${totalHeldAmount.toLocaleString('en-IN')}`,
       iconName: 'CreditCard' as const,
       color: 'text-emerald-500',
       bgColor: 'bg-emerald-500/10',
@@ -232,12 +232,12 @@ export default async function DashboardOverview() {
   ]
 
   const quickActions = [
-    ...(staleEscrows && staleEscrows > 0 ? [{
-      label: 'Arbitrate Stale Escrow',
-      description: `${staleEscrows} payments locked >48 hours`,
+    ...(staleHolds && staleHolds > 0 ? [{
+      label: 'Arbitrate Stale Holds',
+      description: `${staleHolds} payments held >48 hours`,
       href: '/dashboard/payments',
       iconName: 'CreditCard',
-      count: staleEscrows,
+      count: staleHolds,
       urgency: 'high' as const,
     }] : []),
     ...(pendingKyc && pendingKyc > 0 ? [{
@@ -311,11 +311,11 @@ export default async function DashboardOverview() {
     <div className="space-y-6">
       <UrgentAttentionBanner
         pendingKyc={pendingKyc}
-        staleEscrows={staleEscrows}
+        staleHolds={staleHolds}
         openDisputes={openDisputes}
         openTickets={openTickets}
         activeBanners={activeBanners}
-        totalLockedEscrow={totalLockedEscrow}
+        totalHeldAmount={totalHeldAmount}
       />
 
       <BentoStats stats={stats} />
