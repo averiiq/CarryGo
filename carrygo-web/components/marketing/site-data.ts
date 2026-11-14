@@ -68,12 +68,15 @@ export const footerSections: FooterSection[] = [
     ],
   },
   {
-    title: 'Legal',
+    title: 'Legal & Policies',
     links: [
       { label: 'Privacy Policy', href: '/privacy-policy' },
       { label: 'Terms & Conditions', href: '/terms-and-conditions' },
-      { label: 'Refund & Cancellation', href: '/refund-cancellation' },
+      { label: 'Cancellation & Refund', href: '/refund-cancellation' },
       { label: 'Shipping & Delivery', href: '/shipping-delivery' },
+      { label: 'Prohibited Items', href: '/prohibited-items' },
+      { label: 'Payment & Settlement', href: '/payment-settlement' },
+      { label: 'Grievance Redressal', href: '/grievance-redressal' },
     ],
   },
 ]

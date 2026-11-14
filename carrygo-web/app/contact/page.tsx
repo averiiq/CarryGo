@@ -23,10 +23,10 @@ const channels = [
     icon: MessageSquareHeart,
   },
   {
-    title: 'Priority Assistance',
-    detail: 'Response target: within 1 business day',
-    description: 'For active shipment incidents and urgent escalation support.',
-    href: 'mailto:support@carygoo.in?subject=Urgent%20CaryGoo%20Support',
+    title: 'Phone Support',
+    detail: '+91 99924 64637',
+    description: 'For active shipment incidents and urgent escalation support. Response target: within 1 business day.',
+    href: 'tel:+919992464637',
     icon: Phone,
   },
 ]
@@ -71,7 +71,10 @@ export default function ContactPage() {
               <ShieldCheck className='h-5 w-5' />
             </div>
             <h3 className='mt-4 text-lg font-heading font-semibold text-foreground'>Grievance Redressal Officer</h3>
-            <p className='mt-1 text-sm font-medium text-foreground/80'>grievance@carygoo.in</p>
+            <p className='mt-1 text-sm font-medium text-foreground/80'>Jatin — grievance@carygoo.in</p>
+            <p className='mt-1 text-sm font-medium text-foreground/80'>
+              <a href='tel:+919992464637' className='hover:text-primary transition'>+91 99924 64637</a>
+            </p>
             <p className='mt-2 text-sm leading-relaxed text-muted'>
               Under the Consumer Protection (E-Commerce) Rules, 2020 and Information Technology Rules, 2021, consumer grievances are acknowledged within 24 hours and redressed within 15 days.
             </p>

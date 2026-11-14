@@ -29,7 +29,7 @@ export function SiteFooter() {
 
       <div className="mx-auto grid w-full max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-12 relative z-10">
         {/* Brand Column */}
-        <div className="space-y-4 sm:col-span-2 lg:col-span-4">
+        <div className="space-y-4 sm:col-span-2 lg:col-span-3">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
             <img
               src="/logo-horizontal.png"
@@ -79,7 +79,7 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        {/* Platform & Company Navigation Sections */}
+        {/* Platform, Company & Legal Navigation Sections */}
         {footerSections.map((section) => (
           <div key={section.title} className="space-y-3 lg:col-span-2 sm:col-span-1">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
