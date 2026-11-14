@@ -142,7 +142,7 @@ export function ScrollProgressBar({ className = '' }: { className?: string }) {
 
   return (
     <motion.div
-      className={`h-[2px] bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 origin-left z-50 ${className}`}
+      className={`h-[2px] bg-emerald-700 origin-left z-50 ${className}`}
       style={{ scaleX }}
     />
   )

@@ -1,23 +1,8 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Outfit } from "next/font/google";
 import { MaintenanceBanner } from "@/components/marketing/maintenance-banner";
 import { NotificationProvider } from "@/contexts/NotificationProvider";
 import { NotificationRealtimeBanner } from "@/components/notifications/realtime-banner";
 import "./globals.css";
-
-const sansFont = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-  weight: ["300", "400", "500", "600", "700", "800"],
-});
-
-const headingFont = Outfit({
-  subsets: ["latin"],
-  variable: "--font-heading",
-  display: "swap",
-  weight: ["400", "500", "600", "700", "800", "900"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.carygoo.in'),
@@ -52,8 +37,16 @@ export default function RootLayout({
       lang="en"
       data-theme="light"
       style={{ colorScheme: 'light' }}
-      className={`${sansFont.variable} ${headingFont.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground selection:bg-emerald-500/20 selection:text-emerald-800">
         <NotificationProvider>
           <MaintenanceBanner />

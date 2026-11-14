@@ -264,10 +264,10 @@ export function AppMarketplaceFeed({ initialTrips, initialParcels = [] }: AppMar
 
                         <div className="flex items-center justify-between pt-1">
                           <div>
-                            <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
-                              Delivery Rate
+                            <span className="text-[11px] text-slate-500 block">
+                              Delivery rate
                             </span>
-                            <span className="text-lg font-heading font-extrabold text-[#008B48]">
+                            <span className="text-lg font-heading font-semibold text-[#008B48] tabular-nums">
                               ₹{trip.price_per_kg}
                               <span className="text-xs font-normal text-slate-500"> /kg</span>
                             </span>
@@ -374,10 +374,10 @@ export function AppMarketplaceFeed({ initialTrips, initialParcels = [] }: AppMar
                       {/* Reward Offer & Action */}
                       <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                         <div>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
-                            Reward Offer
+                          <span className="text-[11px] text-slate-500 block">
+                            Reward offer
                           </span>
-                          <span className="text-lg font-heading font-extrabold text-[#008B48]">
+                          <span className="text-lg font-heading font-semibold text-[#008B48] tabular-nums">
                             ₹{parcel.price_offer || 250}
                           </span>
                         </div>

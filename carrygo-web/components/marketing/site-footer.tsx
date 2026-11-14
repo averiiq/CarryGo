@@ -21,12 +21,7 @@ const POPULAR_CITY_ROUTES = [
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-slate-200/90 bg-slate-50/90 px-4 py-14 sm:px-6 sm:py-20 relative overflow-hidden text-slate-600">
-      {/* Top Hairline Gradient Accent */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
-      {/* Subtle Grid Pattern with Radial Vignette Mask */}
-      <div className="absolute inset-0 pattern-grid opacity-20 mask-radial-vignette pointer-events-none" />
-
+    <footer className="border-t border-slate-200 bg-slate-50 px-4 py-14 sm:px-6 sm:py-20 relative overflow-hidden text-slate-600">
       <div className="mx-auto grid w-full max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-12 relative z-10">
         {/* Brand Column */}
         <div className="space-y-4 sm:col-span-2 lg:col-span-3">

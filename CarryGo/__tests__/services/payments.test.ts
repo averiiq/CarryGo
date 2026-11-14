@@ -51,10 +51,14 @@ describe('Payments Service - Gateway Verification & Anti-Bypass Audit Tests', ()
       expect(res.paid).toBe(false);
       expect(res.status).toBe('created');
       expect(res.paymentId).toBeUndefined();
-      expect(mockInvoke).toHaveBeenCalledWith('verify-razorpay-payment', {
+      expect(mockInvoke).toHaveBeenCalledWith('verify-payment', {
         body: {
+          orderId: 'plink_123456',
+          paymentId: '',
+          signature: '',
+          requestId: '',
+          gateway: undefined,
           checkOnly: true,
-          razorpayOrderId: 'plink_123456',
         },
       });
     });
@@ -149,6 +153,11 @@ describe('Payments Service - Gateway Verification & Anti-Bypass Audit Tests', ()
       });
       mockInvoke.mockResolvedValueOnce({
         data: {
+          orderId: 'plink_abc123',
+          amount: 25000,
+          currency: 'INR',
+          gateway: 'razorpay',
+          keyId: 'rzp_test_key',
           paymentLinkId: 'plink_abc123',
           shortUrl: 'https://rzp.io/rzp/abc123',
         },

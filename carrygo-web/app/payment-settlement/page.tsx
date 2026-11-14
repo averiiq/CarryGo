@@ -13,7 +13,7 @@ const sections = [
     title: 'Overview',
     content: [
       'This Payment and Settlement Policy ("Policy") describes how payments are collected from Senders, processed through authorised payment gateways, and settled to eligible Travelers on the CaryGoo platform.',
-      'CaryGoo uses authorised third-party payment gateways to facilitate payment collection and processing. Payments collected from Senders are held by CaryGoo in a locked state until delivery is confirmed, after which the Traveler\'s earnings are released for settlement. CaryGoo does not itself act as a bank, payment aggregator authorised by the Reserve Bank of India (RBI), or escrow service provider unless explicitly stated and approved under applicable regulatory arrangements.',
+      'CaryGoo uses authorised third-party payment gateways to facilitate payment collection and processing. Payments collected from Senders are held by CaryGoo in a locked state until delivery is confirmed, after which the Traveler\'s earnings are released for settlement. CaryGoo does not itself act as a bank, payment aggregator authorised by the Reserve Bank of India (RBI), or custodial holding agent unless explicitly stated and approved under applicable regulatory arrangements.',
       'By making a payment on the Platform, you agree to the terms described in this Policy and the terms of the applicable payment gateway.',
     ],
   },

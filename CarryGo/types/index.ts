@@ -234,6 +234,7 @@ export interface FilterOptions {
 
 // Payment & Booking Protection
 export type PaymentStatus = 'locked' | 'released' | 'refunded';
+export type GatewayId = 'razorpay' | 'phonepe' | 'payu';
 
 export interface Payment {
   id: string;
@@ -246,7 +247,33 @@ export interface Payment {
   releasedAt?: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
+  gatewayProvider?: GatewayId;
+  gatewayOrderId?: string;
+  gatewayPaymentId?: string;
+  platformFee?: number;
+  gstAmount?: number;
+  travelerPayout?: number;
+  payoutStatus?: 'pending' | 'processing' | 'completed' | 'failed';
+  payoutReference?: string;
+  payoutCompletedAt?: string;
   createdAt: string;
+}
+
+export interface PaymentOrderResponse {
+  orderId: string;
+  amount: number;
+  currency: string;
+  gateway: GatewayId;
+  keyId: string;
+  redirectUrl?: string;
+  paymentLinkId?: string;
+  shortUrl?: string;
+  formParams?: Record<string, string>;
+  split?: {
+    platformFee: number;
+    gst: number;
+    travelerPayout: number;
+  };
 }
 
 export interface RazorpayOrder {

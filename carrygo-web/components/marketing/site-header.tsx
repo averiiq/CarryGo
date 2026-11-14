@@ -35,8 +35,6 @@ import { createClient } from '@/utils/supabase/client'
 import { logout } from '@/app/login/actions'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 
-import { ScrollProgressBar } from '@/components/marketing/parallax-wrapper'
-
 interface AuthUser {
   id: string
   email?: string
@@ -129,7 +127,6 @@ export function SiteHeader() {
             : 'border-b border-slate-200/60 bg-white/85 backdrop-blur-md'
         }`}
       >
-        <ScrollProgressBar className="absolute top-0 left-0 right-0 h-[2.5px]" />
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           {/* Brand Logo */}
           <div className="flex items-center gap-6">

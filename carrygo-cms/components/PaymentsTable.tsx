@@ -37,6 +37,15 @@ export interface EnrichedPayment {
   status: 'locked' | 'released' | 'refunded'
   razorpay_order_id: string | null
   razorpay_payment_id: string | null
+  gateway_provider: string
+  gateway_order_id: string | null
+  gateway_payment_id: string | null
+  platform_fee: number | null
+  gst_amount: number | null
+  traveler_payout: number | null
+  payout_status: string | null
+  payout_reference: string | null
+  payout_completed_at: string | null
   locked_at: string
   released_at: string | null
   request_id: string
@@ -47,11 +56,31 @@ export interface EnrichedPayment {
   request_status?: string | null
 }
 
+interface PayoutSummary {
+  pending: number
+  processing: number
+  completed: number
+  failed: number
+  sumPending: number
+  sumProcessing: number
+  sumCompleted: number
+  sumFailed: number
+}
+
 interface PaymentsTableProps {
   payments: EnrichedPayment[]
   totalRevenue: number
   totalLocked: number
   totalRefunded: number
+  payoutSummary?: PayoutSummary
+}
+
+const GATEWAY_LABELS: Record<string, string> = { razorpay: 'Razorpay', phonepe: 'PhonePe', payu: 'PayU' }
+const PAYOUT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Pending', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  processing: { label: 'Processing', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  completed: { label: 'Completed', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  failed: { label: 'Failed', color: 'bg-red-100 text-red-700 border-red-200' },
 }
 
 const statusConfig = {
@@ -73,6 +102,7 @@ export default function PaymentsTable({
   totalRevenue,
   totalLocked,
   totalRefunded,
+  payoutSummary,
 }: PaymentsTableProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'locked' | 'released' | 'refunded' | 'stale'>('all')
@@ -175,27 +205,27 @@ export default function PaymentsTable({
       return `"${text.replace(/"/g, '""')}"`
     }
     const rows = [
-      ['ID', 'Sender', 'Sender Phone', 'Traveller', 'Traveller Phone', 'Amount', 'Estimated Platform Fee (10%)', 'Net Traveller Payout', 'Status', 'Gateway Order ID', 'Gateway Payment ID', 'Route', 'Locked Date', 'Released Date'],
-      ...filtered.map((payment) => {
-        const platformFee = Math.round(payment.amount * 0.1)
-        const netPayout = payment.amount - platformFee
-        return [
-          payment.id,
-          payment.sender_name,
-          payment.sender_phone || '',
-          payment.traveller_name,
-          payment.traveller_phone || '',
-          payment.amount,
-          platformFee,
-          netPayout,
-          payment.status,
-          payment.razorpay_order_id || '',
-          payment.razorpay_payment_id || '',
-          payment.route || '',
-          payment.locked_at,
-          payment.released_at || '',
-        ]
-      }),
+      ['ID', 'Gateway', 'Sender', 'Sender Phone', 'Traveller', 'Traveller Phone', 'Amount', 'Platform Fee', 'GST', 'Traveler Payout', 'Payout Status', 'Status', 'Gateway Order ID', 'Gateway Payment ID', 'Route', 'Locked Date', 'Released Date', 'Payout Completed'],
+      ...filtered.map((payment) => [
+        payment.id,
+        GATEWAY_LABELS[payment.gateway_provider] || payment.gateway_provider,
+        payment.sender_name,
+        payment.sender_phone || '',
+        payment.traveller_name,
+        payment.traveller_phone || '',
+        payment.amount,
+        payment.platform_fee ?? '',
+        payment.gst_amount ?? '',
+        payment.traveler_payout ?? '',
+        payment.payout_status || '',
+        payment.status,
+        payment.gateway_order_id || '',
+        payment.gateway_payment_id || '',
+        payment.route || '',
+        payment.locked_at,
+        payment.released_at || '',
+        payment.payout_completed_at || '',
+      ]),
     ]
     const blob = new Blob([rows.map((row) => row.map(escapeCell).join(',')).join('\n')], {
       type: 'text/csv;charset=utf-8',
@@ -544,21 +574,55 @@ export default function PaymentsTable({
 
             {/* Financial Breakdown Card */}
             <div className="glass-card p-5 rounded-2xl space-y-3">
-              <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Safe Pay Financial Breakdown</h4>
+              <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Payment Split Breakdown</h4>
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between py-1 border-b border-border-subtle">
-                  <span className="text-muted">Gross Payment Held:</span>
+                  <span className="text-muted">Gross Payment:</span>
                   <span className="font-semibold text-foreground">₹{selectedPayment.amount.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex items-center justify-between py-1 border-b border-border-subtle">
-                  <span className="text-muted">Estimated Platform Commission (10%):</span>
-                  <span className="font-semibold text-primary">₹{Math.round(selectedPayment.amount * 0.1).toLocaleString('en-IN')}</span>
+                  <span className="text-muted">Platform Commission:</span>
+                  <span className="font-semibold text-primary">
+                    ₹{(selectedPayment.platform_fee ?? Math.round(selectedPayment.amount * 0.1)).toLocaleString('en-IN')}
+                  </span>
                 </div>
+                {(selectedPayment.gst_amount != null && selectedPayment.gst_amount > 0) && (
+                  <div className="flex items-center justify-between py-1 border-b border-border-subtle">
+                    <span className="text-muted">GST on Commission:</span>
+                    <span className="font-semibold text-muted">₹{selectedPayment.gst_amount.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between py-1 text-sm font-bold">
-                  <span className="text-foreground">Estimated Net Traveller Payout:</span>
-                  <span className="text-success">₹{(selectedPayment.amount - Math.round(selectedPayment.amount * 0.1)).toLocaleString('en-IN')}</span>
+                  <span className="text-foreground">Traveller Net Payout:</span>
+                  <span className="text-success">
+                    ₹{(selectedPayment.traveler_payout ?? (selectedPayment.amount - (selectedPayment.platform_fee ?? Math.round(selectedPayment.amount * 0.1)) - (selectedPayment.gst_amount ?? 0))).toLocaleString('en-IN')}
+                  </span>
                 </div>
               </div>
+
+              {/* Payout Status */}
+              {selectedPayment.status === 'released' && selectedPayment.payout_status && (
+                <div className="pt-3 border-t border-border-subtle space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted font-medium">Payout Status:</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${PAYOUT_STATUS_CONFIG[selectedPayment.payout_status]?.color || 'bg-gray-100 text-gray-600'}`}>
+                      {PAYOUT_STATUS_CONFIG[selectedPayment.payout_status]?.label || selectedPayment.payout_status}
+                    </span>
+                  </div>
+                  {selectedPayment.payout_reference && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted">Payout Ref:</span>
+                      <span className="font-mono text-foreground">{selectedPayment.payout_reference}</span>
+                    </div>
+                  )}
+                  {selectedPayment.payout_completed_at && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted">Payout Completed:</span>
+                      <span className="text-foreground">{new Date(selectedPayment.payout_completed_at).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Admin Actions (When Locked) */}
@@ -765,15 +829,22 @@ export default function PaymentsTable({
               <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Gateway & Timestamps</h4>
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between py-1 border-b border-border-subtle">
-                  <span className="text-muted">Razorpay Order ID:</span>
+                  <span className="text-muted">Payment Gateway:</span>
+                  <span className="font-semibold text-foreground">
+                    {GATEWAY_LABELS[selectedPayment.gateway_provider] || selectedPayment.gateway_provider}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-1 border-b border-border-subtle">
+                  <span className="text-muted">Gateway Order ID:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono font-medium text-foreground">
-                      {selectedPayment.razorpay_order_id || '—'}
+                      {selectedPayment.gateway_order_id || '—'}
                     </span>
-                    {selectedPayment.razorpay_order_id && (
+                    {selectedPayment.gateway_order_id && (
                       <button
                         type="button"
-                        onClick={() => handleCopy(selectedPayment.razorpay_order_id!, 'order')}
+                        onClick={() => handleCopy(selectedPayment.gateway_order_id!, 'order')}
                         className="text-muted hover:text-foreground"
                       >
                         {copiedId === 'order' ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
@@ -783,15 +854,15 @@ export default function PaymentsTable({
                 </div>
 
                 <div className="flex items-center justify-between py-1 border-b border-border-subtle">
-                  <span className="text-muted">Razorpay Payment ID:</span>
+                  <span className="text-muted">Gateway Payment ID:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono font-medium text-foreground">
-                      {selectedPayment.razorpay_payment_id || '—'}
+                      {selectedPayment.gateway_payment_id || '—'}
                     </span>
-                    {selectedPayment.razorpay_payment_id && (
+                    {selectedPayment.gateway_payment_id && (
                       <button
                         type="button"
-                        onClick={() => handleCopy(selectedPayment.razorpay_payment_id!, 'pay')}
+                        onClick={() => handleCopy(selectedPayment.gateway_payment_id!, 'pay')}
                         className="text-muted hover:text-foreground"
                       >
                         {copiedId === 'pay' ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}

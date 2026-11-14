@@ -46,10 +46,10 @@ export function HeroSplitExperience() {
                 transition={{ type: 'spring', stiffness: 450, damping: 32 }}
               />
             )}
-            <Radio className="relative z-10 w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <Radio className="relative z-10 w-3.5 h-3.5 text-emerald-600" />
             <span className="relative z-10">Live Radar</span>
-            <span className="relative z-10 text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-800 text-white font-mono">
-              14
+            <span className="relative z-10 text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-800 text-white font-mono">
+              Live
             </span>
           </button>
         </div>
@@ -62,35 +62,23 @@ export function HeroSplitExperience() {
         <div className="lg:col-span-7 space-y-4">
           <HeroRouteSearch />
 
-          {/* Trust Evidence Social Proof Strip */}
+          {/* Trust Evidence Strip */}
           <div className="pt-2 flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-slate-600">
             <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                <div className="w-7 h-7 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-emerald-800">
-                  AK
-                </div>
-                <div className="w-7 h-7 rounded-full bg-sky-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-sky-800">
-                  PS
-                </div>
-                <div className="w-7 h-7 rounded-full bg-amber-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-amber-800">
-                  RD
-                </div>
-              </div>
-              <span className="font-semibold text-slate-800">10,480+ parcels moved</span>
+              <span className="font-medium text-slate-800">Highway corridors active daily</span>
             </div>
 
             <div className="h-3.5 w-px bg-slate-200" />
 
-            <div className="flex items-center gap-1 font-semibold text-slate-800">
-              <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
-              <span>4.9 / 5 Commuter Rating</span>
-            </div>
-
-            <div className="h-3.5 w-px bg-slate-200" />
-
-            <div className="flex items-center gap-1 font-semibold text-emerald-700">
+            <div className="flex items-center gap-1 font-medium text-slate-800">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>100% Aadhaar Verified</span>
+              <span>Aadhaar verified commuters</span>
+            </div>
+
+            <div className="h-3.5 w-px bg-slate-200" />
+
+            <div className="flex items-center gap-1 font-medium text-slate-800">
+              <span>Safe Pay protected</span>
             </div>
           </div>
         </div>
@@ -116,27 +104,11 @@ export function HeroSplitExperience() {
               <HeroRouteSearch />
 
               {/* Mobile Trust Proof Strip */}
-              <div className="p-3 rounded-2xl bg-white border border-slate-200/90 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-700">
-                <div className="flex items-center gap-1.5">
-                  <div className="flex -space-x-1.5">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] font-bold text-emerald-800">
-                      AK
-                    </div>
-                    <div className="w-5 h-5 rounded-full bg-sky-100 flex items-center justify-center text-[8px] font-bold text-sky-800">
-                      PS
-                    </div>
-                  </div>
-                  <span className="font-bold text-slate-900">10k+ Deliveries</span>
-                </div>
-
-                <div className="flex items-center gap-1 font-semibold">
-                  <Star className="w-3 h-3 text-amber-500 fill-current" />
-                  <span>4.9 ★ Rating</span>
-                </div>
-
-                <div className="flex items-center gap-1 font-bold text-emerald-700">
+              <div className="p-3 rounded-xl bg-white border border-slate-200/90 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-700">
+                <span className="font-medium text-slate-800">Haryana commuter network</span>
+                <div className="flex items-center gap-1 font-medium text-emerald-700">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>KYC Verified</span>
+                  <span>ID Verified</span>
                 </div>
               </div>
             </motion.div>

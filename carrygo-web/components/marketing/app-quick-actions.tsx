@@ -4,12 +4,9 @@ import Link from 'next/link'
 import {
   ArrowUpRight,
   Filter,
-  Navigation,
   Package,
   Plane,
   Search,
-  Sparkles,
-  Truck,
 } from 'lucide-react'
 
 interface QuickActionsProps {
@@ -64,7 +61,7 @@ export function AppQuickActions({ onSearchClick }: QuickActionsProps) {
             </div>
           </div>
           <div>
-            <h3 className="text-sm sm:text-base font-heading font-bold text-slate-900 group-hover:text-[#004AAD] transition-colors">
+            <h3 className="text-sm sm:text-base font-heading font-semibold text-slate-900 group-hover:text-[#004AAD] transition-colors">
               Send Parcel
             </h3>
             <p className="text-xs text-slate-600 mt-0.5">
@@ -87,7 +84,7 @@ export function AppQuickActions({ onSearchClick }: QuickActionsProps) {
             </div>
           </div>
           <div>
-            <h3 className="text-sm sm:text-base font-heading font-bold text-slate-900 group-hover:text-[#004AAD] transition-colors">
+            <h3 className="text-sm sm:text-base font-heading font-semibold text-slate-900 group-hover:text-[#004AAD] transition-colors">
               Post a Trip
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">

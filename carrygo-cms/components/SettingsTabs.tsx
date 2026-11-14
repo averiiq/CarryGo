@@ -6,7 +6,8 @@ import {
   User, Shield, Percent, CreditCard, Smartphone, Globe, Bell,
   Save, ToggleLeft, ToggleRight, Info, Coins
 } from 'lucide-react'
-import { saveSettings } from '@/app/dashboard/settings/actions'
+import { saveSettings, saveGatewayCredentials } from '@/app/dashboard/settings/actions'
+import type { GatewayCredentials } from '@/app/dashboard/settings/actions'
 
 interface AdminProfile {
   full_name: string | null
@@ -42,6 +43,7 @@ interface AppConfig {
 interface SettingsTabsProps {
   profile: AdminProfile
   config: AppConfig
+  gatewayCreds: GatewayCredentials[]
 }
 
 const tabs = [
@@ -53,7 +55,7 @@ const tabs = [
   { id: 'security', label: 'Security & Access', icon: Shield },
 ]
 
-export default function SettingsTabs({ profile, config: initialConfig }: SettingsTabsProps) {
+export default function SettingsTabs({ profile, config: initialConfig, gatewayCreds: initialGatewayCreds }: SettingsTabsProps) {
   const [activeTab, setActiveTab] = useState('commission')
   const [config, setConfig] = useState<AppConfig>(initialConfig)
   const [isPending, startTransition] = useTransition()
@@ -140,7 +142,7 @@ export default function SettingsTabs({ profile, config: initialConfig }: Setting
         >
           {activeTab === 'profile' && <ProfileTab profile={profile} />}
           {activeTab === 'commission' && <CommissionTab config={config} updateConfig={updateConfig} />}
-          {activeTab === 'payments' && <PaymentsTab config={config} updateConfig={updateConfig} />}
+          {activeTab === 'payments' && <PaymentsTab config={config} updateConfig={updateConfig} gatewayCreds={initialGatewayCreds} />}
           {activeTab === 'app' && <AppTab config={config} updateConfig={updateConfig} />}
           {activeTab === 'notifications' && <NotificationsTab config={config} updateConfig={updateConfig} />}
           {activeTab === 'security' && <SecurityTab config={config} updateConfig={updateConfig} />}
@@ -329,85 +331,177 @@ function CommissionTab({ config, updateConfig }: { config: AppConfig; updateConf
   )
 }
 
-function PaymentsTab({ config, updateConfig }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: string | number | boolean) => void }) {
+function PaymentsTab({ config, updateConfig, gatewayCreds }: { config: AppConfig; updateConfig: (key: keyof AppConfig, value: string | number | boolean) => void; gatewayCreds: GatewayCredentials[] }) {
+  const [creds, setCreds] = useState<Record<string, GatewayCredentials>>(() => {
+    const map: Record<string, GatewayCredentials> = {}
+    for (const c of gatewayCreds) map[c.gateway] = c
+    return map
+  })
+  const [selectedGw, setSelectedGw] = useState(config.paymentGateway || 'razorpay')
+  const [gwPending, startGwTransition] = useTransition()
+  const [gwSaved, setGwSaved] = useState(false)
+  const [gwError, setGwError] = useState<string | null>(null)
+
+  const currentCred = creds[selectedGw] || {
+    gateway: selectedGw, is_active: false, is_test_mode: true,
+    live_key_id: '', live_key_secret: '', live_merchant_id: '', live_webhook_secret: '',
+    test_key_id: '', test_key_secret: '', test_merchant_id: '', test_webhook_secret: '',
+    salt_key: '', salt_index: '1',
+  }
+
+  const updateCred = (field: keyof GatewayCredentials, value: string | boolean) => {
+    setCreds(prev => ({
+      ...prev,
+      [selectedGw]: { ...currentCred, gateway: selectedGw, [field]: value },
+    }))
+    setGwSaved(false)
+    setGwError(null)
+  }
+
+  const handleSaveGateway = () => {
+    startGwTransition(async () => {
+      const result = await saveGatewayCredentials(currentCred)
+      if (result.success) {
+        setGwSaved(true)
+        setGwError(null)
+        if (currentCred.is_active) updateConfig('paymentGateway', selectedGw)
+        setTimeout(() => setGwSaved(false), 3000)
+      } else {
+        setGwError(result.error ?? 'Failed to save')
+      }
+    })
+  }
+
+  const isPhonePe = selectedGw === 'phonepe'
+
   return (
     <div className="space-y-4">
+      {/* Gateway Selector */}
       <div className="glass-card p-6">
         <div className="flex items-center gap-2 mb-5">
           <CreditCard className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-heading font-semibold text-foreground">Payment Gateway</h3>
+          <h3 className="text-base font-heading font-semibold text-foreground">Payment Gateway Configuration</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Gateway Provider</label>
-            <select
-              value={config.paymentGateway}
-              onChange={e => updateConfig('paymentGateway', e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-border text-sm bg-surface-solid text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            >
-              <option value="razorpay">Razorpay</option>
-              <option value="stripe">Stripe</option>
-              <option value="paytm">Paytm</option>
-              <option value="phonepe">PhonePe</option>
-            </select>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          {(['razorpay', 'phonepe', 'payu'] as const).map(gw => {
+            const isActive = creds[gw]?.is_active
+            return (
+              <button
+                key={gw}
+                onClick={() => setSelectedGw(gw)}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  selectedGw === gw
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/30'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground capitalize">{gw === 'payu' ? 'PayU' : gw === 'phonepe' ? 'PhonePe' : 'Razorpay'}</span>
+                  {isActive && <span className="text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">ACTIVE</span>}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {gw === 'razorpay' && 'Orders API + Checkout.js + Payment Links'}
+                  {gw === 'phonepe' && 'PG Standard Checkout + S2S callbacks'}
+                  {gw === 'payu' && 'Hash-based form POST + Webhook'}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Credentials for selected gateway */}
+      <div className="glass-card p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-heading font-semibold text-foreground capitalize">
+            {selectedGw === 'payu' ? 'PayU' : selectedGw === 'phonepe' ? 'PhonePe' : 'Razorpay'} Credentials
+          </h3>
+          <div className="flex items-center gap-3">
+            <SettingsToggle
+              label="Active Gateway"
+              description=""
+              enabled={currentCred.is_active}
+              onChange={v => updateCred('is_active', v)}
+            />
           </div>
+        </div>
+
+        <SettingsToggle
+          label="Test / Sandbox Mode"
+          description="Use test credentials for development. Disable for production."
+          enabled={currentCred.is_test_mode}
+          onChange={v => updateCred('is_test_mode', v)}
+          variant={currentCred.is_test_mode ? undefined : 'danger'}
+        />
+
+        <div className="mt-5 space-y-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Test Credentials</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SettingsTextField label={isPhonePe ? 'Merchant ID (Test)' : 'Key ID (Test)'} value={isPhonePe ? currentCred.test_merchant_id : currentCred.test_key_id} onChange={v => updateCred(isPhonePe ? 'test_merchant_id' : 'test_key_id', v)} />
+            <SettingsTextField label={isPhonePe ? 'Salt Key (Test)' : 'Key Secret (Test)'} value={isPhonePe ? currentCred.salt_key : currentCred.test_key_secret} onChange={v => updateCred(isPhonePe ? 'salt_key' : 'test_key_secret', v)} type="password" />
+            {!isPhonePe && <SettingsTextField label="Merchant ID (Test)" value={currentCred.test_merchant_id} onChange={v => updateCred('test_merchant_id', v)} />}
+            <SettingsTextField label="Webhook Secret (Test)" value={currentCred.test_webhook_secret} onChange={v => updateCred('test_webhook_secret', v)} type="password" />
+          </div>
+
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-4 border-t border-border-subtle">Live Credentials</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SettingsTextField label={isPhonePe ? 'Merchant ID (Live)' : 'Key ID (Live)'} value={isPhonePe ? currentCred.live_merchant_id : currentCred.live_key_id} onChange={v => updateCred(isPhonePe ? 'live_merchant_id' : 'live_key_id', v)} />
+            <SettingsTextField label={isPhonePe ? 'Salt Key (Live)' : 'Key Secret (Live)'} value={isPhonePe ? currentCred.salt_key : currentCred.live_key_secret} onChange={v => updateCred(isPhonePe ? 'salt_key' : 'live_key_secret', v)} type="password" />
+            {!isPhonePe && <SettingsTextField label="Merchant ID (Live)" value={currentCred.live_merchant_id} onChange={v => updateCred('live_merchant_id', v)} />}
+            <SettingsTextField label="Webhook Secret (Live)" value={currentCred.live_webhook_secret} onChange={v => updateCred('live_webhook_secret', v)} type="password" />
+          </div>
+          {isPhonePe && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SettingsTextField label="Salt Index" value={currentCred.salt_index} onChange={v => updateCred('salt_index', v)} />
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 flex items-center gap-3">
+          <button
+            onClick={handleSaveGateway}
+            disabled={gwPending}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-all"
+          >
+            <Save className="h-4 w-4" />
+            {gwPending ? 'Saving...' : 'Save Gateway Credentials'}
+          </button>
+          {gwSaved && <span className="text-sm text-success font-medium">Gateway saved</span>}
+          {gwError && <span className="text-sm text-danger font-medium">{gwError}</span>}
+        </div>
+        <InfoBanner text="Only one gateway can be active at a time. Activating a gateway will deactivate others. Credentials are encrypted and accessible only to the payment processing service." />
+      </div>
+
+      {/* Auto-release and flow */}
+      <div className="glass-card p-6">
+        <h3 className="text-base font-heading font-semibold text-foreground mb-4">Settlement Configuration</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SettingsNumberField
             label="Auto-Release (hours)"
             value={config.autoReleaseHours}
             onChange={v => updateConfig('autoReleaseHours', v)}
-            min={1}
-            max={168}
-            step={1}
-            suffix="hrs"
+            min={1} max={168} step={1} suffix="hrs"
           />
         </div>
-        <InfoBanner text="Payment is locked when a request is accepted and released to the traveller upon delivery confirmation. Auto-release triggers if the sender doesn't confirm within the specified hours." />
+        <InfoBanner text="Payment is locked when a request is accepted and released to the traveller upon OTP-verified delivery. Auto-release triggers if confirmation isn't received within the specified hours." />
       </div>
 
       <div className="glass-card p-6">
-        <h3 className="text-base font-heading font-semibold text-foreground mb-4">Payment Flow</h3>
+        <h3 className="text-base font-heading font-semibold text-foreground mb-4">Payment Split Flow</h3>
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          {['Request Accepted', 'Payment Locked', 'Delivery Started', 'OTP Verified', 'Payment Released'].map((step, i) => (
+          {['Sender Pays', 'Payment Locked', 'Split Calculated', 'OTP Verified', 'Traveler Paid'].map((step, i) => (
             <div key={step} className="flex items-center gap-2 shrink-0">
               <div className="flex flex-col items-center">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${
                   i < 4 ? 'bg-success/10 text-success border-2 border-success/30' : 'bg-primary/10 text-primary border-2 border-primary/30'
-                }`}>
-                  {i + 1}
-                </div>
+                }`}>{i + 1}</div>
                 <span className="text-[10px] text-muted-foreground mt-1 max-w-[80px] text-center leading-tight">{step}</span>
               </div>
               {i < 4 && <div className="h-0.5 w-6 bg-border-subtle rounded-full mt-[-12px]" />}
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="glass-card p-6">
-        <h3 className="text-base font-heading font-semibold text-foreground mb-4">Refund Policy</h3>
-        <div className="space-y-3 text-sm">
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-background">
-            <span className="shrink-0 h-6 w-6 rounded-full bg-success/10 text-success flex items-center justify-center text-xs font-bold">✓</span>
-            <div>
-              <p className="font-medium text-foreground">Full refund if delivery cancelled before pickup</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Sender can cancel and receive 100% refund</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-background">
-            <span className="shrink-0 h-6 w-6 rounded-full bg-warning/10 text-warning flex items-center justify-center text-xs font-bold">!</span>
-            <div>
-              <p className="font-medium text-foreground">Dispute-based refund after pickup</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Requires admin review and dispute resolution</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-background">
-            <span className="shrink-0 h-6 w-6 rounded-full bg-danger/10 text-danger flex items-center justify-center text-xs font-bold">✕</span>
-            <div>
-              <p className="font-medium text-foreground">No refund after delivery confirmed</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Once OTP is verified and payment released, no automatic refund</p>
-            </div>
-          </div>
-        </div>
+        <InfoBanner text="Commission rates and GST are configured in the Commission tab. The split is computed at payment finalization and stored on each payment record." />
       </div>
     </div>
   )

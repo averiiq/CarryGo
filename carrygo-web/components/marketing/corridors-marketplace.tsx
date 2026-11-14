@@ -151,7 +151,7 @@ export function CorridorsMarketplace({ trips }: Props) {
                   {/* Rate */}
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
                     <span className="text-slate-500">Carrier fee:</span>
-                    <span className="font-heading font-extrabold text-slate-900 text-base">
+                    <span className="font-heading font-semibold text-slate-900 text-base tabular-nums">
                       ₹{trip.price_per_kg}
                       <span className="text-[10px] text-slate-500 font-normal">/kg</span>
                     </span>

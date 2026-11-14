@@ -824,6 +824,15 @@ export type Database = {
           sender_id: string
           status: Database["public"]["Enums"]["payment_status"]
           traveller_id: string
+          gateway_provider: string | null
+          gateway_order_id: string | null
+          gateway_payment_id: string | null
+          platform_fee: number | null
+          gst_amount: number | null
+          traveler_payout: number | null
+          payout_status: string | null
+          payout_reference: string | null
+          payout_completed_at: string | null
         }
         Insert: {
           amount: number
@@ -837,6 +846,15 @@ export type Database = {
           sender_id: string
           status?: Database["public"]["Enums"]["payment_status"]
           traveller_id: string
+          gateway_provider?: string | null
+          gateway_order_id?: string | null
+          gateway_payment_id?: string | null
+          platform_fee?: number | null
+          gst_amount?: number | null
+          traveler_payout?: number | null
+          payout_status?: string | null
+          payout_reference?: string | null
+          payout_completed_at?: string | null
         }
         Update: {
           amount?: number
@@ -850,6 +868,15 @@ export type Database = {
           sender_id?: string
           status?: Database["public"]["Enums"]["payment_status"]
           traveller_id?: string
+          gateway_provider?: string | null
+          gateway_order_id?: string | null
+          gateway_payment_id?: string | null
+          platform_fee?: number | null
+          gst_amount?: number | null
+          traveler_payout?: number | null
+          payout_status?: string | null
+          payout_reference?: string | null
+          payout_completed_at?: string | null
         }
         Relationships: [
           {

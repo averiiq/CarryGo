@@ -308,7 +308,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
           </div>
         )}
 
-        {/* COMPLETED / ESCROW LOCKED VIEW */}
+        {/* COMPLETED / SAFE PAY HELD VIEW */}
         {payment && payment.status === 'locked' ? (
           <div className="glass-card rounded-3xl p-6 sm:p-10 border border-emerald-200 bg-white/95 shadow-xl space-y-8">
             <div className="text-center space-y-2 border-b border-slate-100 pb-6">
@@ -353,7 +353,7 @@ export default function PaymentCheckoutPage({ params }: { params: Promise<{ id: 
                 </div>
                 <div>
                   <span className="text-slate-400 text-[11px]">Gatekeeper Ref</span>
-                  <p className="font-bold text-slate-800 font-mono">{payment.razorpay_payment_id || 'PG_ESCROW_OK'}</p>
+                  <p className="font-bold text-slate-800 font-mono">{payment.razorpay_payment_id || 'PG_RESERVE_OK'}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[11px]">Locked Timestamp</span>

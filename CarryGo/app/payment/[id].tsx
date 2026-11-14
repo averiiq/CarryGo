@@ -31,7 +31,7 @@ import { useConversationsQuery } from '@/features/conversations/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { Haptic } from '@/services/haptics.service';
 import { getSupabaseClient } from '@/template';
-import { useRazorpayCheckout } from '@/hooks/useRazorpayCheckout';
+import { usePaymentCheckout } from '@/hooks/usePaymentCheckout';
 import { getAvailableParcelCredit } from '@/services/rewards.service';
 import { getUserAvatarSource } from '@/constants/images';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -159,7 +159,7 @@ function PaymentScreenContent() {
     startCheckout,
     confirmDemoBooking,
     resetCheckout,
-  } = useRazorpayCheckout({
+  } = usePaymentCheckout({
     requestId: effectiveRequestId,
     senderId: user?.id,
     travellerId: request?.travellerId,
@@ -632,12 +632,39 @@ function PaymentScreenContent() {
 
           {/* Breakdown Items */}
           <View style={styles.breakdownList}>
-            <View style={styles.breakdownRow}>
-              <Text style={[styles.breakdownLabel, { color: C.textSecondary }]}>Carrier Delivery Reward</Text>
-              <Text style={[styles.breakdownValue, { color: C.textPrimary }]}>
-                {formatAmount(effectivePrice)}
-              </Text>
-            </View>
+            {isPaid && payment?.travelerPayout != null ? (
+              <>
+                <View style={styles.breakdownRow}>
+                  <Text style={[styles.breakdownLabel, { color: C.textSecondary }]}>Traveler Payout</Text>
+                  <Text style={[styles.breakdownValue, { color: C.textPrimary }]}>
+                    {formatAmount(payment.travelerPayout)}
+                  </Text>
+                </View>
+                {payment.platformFee != null && payment.platformFee > 0 ? (
+                  <View style={styles.breakdownRow}>
+                    <Text style={[styles.breakdownLabel, { color: C.textSecondary }]}>Platform Fee</Text>
+                    <Text style={[styles.breakdownValue, { color: C.textMuted }]}>
+                      {formatAmount(payment.platformFee)}
+                    </Text>
+                  </View>
+                ) : null}
+                {payment.gstAmount != null && payment.gstAmount > 0 ? (
+                  <View style={styles.breakdownRow}>
+                    <Text style={[styles.breakdownLabel, { color: C.textSecondary }]}>GST</Text>
+                    <Text style={[styles.breakdownValue, { color: C.textMuted }]}>
+                      {formatAmount(payment.gstAmount)}
+                    </Text>
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <View style={styles.breakdownRow}>
+                <Text style={[styles.breakdownLabel, { color: C.textSecondary }]}>Carrier Delivery Reward</Text>
+                <Text style={[styles.breakdownValue, { color: C.textPrimary }]}>
+                  {formatAmount(effectivePrice)}
+                </Text>
+              </View>
+            )}
 
             <View style={styles.breakdownRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -704,11 +731,20 @@ function PaymentScreenContent() {
               </Text>
             </View>
 
-            {payment?.razorpayPaymentId ? (
+            {(payment?.gatewayPaymentId || payment?.razorpayPaymentId) ? (
               <View style={styles.metaRow}>
                 <Text style={[styles.metaLabel, { color: C.textMuted }]}>Gateway Ref</Text>
                 <Text style={[styles.metaValue, { color: C.textPrimary }]}>
-                  {payment.razorpayPaymentId}
+                  {payment.gatewayPaymentId || payment.razorpayPaymentId}
+                </Text>
+              </View>
+            ) : null}
+
+            {payment?.gatewayProvider ? (
+              <View style={styles.metaRow}>
+                <Text style={[styles.metaLabel, { color: C.textMuted }]}>Gateway</Text>
+                <Text style={[styles.metaValue, { color: C.textPrimary }]}>
+                  {payment.gatewayProvider === 'razorpay' ? 'Razorpay' : payment.gatewayProvider === 'phonepe' ? 'PhonePe' : payment.gatewayProvider === 'payu' ? 'PayU' : payment.gatewayProvider}
                 </Text>
               </View>
             ) : null}

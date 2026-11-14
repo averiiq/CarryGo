@@ -14,10 +14,12 @@ export default async function SettingsPage() {
     .single()
 
   // Load app config from DB if table exists, otherwise use defaults
-  const { data: configRows } = await supabase
-    .from('app_config')
-    .select('key, value')
-    .limit(50)
+  const [{ data: configRows }, { data: gatewayCreds }] = await Promise.all([
+    supabase.from('app_config').select('key, value').limit(50),
+    supabase.from('payment_gateway_credentials')
+      .select('gateway, is_active, is_test_mode, live_key_id, live_key_secret, live_merchant_id, live_webhook_secret, test_key_id, test_key_secret, test_merchant_id, test_webhook_secret, salt_key, salt_index')
+      .order('gateway'),
+  ])
 
   const configMap: Record<string, string> = {}
   configRows?.forEach((row: { key: string; value: string }) => {
@@ -59,6 +61,7 @@ export default async function SettingsPage() {
           system_role: profile?.system_role || null,
         }}
         config={config}
+        gatewayCreds={gatewayCreds || []}
       />
     </div>
   )

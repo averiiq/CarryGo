@@ -33,8 +33,8 @@ export function BookingVaultIllustration() {
             <Lock className='h-4 w-4' />
           </div>
           <div>
-            <p className='text-[11px] font-semibold uppercase tracking-wider text-muted'>Escrow</p>
-            <p className='text-sm font-semibold text-foreground'>Payment held</p>
+            <p className='text-[11px] font-semibold text-muted'>Safe Pay</p>
+            <p className='text-sm font-semibold text-foreground'>Payment reserved</p>
           </div>
         </div>
 

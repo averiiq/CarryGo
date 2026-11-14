@@ -62,7 +62,7 @@ const ROWS: ToggleRow[] = [
   {
     key: 'enablePayments',
     label: 'Payment events',
-    description: 'Escrow locks, releases, refunds, and invoices.',
+    description: 'Safe Pay reserves, releases, refunds, and invoices.',
     Icon: CreditCard,
     tone: 'text-violet-700 bg-violet-100',
   },
@@ -138,11 +138,11 @@ export default function NotificationSettingsPage() {
               <Bell className="w-5 h-5" />
             </span>
             <div>
-              <h1 className="text-xl font-heading font-extrabold text-slate-900">
+              <h1 className="text-xl font-heading font-semibold text-slate-900">
                 Notification preferences
               </h1>
               <p className="text-xs text-slate-500">
-                Choose which notifications we send you. Critical safety alerts (OTP, delivery, escrow) are always on.
+                Choose which notifications we send you. Critical safety alerts (OTP, delivery, payment release) are always on.
               </p>
             </div>
           </div>

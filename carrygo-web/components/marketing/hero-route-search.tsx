@@ -77,10 +77,7 @@ export function HeroRouteSearch() {
 
   return (
     <div className="w-full">
-      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/30 to-white p-4 sm:p-6 lg:p-7 overflow-hidden">
-        {/* Top Gradient Hairline Accent */}
-        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500" />
-        <div className="absolute inset-0 pattern-dots opacity-30 pointer-events-none -z-10" />
+      <div className="relative rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-7 overflow-hidden shadow-sm">
         {/* Mode Switcher Segmented Control with Smooth Sliding Pill */}
         <div className="relative grid grid-cols-2 rounded-2xl bg-slate-100 p-1 border border-slate-200/90 mb-4 sm:mb-5">
           <button

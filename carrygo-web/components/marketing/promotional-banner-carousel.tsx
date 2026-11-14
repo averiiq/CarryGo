@@ -65,7 +65,7 @@ export function PromotionalBannerCarousel() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 pt-6">
-      <div className="relative rounded-3xl overflow-hidden border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-amber-50 shadow-sm">
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
         <div className="p-5 sm:p-6 flex items-center gap-4">
           {current.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -75,19 +75,19 @@ export function PromotionalBannerCarousel() {
               className="hidden sm:block w-24 h-24 rounded-2xl object-cover shrink-0"
             />
           ) : (
-            <span className="hidden sm:flex w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 items-center justify-center shrink-0">
-              <Megaphone className="w-7 h-7" />
+            <span className="hidden sm:flex w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 items-center justify-center shrink-0 border border-emerald-200">
+              <Megaphone className="w-6 h-6" />
             </span>
           )}
 
           <div className="flex-1 min-w-0">
             <span
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider text-white"
-              style={{ backgroundColor: current.badge_color || '#F59E0B' }}
+              className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold text-white"
+              style={{ backgroundColor: current.badge_color || '#008B48' }}
             >
               {current.badge_text}
             </span>
-            <p className="mt-1.5 text-sm sm:text-base font-heading font-extrabold text-slate-900 line-clamp-2">
+            <p className="mt-1.5 text-sm sm:text-base font-heading font-semibold text-slate-900 line-clamp-2">
               {current.title}
             </p>
             <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{current.subtitle}</p>
@@ -96,7 +96,7 @@ export function PromotionalBannerCarousel() {
           {current.cta_action !== 'none' && target && (
             <Link
               href={target}
-              className="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs"
+              className="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800"
             >
               {current.cta_text}
               <ArrowRight className="w-3 h-3" />

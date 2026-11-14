@@ -23,6 +23,15 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
       status,
       razorpay_order_id,
       razorpay_payment_id,
+      gateway_provider,
+      gateway_order_id,
+      gateway_payment_id,
+      platform_fee,
+      gst_amount,
+      traveler_payout,
+      payout_status,
+      payout_reference,
+      payout_completed_at,
       locked_at,
       released_at,
       created_at,
@@ -43,9 +52,10 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
     query = query.eq('status', params.status)
   }
 
-  const [{ data: payments, count, error }, { data: totals, error: totalsError }] = await Promise.all([
+  const [{ data: payments, count, error }, { data: totals, error: totalsError }, { data: payoutStats }] = await Promise.all([
     query.range(from, from + PAGE_SIZE - 1),
     supabase.rpc('cms_payment_totals', { p_actor_id: auth.userId }),
+    supabase.rpc('cms_payout_summary'),
   ])
 
   if (error || totalsError) throw new Error(`Unable to load payments: ${(error || totalsError)?.message}`)
@@ -78,6 +88,15 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
       status: p.status as 'locked' | 'released' | 'refunded',
       razorpay_order_id: p.razorpay_order_id as string | null,
       razorpay_payment_id: p.razorpay_payment_id as string | null,
+      gateway_provider: (p.gateway_provider || 'razorpay') as string,
+      gateway_order_id: (p.gateway_order_id || p.razorpay_order_id) as string | null,
+      gateway_payment_id: (p.gateway_payment_id || p.razorpay_payment_id) as string | null,
+      platform_fee: p.platform_fee != null ? Number(p.platform_fee) : null,
+      gst_amount: p.gst_amount != null ? Number(p.gst_amount) : null,
+      traveler_payout: p.traveler_payout != null ? Number(p.traveler_payout) : null,
+      payout_status: (p.payout_status || null) as string | null,
+      payout_reference: (p.payout_reference || null) as string | null,
+      payout_completed_at: (p.payout_completed_at || null) as string | null,
       locked_at: (p.locked_at || p.created_at) as string,
       released_at: p.released_at as string | null,
       request_id: (p.request_id || '') as string,
@@ -93,14 +112,15 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const totalRevenue = Number(summary.released ?? 0)
   const totalLocked = Number(summary.locked ?? 0)
   const totalRefunded = Number(summary.refunded ?? 0)
+  const payout = (payoutStats?.[0] ?? {}) as Record<string, number>
   const total = count ?? 0
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Payments & Safe Pay Management</h1>
+        <h1 className="text-2xl font-heading font-bold text-foreground tracking-tight">Payments & Payout Management</h1>
         <p className="text-sm text-muted mt-1">
-          Monitor Razorpay held balances, track fee transfers, and manually release or refund payments.
+          Monitor gateway payments, split commissions, and manage traveler payouts across all gateways.
         </p>
       </div>
 
@@ -109,6 +129,16 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         totalRevenue={totalRevenue}
         totalLocked={totalLocked}
         totalRefunded={totalRefunded}
+        payoutSummary={{
+          pending: Number(payout.total_pending ?? 0),
+          processing: Number(payout.total_processing ?? 0),
+          completed: Number(payout.total_completed ?? 0),
+          failed: Number(payout.total_failed ?? 0),
+          sumPending: Number(payout.sum_pending ?? 0),
+          sumProcessing: Number(payout.sum_processing ?? 0),
+          sumCompleted: Number(payout.sum_completed ?? 0),
+          sumFailed: Number(payout.sum_failed ?? 0),
+        }}
       />
       <Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} totalItems={total} pageSize={PAGE_SIZE} itemLabel="payments" />
     </div>

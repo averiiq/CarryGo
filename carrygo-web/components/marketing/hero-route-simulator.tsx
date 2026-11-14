@@ -6,19 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
   Car,
-  CheckCircle2,
   Clock,
-  Compass,
   KeyRound,
   Lock,
-  Navigation,
   Plane,
   ShieldCheck,
-  Sparkles,
   Star,
   Train,
-  Truck,
-  Zap,
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { getRouteEstimate } from '@/lib/indian-cities'
@@ -135,22 +129,19 @@ export function HeroRouteSimulator() {
 
   return (
     <div className="relative w-full">
-      {/* Main Glass HUD Container */}
-      <div className="relative rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/30 to-white p-5 sm:p-6 overflow-hidden">
-        {/* Top Gradient Hairline Accent */}
-        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-sky-500 via-teal-400 to-emerald-500" />
-        <div className="absolute inset-0 pattern-dots opacity-30 pointer-events-none -z-10" />
+      {/* Main Transit Manifest HUD Container */}
+      <div className="relative rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 overflow-hidden shadow-sm">
         {/* Header Strip with Live Status */}
         <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <span className="status-beacon" />
-            <span className="text-xs font-bold tracking-wider uppercase text-emerald-700">
-              Live Corridor Radar
+            <span className="w-2 h-2 rounded-full bg-emerald-600" />
+            <span className="text-xs font-semibold text-slate-800">
+              Live corridor radar
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700">
-            <Clock className="w-3 h-3 text-sky-600" />
-            <span>Avg Match: 12 mins</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-medium text-slate-700">
+            <Clock className="w-3 h-3 text-slate-500" />
+            <span>Avg match: 12 mins</span>
           </div>
         </div>
 
@@ -196,27 +187,27 @@ export function HeroRouteSimulator() {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg sm:text-xl font-heading font-extrabold text-slate-900">
+                  <span className="text-lg sm:text-xl font-heading font-semibold text-slate-900">
                     {activeCorridor.from}
                   </span>
-                  <span className="text-emerald-600 font-bold">➔</span>
-                  <span className="text-lg sm:text-xl font-heading font-extrabold text-slate-900">
+                  <span className="text-emerald-700 font-semibold">➔</span>
+                  <span className="text-lg sm:text-xl font-heading font-semibold text-slate-900">
                     {activeCorridor.to}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                  <span className="font-semibold text-slate-700">{activeCorridor.distance}</span>
+                  <span className="font-medium text-slate-700">{activeCorridor.distance}</span>
                   <span>•</span>
                   <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-sky-600" />
+                    <Clock className="w-3 h-3 text-slate-500" />
                     {activeCorridor.duration}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border border-slate-200">
-                <VehicleIcon className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="text-xs font-bold text-slate-800 capitalize">
+                <VehicleIcon className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="text-xs font-medium text-slate-800 capitalize">
                   {activeCorridor.vehicle}
                 </span>
               </div>
@@ -225,22 +216,22 @@ export function HeroRouteSimulator() {
             {/* Traveler Info Box */}
             <div className="p-3.5 rounded-xl bg-white border border-slate-200/90 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-200">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 font-semibold text-xs flex items-center justify-center border border-emerald-200">
                   {activeCorridor.traveler.avatar}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-slate-900">
+                    <span className="text-xs font-semibold text-slate-900">
                       {activeCorridor.traveler.name}
                     </span>
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                      KYC
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                    <span className="text-[10px] text-emerald-800 font-medium bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      ID verified
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                    <span className="flex items-center gap-0.5 text-amber-600 font-bold">
-                      <Star className="w-3 h-3 fill-current" />
+                    <span className="flex items-center gap-0.5 text-amber-700 font-medium">
+                      <Star className="w-3 h-3 fill-current text-amber-500" />
                       {activeCorridor.traveler.rating}
                     </span>
                     <span>•</span>
@@ -250,8 +241,8 @@ export function HeroRouteSimulator() {
               </div>
 
               <div className="text-right">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Capacity</span>
-                <span className="text-xs font-bold font-mono text-emerald-700">
+                <span className="text-[11px] text-slate-500 font-medium block">Available</span>
+                <span className="text-xs font-semibold font-mono text-emerald-800 tabular-nums">
                   {activeCorridor.traveler.spaceAvailable}
                 </span>
               </div>
@@ -260,34 +251,34 @@ export function HeroRouteSimulator() {
             {/* Pricing & Departure Pill */}
             <div className="flex items-center justify-between text-xs pt-1">
               <div className="flex items-center gap-1.5 text-slate-600">
-                <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="font-semibold">{activeCorridor.traveler.eta}</span>
+                <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="font-medium">{activeCorridor.traveler.eta}</span>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-slate-400 text-[11px]">Starting from</span>
-                <span className="text-base font-extrabold font-heading text-slate-900">
+                <span className="text-slate-500 text-[11px]">Rate:</span>
+                <span className="text-base font-semibold font-heading text-slate-900 tabular-nums">
                   ₹{activeCorridor.traveler.ratePerKg}
                 </span>
-                <span className="text-[10px] text-slate-500">/kg</span>
+                <span className="text-[11px] text-slate-500">/kg</span>
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Dual-OTP Booking Trust Guarantee */}
+        {/* Two-Step Passkey Booking Trust Guarantee */}
         <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">
               <KeyRound className="w-3.5 h-3.5" />
             </div>
             <div>
-              <p className="font-bold text-slate-900 text-[11px]">Dual Golden Handshake OTP</p>
-              <p className="text-[10px] text-slate-500">Private 4-digit code at pickup &amp; delivery</p>
+              <p className="font-semibold text-slate-900 text-[11px]">Two-step handover passkey</p>
+              <p className="text-[10px] text-slate-500">Unique 4-digit code confirmed at pickup and delivery</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-            <Lock className="w-3 h-3 text-emerald-600" />
-            <span>SafeVault™</span>
+          <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-800">
+            <Lock className="w-3 h-3 text-emerald-700" />
+            <span>Safe Pay reserve</span>
           </div>
         </div>
 
