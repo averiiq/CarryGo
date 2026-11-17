@@ -1,5 +1,12 @@
-import React, { useRef, useCallback } from 'react';
-import { Animated, Pressable, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import React, { useCallback } from 'react';
+import { Pressable, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { BorderRadius, Spacing, Motion } from '@/constants/theme';
@@ -31,30 +38,33 @@ export function LivelyCard({
   imageOpacity = 0.14,
 }: LivelyCardProps) {
   const { C, isDark } = useThemeColors();
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
+  const pressOpacity = useSharedValue(1);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: pressOpacity.value,
+  }));
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: scaleOnPress,
-      useNativeDriver: true,
-      tension: Motion.springFast.tension,
-      friction: Motion.springFast.friction,
-    }).start();
-  }, [scale, scaleOnPress]);
+    scale.value = withSpring(scaleOnPress, { damping: 15, stiffness: 400, mass: 0.4 });
+    pressOpacity.value = withTiming(0.95, { duration: 80 });
+  }, [scale, pressOpacity, scaleOnPress]);
 
   const handlePressOut = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: Motion.springBouncy.tension,
-      friction: Motion.springBouncy.friction,
-    }).start();
-  }, [scale]);
+    scale.value = withSpring(1, { damping: 8, stiffness: 200, mass: 0.5 });
+    pressOpacity.value = withTiming(1, { duration: 150 });
+  }, [scale, pressOpacity]);
 
   const handlePress = useCallback(() => {
     if (hapticOnPress) Haptic.tap();
+    // Micro-bounce feedback
+    scale.value = withSequence(
+      withSpring(1.01, { damping: 15, stiffness: 500 }),
+      withSpring(1, { damping: 12, stiffness: 200 }),
+    );
     onPress?.();
-  }, [hapticOnPress, onPress]);
+  }, [hapticOnPress, onPress, scale]);
 
   const cardStyle: ViewStyle = {
     backgroundColor: C.surface,
@@ -69,7 +79,7 @@ export function LivelyCard({
   };
 
   const content = (
-    <Animated.View style={[styles.card, cardStyle, style, { transform: [{ scale }] }]}>
+    <Animated.View style={[styles.card, cardStyle, style, animStyle]}>
       {imageBackground ? (
         <Image
           source={imageBackground}

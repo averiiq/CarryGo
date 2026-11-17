@@ -227,11 +227,8 @@ export const styles = StyleSheet.create({
 
   // Traveler Profile Card (for sender and owner)
   travelerProfileCard: {
-    borderRadius: 20,
-    borderWidth: 1,
     padding: Spacing.lg,
     gap: Spacing.md,
-    ...Shadow.card,
   },
   travelerHeaderRow: {
     flexDirection: 'row',
@@ -340,8 +337,6 @@ export const styles = StyleSheet.create({
 
   // "Can Carry" categories section
   canCarryCard: {
-    borderRadius: 20,
-    borderWidth: 1,
     padding: Spacing.lg,
     gap: Spacing.md,
   },
@@ -545,8 +540,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: Spacing.mdl,
-    borderRadius: 16,
-    borderWidth: 1,
   },
   statusBannerIcon: {
     width: 36,
@@ -581,11 +574,8 @@ export const styles = StyleSheet.create({
   ownerStatsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    ...Shadow.sm,
   },
   ownerStatItem: {
     flex: 1,
@@ -641,8 +631,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
-    borderRadius: 16,
-    borderWidth: 1,
     gap: 6,
   },
   emptyTitle: {
@@ -766,10 +754,7 @@ export const styles = StyleSheet.create({
 
   // Map & Itinerary Section Styles
   mapSectionCard: {
-    borderRadius: 20,
-    borderWidth: 1,
     overflow: 'hidden',
-    ...Shadow.card,
   },
   mapHeaderRow: {
     flexDirection: 'row',
@@ -797,11 +782,8 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   itineraryCard: {
-    borderRadius: 20,
-    borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.sm,
-    ...Shadow.card,
   },
   itineraryHeader: {
     flexDirection: 'row',

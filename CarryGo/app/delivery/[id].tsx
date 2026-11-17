@@ -678,7 +678,7 @@ function DeliveryScreenInner() {
             Handover OTP and delivery tracking unlock immediately once your booking payment is reserved. Your payment is held safely until the parcel is delivered.
           </Text>
 
-          <View style={[styles.gateSummaryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.gateSummaryCard}>
             <View style={styles.gateSummaryRow}>
               <Text style={[styles.gateSummaryLabel, { color: C.textMuted }]}>Route</Text>
               <Text style={[styles.gateSummaryValue, { color: C.textPrimary }]}>
@@ -953,7 +953,7 @@ function DeliveryScreenInner() {
             </View>
 
             {/* Bottom Key Metrics Strip */}
-            <View style={[styles.heroMetricsStrip, { backgroundColor: C.surfaceElevated, borderColor: C.surfaceBorder }]}>
+            <View style={styles.heroMetricsStrip}>
               <View style={styles.metricItem}>
                 <Text style={[styles.metricLabel, { color: C.textMuted }]}>Agreed Fee</Text>
                 <Text style={[styles.metricValue, { color: C.success }]}>₹{request.price}</Text>
@@ -1112,7 +1112,7 @@ function DeliveryScreenInner() {
           {/* ========================================================================= */}
           {/* 4. STREAMLINED JOURNEY SPECIFICATIONS CARD                                 */}
           {/* ========================================================================= */}
-          <View style={[styles.specsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.specsCard}>
             <View style={styles.specsHeader}>
               <View style={[styles.specsIconBox, { backgroundColor: C.primarySubtle }]}>
                 <Feather name="shield" size={14} color={C.primary} />
@@ -1349,8 +1349,6 @@ const styles = StyleSheet.create({
   heroMetricsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
   },
@@ -1380,8 +1378,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
     padding: Spacing.md,
   },
   gpsIconCircle: {
@@ -1403,8 +1399,6 @@ const styles = StyleSheet.create({
 
   // Specs Card
   specsCard: {
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.xs,
   },
@@ -1516,8 +1510,6 @@ const styles = StyleSheet.create({
   },
   gateSummaryCard: {
     width: '100%',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.xs,
     marginBottom: Spacing.lg,

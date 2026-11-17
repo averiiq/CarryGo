@@ -9,6 +9,11 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  withDelay,
+  withSequence,
+  FadeInUp,
+  interpolate,
+  Extrapolation,
 } from 'react-native-reanimated';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -113,10 +118,11 @@ function TabButton({
 }: TabButtonProps) {
   const meta = getTabMeta(route.name, pendingRequests, unreadMessages, kycPending);
   const activeProgress = useSharedValue(isFocused ? 1 : 0);
+  const tabScale = useSharedValue(1);
 
   useEffect(() => {
     activeProgress.value = withTiming(isFocused ? 1 : 0, {
-      duration: 180,
+      duration: 200,
     });
   }, [isFocused, activeProgress]);
 
@@ -128,8 +134,18 @@ function TabButton({
     opacity: 1 - activeProgress.value,
   }));
 
+  const tabScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: tabScale.value }],
+  }));
+
   const onPress = () => {
     Haptic.select();
+    // Bouncy tap feedback on tab press
+    tabScale.value = withSequence(
+      withSpring(0.88, { damping: 15, stiffness: 500 }),
+      withSpring(1.05, { damping: 10, stiffness: 300 }),
+      withSpring(1, { damping: 14, stiffness: 200 }),
+    );
     const event = navigation.emit({
       type: 'tabPress',
       target: route.key,
@@ -161,12 +177,9 @@ function TabButton({
         borderless: true,
         radius: isSmallDevice ? 24 : 28,
       }}
-      style={({ pressed }) => [
-        styles.tabButton,
-        pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
-      ]}
+      style={styles.tabButton}
     >
-      <View style={styles.tabItem}>
+      <Animated.View style={[styles.tabItem, tabScaleStyle]}>
         {/* Inactive Layer: Slate Gray */}
         <Animated.View style={[styles.tabContentLayer, inactiveLayerStyle]} pointerEvents="none">
           <View style={styles.iconContainer}>
@@ -263,7 +276,7 @@ function TabButton({
             {meta.label}
           </Text>
         </Animated.View>
-      </View>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -346,9 +359,9 @@ function FloatingCapsuleTabBar({
         isMountedRef.current = true;
       } else {
         translateX.value = withSpring(targetX, {
-          damping: 24,
-          stiffness: 280,
-          mass: 0.75,
+          damping: 18,
+          stiffness: 240,
+          mass: 0.6,
           overshootClamping: false,
         });
       }
@@ -377,7 +390,8 @@ function FloatingCapsuleTabBar({
   }, [isConstrained, bottomOffset, screenWidth, targetBarWidth, barHeight, horizontalMargin]);
 
   return (
-    <View
+    <Animated.View
+      entering={FadeInUp.delay(200).duration(500).springify().damping(16).stiffness(100)}
       accessibilityRole="tablist"
       style={[
         styles.tabBarContainer,
@@ -429,7 +443,7 @@ function FloatingCapsuleTabBar({
           />
         ))}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -687,10 +687,7 @@ export default function SupportScreen() {
           <View style={styles.sectionBlock}>
             {/* Module 1: Direct Support Desk Hub */}
             <View
-              style={[
-                styles.modularHubCard,
-                { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-              ]}
+              style={styles.modularHubCard}
             >
               {/* Official Email Row */}
               <Pressable
@@ -851,12 +848,7 @@ export default function SupportScreen() {
             {/* Module 3: FAQ Accordion List */}
             <View style={styles.faqCardStack}>
               {filteredFaqs.length === 0 ? (
-                <View
-                  style={[
-                    styles.emptyBox,
-                    { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-                  ]}
-                >
+                <View style={styles.emptyBox}>
                   <MaterialIcons name="search-off" size={32} color={C.textMuted} />
                   <Text style={[styles.emptyBoxTitle, { color: C.textPrimary }]}>
                     No matching answers
@@ -881,9 +873,7 @@ export default function SupportScreen() {
                       key={faq.id}
                       style={[
                         styles.faqRowCard,
-                        { backgroundColor: C.surface, borderColor: C.surfaceBorder },
                         isExpanded && {
-                          borderColor: C.primaryBorder,
                           borderLeftWidth: 3,
                           borderLeftColor: C.primary,
                         },
@@ -1007,12 +997,7 @@ export default function SupportScreen() {
               </View>
             )}
 
-            <View
-              style={[
-                styles.ticketFormCard,
-                { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-              ]}
-            >
+            <View style={styles.ticketFormCard}>
               <View>
                 <Text style={[styles.formTitle, { color: C.textPrimary }]}>Submit an Issue</Text>
                 <Text style={[styles.formSubtitle, { color: C.textMuted }]}>
@@ -1352,12 +1337,7 @@ export default function SupportScreen() {
                 </Text>
               </View>
             ) : filteredTickets.length === 0 ? (
-              <View
-                style={[
-                  styles.emptyBox,
-                  { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-                ]}
-              >
+              <View style={styles.emptyBox}>
                 <MaterialIcons name="assignment-turned-in" size={38} color={C.primary} />
                 <Text style={[styles.emptyBoxTitle, { color: C.textPrimary }]}>
                   {ticketFilter === 'all'
@@ -1393,8 +1373,7 @@ export default function SupportScreen() {
                       key={t.id}
                       style={[
                         styles.ticketCardItem,
-                        { backgroundColor: C.surface, borderColor: C.surfaceBorder },
-                        isExpanded && { borderColor: C.primaryBorder },
+                        isExpanded && { borderLeftWidth: 3, borderLeftColor: C.primary },
                       ]}
                       onPress={() => toggleTicket(t.id)}
                     >
@@ -1821,9 +1800,7 @@ const styles = StyleSheet.create({
 
   // Modular Assistance Hub Card
   modularHubCard: {
-    borderRadius: BorderRadius.xxl,
     padding: Spacing.md + 2,
-    borderWidth: 1,
     gap: Spacing.sm + 2,
   },
   modularEmailRow: {
@@ -1928,9 +1905,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   faqRowCard: {
-    borderRadius: BorderRadius.xl,
     padding: Spacing.md + 2,
-    borderWidth: 1,
   },
   faqQuestionRow: {
     flexDirection: 'row',
@@ -2002,9 +1977,7 @@ const styles = StyleSheet.create({
 
   // Assistance Card
   assistanceCard: {
-    borderRadius: BorderRadius.xxl,
     padding: Spacing.lg,
-    borderWidth: 1,
     marginTop: Spacing.sm,
     gap: Spacing.md,
   },
@@ -2270,9 +2243,7 @@ const styles = StyleSheet.create({
 
   // Ticket Form
   ticketFormCard: {
-    borderRadius: BorderRadius.xxl,
     padding: Spacing.lg,
-    borderWidth: 1,
     gap: Spacing.lg,
   },
   formTitle: {
@@ -2414,9 +2385,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm + 2,
   },
   ticketCardItem: {
-    borderRadius: BorderRadius.xxl,
     padding: Spacing.md + 2,
-    borderWidth: 1,
     gap: Spacing.sm,
   },
   ticketCardHeader: {
@@ -2500,9 +2469,7 @@ const styles = StyleSheet.create({
 
   // Empty Box
   emptyBox: {
-    borderRadius: BorderRadius.xxl,
     padding: Spacing.xl + 4,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,

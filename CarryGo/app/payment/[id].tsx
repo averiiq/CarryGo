@@ -437,7 +437,7 @@ function PaymentScreenContent() {
         </View>
 
         {/* ── Visual Booking Timeline Stepper ─────────────────────────── */}
-        <View style={[styles.stepperCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={[styles.stepperCard]}>
           <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>
             Booking Protection Lifecycle
           </Text>
@@ -1049,8 +1049,6 @@ const styles = StyleSheet.create({
 
   // Stepper Card
   stepperCard: {
-    borderRadius: 18,
-    borderWidth: 1,
     padding: Spacing.mdl,
     gap: Spacing.md,
   },

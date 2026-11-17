@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet,
   ActivityIndicator, RefreshControl, Share,
 } from 'react-native';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -776,7 +777,7 @@ export default function TripDetailScreen() {
   const showBottomBar = !isOwner && isTripActive && !myRequest;
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <Animated.View entering={FadeIn.duration(300)} style={[styles.container, { backgroundColor: C.background }]}>
       {/* Top Header Bar */}
       <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }, isTablet && styles.tabletCentered]}>
         <Pressable
@@ -953,7 +954,7 @@ export default function TripDetailScreen() {
         </View>
 
         {/* ── Real Interactive Route Street Map Canvas ── */}
-        <View style={[styles.mapSectionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={styles.mapSectionCard}>
           <View style={styles.mapHeaderRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <MaterialIcons name="map" size={16} color={C.primary} />
@@ -977,7 +978,7 @@ export default function TripDetailScreen() {
         </View>
 
         {/* ── BlaBlaCar-Style Journey & Stopovers Itinerary ── */}
-        <View style={[styles.itineraryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={styles.itineraryCard}>
           <View style={styles.itineraryHeader}>
             <View>
               <Text style={[styles.itineraryTitle, { color: C.textPrimary }]}>Route Itinerary</Text>
@@ -1091,7 +1092,7 @@ export default function TripDetailScreen() {
         </View>
 
         {/* Traveler Profile Card (Always Visible to Senders and Owner) */}
-        <View style={[styles.travelerProfileCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={styles.travelerProfileCard}>
           <View style={styles.travelerHeaderRow}>
             <Text style={[styles.travelerSectionTitle, { color: C.textMuted }]}>
               {isOwner ? 'Your Traveler Profile' : 'Trip Host'}
@@ -1174,7 +1175,7 @@ export default function TripDetailScreen() {
         </View>
 
         {/* What this Traveler Can Carry */}
-        <View style={[styles.canCarryCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+        <View style={styles.canCarryCard}>
           <View style={styles.canCarryHeaderRow}>
             <View style={[styles.canCarryIconBox, { backgroundColor: C.primarySubtle }]}>
               <MaterialIcons name="inventory-2" size={20} color={C.primary} />
@@ -1354,8 +1355,7 @@ export default function TripDetailScreen() {
           <View style={[
             styles.statusBanner,
             {
-              backgroundColor: myRequest.status === 'accepted' ? C.successSubtle : C.surface,
-              borderColor: myRequest.status === 'accepted' ? C.successBorder : C.surfaceBorder,
+              backgroundColor: myRequest.status === 'accepted' ? C.successSubtle : 'transparent',
             }
           ]}>
             <View style={styles.statusBannerIcon}>
@@ -1391,7 +1391,7 @@ export default function TripDetailScreen() {
 
         {/* Owner Summary Strip */}
         {isOwner ? (
-          <View style={[styles.ownerStatsStrip, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.ownerStatsStrip}>
             <View style={styles.ownerStatItem}>
               <Text style={[styles.ownerStatVal, { color: C.textPrimary }]}>{visibleRequests.length}</Text>
               <Text style={[styles.ownerStatLbl, { color: C.textMuted }]}>Bookings</Text>
@@ -1426,7 +1426,7 @@ export default function TripDetailScreen() {
             {loading ? (
               <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
             ) : visibleRequests.length === 0 ? (
-              <View style={[styles.emptyRequestsCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <View style={styles.emptyRequestsCard}>
                 <MaterialIcons name="inbox" size={32} color={C.textMuted} />
                 <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No Bookings Yet</Text>
                 <Text style={[styles.emptySub, { color: C.textMuted }]}>
@@ -1543,6 +1543,6 @@ export default function TripDetailScreen() {
         initialToCity={senderMatchedLeg?.to || draftToCity}
       />
 
-    </View>
+    </Animated.View>
   );
 }

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ActivityIndicator, Animated, FlatList, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
+import ReanimatedAnimated, { FadeInDown, FadeIn, FadeInUp, SlideInDown } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, ParcelCard, SwipeableCard, TripCard, LiveMarketplaceHeader, MarketplaceSortOption, RequestSuccessModal, AnimatedIcon, type AnimatedIconRef } from '@/components';
+import { AsyncStateCard, FeedSkeletonList, LottieAnimation, OfflineBanner, ParcelCard, SwipeableCard, TripCard, LiveMarketplaceHeader, MarketplaceSortOption, RequestSuccessModal, AnimatedIcon, type AnimatedIconRef, StaggeredFeedItem } from '@/components';
 import { FilterPanel } from '@/components/feature/FilterPanel';
 import { NotificationPanel } from '@/components/feature/NotificationPanel';
 import { CarryParcelModal, QuickCarryTripParams } from '@/components/feature/CarryParcelModal';
@@ -594,23 +595,7 @@ export default function HomeScreen() {
     }).catch(() => {});
   }, []);
 
-  const heroFade = useRef(new Animated.Value(0)).current;
-  const heroTranslateY = useRef(new Animated.Value(8)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(heroFade, {
-        toValue: 1,
-        duration: 320,
-        useNativeDriver: true,
-      }),
-      Animated.timing(heroTranslateY, {
-        toValue: 0,
-        duration: 320,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [heroFade, heroTranslateY]);
+  // Hero entrance animations are now handled by reanimated entering props below
 
   const defaultCity = useMemo(() => user?.city?.trim() || 'Gurugram', [user?.city]);
   const [locationCity, setLocationCity] = useState<string>(defaultCity);
@@ -966,39 +951,43 @@ export default function HomeScreen() {
     router.push('/(tabs)/requests');
   }, [router]);
 
-  const renderItem = useCallback(({ item }: { item: FeedItem }) => {
+  const renderItem = useCallback(({ item, index }: { item: FeedItem; index: number }) => {
     const isOwner = Boolean(user?.id && item.data.userId === user.id);
     const currentUserAvatar = user?.avatar || user?.selfieUrl;
     if (item.type === 'trip') {
       return (
-        <FeedTripItem
-          trip={item.data}
-          isTablet={isTablet}
-          isOwner={isOwner}
-          currentUserAvatar={currentUserAvatar}
-          existingRequest={requestsByTripId.get(item.data.id)}
-          onPress={handlePressTrip}
-          onRequest={handleRequestTrip}
-          onShare={handleShareTrip}
-          onTrackDelivery={handleTrackDelivery}
-          onViewRequest={handleViewRequest}
-        />
+        <StaggeredFeedItem index={index}>
+          <FeedTripItem
+            trip={item.data}
+            isTablet={isTablet}
+            isOwner={isOwner}
+            currentUserAvatar={currentUserAvatar}
+            existingRequest={requestsByTripId.get(item.data.id)}
+            onPress={handlePressTrip}
+            onRequest={handleRequestTrip}
+            onShare={handleShareTrip}
+            onTrackDelivery={handleTrackDelivery}
+            onViewRequest={handleViewRequest}
+          />
+        </StaggeredFeedItem>
       );
     }
 
     return (
-      <FeedParcelItem
-        parcel={item.data}
-        isTablet={isTablet}
-        isOwner={isOwner}
-        currentUserAvatar={currentUserAvatar}
-        existingRequest={requestsByParcelId.get(item.data.id)}
-        onPress={handlePressParcel}
-        onCarry={handleCarryParcel}
-        onShare={handleShareParcel}
-        onTrackDelivery={handleTrackDelivery}
-        onViewRequest={handleViewRequest}
-      />
+      <StaggeredFeedItem index={index}>
+        <FeedParcelItem
+          parcel={item.data}
+          isTablet={isTablet}
+          isOwner={isOwner}
+          currentUserAvatar={currentUserAvatar}
+          existingRequest={requestsByParcelId.get(item.data.id)}
+          onPress={handlePressParcel}
+          onCarry={handleCarryParcel}
+          onShare={handleShareParcel}
+          onTrackDelivery={handleTrackDelivery}
+          onViewRequest={handleViewRequest}
+        />
+      </StaggeredFeedItem>
     );
   }, [handleCarryParcel, handlePressParcel, handlePressTrip, handleRequestTrip, handleShareParcel, handleShareTrip, handleTrackDelivery, handleViewRequest, isTablet, requestsByParcelId, requestsByTripId, user?.id]);
 
@@ -1183,7 +1172,7 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
         ListHeaderComponent={
           <View style={[styles.headerWrap, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top, Spacing.sm) }, isTablet && styles.tabletContainer]}>
-            <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroTranslateY }] }}>
+            <ReanimatedAnimated.View entering={FadeInDown.duration(400).springify().damping(18).stiffness(90)}>
               <HomeHeader
                 userName={user?.fullName || user?.name || 'there'}
                 avatarUri={user?.avatar}
@@ -1193,18 +1182,21 @@ export default function HomeScreen() {
                 locationCity={locationCity}
                 onCityPress={() => setShowCityPicker(true)}
               />
-            </Animated.View>
+            </ReanimatedAnimated.View>
 
-            
+            <ReanimatedAnimated.View entering={FadeInDown.delay(80).duration(400).springify().damping(18).stiffness(90)}>
+              <SearchBarTrigger
+                onSearchPress={() => router.push('/search')}
+                onFilterPress={() => setShowFilters(true)}
+                hasFilter={hasFilter}
+              />
+            </ReanimatedAnimated.View>
 
-            <SearchBarTrigger
-              onSearchPress={() => router.push('/search')}
-              onFilterPress={() => setShowFilters(true)}
-              hasFilter={hasFilter}
-            />
+            <ReanimatedAnimated.View entering={FadeInDown.delay(150).duration(400).springify().damping(18).stiffness(90)}>
+              <QuickActions />
+            </ReanimatedAnimated.View>
 
-            <QuickActions />
-
+            <ReanimatedAnimated.View entering={FadeIn.delay(220).duration(500)}>
             <PromotionalBannerCarousel
               banners={promotionalBannersQuery.data}
               urgentParcels={urgentParcels}
@@ -1216,7 +1208,9 @@ export default function HomeScreen() {
               onSelectCorridor={(fromCity, toCity) => setFilters((prev) => ({ ...prev, fromCity, toCity }))}
               onNavigateDeepLink={(url) => router.push(url as any)}
             />
+            </ReanimatedAnimated.View>
 
+            <ReanimatedAnimated.View entering={FadeInDown.delay(280).duration(400).springify().damping(18).stiffness(90)}>
             <LiveMarketplaceHeader
               activeTab={activeTab}
               onSelectTab={handleSelectTab}
@@ -1238,6 +1232,7 @@ export default function HomeScreen() {
               onClearAllFilters={handleClearAllFilters}
               tabIndicatorAnim={tabIndicatorAnim}
             />
+            </ReanimatedAnimated.View>
 
             {!isOnline ? <OfflineBanner C={C} /> : null}
           </View>

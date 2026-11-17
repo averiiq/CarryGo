@@ -10,6 +10,7 @@ import {
   Modal,
   StyleSheet,
 } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -104,7 +105,7 @@ function ProposalCard({
   }, [request.createdAt]);
 
   return (
-    <View style={[styles.proposalCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+    <View style={styles.proposalCard}>
       {/* Carrier Info Header */}
       <View style={styles.carrierHeader}>
         <View style={styles.carrierLeft}>
@@ -507,7 +508,7 @@ export default function ParcelDetailScreen() {
   const statusBorder = isParcelOpen ? C.successBorder : parcel.status === 'in_transit' || parcel.status === 'matched' ? C.primaryBorder : C.surfaceBorder;
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <Animated.View entering={FadeIn.duration(300)} style={[styles.container, { backgroundColor: C.background }]}>
       {/* Top Header Bar */}
       <View style={[styles.topNavBar, { paddingTop: StatusBarGeometry.getHeaderPaddingTop(insets.top) }, isTablet && styles.tabletCentered]}>
         <Pressable
@@ -778,7 +779,7 @@ export default function ParcelDetailScreen() {
 
         {/* Sender Attribution Card (Visible to Traveler) */}
         {!isSender ? (
-          <View style={[styles.senderCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={styles.senderCard}>
             <View style={styles.senderCardHeader}>
               <View style={styles.senderCardLeft}>
                 <Image
@@ -811,8 +812,7 @@ export default function ParcelDetailScreen() {
             style={[
               styles.statusBanner,
               {
-                backgroundColor: myRequest.status === 'accepted' ? C.successSubtle : C.surface,
-                borderColor: myRequest.status === 'accepted' ? C.successBorder : C.warning,
+                backgroundColor: myRequest.status === 'accepted' ? C.successSubtle : 'transparent',
               },
             ]}
           >
@@ -874,7 +874,7 @@ export default function ParcelDetailScreen() {
             {loading ? (
               <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
             ) : visibleRequests.length === 0 ? (
-              <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <View style={styles.emptyCard}>
                 <View style={[styles.emptyRadarWrap, { backgroundColor: C.primarySubtle }]}>
                   <MaterialIcons name="radar" size={32} color={C.primary} />
                 </View>
@@ -990,6 +990,6 @@ export default function ParcelDetailScreen() {
           </View>
         </Modal>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }

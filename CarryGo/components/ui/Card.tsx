@@ -1,5 +1,12 @@
-import React, { useRef } from 'react';
-import { StyleSheet, ViewStyle, Pressable, Animated } from 'react-native';
+import React, { useCallback } from 'react';
+import { StyleSheet, ViewStyle, Pressable } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { BorderRadius, Spacing, Motion } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Haptic } from '@/services/haptics.service';
@@ -15,8 +22,37 @@ interface CardProps {
 
 export function Card({ children, style, elevated = false, padded = true, interactive = false, onPress }: CardProps) {
   const { C, S } = useThemeColors();
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
+  const cardOpacity = useSharedValue(1);
   const shouldInteractive = Boolean(interactive || onPress);
+
+  const animStyle = useAnimatedStyle(() => {
+    if (!shouldInteractive) return {};
+    return {
+      transform: [{ scale: scale.value }],
+      opacity: cardOpacity.value,
+    };
+  });
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(Motion.cardScale, { damping: 15, stiffness: 400, mass: 0.4 });
+    cardOpacity.value = withTiming(0.95, { duration: 80 });
+  }, [scale, cardOpacity]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 8, stiffness: 200, mass: 0.5 });
+    cardOpacity.value = withTiming(1, { duration: 150 });
+  }, [scale, cardOpacity]);
+
+  const handlePress = useCallback(() => {
+    Haptic.select();
+    // Spring bounce on tap
+    scale.value = withSequence(
+      withSpring(1.01, { damping: 15, stiffness: 500 }),
+      withSpring(1, { damping: 12, stiffness: 200 }),
+    );
+    onPress?.();
+  }, [onPress, scale]);
 
   const baseStyle: ViewStyle = {
     backgroundColor: elevated ? C.surfaceElevated : C.surface,
@@ -30,7 +66,7 @@ export function Card({ children, style, elevated = false, padded = true, interac
         baseStyle,
         elevated ? S.card : S.sm,
         padded ? styles.padded : styles.compact,
-        shouldInteractive ? { transform: [{ scale }] } : null,
+        shouldInteractive ? animStyle : null,
         style,
       ]}
     >
@@ -43,26 +79,9 @@ export function Card({ children, style, elevated = false, padded = true, interac
   return (
     <Pressable
       android_ripple={{ color: C.overlayLight }}
-      onPress={() => {
-        Haptic.select();
-        onPress?.();
-      }}
-      onPressIn={() => {
-        Animated.spring(scale, {
-          toValue: Motion.cardScale,
-          useNativeDriver: true,
-          tension: Motion.springFast.tension,
-          friction: Motion.springFast.friction,
-        }).start();
-      }}
-      onPressOut={() => {
-        Animated.spring(scale, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: Motion.springBouncy.tension,
-          friction: Motion.springBouncy.friction,
-        }).start();
-      }}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
     >
       {content}
     </Pressable>

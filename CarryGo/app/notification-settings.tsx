@@ -294,7 +294,7 @@ export default function NotificationSettingsScreen() {
               </Pressable>
             </View>
 
-            <View style={[styles.diagCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <View style={styles.diagCard}>
               {/* Permission Status Row */}
               <View style={styles.diagRow}>
                 <View style={[styles.diagIconWrap, { backgroundColor: permState?.granted ? '#10B98118' : '#EF444418' }]}>
@@ -450,7 +450,7 @@ export default function NotificationSettingsScreen() {
           {sections.map((section) => (
             <View key={section.title} style={styles.section}>
               <Text style={[styles.sectionTitle, { color: C.textMuted }]}>{section.title}</Text>
-              <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+              <View style={styles.card}>
                 {section.items.map((item, idx) => {
                   const isEnabled = prefs ? (prefs[item.key] as boolean) : true;
                   const isSaving = saving === item.key;
@@ -521,14 +521,14 @@ const styles = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: FontWeight.bold, fontSize: FontSize.sm },
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.md, gap: 4 },
-  envBanner: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: BorderRadius.lg, borderWidth: 1, marginBottom: 14, alignItems: 'flex-start' },
+  envBanner: { flexDirection: 'row', gap: 12, padding: 12, marginBottom: 14, alignItems: 'flex-start' },
   envBannerContent: { flex: 1, gap: 2 },
   envBannerTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   envBannerText: { fontSize: 11.5, lineHeight: 16 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 2 },
   runDiagBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 2, paddingHorizontal: 6 },
   runDiagText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  diagCard: { borderRadius: BorderRadius.lg, borderWidth: 1, padding: 14, gap: 12, marginBottom: 10 },
+  diagCard: { padding: 14, gap: 12, marginBottom: 10 },
   diagRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   diagIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   diagInfo: { flex: 1 },
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
   infoNoteText: { flex: 1, fontSize: 12, lineHeight: 17 },
   section: { marginBottom: 16 },
   sectionTitle: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, paddingHorizontal: 2 },
-  card: { borderRadius: BorderRadius.lg, borderWidth: 1, overflow: 'hidden' },
+  card: { overflow: 'hidden' },
   prefRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   prefIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   prefTextWrap: { flex: 1, gap: 2 },

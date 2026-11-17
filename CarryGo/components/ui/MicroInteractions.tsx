@@ -1,5 +1,20 @@
-import React, { useCallback, useRef, useEffect } from 'react';
-import { Animated, Pressable, StyleSheet, View, ViewStyle, StyleProp, Insets, AccessibilityRole } from 'react-native';
+import React, { useCallback } from 'react';
+import { Pressable, StyleSheet, View, ViewStyle, StyleProp, Insets, AccessibilityRole, Text } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  withDelay,
+  withRepeat,
+  interpolate,
+  Extrapolation,
+  Easing,
+  FadeInDown,
+  FadeIn,
+  ZoomIn,
+} from 'react-native-reanimated';
 import { Haptic } from '@/services/haptics.service';
 
 export interface AnimatedPressableProps {
@@ -27,30 +42,33 @@ export function AnimatedPressable({
   accessibilityRole,
   accessibilityLabel,
 }: AnimatedPressableProps) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
+  const pressOpacity = useSharedValue(1);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: pressOpacity.value,
+  }));
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: scaleDown,
-      useNativeDriver: true,
-      tension: 320,
-      friction: 18,
-    }).start();
-  }, [scale, scaleDown]);
+    scale.value = withSpring(scaleDown, { damping: 15, stiffness: 400, mass: 0.4 });
+    pressOpacity.value = withTiming(0.92, { duration: 80 });
+  }, [scale, pressOpacity, scaleDown]);
 
   const handlePressOut = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 200,
-      friction: 10,
-    }).start();
-  }, [scale]);
+    scale.value = withSpring(1, { damping: 12, stiffness: 200, mass: 0.5 });
+    pressOpacity.value = withTiming(1, { duration: 120 });
+  }, [scale, pressOpacity]);
 
   const handlePress = useCallback(() => {
     if (haptic) Haptic.tap();
+    // Satisfying micro-bounce on tap
+    scale.value = withSequence(
+      withSpring(1.015, { damping: 15, stiffness: 500 }),
+      withSpring(1, { damping: 12, stiffness: 200 }),
+    );
     onPress?.();
-  }, [haptic, onPress]);
+  }, [haptic, onPress, scale]);
 
   return (
     <Pressable
@@ -63,7 +81,7 @@ export function AnimatedPressable({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }]}>
+      <Animated.View style={[style, animStyle]}>
         {children}
       </Animated.View>
     </Pressable>
@@ -78,25 +96,33 @@ interface PulsingDotProps {
 }
 
 export function PulsingDot({ color, size = 8 }: PulsingDotProps) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  const pulseScale = useSharedValue(1);
+  const pulseOpacity = useSharedValue(0.6);
 
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(scale, { toValue: 2.2, duration: 1000, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: 1000, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 1, duration: 0, useNativeDriver: true }),
-        ]),
-      ])
+  React.useEffect(() => {
+    // Continuous breathing pulse on the UI thread
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(2.2, { duration: 1000, easing: Easing.out(Easing.ease) }),
+        withTiming(1, { duration: 0 }),
+      ),
+      -1,
+      false,
     );
-    loop.start();
-    return () => loop.stop();
-  }, [scale, opacity]);
+    pulseOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 1000, easing: Easing.out(Easing.ease) }),
+        withTiming(0.6, { duration: 0 }),
+      ),
+      -1,
+      false,
+    );
+  }, [pulseScale, pulseOpacity]);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: pulseOpacity.value,
+  }));
 
   return (
     <View style={{ width: size, height: size }}>
@@ -108,9 +134,8 @@ export function PulsingDot({ color, size = 8 }: PulsingDotProps) {
             height: size,
             borderRadius: size / 2,
             backgroundColor: color,
-            opacity,
-            transform: [{ scale }],
           },
+          ringStyle,
         ]}
       />
       <View
@@ -135,43 +160,48 @@ interface PresenceIndicatorProps {
 }
 
 export function PresenceIndicator({ active, color = '#10B981', size = 10 }: PresenceIndicatorProps) {
-  const scale = useRef(new Animated.Value(active ? 1 : 0)).current;
-  const breathe = useRef(new Animated.Value(1)).current;
+  const indicatorScale = useSharedValue(active ? 1 : 0);
+  const breathe = useSharedValue(1);
 
-  useEffect(() => {
-    Animated.spring(scale, {
-      toValue: active ? 1 : 0,
-      useNativeDriver: true,
-      tension: 200,
-      friction: 12,
-    }).start();
-  }, [active, scale]);
+  React.useEffect(() => {
+    indicatorScale.value = withSpring(active ? 1 : 0, { damping: 12, stiffness: 200 });
+  }, [active, indicatorScale]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!active) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathe, { toValue: 1.3, duration: 1200, useNativeDriver: true }),
-        Animated.timing(breathe, { toValue: 1, duration: 1200, useNativeDriver: true }),
-      ])
+    breathe.value = withRepeat(
+      withSequence(
+        withTiming(1.3, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
     );
-    loop.start();
-    return () => loop.stop();
   }, [active, breathe]);
 
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: indicatorScale.value }],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: breathe.value }],
+  }));
+
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={containerStyle}>
       <Animated.View
-        style={{
-          width: size + 6,
-          height: size + 6,
-          borderRadius: (size + 6) / 2,
-          backgroundColor: color + '30',
-          position: 'absolute',
-          top: -3,
-          left: -3,
-          transform: [{ scale: breathe }],
-        }}
+        style={[
+          {
+            width: size + 6,
+            height: size + 6,
+            borderRadius: (size + 6) / 2,
+            backgroundColor: color + '30',
+            position: 'absolute',
+            top: -3,
+            left: -3,
+          },
+          glowStyle,
+        ]}
       />
       <View
         style={{
@@ -193,39 +223,37 @@ interface CountBadgeProps {
 }
 
 export function CountBadge({ count, color = '#EF4444' }: CountBadgeProps) {
-  const scale = useRef(new Animated.Value(0)).current;
-  const prevCount = useRef(count);
+  const badgeScale = useSharedValue(count > 0 ? 1 : 0);
+  const prevCountRef = React.useRef(count);
 
-  useEffect(() => {
-    if (count > 0 && prevCount.current === 0) {
-      scale.setValue(0);
-      Animated.spring(scale, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 250,
-        friction: 6,
-      }).start();
-    } else if (count === 0 && prevCount.current > 0) {
-      Animated.spring(scale, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 200,
-        friction: 14,
-      }).start();
-    } else if (count > prevCount.current) {
-      Animated.sequence([
-        Animated.timing(scale, { toValue: 1.3, duration: 100, useNativeDriver: true }),
-        Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 8 }),
-      ]).start();
+  React.useEffect(() => {
+    const prev = prevCountRef.current;
+    if (count > 0 && prev === 0) {
+      // Pop in
+      badgeScale.value = 0;
+      badgeScale.value = withSpring(1, { damping: 6, stiffness: 250 });
+    } else if (count === 0 && prev > 0) {
+      // Shrink out
+      badgeScale.value = withSpring(0, { damping: 14, stiffness: 200 });
+    } else if (count > prev) {
+      // Bump animation on increment
+      badgeScale.value = withSequence(
+        withTiming(1.3, { duration: 100 }),
+        withSpring(1, { damping: 8, stiffness: 300 }),
+      );
     }
-    prevCount.current = count;
-  }, [count, scale]);
+    prevCountRef.current = count;
+  }, [count, badgeScale]);
+
+  const badgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
+  }));
 
   if (count <= 0) return null;
 
   return (
-    <Animated.View style={[styles.badge, { backgroundColor: color, transform: [{ scale }] }]}>
-      <Animated.Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Animated.Text>
+    <Animated.View style={[styles.badge, { backgroundColor: color }, badgeStyle]}>
+      <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
     </Animated.View>
   );
 }
@@ -237,21 +265,11 @@ interface SlideUpProps {
 }
 
 export function SlideUp({ children, delay = 0, style }: SlideUpProps) {
-  const translateY = useRef(new Animated.Value(24)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 180, friction: 14 }),
-        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, [translateY, opacity, delay]);
-
   return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
+    <Animated.View
+      entering={FadeInDown.delay(delay).duration(400).springify().damping(18).stiffness(90)}
+      style={style}
+    >
       {children}
     </Animated.View>
   );
@@ -264,21 +282,11 @@ interface ScaleInProps {
 }
 
 export function ScaleIn({ children, delay = 0, style }: ScaleInProps) {
-  const scale = useRef(new Animated.Value(0.7)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 160, friction: 10 }),
-        Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, [scale, opacity, delay]);
-
   return (
-    <Animated.View style={[style, { opacity, transform: [{ scale }] }]}>
+    <Animated.View
+      entering={ZoomIn.delay(delay).duration(350).springify().damping(10).stiffness(160)}
+      style={style}
+    >
       {children}
     </Animated.View>
   );

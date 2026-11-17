@@ -337,7 +337,7 @@ export default function EditProfileScreen() {
         keyboardDismissMode="on-drag"
       >
         {/* ── 1. MANDATORY PROFILE PHOTO HERO SECTION ── */}
-        <View style={[styles.avatarCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+        <View style={styles.avatarCard}>
           <LinearGradient
             colors={[C.primarySubtle, 'transparent']}
             style={StyleSheet.absoluteFillObject}
@@ -496,7 +496,7 @@ export default function EditProfileScreen() {
         </View>
 
         {/* ── 2. PERSONAL IDENTITY INFORMATION ── */}
-        <View style={[styles.sectionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+        <View style={styles.sectionCard}>
           <Text style={[styles.cardHeading, { color: C.textMuted }]}>PERSONAL INFORMATION</Text>
 
           {/* Full Name */}
@@ -612,7 +612,7 @@ export default function EditProfileScreen() {
         </View>
 
         {/* ── 3. ROLE PREFERENCE SELECTION ── */}
-        <View style={[styles.sectionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+        <View style={styles.sectionCard}>
           <Text style={[styles.cardHeading, { color: C.textMuted }]}>COMMUNITY ROLE</Text>
 
           <View style={styles.rolesRow}>
@@ -652,7 +652,7 @@ export default function EditProfileScreen() {
         </View>
 
         {/* ── 4. IDENTITY & COMPLIANCE ── */}
-        <View style={[styles.sectionCard, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+        <View style={styles.sectionCard}>
           <Text style={[styles.cardHeading, { color: C.textMuted }]}>SECURITY & VERIFICATION</Text>
 
           {/* Email */}
@@ -819,8 +819,6 @@ const styles = StyleSheet.create({
 
   // ── Avatar Card Styles ──
   avatarCard: {
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
     padding: Spacing.md,
     overflow: 'hidden',
     position: 'relative',
@@ -965,8 +963,6 @@ const styles = StyleSheet.create({
 
   // ── Section Card Styles ──
   sectionCard: {
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.sm + 2,
   },

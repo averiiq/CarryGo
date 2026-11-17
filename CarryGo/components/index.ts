@@ -48,3 +48,5 @@ export { AdvancedFilterModal, type AdvancedFilterState, DEFAULT_FILTERS } from '
 export { TrustTierBadge, computeTrustTier, TRUST_TIER_CONFIGS, type TrustTier } from './ui/TrustTierBadge';
 export { ResponsiveContainer } from './ui/ResponsiveContainer';
 export { DestructiveConfirmationModal, type DestructiveConfirmationModalProps } from './ui/DestructiveConfirmationModal';
+export { AnimatedScreen, StaggerChild, FadeInView, SlideUpView, ZoomInView } from './ui/AnimatedScreen';
+export { ReanimatedPressable, AnimatedCardPressable, BreathingPulse, StaggeredFeedItem, Shimmer, EntranceAnim } from './ui/PremiumAnimations';

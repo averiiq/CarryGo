@@ -82,11 +82,7 @@ function SubCard({
 
   return (
     <View
-      style={[
-        styles.subCard,
-        { backgroundColor: C.surface, borderColor: item.active ? C.primary + '55' : C.surfaceBorder },
-        S.card,
-      ]}
+      style={styles.subCard}
     >
         {item.active && (
           <LinearGradient
@@ -515,8 +511,6 @@ export default function SubscriptionsScreen() {
         <Animated.View
           style={[
             styles.addCard,
-            { backgroundColor: C.surface, borderColor: C.primary + '55' },
-            S.card,
             { transform: [{ translateY: addPanY }], opacity: addOpacity },
           ]}
         >
@@ -706,7 +700,7 @@ export default function SubscriptionsScreen() {
               ) : null
             }
             ListEmptyComponent={() => (
-              <View style={[styles.emptyWrap, { backgroundColor: C.surface, borderColor: C.surfaceBorder }, S.card]}>
+              <View style={styles.emptyWrap}>
                 <View style={[styles.emptyIconBox, { backgroundColor: C.primarySubtle }]}>
                   <Feather name="bell-off" size={36} color={C.primary} />
                 </View>
@@ -786,8 +780,6 @@ const styles = StyleSheet.create({
   // Add Card
   addCard: {
     margin: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.md,
     overflow: 'hidden',
@@ -860,8 +852,6 @@ const styles = StyleSheet.create({
 
   // Sub Card
   subCard: {
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
     overflow: 'hidden',
     flexDirection: 'row',
   },
@@ -966,8 +956,6 @@ const styles = StyleSheet.create({
 
   // Empty
   emptyWrap: {
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
     paddingVertical: 40,
     paddingHorizontal: Spacing.xl,
     alignItems: 'center',

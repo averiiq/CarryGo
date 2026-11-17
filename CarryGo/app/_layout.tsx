@@ -129,7 +129,7 @@ function AppStack() {
       screenOptions={{
         headerShown: false,
         animation: 'ios_from_right',
-        animationDuration: 220,
+        animationDuration: 250,
         gestureEnabled: true,
         fullScreenGestureEnabled: true,
         fullScreenGestureShadowEnabled: true,
@@ -139,16 +139,16 @@ function AppStack() {
         contentStyle: { backgroundColor: C.background },
       }}
     >
-      <Stack.Screen name="index" options={{ animation: 'fade', animationDuration: 200 }} />
-      <Stack.Screen name="login" options={{ animation: 'fade', animationDuration: 200 }} />
-      <Stack.Screen name="onboarding" options={{ animation: 'fade', animationDuration: 200 }} />
-      <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 200 }} />
+      <Stack.Screen name="index" options={{ animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="login" options={{ animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="onboarding" options={{ animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 250 }} />
       <Stack.Screen
         name="create-trip"
         options={{
           headerShown: false,
           animation: 'slide_from_bottom',
-          animationDuration: 220,
+          animationDuration: 280,
           gestureDirection: 'vertical',
         }}
       />
@@ -157,7 +157,7 @@ function AppStack() {
         options={{
           headerShown: false,
           animation: 'slide_from_bottom',
-          animationDuration: 220,
+          animationDuration: 280,
           gestureDirection: 'vertical',
         }}
       />
@@ -166,27 +166,27 @@ function AppStack() {
         options={{
           headerShown: false,
           animation: 'slide_from_bottom',
-          animationDuration: 220,
+          animationDuration: 280,
           gestureDirection: 'vertical',
         }}
       />
       <Stack.Screen name="chat/[id]" options={{ headerShown: true, headerTitle: 'Chat', ...headerOpts }} />
       <Stack.Screen name="delivery/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
-      <Stack.Screen name="search" options={{ headerShown: false }} />
+      <Stack.Screen name="subscriptions" options={{ headerShown: false, animation: 'slide_from_bottom', animationDuration: 280, gestureDirection: 'vertical' }} />
+      <Stack.Screen name="search" options={{ headerShown: false, animation: 'fade', animationDuration: 200 }} />
       <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="parcel/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="my-activity" options={{ headerShown: false }} />
       <Stack.Screen name="kyc" options={{ headerShown: false }} />
-      <Stack.Screen name="support" options={{ headerShown: false }} />
+      <Stack.Screen name="support" options={{ headerShown: false, animation: 'slide_from_bottom', animationDuration: 280, gestureDirection: 'vertical' }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
       <Stack.Screen name="legal/terms" options={{ headerShown: false }} />
       <Stack.Screen name="legal/privacy" options={{ headerShown: false }} />
       <Stack.Screen name="legal/refund-policy" options={{ headerShown: false }} />
       <Stack.Screen name="legal/shipping-policy" options={{ headerShown: false }} />
-      <Stack.Screen name="rewards" options={{ headerShown: false }} />
+      <Stack.Screen name="rewards" options={{ headerShown: false, animation: 'slide_from_bottom', animationDuration: 280, gestureDirection: 'vertical' }} />
     </Stack>
   );
 }

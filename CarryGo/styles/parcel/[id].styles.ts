@@ -335,8 +335,6 @@ export const styles = StyleSheet.create({
 
   // Sender Attribution Card (Traveler Perspective)
   senderCard: {
-    borderRadius: 20,
-    borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.sm,
   },
@@ -392,8 +390,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: Spacing.md,
-    borderRadius: 18,
-    borderWidth: 1,
   },
   statusBannerIcon: {
     width: 40,
@@ -463,8 +459,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.xl + 4,
     paddingHorizontal: Spacing.xl,
-    borderRadius: 20,
-    borderWidth: 1,
     gap: 10,
   },
   emptyRadarWrap: {
@@ -506,11 +500,8 @@ export const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   proposalCard: {
-    borderRadius: 20,
     padding: Spacing.md,
-    borderWidth: 1,
     gap: Spacing.md,
-    ...Shadow.sm,
   },
   carrierHeader: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import {
   Pressable,
   Text,
@@ -6,9 +6,15 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
-  Animated,
   View,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BorderRadius, FontSize, FontWeight, Spacing, Gradients, Motion, TouchTarget } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -44,37 +50,34 @@ export function Button({
 }: ButtonProps) {
   const { C, S } = useThemeColors();
   const isDisabled = disabled || loading;
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
+  const btnOpacity = useSharedValue(1);
 
-  useEffect(() => {
-    if (isDisabled) {
-      scale.setValue(1);
-    }
-  }, [isDisabled, scale]);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: btnOpacity.value,
+  }));
 
-  const onPressIn = () => {
-    Animated.spring(scale, {
-      toValue: Motion.pressScale,
-      useNativeDriver: true,
-      tension: Motion.springFast.tension,
-      friction: Motion.springFast.friction,
-    }).start();
-  };
+  const onPressIn = useCallback(() => {
+    scale.value = withSpring(Motion.pressScale, { damping: 15, stiffness: 400, mass: 0.4 });
+    btnOpacity.value = withTiming(0.93, { duration: 80 });
+  }, [scale, btnOpacity]);
 
-  const onPressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: Motion.springDefault.tension,
-      friction: Motion.springDefault.friction,
-    }).start();
-  };
+  const onPressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 12, stiffness: 200, mass: 0.5 });
+    btnOpacity.value = withTiming(1, { duration: 120 });
+  }, [scale, btnOpacity]);
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     if (isDisabled) return;
     Haptic.tap();
+    // Satisfying micro-bounce feedback
+    scale.value = withSequence(
+      withSpring(1.02, { damping: 15, stiffness: 500 }),
+      withSpring(1, { damping: 12, stiffness: 200 }),
+    );
     onPress();
-  };
+  }, [isDisabled, onPress, scale]);
 
   const sizeStyle = size === 'sm' ? styles.sizeSm : size === 'lg' ? styles.sizeLg : styles.sizeMd;
   const textSizeStyle = size === 'sm' ? styles.textSizeSm : size === 'lg' ? styles.textSizeLg : styles.textSizeMd;
@@ -104,7 +107,7 @@ export function Button({
   }[variant];
 
   return (
-    <Animated.View style={[{ transform: [{ scale }] }, fullWidth && styles.fullWidth, style]}>
+    <Animated.View style={[animStyle, fullWidth && styles.fullWidth, style]}>
       <Pressable
         onPress={handlePress}
         onPressIn={onPressIn}
